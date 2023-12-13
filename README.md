@@ -64,3 +64,13 @@ $ forge --help
 $ anvil --help
 $ cast --help
 ```
+
+---
+
+### Remappings
+
+Manually export forge remappings if the solidity lsp isn't able to detect imports from external libs
+
+```shell
+$ forge remappings > remappings.txt
+```

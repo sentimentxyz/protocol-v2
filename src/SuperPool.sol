@@ -36,6 +36,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         // check that weve seen this pool before
         if (_poolIdx[pool] == 0) {
             pools.push(IERC4626(pool));
+            
             _poolIdx[pool] = pools.length;
         }
 
@@ -84,6 +85,17 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
             uint256 sharesBalance = pools[i].balanceOf(address(this));
             total += pools[i].previewRedeem(sharesBalance);
         }
+    }
+
+    function maxDeposit() public view override returns (uint256 maxAssets) {
+        for (uint256 i = 0; i < pools.length; i++) {
+            maxAssets += poolCap[pool];
+        }
+    }
+
+    function maxMint(address receiver) public view override returns (uint256 maxShares) {
+        uint256 _maxDeposit = maxDeposit();
+        previewDeposit(_maxDeposit);
     }
 
     ////////////////////////// Helpers //////////////////////////

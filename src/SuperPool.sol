@@ -14,7 +14,11 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     mapping(IERC4626 => uint256) public poolCap;
     /// Actually stores poolIdx + 1
     mapping(IERC4626 => uint256) internal _poolIdx;
+    /// List of pools
     IERC4626[] public pools;
+
+    /// The cumaltive deposit cap for all pools
+    uint256 public totalPoolCap;
 
     event PoolCapSet(address indexed pool, uint256 amt);
     event PoolDeposit(address indexed pool, uint256 assets);
@@ -29,6 +33,9 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     ////////////////////////// Only Owner //////////////////////////
     function setPoolCap(address _pool, uint256 assets) external onlyOwner {
         IERC4626 pool = IERC4626(_pool);
+
+        require(pool.previewRedeem(pool.balanceOf(address(this))) <= assets, "SuperPool: cap too low");
+
         if (assets == 0 && poolCap[pool] == 0) {
             // nothing to do
             return;
@@ -41,6 +48,14 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
             _poolIdx[pool] = pools.length;
         }
 
+        // add or remove cumaltive deposit cap
+        uint256 current = poolCap[pool];
+        if (assets > current) {
+            totalPoolCap += assets - current;
+        } else {
+            totalPoolCap -= current - assets;
+        }
+
         poolCap[pool] = assets;
 
         // remove the pool if we set the cap to 0
@@ -50,15 +65,20 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
             // get the actual index of the pool
             uint256 toRemoveIdx = poolIdx(pool);
 
-            // Repalce the pool to remove with the last pool
-            pools[toRemoveIdx] = pools[pools.length - 1];
+            if (toRemoveIdx == len - 1) {
+                // if the pool is the last pool, we can just pop it off
+                pools.pop();
+                _poolIdx[pool] = 0;
+            } else {
+                // Repalce the pool to remove with the last pool
+                pools[toRemoveIdx] = pools[pools.length - 1];
 
-            // copy the last pool address so we can adjust its index 
-            IERC4626 lastPool = pools[len - 1];
-            _poolIdx[lastPool] = toRemoveIdx;
+                // copy the last pool address so we can adjust its index 
+                IERC4626 lastPool = pools[len - 1];
+                _poolIdx[lastPool] = toRemoveIdx + 1;
 
-            pools.pop();
-
+                pools.pop();
+            }
         }
 
         emit PoolCapSet(_pool, assets);
@@ -84,16 +104,17 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
     ////////////////////////// Overrides //////////////////////////
     function totalAssets() public view override returns (uint256 total) {
+        uint256 len = pools.length;
         for (uint256 i = 0; i < pools.length; i++) {
-            uint256 sharesBalance = pools[i].balanceOf(address(this));
-            total += pools[i].previewRedeem(sharesBalance);
+            IERC4626 pool = IERC4626(pools[i]);
+
+            uint256 sharesBalance = pool.balanceOf(address(this));
+            total += pool.previewRedeem(sharesBalance);
         }
     }
 
-    function maxDeposit(address) public view override returns (uint256 maxAssets) {
-        for (uint256 i; i < pools.length; i++) {
-            maxAssets += poolCap[pools[i]];
-        }
+    function maxDeposit(address) public view override returns (uint256) {
+        return totalPoolCap;
     }
 
     function maxMint(address receiver) public view override returns (uint256 maxShares) {
@@ -104,7 +125,11 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     ////////////////////////// Helpers //////////////////////////
 
     /// Warning: reverts if pool is not in the list
-    function poolIdx(IERC4626 pool) public view returns (uint256) {
+    function poolIdx(IERC4626 pool) internal view returns (uint256) {
         return _poolIdx[pool] - 1;
+    }
+
+    function allPools() external view returns (IERC4626[] memory) {
+        return pools;
     }
 }

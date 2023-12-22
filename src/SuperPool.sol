@@ -24,8 +24,8 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     event PoolDeposit(address indexed pool, uint256 assets);
     event PoolWithdraw(address indexed pool, uint256 assets);
 
-    constructor(IERC20 _asset, string memory _name, string memory _symbol)
-        Ownable(msg.sender)
+    constructor(IERC20 _asset, string memory _name, string memory _symbol, address owner)
+        Ownable(owner)
         ERC20(_name, _symbol)
         ERC4626(_asset)
     {}
@@ -105,7 +105,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     ////////////////////////// Overrides //////////////////////////
     function totalAssets() public view override returns (uint256 total) {
         uint256 len = pools.length;
-        for (uint256 i = 0; i < pools.length; i++) {
+        for (uint256 i = 0; i < len; i++) {
             IERC4626 pool = IERC4626(pools[i]);
 
             uint256 sharesBalance = pool.balanceOf(address(this));
@@ -117,9 +117,9 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         return totalPoolCap;
     }
 
-    function maxMint(address receiver) public view override returns (uint256 maxShares) {
+    function maxMint(address) public view override returns (uint256) {
         uint256 _maxDeposit = maxDeposit(address(0));
-        previewDeposit(_maxDeposit);
+        return previewDeposit(_maxDeposit);
     }
 
     ////////////////////////// Helpers //////////////////////////

@@ -12,7 +12,7 @@ contract SuperPoolTest is Test {
 
     function setUp() public {
         mockErC20 = IERC20(address(deployMockERC20("Mock token", "MT", 18)));
-        superPool = new SuperPool(mockErC20, "SuperPool", "SP", address(this));
+        superPool = new SuperPool(address(mockErC20), "SuperPool", "SP", address(this));
     }
 
     function testZereodPoolsAreRemoved() public {
@@ -22,10 +22,12 @@ contract SuperPoolTest is Test {
 
         setPoolCap(pool2, 0);
 
+        IERC4626[] memory pools = superPool.pools();
+
         assertEq(superPool.poolCap(pool2), 0);
-        assertEq(address(superPool.pools(1)), address(pool3));
-        assertEq(address(superPool.pools(0)), address(pool1));
-        assertEq(superPool.allPools().length, 2);
+        assertEq(address(pools[1]), address(pool3));
+        assertEq(address(pools[0]), address(pool1));
+        assertEq(superPool.pools().length, 2);
     }
 
     function testRemoveAllPools() public {
@@ -33,13 +35,13 @@ contract SuperPoolTest is Test {
         IERC4626 pool2 = setDefaultPoolCap();
         IERC4626 pool3 = setDefaultPoolCap();
 
-        assertEq(superPool.allPools().length, 3);
+        assertEq(superPool.pools().length, 3);
 
         setPoolCap(pool1, 0);
         setPoolCap(pool2, 0);
         setPoolCap(pool3, 0);
 
-        assertEq(superPool.allPools().length, 0);
+        assertEq(superPool.pools().length, 0);
     }
 
     function testPoolCapAdjusted() public {
@@ -57,7 +59,7 @@ contract SuperPoolTest is Test {
     }
 
     function setDefaultPoolCap() public returns (IERC4626) {
-        uint256 len = superPool.allPools().length;
+        uint256 len = superPool.pools().length;
         address pool = deployMockPool();
 
         superPool.setPoolCap(pool, 100 + len);

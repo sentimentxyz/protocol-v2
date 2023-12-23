@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
 interface ISuperPool {
     // ERC20 Functions
     function decimals() external view returns (uint8);
@@ -47,7 +49,16 @@ interface ISuperPool {
     );
 
     // SuperPool Functions
-    function poolSetMaxDeposit(address pool) external;
+    // Only Owner
+    function setPoolCap(address pool) external;
     function poolDeposit(address pool, uint256 amt) external;
     function poolWithdraw(address pool, uint256 amt) external;
+
+    // Public 
+    function poolCap(address pool) external view returns (uint256);
+    function pools() external view returns (IERC4626[]);
+
+    function withdrawWithPath(uint256 assets, address reciever, uint256[] memory path) external returns (uint256 shares);
+    function withdrawEnque(uint256 assets, address reciever) external returns (uint256 shares);
+    function proceessWithdraw(uint256 assets, address reciever, uint256[] memory path) external returns (uint256 shares);
 }

@@ -77,6 +77,28 @@ contract Pool is Ownable, Pausable, ERC4626 {
         return amt.mulDiv(totalBorrowShares, getBorrows(), Math.Rounding.Ceil);
     }
 
+    // ERC4626 Functions
+
+    function deposit(uint256 assets, address receiver) public override returns (uint256) {
+        ping();
+        return super.deposit(assets, receiver);
+    }
+
+    function mint(uint256 shares, address receiver) public override returns (uint256) {
+        ping();
+        return super.mint(shares, receiver);
+    }
+
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
+        ping();
+        return super.withdraw(assets, receiver, owner);
+    }
+
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
+        ping();
+        return super.redeem(shares, receiver, owner);
+    }
+
     // Admin Functions
 
     function setPositionManager(address _positionManager) external onlyOwner {
@@ -91,7 +113,5 @@ contract Pool is Ownable, Pausable, ERC4626 {
         originationFee = _originationFee;
     }
 
-    // TODO hooks for deposit and withdraw? avoid rewriting core logic
-    // TODO protocol fee?
-    // TODO cap on deposits in pool or only superpool?
+    // TODO pool caps?
 }

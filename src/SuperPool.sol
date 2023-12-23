@@ -114,7 +114,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     }
 
     function maxDeposit(address) public view override returns (uint256) {
-        return totalPoolCap;
+        return totalPoolCap - totalAssets();
     }
 
     function maxMint(address) public view override returns (uint256) {

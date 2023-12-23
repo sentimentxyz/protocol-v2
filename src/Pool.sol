@@ -74,7 +74,7 @@ contract Pool is Ownable, Pausable, ERC4626 {
     }
 
     function convertAssetToBorrowShares(uint256 amt) internal view returns (uint256) {
-        return amt.mulDiv(totalBorrowShares, getBorrows(), Math.Rounding.Ceil);
+        return totalBorrowShares == 0 ? 0 : amt.mulDiv(totalBorrowShares, getBorrows(), Math.Rounding.Ceil);
     }
 
     // ERC4626 Functions

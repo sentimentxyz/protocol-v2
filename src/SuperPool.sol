@@ -12,30 +12,36 @@ import {PoolCapMapping} from "src/lib/PoolCapMapping.sol";
 contract SuperPool is Ownable, Pausable, ERC4626 {
     using PoolCapMapping for PoolCapMapping.PoolCapMappingStorage;
 
-    mapping (bytes32 => bool) public completedWithdraws;
+    mapping(bytes32 => bool) public completedWithdraws;
     PoolCapMapping.PoolCapMappingStorage internal poolCaps;
     /// The cumlative deposit cap for all pools
     uint256 public totalPoolCap;
 
-
-
     event PoolCapSet(address indexed pool, uint256 amt);
     event PoolDeposit(address indexed pool, uint256 assets);
     event PoolWithdraw(address indexed pool, uint256 assets);
-    event EnquedWithdraw(uint256 indexed assets, address indexed who, bytes32 salt);
+    event EnquedWithdraw(
+        uint256 indexed assets,
+        address indexed who,
+        bytes32 salt
+    );
 
-    constructor(address _asset, string memory _name, string memory _symbol, address owner)
-        Ownable(owner)
-        ERC20(_name, _symbol)
-        ERC4626(IERC20(_asset))
-    {}
+    constructor(
+        address _asset,
+        string memory _name,
+        string memory _symbol,
+        address owner
+    ) Ownable(owner) ERC20(_name, _symbol) ERC4626(IERC20(_asset)) {}
 
     ////////////////////////// Only Owner //////////////////////////
 
     function setPoolCap(address _pool, uint256 assets) external onlyOwner {
         IERC4626 pool = IERC4626(_pool);
 
-        require(pool.previewRedeem(pool.balanceOf(address(this))) <= assets, "SuperPool: cap too low");
+        require(
+            pool.previewRedeem(pool.balanceOf(address(this))) <= assets,
+            "SuperPool: cap too low"
+        );
 
         if (assets == 0 && poolCap(pool) == 0) {
             // nothing to do
@@ -70,32 +76,41 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
     ////////////////////////// Withdraw //////////////////////////
 
-    function withdrawWithPath(uint256 assets, uint256[] memory path)
-        external
-        whenNotPaused
-        returns (uint256 shares)
-    {
+    function withdrawWithPath(
+        uint256 assets,
+        uint256[] memory path
+    ) external whenNotPaused {
         _withdrawWithPath(assets, path);
 
         withdraw(assets, msg.sender, msg.sender);
     }
 
-    function withdrawEnque(uint256 assets, bytes32 salt) external whenNotPaused returns (uint256 shares) {
+    function withdrawEnque(
+        uint256 assets,
+        bytes32 salt
+    ) external whenNotPaused {
         bytes32 _hash = hashWithdraw(assets, salt, msg.sender);
 
-        require(!completedWithdraws[_hash], "SuperPool: withdraw already completed");
+        require(
+            !completedWithdraws[_hash],
+            "SuperPool: withdraw already completed"
+        );
 
         emit EnquedWithdraw(assets, msg.sender, salt);
     }
 
-    function proceessWithdraw(uint256 assets, bytes32 salt, address onBehalfOf, uint256[] memory path)
-        external
-        whenNotPaused
-        returns (uint256 shares)
-    {
+    function proceessWithdraw(
+        uint256 assets,
+        bytes32 salt,
+        address onBehalfOf,
+        uint256[] memory path
+    ) external whenNotPaused {
         bytes32 _hash = hashWithdraw(assets, salt, onBehalfOf);
 
-        require(!completedWithdraws[_hash], "SuperPool: withdraw already completed");
+        require(
+            !completedWithdraws[_hash],
+            "SuperPool: withdraw already completed"
+        );
 
         completedWithdraws[_hash] = true;
 
@@ -106,7 +121,6 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         _withdraw(onBehalfOf, onBehalfOf, onBehalfOf, assets, shares);
     }
 
-
     ////////////////////////// Internal //////////////////////////
 
     function _poolWithdraw(address pool, uint256 assets) internal {
@@ -114,16 +128,19 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         emit PoolWithdraw(pool, assets);
     }
 
-    function _withdrawWithPath(uint256 assets, uint256[] memory path)
-        internal
-        returns (uint256 shares)
-    {
-        require(IERC20(this.asset()).balanceOf(address(this)) < assets, "SuperPool: Path not needed to complete withdrawl");
+    function _withdrawWithPath(
+        uint256 assets,
+        uint256[] memory path
+    ) internal {
+        require(
+            IERC20(this.asset()).balanceOf(address(this)) < assets,
+            "SuperPool: Path not needed to complete withdrawl"
+        );
 
         for (uint256 i = 0; i < path.length; i++) {
             uint256 _assets = path[i];
             if (_assets != 0) {
-                _poolWithdraw(poolCaps.pool(i), assets);
+                _poolWithdraw(address(poolCaps.pool(i)), assets);
             }
         }
     }
@@ -159,25 +176,28 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         return poolCaps.read(_pool);
     }
 
-    function hashWithdraw(uint256 assets, bytes32 salt, address onBehalfOf) public view returns (bytes32) {
+    function hashWithdraw(
+        uint256 assets,
+        bytes32 salt,
+        address onBehalfOf
+    ) public view returns (bytes32) {
         uint256 chainId;
 
         assembly {
             chainId := chainid()
         }
 
-        return keccak256(
-            abi.encodePacked(
-                // domain
-                keccak256(
-                    abi.encodePacked(
-                        "Sentiment V2",
-                        chainId
-                    )
-                ),
-                assets, 
-                salt,
-                onBehalfOf
-            ));
+        return
+            keccak256(
+                abi.encodePacked(
+                    // domain
+                    keccak256(
+                        abi.encodePacked(keccak256("Sentiment V2"), chainId)
+                    ),
+                    assets,
+                    salt,
+                    onBehalfOf
+                )
+            );
     }
 }

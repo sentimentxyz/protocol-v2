@@ -56,7 +56,7 @@ interface ISuperPool {
 
     // Public 
     function poolCap(address pool) external view returns (uint256);
-    function pools() external view returns (IERC4626[]);
+    function pools() external view returns (IERC4626[] memory);
 
     function withdrawWithPath(uint256 assets, address reciever, uint256[] memory path) external returns (uint256 shares);
     function withdrawEnque(uint256 assets, address reciever) external returns (uint256 shares);

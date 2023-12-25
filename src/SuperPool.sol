@@ -12,8 +12,12 @@ import {PoolCapMapping} from "src/lib/PoolCapMapping.sol";
 contract SuperPool is Ownable, Pausable, ERC4626 {
     using PoolCapMapping for PoolCapMapping.PoolCapMappingStorage;
 
+    /// A mapping of completed withdraw hashes
     mapping(bytes32 => bool) public completedWithdraws;
+
+    /// An internal mapping of Pool => Pool Cap, incldudes an array of pools with non zero cap.
     PoolCapMapping.PoolCapMappingStorage internal poolCaps;
+
     /// The cumlative deposit cap for all pools
     uint256 public totalPoolCap;
 
@@ -71,7 +75,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     }
 
     function poolWithdraw(address pool, uint256 assets) external onlyOwner {
-        _poolWithdraw(pool, assets);
+        _poolWithdraw(IERC4626(pool), assets);
     }
 
     ////////////////////////// Withdraw //////////////////////////
@@ -87,9 +91,10 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
     function withdrawEnque(
         uint256 assets,
+        uint256 deadline,
         bytes32 salt
     ) external whenNotPaused {
-        bytes32 _hash = hashWithdraw(assets, salt, msg.sender);
+        bytes32 _hash = hashWithdraw(assets, deadline, salt, msg.sender);
 
         require(
             !completedWithdraws[_hash],
@@ -101,11 +106,12 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
     function proceessWithdraw(
         uint256 assets,
+        uint256 deadline,
         bytes32 salt,
         address onBehalfOf,
         uint256[] memory path
     ) external whenNotPaused {
-        bytes32 _hash = hashWithdraw(assets, salt, onBehalfOf);
+        bytes32 _hash = hashWithdraw(assets, deadline, salt, onBehalfOf);
 
         require(
             !completedWithdraws[_hash],
@@ -116,16 +122,23 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
         _withdrawWithPath(assets, path);
 
-        // use the internal function here to override the caller
-        uint256 shares = previewWithdraw(assets);
-        _withdraw(onBehalfOf, onBehalfOf, onBehalfOf, assets, shares);
+        // We want touse the internal withdraw function here to avoid the msg.sender 
+        // check that the public withdraw function would force on us. We do this because if not
+        // whoever fullfills the withdraw would need approval
+        _withdraw({
+            caller: onBehalfOf, 
+            receiver: onBehalfOf, 
+            owner: onBehalfOf, 
+            assets: assets, 
+            shares: previewWithdraw(assets)
+        });
     }
 
     ////////////////////////// Internal //////////////////////////
 
-    function _poolWithdraw(address pool, uint256 assets) internal {
-        IERC4626(pool).withdraw(assets, address(this), address(this));
-        emit PoolWithdraw(pool, assets);
+    function _poolWithdraw(IERC4626 pool, uint256 assets) internal {
+        pool.withdraw(assets, address(this), address(this));
+        emit PoolWithdraw(address(pool), assets);
     }
 
     function _withdrawWithPath(
@@ -140,7 +153,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         for (uint256 i = 0; i < path.length; i++) {
             uint256 _assets = path[i];
             if (_assets != 0) {
-                _poolWithdraw(address(poolCaps.pool(i)), assets);
+                _poolWithdraw(poolCaps.pool(i), _assets);
             }
         }
     }
@@ -178,6 +191,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
     function hashWithdraw(
         uint256 assets,
+        uint256 deadline,
         bytes32 salt,
         address onBehalfOf
     ) public view returns (bytes32) {
@@ -195,6 +209,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
                         abi.encodePacked(keccak256("Sentiment V2"), chainId)
                     ),
                     assets,
+                    deadline,
                     salt,
                     onBehalfOf
                 )

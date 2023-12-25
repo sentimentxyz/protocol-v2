@@ -26,8 +26,9 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     event PoolWithdraw(address indexed pool, uint256 assets);
     event EnquedWithdraw(
         uint256 indexed assets,
-        address indexed who,
-        bytes32 salt
+        uint256 indexed deadline,
+        bytes32 indexed salt,
+        address who
     );
 
     constructor(
@@ -101,7 +102,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
             "SuperPool: withdraw already completed"
         );
 
-        emit EnquedWithdraw(assets, msg.sender, salt);
+        emit EnquedWithdraw(assets, deadline, salt, msg.sender);
     }
 
     function proceessWithdraw(

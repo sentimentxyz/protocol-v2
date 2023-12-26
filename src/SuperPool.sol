@@ -123,14 +123,14 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
         _withdrawWithPath(assets, path);
 
-        // We want touse the internal withdraw function here to avoid the msg.sender 
+        // We want to use the internal withdraw function here to avoid the msg.sender
         // check that the public withdraw function would force on us. We do this because if not
         // whoever fullfills the withdraw would need approval
         _withdraw({
-            caller: onBehalfOf, 
-            receiver: onBehalfOf, 
-            owner: onBehalfOf, 
-            assets: assets, 
+            caller: onBehalfOf,
+            receiver: onBehalfOf,
+            owner: onBehalfOf,
+            assets: assets,
             shares: previewWithdraw(assets)
         });
     }
@@ -142,20 +142,25 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         emit PoolWithdraw(address(pool), assets);
     }
 
-    function _withdrawWithPath(
-        uint256 assets,
-        uint256[] memory path
-    ) internal {
-        require(
-            IERC20(this.asset()).balanceOf(address(this)) < assets,
-            "SuperPool: Path not needed to complete withdrawl"
-        );
 
-        for (uint256 i = 0; i < path.length; i++) {
-            uint256 _assets = path[i];
-            if (_assets != 0) {
-                _poolWithdraw(poolCaps.pool(i), _assets);
-            }
+    function _withdrawWithPath(uint256 assets, uint256[] memory path) internal {
+        uint256 balance = IERC20(this.asset()).balanceOf(address(this));
+
+        if (balance > assets) {
+            return;
+        } else {
+            // We only want to allow a user to withdraw enough to cover the differnce
+            uint256 diff = assets - balance;
+
+            for (uint256 i; i < path.length; i++) {
+                if (path[i] > diff) {
+                    diff -= path[i];
+                    _poolWithdraw(poolCaps.pool(i), path[i]);
+                } else {
+                    _poolWithdraw(poolCaps.pool(i), diff);
+                    break;
+                }
+            }            
         }
     }
 
@@ -163,7 +168,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
     function totalAssets() public view override returns (uint256 total) {
         uint256 len = poolCaps.length();
-        for (uint256 i = 0; i < len; i++) {
+        for (uint256 i; i < len; i++) {
             IERC4626 pool = IERC4626(poolCaps.pool(i));
 
             uint256 sharesBalance = pool.balanceOf(address(this));

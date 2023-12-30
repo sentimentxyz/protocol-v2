@@ -43,12 +43,11 @@ contract PositionManager {
 
                 assembly {
                     // calldata location for action[i].data to get data offset -> 28 + 98 * i
-                    data := calldataload(calldataload(add(0x1c, mul(0x62, i))))
-
+                    data := calldataload(add(0x20, calldataload(add(0x1c, mul(0x62, i)))))
                     // Op and target encoded as a tuple at action[i].op -> 28 + 70 * i
                     let opTarget := calldataload(add(0x1c, mul(0x46, i)))
-                    op := shr(opTarget, 24)
-                    target := and(shr(opTarget, 0x4), 0x000000000000000000001111111111111111111111111111111111111111)
+                    op := shr(opTarget, 0x18)
+                    target := and(shr(opTarget, 0x4), 0x00000000000000000000ffffffffffffffffffffffffffffffffffffffff)
                 }
 
                 if (op == Operation.Repay) {
@@ -61,7 +60,6 @@ contract PositionManager {
                     withdraw(position, target, data);
                 }
             }
-
             // TODO health check
         }
     }

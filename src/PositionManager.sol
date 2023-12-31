@@ -44,9 +44,9 @@ contract PositionManager {
 
                 assembly {
                     let offset := mul(0xa0, i)
-                    op := calldataload(add(0x68, offset))
-                    target := calldataload(add(0x88, offset))
-                    data := calldataload(add(0xc8, offset))
+                    op := calldataload(add(0x64, offset))
+                    target := calldataload(add(0x84, offset))
+                    data := calldataload(add(0xc4, offset))
                 }
 
                 if (op == Operation.Repay) {

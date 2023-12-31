@@ -37,6 +37,8 @@ contract Pool is Ownable, Pausable, ERC4626 {
         ERC4626(asset)
     {}
 
+    // Pool Actions
+
     function borrow(address position, uint256 amt) external whenNotPaused {
         if (msg.sender != positionManager) revert PositionManagerOnly();
         ping();
@@ -50,18 +52,24 @@ contract Pool is Ownable, Pausable, ERC4626 {
     }
 
     /// @dev assume assets have already been transferred successfully in the same txn
-    function repay(address position, uint256 amt) external {
+    function repay(address position, uint256 amt) external returns (uint256) {
         if (msg.sender != positionManager) revert PositionManagerOnly();
         ping();
         uint256 borrowShares = convertAssetToBorrowShares(amt);
         if (borrowShares == 0) revert ZeroShares();
-        borrowSharesOf[position] -= borrowShares;
-        totalBorrowShares -= borrowShares;
         totalBorrows -= amt;
+        totalBorrowShares -= borrowShares;
+        return (borrowSharesOf[position] -= borrowShares);
     }
+
+    // View Functions
 
     function getBorrows() public view returns (uint256) {
         return totalBorrows.mulDiv(1e18 + rateModel.rateFactor(), 1e18, Math.Rounding.Ceil);
+    }
+
+    function getBorrowsOf(address position) public view returns (uint256) {
+        return convertBorrowSharesToAsset(borrowSharesOf[position]);
     }
 
     function ping() public {
@@ -75,6 +83,10 @@ contract Pool is Ownable, Pausable, ERC4626 {
 
     function convertAssetToBorrowShares(uint256 amt) internal view returns (uint256) {
         return totalBorrowShares == 0 ? 0 : amt.mulDiv(totalBorrowShares, getBorrows(), Math.Rounding.Ceil);
+    }
+
+    function convertBorrowSharesToAsset(uint256 amt) internal view returns (uint256) {
+        return totalBorrowShares == 0 ? 0 : amt.mulDiv(getBorrows(), totalBorrowShares, Math.Rounding.Floor);
     }
 
     // ERC4626 Functions

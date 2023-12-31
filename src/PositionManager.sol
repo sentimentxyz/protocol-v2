@@ -20,6 +20,7 @@ contract PositionManager {
     mapping(address => mapping(address => bool)) auth;
 
     error Unauthorized();
+    error InvalidOperation();
 
     function newPosition() external {
         // TODO deploy new position for msg.sender
@@ -56,6 +57,8 @@ contract PositionManager {
                     deposit(position, target, data);
                 } else if (op == Operation.Withdraw) {
                     withdraw(position, target, data);
+                } else {
+                    revert InvalidOperation();
                 }
             }
             // TODO health check

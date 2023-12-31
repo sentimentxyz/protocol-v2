@@ -42,12 +42,10 @@ contract PositionManager {
                 uint256 data;
 
                 assembly {
-                    // calldata location for action[i].data to get data offset -> 28 + 98 * i
-                    data := calldataload(add(0x20, calldataload(add(0x1c, mul(0x62, i)))))
-                    // Op and target encoded as a tuple at action[i].op -> 28 + 70 * i
-                    let opTarget := calldataload(add(0x1c, mul(0x46, i)))
-                    op := shr(opTarget, 0x18)
-                    target := and(shr(opTarget, 0x4), 0x00000000000000000000ffffffffffffffffffffffffffffffffffffffff)
+                    let offset := mul(0xa0, i)
+                    op := calldataload(add(0x68, offset))
+                    target := calldataload(add(0x88, offset))
+                    data := calldataload(add(0xc8, offset))
                 }
 
                 if (op == Operation.Repay) {

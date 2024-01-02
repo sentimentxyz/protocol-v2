@@ -4,18 +4,18 @@ pragma solidity ^0.8.23;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {IPool} from "./interfaces/IPool.sol";
-import {IterableMap} from "./lib/IterableMap.sol";
+import {IPool} from "../interfaces/IPool.sol";
+import {IterableMap} from "../lib/IterableMap.sol";
 
-contract Position {
+contract SingleDebtPosition {
     using SafeERC20 for IERC20;
     using IterableMap for IterableMap.IterableMapStorage;
 
     // single debt pool; multiple position assets
-    uint8 public constant TYPE = 0x1;
+    uint256 public constant TYPE = 0x1;
 
     address public owner;
-    address public debtPool;
+    address internal debtPool;
     address public positionManager;
 
     IterableMap.IterableMapStorage internal assets;

@@ -53,8 +53,8 @@ contract SingleCollatPosition {
         IERC20(IPool(pool).asset()).safeTransfer(pool, amt);
     }
 
-    function exec(address target, uint256 amt, bytes calldata data) external onlyPositionManager {
-        (bool success,) = target.call{value: amt}(data);
+    function exec(address target, bytes calldata data) external onlyPositionManager {
+        (bool success,) = target.call(data);
         if (!success) revert InvalidOperation();
     }
 

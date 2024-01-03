@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {IPosition} from "./interfaces/IPosition.sol";
+
 contract PositionManager {
     enum Operation {
         Exec,
@@ -28,7 +30,7 @@ contract PositionManager {
     }
 
     function setAuth(address user, address position, bool isAuthorized) external {
-        if (auth[msg.sender][position]) revert Unauthorized();
+        if (msg.sender == IPosition(position).owner()) revert Unauthorized();
         auth[user][position] = isAuthorized;
     }
 

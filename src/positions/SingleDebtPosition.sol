@@ -28,7 +28,7 @@ contract SingleDebtPosition {
         _;
     }
 
-    /// @dev assume that funds are sent in the same txn before deposit is called
+    /// @dev assume that funds are sent in the same txn after deposit is called
     function deposit(address asset, uint256 amt) external onlyPositionManager {
         assets.set(asset, amt);
     }

@@ -19,15 +19,30 @@ library IterableMap {
             self.keys.push(key);
             self.idxOf[key] = self.keys.length;
         }
+
+        uint256 len = self.keys.length;
+
         self.valueOf[key] = val;
-        // remove key
+
         if (val == 0) {
-            address lastKey = self.keys[self.keys.length - 1]; // copy the last key in self.keys
-            uint256 toRemoveIdx = self.idxOf[key] - 1; // idx of key to be removed
-            self.keys[toRemoveIdx] = lastKey; // overwrite the key to be removed with the last key
-            self.idxOf[lastKey] = toRemoveIdx + 1; // update the id of the last key
+            // idx of key to be removed
+            uint256 toRemoveIdx = self.idxOf[key] - 1;
+            self.idxOf[key] = 0;
+
+            if (toRemoveIdx != len - 1) {
+                // copy the last key in self.keys
+                address lastKey = self.keys[self.keys.length - 1];
+
+                // overwrite the key to be removed with the last key
+                self.keys[toRemoveIdx] = lastKey;
+
+                // update the id of the last key
+                self.idxOf[lastKey] = toRemoveIdx + 1;
+            }
+
             self.keys.pop();
         }
+
         return val;
     }
 

@@ -5,27 +5,27 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IPool} from "../interfaces/IPool.sol";
-import {IterableMap} from "../lib/IterableMap.sol";
+import {IterableSet} from "../lib/IterableSet.sol";
 
 import {BasePosition} from "./BasePosition.sol";
 
 contract SingleDebtPosition is BasePosition {
     using SafeERC20 for IERC20;
-    using IterableMap for IterableMap.IterableMapStorage;
+    using IterableSet for IterableSet.IterableSetStorage;
 
     // single debt pool; multiple position assets
     uint256 public constant override TYPE = 0x1;
 
     address internal debtPool;
-    IterableMap.IterableMapStorage internal assets;
+    IterableSet.IterableSetStorage internal assets;
 
     /// @dev assume that funds are sent in the same txn after deposit is called
-    function deposit(address asset, uint256 amt) external override onlyPositionManager {
-        assets.set(asset, amt);
+    function deposit(address asset, uint256) external override onlyPositionManager {
+        assets.insert(asset);
     }
 
     function withdraw(address asset, uint256 amt) external override onlyPositionManager {
-        assets.set(asset, assets.get(asset) - amt);
+        if (IERC20(asset).balanceOf(address(this)) == amt) assets.remove(asset);
         IERC20(asset).safeTransfer(owner, amt);
     }
 
@@ -53,7 +53,7 @@ contract SingleDebtPosition is BasePosition {
     }
 
     function getAssets() external view override returns (address[] memory) {
-        return assets.getKeys();
+        return assets.getElements();
     }
 
     function getDebtPools() external view override returns (address[] memory) {

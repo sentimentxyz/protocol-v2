@@ -27,15 +27,12 @@ contract SingleDebtPosition is BasePosition {
         }
     }
 
-    function repay(address _pool, uint256 _amt) external override onlyPositionManager {
-        // TODO revisit this
-        if (_pool != debtPool) revert InvalidOperation();
-        IPool pool = IPool(_pool);
-        uint256 amt = (_amt == type(uint256).max) ? pool.getBorrowsOf(address(this)) : _amt;
-        IERC20(IPool(debtPool).asset()).safeTransfer(address(pool), amt);
-        if (IPool(pool).repay(address(this), amt) == 0) {
+    function repay(address pool, uint256 amt) external override onlyPositionManager {
+        if (pool != debtPool) revert InvalidOperation();
+        if (IPool(pool).getBorrowsOf(address(this)) == amt) {
             debtPool = address(0);
         }
+        IERC20(IPool(debtPool).asset()).safeTransfer(address(pool), amt);
     }
 
     function exec(address target, bytes calldata data) external override onlyPositionManager {

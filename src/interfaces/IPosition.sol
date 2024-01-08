@@ -10,7 +10,9 @@ interface IPosition {
 
     function repay(address pool, uint256 amt) external;
     function borrow(address pool, uint256 amt) external;
-    function deposit(address asset, uint256 amt) external;
     function withdraw(address asset, uint256 amt) external;
     function exec(address target, bytes calldata data) external;
+
+    function addAsset(address asset) external;
+    function removeAsset(address asset) external;
 }

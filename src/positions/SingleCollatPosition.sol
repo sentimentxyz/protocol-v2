@@ -20,22 +20,6 @@ contract SingleCollatPosition is BasePosition {
 
     IterableSet.IterableSetStorage internal debtPools;
 
-    /// @dev assume that funds are sent in the same txn after deposit is called
-    function deposit(address asset, uint256) external override onlyPositionManager {
-        if (positionAsset == address(0)) {
-            positionAsset = asset;
-        } else if (positionAsset != asset) {
-            revert InvalidOperation();
-        }
-    }
-
-    function withdraw(address asset, uint256 amt) external override onlyPositionManager {
-        if (IERC20(asset).balanceOf(address(this)) == amt) {
-            positionAsset = address(0);
-        }
-        IERC20(asset).safeTransfer(owner, amt);
-    }
-
     function borrow(address pool, uint256) external override onlyPositionManager {
         debtPools.insert(pool);
     }
@@ -58,5 +42,15 @@ contract SingleCollatPosition is BasePosition {
 
     function getDebtPools() external view override returns (address[] memory) {
         return debtPools.getElements();
+    }
+
+    function addAsset(address asset) external {
+        positionAsset = asset;
+    }
+
+    function removeAsset(address asset) external {
+        if (positionAsset == asset) {
+            positionAsset = address(0);
+        }
     }
 }

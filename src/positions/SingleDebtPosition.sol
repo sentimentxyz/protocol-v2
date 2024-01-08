@@ -19,16 +19,6 @@ contract SingleDebtPosition is BasePosition {
     address internal debtPool;
     IterableSet.IterableSetStorage internal assets;
 
-    /// @dev assume that funds are sent in the same txn after deposit is called
-    function deposit(address asset, uint256) external override onlyPositionManager {
-        assets.insert(asset);
-    }
-
-    function withdraw(address asset, uint256 amt) external override onlyPositionManager {
-        if (IERC20(asset).balanceOf(address(this)) == amt) assets.remove(asset);
-        IERC20(asset).safeTransfer(owner, amt);
-    }
-
     function borrow(address pool, uint256) external override onlyPositionManager {
         if (debtPool == address(0)) {
             debtPool = pool;
@@ -38,6 +28,7 @@ contract SingleDebtPosition is BasePosition {
     }
 
     function repay(address _pool, uint256 _amt) external override onlyPositionManager {
+        // TODO revisit this
         if (_pool != debtPool) revert InvalidOperation();
         IPool pool = IPool(_pool);
         uint256 amt = (_amt == type(uint256).max) ? pool.getBorrowsOf(address(this)) : _amt;
@@ -60,5 +51,13 @@ contract SingleDebtPosition is BasePosition {
         address[] memory debtPools = new address[](1);
         debtPools[0] = debtPool;
         return debtPools;
+    }
+
+    function addAsset(address asset) external {
+        assets.insert(asset);
+    }
+
+    function removeAsset(address asset) external {
+        assets.remove(asset);
     }
 }

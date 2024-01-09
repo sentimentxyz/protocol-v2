@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {IOracle} from "./interfaces/IOracle.sol";
 import {IRateModel} from "./interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -22,6 +23,8 @@ contract Pool is Ownable, Pausable, ERC4626 {
 
     uint256 public lastUpdated;
     uint256 public originationFee;
+
+    mapping(address => address) oracleFor;
 
     /// @dev cached total notional borrows, call getBorrows() for updated value
     uint256 public totalBorrows;
@@ -89,6 +92,11 @@ contract Pool is Ownable, Pausable, ERC4626 {
         return totalBorrowShares == 0 ? 0 : amt.mulDiv(getBorrows(), totalBorrowShares, Math.Rounding.Floor);
     }
 
+    function convertToWei(address asset, uint256 amt) external view returns (uint256) {
+        if (oracleFor[asset] == address(0)) return 0;
+        return IOracle(oracleFor[asset]).convertToWei(asset, amt);
+    }
+
     // ERC4626 Functions
 
     function deposit(uint256 assets, address receiver) public override returns (uint256) {
@@ -123,6 +131,10 @@ contract Pool is Ownable, Pausable, ERC4626 {
 
     function setOriginationFee(uint256 _originationFee) external onlyOwner {
         originationFee = _originationFee;
+    }
+
+    function setOracle(address asset, address oracle) external onlyOwner {
+        oracleFor[asset] = oracle;
     }
 
     // TODO pool caps?

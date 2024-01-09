@@ -10,6 +10,19 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 contract HealthCheck {
     using Math for uint256;
 
+    error InvalidOperation();
+
+    function isPositionHealthy(address _position) external view returns (bool) {
+        IPosition position = IPosition(_position);
+        if (position.TYPE() == 0x1) {
+            return checkT1(_position);
+        } else if (position.TYPE() == 0x2) {
+            return checkT2(_position);
+        } else {
+            revert InvalidOperation();
+        }
+    }
+
     function checkT1(address position) internal view returns (bool) {
         IPool pool = IPool(IPosition(position).getDebtPools()[0]);
         address debtAsset = pool.asset();

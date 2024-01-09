@@ -13,6 +13,8 @@ contract SingleCollatPosition is BasePosition {
     using SafeERC20 for IERC20;
     using IterableSet for IterableSet.IterableSetStorage;
 
+    uint256 internal constant MAX_DEBT_POOLS = 6;
+
     // single position asset; multiple debt assets
     uint256 public constant override TYPE = 0x2;
 
@@ -21,6 +23,7 @@ contract SingleCollatPosition is BasePosition {
     IterableSet.IterableSetStorage internal debtPools;
 
     function borrow(address pool, uint256) external override onlyPositionManager {
+        if (debtPools.length() >= MAX_DEBT_POOLS) revert InvalidOperation();
         debtPools.insert(pool);
     }
 

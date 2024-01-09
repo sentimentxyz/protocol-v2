@@ -35,4 +35,8 @@ library IterableSet {
     function getElements(IterableSetStorage storage self) internal view returns (address[] memory) {
         return self.elements;
     }
+
+    function length(IterableSetStorage storage self) internal view returns (uint256) {
+        return self.elements.length;
+    }
 }

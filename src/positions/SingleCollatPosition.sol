@@ -5,43 +5,27 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IPool} from "../interfaces/IPool.sol";
-import {IterableMap} from "../lib/IterableMap.sol";
+import {IterableSet} from "../lib/IterableSet.sol";
 
 import {BasePosition} from "./BasePosition.sol";
 
 contract SingleCollatPosition is BasePosition {
     using SafeERC20 for IERC20;
-    using IterableMap for IterableMap.IterableMapStorage;
+    using IterableSet for IterableSet.IterableSetStorage;
 
     // single position asset; multiple debt assets
     uint256 public constant override TYPE = 0x2;
 
     address internal positionAsset;
 
-    IterableMap.IterableMapStorage internal debtPools;
+    IterableSet.IterableSetStorage internal debtPools;
 
-    /// @dev assume that funds are sent in the same txn after deposit is called
-    function deposit(address asset, uint256) external override onlyPositionManager {
-        if (positionAsset == address(0)) {
-            positionAsset = asset;
-        } else if (positionAsset != asset) {
-            revert InvalidOperation();
-        }
-    }
-
-    function withdraw(address asset, uint256 amt) external override onlyPositionManager {
-        if (IERC20(asset).balanceOf(address(this)) == amt) {
-            positionAsset = address(0);
-        }
-        IERC20(asset).safeTransfer(owner, amt);
-    }
-
-    function borrow(address pool, uint256 amt) external override onlyPositionManager {
-        debtPools.set(pool, debtPools.get(pool) + amt);
+    function borrow(address pool, uint256) external override onlyPositionManager {
+        debtPools.insert(pool);
     }
 
     function repay(address pool, uint256 amt) external override onlyPositionManager {
-        debtPools.set(pool, debtPools.get(pool) - amt);
+        if (IPool(pool).getBorrowsOf(address(this)) == amt) debtPools.remove(pool);
         IERC20(IPool(pool).asset()).safeTransfer(pool, amt);
     }
 
@@ -57,6 +41,16 @@ contract SingleCollatPosition is BasePosition {
     }
 
     function getDebtPools() external view override returns (address[] memory) {
-        return debtPools.getKeys();
+        return debtPools.getElements();
+    }
+
+    function addAsset(address asset) external onlyPositionManager {
+        positionAsset = asset;
+    }
+
+    function removeAsset(address asset) external onlyPositionManager {
+        if (positionAsset == asset) {
+            positionAsset = address(0);
+        }
     }
 }

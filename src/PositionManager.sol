@@ -15,7 +15,8 @@ contract PositionManager {
         Repay,
         Borrow,
         Deposit,
-        Withdraw
+        Withdraw,
+        UpdateAsset
     }
 
     struct Action {
@@ -44,7 +45,7 @@ contract PositionManager {
         if (auth[msg.sender][position]) revert Unauthorized();
         for (uint256 i; i < actions.length; ++i) {
             if (actions[i].op == Operation.Exec) {
-                exec(position, actions[i].target, actions[i].data);
+                IPosition(position).exec(actions[i].target, actions[i].data);
             } else {
                 Operation op;
                 address target;
@@ -61,16 +62,18 @@ contract PositionManager {
                     repay(position, target, data);
                 } else if (op == Operation.Borrow) {
                     borrow(position, target, data);
-                } else if (op == Operation.Deposit) {
-                    deposit(position, target, data);
+                } else if (op == Operation.UpdateAsset) {
+                    updateAsset(position, target, data);
                 } else if (op == Operation.Withdraw) {
-                    withdraw(position, target, data);
+                    IPosition(position).withdraw(target, data);
+                } else if (op == Operation.Deposit) {
+                    IERC20(target).safeTransferFrom(msg.sender, position, data);
                 } else {
                     revert InvalidOperation();
                 }
             }
-            // TODO health check
         }
+        // TODO health check
     }
 
     function repay(address position, address pool, uint256 _amt) internal {
@@ -86,17 +89,12 @@ contract PositionManager {
         IPool(pool).borrow(position, amt);
     }
 
-    function deposit(address position, address asset, uint256 amt) internal {
-        IPosition(position).deposit(asset, amt);
-        IERC20(asset).safeTransferFrom(msg.sender, position, amt);
-    }
-
-    function withdraw(address position, address asset, uint256 amt) internal {
-        IPosition(position).withdraw(asset, amt);
-    }
-
-    function exec(address position, address target, bytes calldata data) internal {
-        IPosition(position).exec(target, data);
+    function updateAsset(address position, address asset, uint256 data) internal {
+        if (data == 0x0) {
+            IPosition(position).removeAsset(asset);
+        } else if (data == 0x1) {
+            IPosition(position).addAsset(asset);
+        }
     }
 
     // TODO liquidation

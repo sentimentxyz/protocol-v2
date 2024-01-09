@@ -44,11 +44,11 @@ contract SingleCollatPosition is BasePosition {
         return debtPools.getElements();
     }
 
-    function addAsset(address asset) external {
+    function addAsset(address asset) external onlyPositionManager {
         positionAsset = asset;
     }
 
-    function removeAsset(address asset) external {
+    function removeAsset(address asset) external onlyPositionManager {
         if (positionAsset == asset) {
             positionAsset = address(0);
         }

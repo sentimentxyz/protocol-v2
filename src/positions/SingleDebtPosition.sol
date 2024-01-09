@@ -50,11 +50,11 @@ contract SingleDebtPosition is BasePosition {
         return debtPools;
     }
 
-    function addAsset(address asset) external {
+    function addAsset(address asset) external onlyPositionManager {
         assets.insert(asset);
     }
 
-    function removeAsset(address asset) external {
+    function removeAsset(address asset) external onlyPositionManager {
         assets.remove(asset);
     }
 }

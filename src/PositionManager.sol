@@ -19,7 +19,7 @@ enum Operation {
     NewPosition
 }
 
-struct Action {
+struct Actions {
     Operation[] op;
     bytes[] data;
 }
@@ -46,12 +46,12 @@ contract PositionManager {
         singleCollat = _singleCollat;
     }
 
-    function setAuth(address user, address position, bool isAuthorized) external {
+    function setAuth(address user, address position, bool _isAuthorized) external {
         if (msg.sender == posOwner[position]) revert Unauthorized();
-        auth[user][position] = isAuthorized;
+        auth[user][position] = _isAuthorized;
     }
 
-    function process(address[] position, Action[] calldata actions) external {
+    function process(address[] calldata position, Actions[] calldata actions) external {
         if (position.length != actions.length) revert LengthMismatch();
 
         for (uint256 i; i < position.length; ++i) {
@@ -70,7 +70,19 @@ contract PositionManager {
                 address _pos = newPosition(posType, _salt);
                 if (_pos != position[i]) revert Unauthorized();
 
-                _process(_pos, actions[1:]);
+                uint256 newLen = actions[i].op.length - 1;
+                Actions memory _actions = Actions({
+                    op: new Operation[](newLen),
+                    data: new bytes[](newLen)
+                });
+
+                // weve already done length match checks
+                for (uint256 j = 1; j < newLen; j++) {
+                    _actions.op[j - 1] = actions[i].op[j];
+                    _actions.data[j - 1] = actions[i].data[j];
+                }
+
+                _process(_pos, _actions);
             } else {
                 revert Unauthorized();
             }
@@ -79,7 +91,7 @@ contract PositionManager {
         }
     }
 
-    function _process(address position, Action memory action) internal {
+    function _process(address position, Actions memory action) internal {
         for (uint256 i; i < action.op.length; i++) {
             if (action.op[i] == Operation.Exec) {
                 IPosition(position).exec(address(this), action.data[i]);
@@ -93,8 +105,9 @@ contract PositionManager {
                 (address asset, uint256 amt) = abi.decode(action.data[i], (address, uint256));
                 IERC20(asset).safeTransferFrom(msg.sender, position, amt);
             } else if (action.op[i] == Operation.Withdraw) {
-                (address asset, uint256 amt) = abi.decode(action.data[i], (address, uint256));
-                IPosition(position).withdraw(asset, amt);
+                (address asset, address to, uint256 amt) = abi.decode(action.data[i], (address, address, uint256));
+                if (to == address(0)) to = msg.sender;
+                IPosition(position).withdraw(asset, to, amt);
             } else if (action.op[i] == Operation.AddAsset) {
                 (address asset) = abi.decode(action.data[i], (address));
                 addAsset(position, asset);
@@ -116,7 +129,7 @@ contract PositionManager {
             revert UnknownPool();
         }
 
-        poolOwner[pos] = msg.sender;
+        posOwner[pos] = msg.sender;
     }
 
     function repay(address position, address pool, uint256 _amt) internal {

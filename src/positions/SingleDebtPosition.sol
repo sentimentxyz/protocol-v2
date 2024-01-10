@@ -17,6 +17,8 @@ contract SingleDebtPosition is BasePosition {
     address internal debtPool;
     IterableSet.IterableSetStorage internal assets;
 
+    constructor(address _positionManager) BasePosition(_positionManager) {}
+
     function borrow(address pool, uint256) external override onlyPositionManager {
         if (debtPool == address(0)) {
             debtPool = pool;

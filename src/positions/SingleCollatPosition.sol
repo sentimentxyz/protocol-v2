@@ -3,18 +3,17 @@ pragma solidity ^0.8.23;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import {IPool} from "../interfaces/IPool.sol";
 import {IterableSet} from "../lib/IterableSet.sol";
 
-import {BasePosition} from "./BasePosition.sol";
+import {BasePosition, PositionType} from "./BasePosition.sol";
 
 contract SingleCollatPosition is BasePosition {
     using SafeERC20 for IERC20;
     using IterableSet for IterableSet.IterableSetStorage;
 
     // single position asset; multiple debt assets
-    uint256 public constant override TYPE = 0x2;
+    PositionType public constant override TYPE = PositionType.SingleCollatMultiDebt;
 
     address internal positionAsset;
 

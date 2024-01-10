@@ -4,7 +4,6 @@ pragma solidity ^0.8.23;
 interface IPosition {
     // view functions
     function TYPE() external view returns (uint256);
-    function owner() external view returns (address);
     function getAssets() external view returns (address[] memory);
     function getDebtPools() external view returns (address[] memory);
 

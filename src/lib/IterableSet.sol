@@ -15,11 +15,17 @@ library IterableSet {
     }
 
     function remove(IterableSetStorage storage self, address elem) internal {
-        if (self.idxOf[elem] == 0) return;
-        uint256 toRemoveIdx = self.idxOf[elem] - 1;
-        address lastElem = self.elements[self.elements.length - 1];
-        self.elements[toRemoveIdx] = lastElem;
-        self.idxOf[lastElem] = toRemoveIdx + 1;
+        uint256 idx = self.idxOf[elem];
+        if (idx == 0) return;
+
+        // adjust to the actual index
+        uint256 toRemoveIdx = idx - 1;
+        if (toRemoveIdx != self.elements.length - 1) {
+            address lastElem = self.elements[self.elements.length - 1];
+            self.elements[toRemoveIdx] = lastElem;
+            self.idxOf[lastElem] = toRemoveIdx + 1;
+        }
+        
         self.idxOf[elem] = 0;
         self.elements.pop();
     }

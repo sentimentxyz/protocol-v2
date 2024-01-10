@@ -3,77 +3,120 @@ pragma solidity ^0.8.23;
 
 import {IPool} from "./interfaces/IPool.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {PositionType} from "src/positions/BasePosition.sol";
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+
+enum Operation {
+    Exec,
+    Repay,
+    Borrow,
+    Deposit,
+    Withdraw,
+    AddAsset,
+    RemoveAsset,
+    NewPosition
+}
+
+struct Action {
+    Operation[] op;
+    bytes[] data;
+}
 
 contract PositionManager {
     using SafeERC20 for IERC20;
-
-    enum Operation {
-        Exec,
-        Repay,
-        Borrow,
-        Deposit,
-        Withdraw,
-        UpdateAsset
-    }
-
-    struct Action {
-        Operation op;
-        address target;
-        bytes data;
-    }
-
-    /// @dev auth[x][y] stores whether address x is authorized to operate on position y
-    mapping(address => mapping(address => bool)) auth;
-
     error Unauthorized();
     error InvalidOperation();
+    error UnknownPool();
+    error PoolsAlreadyInitialized();
+    error LengthMismatch();
 
-    function newPosition() external {
-        // TODO deploy new position for msg.sender
-        // auth[msg.sender][position] = true;
+    /// @dev auth[x][y] stores whether address x is authorized to operate on position y
+    mapping(address user => mapping(address position => bool)) auth;
+    mapping(address position => address owner) public posOwner;
+
+    address public singleDebt;
+    address public singleCollat;
+
+    /// @dev set the pools after creation so we can inline address(this) into positions
+    function setPools(address _singleDebt, address _singleCollat) external {
+        if (singleDebt != address(0)) revert PoolsAlreadyInitialized();
+        singleDebt = _singleDebt;
+        singleCollat = _singleCollat;
     }
 
     function setAuth(address user, address position, bool isAuthorized) external {
-        if (msg.sender == IPosition(position).owner()) revert Unauthorized();
+        if (msg.sender == posOwner[position]) revert Unauthorized();
         auth[user][position] = isAuthorized;
     }
 
-    function process(address position, Action[] calldata actions) external {
-        if (auth[msg.sender][position]) revert Unauthorized();
-        for (uint256 i; i < actions.length; ++i) {
-            if (actions[i].op == Operation.Exec) {
-                IPosition(position).exec(actions[i].target, actions[i].data);
+    function process(address[] position, Action[] calldata actions) external {
+        if (position.length != actions.length) revert LengthMismatch();
+
+        for (uint256 i; i < position.length; ++i) {
+            if (actions[i].op.length != actions[i].data.length) revert LengthMismatch();
+            
+            // if this is the owner or they authed
+            if (isAuthorized(msg.sender, position[i])) {
+                _process(position[i], actions[i]);
+            // if they are not the owner or authed && this is true then maybe its a position we are just making
+            } else if (actions[i].op[0] == Operation.NewPosition) {
+                // sanity
+                if (posOwner[position[i]] != address(0)) revert InvalidOperation();
+
+                (PositionType posType, bytes32 _salt) = abi.decode(actions[i].data[0], (PositionType, bytes32));
+                // this will revert if someone tries to use the same salt twice
+                address _pos = newPosition(posType, _salt);
+                if (_pos != position[i]) revert Unauthorized();
+
+                _process(_pos, actions[1:]);
             } else {
-                Operation op;
-                address target;
-                uint256 data;
+                revert Unauthorized();
+            }
 
-                assembly {
-                    let offset := mul(0xa0, i)
-                    op := calldataload(add(0x64, offset))
-                    target := calldataload(add(0x84, offset))
-                    data := calldataload(add(0xc4, offset))
-                }
+            // todo!(health check)
+        }
+    }
 
-                if (op == Operation.Repay) {
-                    repay(position, target, data);
-                } else if (op == Operation.Borrow) {
-                    borrow(position, target, data);
-                } else if (op == Operation.UpdateAsset) {
-                    updateAsset(position, target, data);
-                } else if (op == Operation.Withdraw) {
-                    IPosition(position).withdraw(target, data);
-                } else if (op == Operation.Deposit) {
-                    IERC20(target).safeTransferFrom(msg.sender, position, data);
-                } else {
-                    revert InvalidOperation();
-                }
+    function _process(address position, Action memory action) internal {
+        for (uint256 i; i < action.op.length; i++) {
+            if (action.op[i] == Operation.Exec) {
+                IPosition(position).exec(address(this), action.data[i]);
+            } else if (action.op[i] == Operation.Repay) {
+                (address pool, uint256 amt) = abi.decode(action.data[i], (address, uint256));
+                repay(position, pool, amt);
+            } else if (action.op[i] == Operation.Borrow) {
+                (address pool, uint256 amt) = abi.decode(action.data[i], (address, uint256));
+                borrow(position, pool, amt);
+            } else if (action.op[i] == Operation.Deposit) {
+                (address asset, uint256 amt) = abi.decode(action.data[i], (address, uint256));
+                IERC20(asset).safeTransferFrom(msg.sender, position, amt);
+            } else if (action.op[i] == Operation.Withdraw) {
+                (address asset, uint256 amt) = abi.decode(action.data[i], (address, uint256));
+                IPosition(position).withdraw(asset, amt);
+            } else if (action.op[i] == Operation.AddAsset) {
+                (address asset) = abi.decode(action.data[i], (address));
+                addAsset(position, asset);
+            } else if (action.op[i] == Operation.RemoveAsset) {
+                (address asset) = abi.decode(action.data[i], (address));
+                removeAsset(position, asset);
+            } else {
+                revert InvalidOperation();
             }
         }
-        // TODO health check
+    }
+
+    function newPosition(PositionType posType, bytes32 _salt) internal returns (address pos) {
+        if (posType == PositionType.SingleCollatMultiDebt) {
+            pos = address(new BeaconProxy{salt: _salt}(singleCollat, ""));
+        } else if (posType == PositionType.SingleDebtMultiCollat) {
+            pos = address(new BeaconProxy{salt: _salt}(singleDebt, ""));
+        } else {
+            revert UnknownPool();
+        }
+
+        poolOwner[pos] = msg.sender;
     }
 
     function repay(address position, address pool, uint256 _amt) internal {
@@ -89,12 +132,16 @@ contract PositionManager {
         IPool(pool).borrow(position, amt);
     }
 
-    function updateAsset(address position, address asset, uint256 data) internal {
-        if (data == 0x0) {
-            IPosition(position).removeAsset(asset);
-        } else if (data == 0x1) {
-            IPosition(position).addAsset(asset);
-        }
+    function addAsset(address position, address asset) internal {
+        IPosition(position).addAsset(asset);
+    }
+
+    function removeAsset(address position, address asset) internal {
+        IPosition(position).removeAsset(asset);
+    }
+
+    function isAuthorized(address user, address position) public view returns (bool) {
+        return auth[user][position] || msg.sender == posOwner[position];
     }
 
     // TODO liquidation

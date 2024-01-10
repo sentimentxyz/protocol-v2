@@ -2,9 +2,6 @@
 pragma solidity ^0.8.23;
 
 interface IPositionManager {
-    function closePosition() external;
-    function createPosition() external;
-
     function repay(address position, address asset, uint256 amt) external;
     function borrow(address position, address asset, uint256 amt) external;
     function deposit(address position, address asset, uint256 amt) external;

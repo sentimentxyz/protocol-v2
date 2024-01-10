@@ -7,7 +7,11 @@ import {IPosition} from "./interfaces/IPosition.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract PositionManager {
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+
+contract PositionManager is Ownable, Pausable {
     using SafeERC20 for IERC20;
 
     enum Operation {
@@ -16,7 +20,8 @@ contract PositionManager {
         Borrow,
         Deposit,
         Withdraw,
-        UpdateAsset
+        AddAsset,
+        RemoveAsset
     }
 
     struct Action {
@@ -25,24 +30,29 @@ contract PositionManager {
         bytes data;
     }
 
+    mapping(uint256 => address) public beaconFor;
     /// @dev auth[x][y] stores whether address x is authorized to operate on position y
-    mapping(address => mapping(address => bool)) auth;
+    mapping(address => mapping(address => uint160)) public auth;
 
     error Unauthorized();
     error InvalidOperation();
 
-    function newPosition() external {
-        // TODO deploy new position for msg.sender
-        // auth[msg.sender][position] = true;
+    constructor() Ownable(msg.sender) {}
+
+    function newPosition(address owner, uint256 positionType, bytes32 salt) external {
+        if (beaconFor[positionType] == address(0)) revert InvalidOperation();
+        address position = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));
+        auth[position][address(0)] = uint160(owner);
+        auth[owner][position] = 0x1;
     }
 
     function setAuth(address user, address position, bool isAuthorized) external {
-        if (msg.sender == IPosition(position).owner()) revert Unauthorized();
-        auth[user][position] = isAuthorized;
+        if (auth[msg.sender][position] == 0x1) revert Unauthorized();
+        auth[user][position] = isAuthorized ? 0x2 : 0x0;
     }
 
     function process(address position, Action[] calldata actions) external {
-        if (auth[msg.sender][position]) revert Unauthorized();
+        if (auth[msg.sender][position] == 0) revert Unauthorized();
         for (uint256 i; i < actions.length; ++i) {
             if (actions[i].op == Operation.Exec) {
                 IPosition(position).exec(actions[i].target, actions[i].data);
@@ -62,10 +72,12 @@ contract PositionManager {
                     repay(position, target, data);
                 } else if (op == Operation.Borrow) {
                     borrow(position, target, data);
-                } else if (op == Operation.UpdateAsset) {
-                    updateAsset(position, target, data);
+                } else if (op == Operation.AddAsset) {
+                    IPosition(position).addAsset(target);
+                } else if (op == Operation.RemoveAsset) {
+                    IPosition(position).removeAsset(target);
                 } else if (op == Operation.Withdraw) {
-                    IPosition(position).withdraw(target, data);
+                    IPosition(position).withdraw(address(auth[position][address(0)]), target, data);
                 } else if (op == Operation.Deposit) {
                     IERC20(target).safeTransferFrom(msg.sender, position, data);
                 } else {
@@ -89,13 +101,10 @@ contract PositionManager {
         IPool(pool).borrow(position, amt);
     }
 
-    function updateAsset(address position, address asset, uint256 data) internal {
-        if (data == 0x0) {
-            IPosition(position).removeAsset(asset);
-        } else if (data == 0x1) {
-            IPosition(position).addAsset(asset);
-        }
-    }
-
     // TODO liquidation
+
+    // Admin Functions
+    function setBeacon(uint256 positionType, address beacon) external onlyOwner {
+        beaconFor[positionType] = beacon;
+    }
 }

@@ -21,7 +21,8 @@ contract PositionManager is Ownable, Pausable {
         Deposit,
         Withdraw,
         AddAsset,
-        RemoveAsset
+        RemoveAsset,
+        NewPosition
     }
 
     struct Action {
@@ -39,15 +40,8 @@ contract PositionManager is Ownable, Pausable {
 
     constructor() Ownable(msg.sender) {}
 
-    function newPosition(address owner, uint256 positionType, bytes32 salt) external {
-        if (beaconFor[positionType] == address(0)) revert InvalidOperation();
-        address position = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));
-        auth[position][address(0)] = uint160(owner);
-        auth[owner][position] = 0x1;
-    }
-
     function setAuth(address user, address position, bool isAuthorized) external {
-        if (auth[msg.sender][position] == 0x1) revert Unauthorized();
+        if (auth[msg.sender][position] != 0x1) revert Unauthorized();
         auth[user][position] = isAuthorized ? 0x2 : 0x0;
     }
 
@@ -56,30 +50,24 @@ contract PositionManager is Ownable, Pausable {
         for (uint256 i; i < actions.length; ++i) {
             if (actions[i].op == Operation.Exec) {
                 IPosition(position).exec(actions[i].target, actions[i].data);
+            } else if (actions[i].op == Operation.NewPosition) {
+                (uint256 positionType, bytes32 salt) = abi.decode(actions[i].data, (uint256, bytes32));
+                newPosition(actions[i].target, positionType, salt);
+                if (position != newPosition(actions[i].target, positionType, salt)) revert InvalidOperation();
             } else {
-                Operation op;
-                address target;
-                uint256 data;
-
-                assembly {
-                    let offset := mul(0xa0, i)
-                    op := calldataload(add(0x64, offset))
-                    target := calldataload(add(0x84, offset))
-                    data := calldataload(add(0xc4, offset))
-                }
-
-                if (op == Operation.Repay) {
-                    repay(position, target, data);
-                } else if (op == Operation.Borrow) {
-                    borrow(position, target, data);
-                } else if (op == Operation.AddAsset) {
-                    IPosition(position).addAsset(target);
-                } else if (op == Operation.RemoveAsset) {
-                    IPosition(position).removeAsset(target);
-                } else if (op == Operation.Withdraw) {
-                    IPosition(position).withdraw(address(auth[position][address(0)]), target, data);
-                } else if (op == Operation.Deposit) {
-                    IERC20(target).safeTransferFrom(msg.sender, position, data);
+                uint256 data = abi.decode(actions[i].data, (uint256));
+                if (actions[i].op == Operation.Repay) {
+                    repay(position, actions[i].target, data);
+                } else if (actions[i].op == Operation.Borrow) {
+                    borrow(position, actions[i].target, data);
+                } else if (actions[i].op == Operation.AddAsset) {
+                    IPosition(position).addAsset(actions[i].target);
+                } else if (actions[i].op == Operation.RemoveAsset) {
+                    IPosition(position).removeAsset(actions[i].target);
+                } else if (actions[i].op == Operation.Withdraw) {
+                    IPosition(position).withdraw(address(auth[position][address(0)]), actions[i].target, data);
+                } else if (actions[i].op == Operation.Deposit) {
+                    IERC20(actions[i].target).safeTransferFrom(msg.sender, position, data);
                 } else {
                     revert InvalidOperation();
                 }
@@ -88,8 +76,16 @@ contract PositionManager is Ownable, Pausable {
         // TODO health check
     }
 
+    function newPosition(address owner, uint256 positionType, bytes32 salt) internal returns (address) {
+        if (beaconFor[positionType] == address(0)) revert InvalidOperation();
+        address position = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));
+        auth[position][address(0)] = uint160(owner);
+        auth[owner][position] = 0x1;
+        return position;
+    }
+
     function repay(address position, address pool, uint256 _amt) internal {
-        // to repay the entire debt set amt to uint.max
+        // to repay the entire debt set _amt to uint.max
         uint256 amt = (_amt == type(uint256).max) ? IPool(pool).getBorrowsOf(position) : _amt;
 
         IPosition(position).repay(IPool(pool).asset(), amt);

@@ -25,7 +25,7 @@ abstract contract BasePosition {
     function borrow(address pool, uint256 amt) external virtual;
     function exec(address target, bytes calldata data) external virtual;
 
-    function withdraw(address to, address asset, uint256 amt) external onlyPositionManager {
+    function transfer(address to, address asset, uint256 amt) external onlyPositionManager {
         IERC20(asset).safeTransfer(to, amt);
     }
 }

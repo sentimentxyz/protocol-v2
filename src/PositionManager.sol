@@ -19,7 +19,7 @@ contract PositionManager is Ownable, Pausable {
         Repay,
         Borrow,
         Deposit,
-        Withdraw,
+        Transfer,
         AddAsset,
         RemoveAsset,
         NewPosition
@@ -54,6 +54,9 @@ contract PositionManager is Ownable, Pausable {
                 (uint256 positionType, bytes32 salt) = abi.decode(actions[i].data, (uint256, bytes32));
                 newPosition(actions[i].target, positionType, salt);
                 if (position != newPosition(actions[i].target, positionType, salt)) revert InvalidOperation();
+            } else if (actions[i].op == Operation.Transfer) {
+                (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
+                IPosition(position).transfer(actions[i].target, asset, amt);
             } else {
                 uint256 data = abi.decode(actions[i].data, (uint256));
                 if (actions[i].op == Operation.Repay) {
@@ -64,8 +67,6 @@ contract PositionManager is Ownable, Pausable {
                     IPosition(position).addAsset(actions[i].target);
                 } else if (actions[i].op == Operation.RemoveAsset) {
                     IPosition(position).removeAsset(actions[i].target);
-                } else if (actions[i].op == Operation.Withdraw) {
-                    IPosition(position).withdraw(address(auth[position][address(0)]), actions[i].target, data);
                 } else if (actions[i].op == Operation.Deposit) {
                     IERC20(actions[i].target).safeTransferFrom(msg.sender, position, data);
                 } else {

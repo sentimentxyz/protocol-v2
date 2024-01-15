@@ -2,18 +2,18 @@
 pragma solidity ^0.8.23;
 
 // custom impl for (address => uint256) iterable map
-library IterableMap {
-    struct IterableMapStorage {
+library IterableMapAddress {
+    struct IterableMapAddressStorage {
         address[] keys; // list of address keys
         mapping(address => uint256) idxOf; // idxOf[key] = index of key in self.keys + 1
-        mapping(address => uint256) valueOf; // mapping of keys to uint256 values
+        mapping(address => address) valueOf; // mapping of keys to uint256 values
     }
 
-    function get(IterableMapStorage storage self, address key) internal view returns (uint256) {
+    function get(IterableMapAddressStorage storage self, address key) internal view returns (address) {
         return self.valueOf[key];
     }
 
-    function set(IterableMapStorage storage self, address key, uint256 val) internal returns (uint256) {
+    function set(IterableMapAddressStorage storage self, address key, address val) internal returns (address) {
         // insert key
         if (self.idxOf[key] == 0) {
             self.keys.push(key);
@@ -24,7 +24,7 @@ library IterableMap {
 
         self.valueOf[key] = val;
 
-        if (val == 0) {
+        if (val == address(0)) {
             // idx of key to be removed
             uint256 toRemoveIdx = self.idxOf[key] - 1;
             self.idxOf[key] = 0;
@@ -47,19 +47,19 @@ library IterableMap {
     }
 
     /// @dev zero-indexed key queries
-    function getByIdx(IterableMapStorage storage self, uint256 idx) internal view returns (address) {
+    function getByIdx(IterableMapAddressStorage storage self, uint256 idx) internal view returns (address) {
         return self.keys[idx];
     }
 
-    function getKeys(IterableMapStorage storage self) internal view returns (address[] memory) {
+    function getKeys(IterableMapAddressStorage storage self) internal view returns (address[] memory) {
         return self.keys;
     }
 
-    function length(IterableMapStorage storage self) internal view returns (uint256) {
+    function length(IterableMapAddressStorage storage self) internal view returns (uint256) {
         return self.keys.length;
     }
 
-    function contains(IterableMapStorage storage self, address key) internal view returns (bool) {
+    function contains(IterableMapAddressStorage storage self, address key) internal view returns (bool) {
         return self.idxOf[key] != 0;
     }
 }

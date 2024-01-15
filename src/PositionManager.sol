@@ -109,6 +109,8 @@ contract PositionManager {
         // todo!(health check)
     }
 
+    /// @dev Expected that auth is checked before calling this function
+    /// @dev Expected that a health check is performed after this function
     function _process(address position, Operations memory operations) internal {
         for (uint256 i; i < operations.op.length; i++) {
             if (operations.op[i] == Operation.Exec) {

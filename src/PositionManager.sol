@@ -229,8 +229,8 @@ contract PositionManager {
         return auth[user][position] > 0;
     }
 
-    /// Since we havent copied over the array to memory yet this is basically the same as what the compiler
-    /// would do for an implicit conversion from calldata -> memory
+    /// Since we havent copied over the array to memory yet this is basically the same
+    /// as what the compiler would do for an implicit conversion from calldata -> memory
     function popFrontOperation(
         Operations calldata operations
     ) internal pure returns (Operations memory) {

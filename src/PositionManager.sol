@@ -42,6 +42,8 @@ contract PositionManager is Ownable {
     mapping(address position => address owner) public posOwner;
     mapping(uint256 => address) public beacon;
 
+    constructor(address _owner) Ownable(_owner) {}
+
     function setBeacon(uint256 typee, address _beacon) external onlyOwner {
         beacon[typee] = _beacon;
     }
@@ -84,13 +86,13 @@ contract PositionManager is Ownable {
             _process(position, operations);
         } else if (operations.op[0] == Operation.NewPosition) {
             // if they are not the owner or authed they may be trying to create a new position
-            (PositionType posType, bytes32 _salt) = abi.decode(
+            (uint256 typee, bytes32 _salt) = abi.decode(
                 operations.data[0],
-                (PositionType, bytes32)
+                (uint256, bytes32)
             );
 
             // this will revert if someone tries to use the same salt twice
-            address _pos = newPosition(posType, _salt);
+            address _pos = newPosition(typee, _salt);
 
             // make sure the postion they passed in was the one they just deployed
             if (_pos != position) revert Unauthorized();

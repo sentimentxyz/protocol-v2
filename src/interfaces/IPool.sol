@@ -2,9 +2,9 @@
 pragma solidity ^0.8.23;
 
 import {IOracle} from "src/interfaces/IOracle.sol";
-import {IOracleManager} from "src/interfaces/IOracleManager.sol";
+import {ILoanManager} from "src/interfaces/ILoanManager.sol";
 
-interface IPool is IOracleManager {
+interface IPool is ILoanManager {
     // Pool functions
     function asset() external view returns (address);
     function borrow(address position, uint256 amt) external;

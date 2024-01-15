@@ -8,6 +8,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {PositionType} from "src/positions/BasePosition.sol";
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IRiskManager} from "./interfaces/IRiskManager.sol";
 
 enum Operation {
     Exec,
@@ -39,10 +40,21 @@ contract PositionManager is Ownable {
     /// 0x1 is authorized
     /// 0x0 is unauthorized
     mapping(address user => mapping(address position => uint256)) auth;
+    /// @dev posOwner[x] stores the owner of position x
     mapping(address position => address owner) public posOwner;
+
+    /// @dev beacon[type] stores the address of the beacon for that position type
     mapping(uint256 => address) public beacon;
 
-    constructor(address _owner) Ownable(_owner) {}
+    IRiskManager public riskManager;
+
+    constructor(address _owner, address _riskManager) Ownable(_owner) {
+        riskManager = IRiskManager(_riskManager);
+    }
+
+    function setRiskManager(address _riskManager) external onlyOwner {
+        riskManager = IRiskManager(_riskManager);
+    }
 
     function setBeacon(uint256 typee, address _beacon) external onlyOwner {
         beacon[typee] = _beacon;
@@ -105,7 +117,7 @@ contract PositionManager is Ownable {
             revert Unauthorized();
         }
 
-        // todo!(health check)
+        riskManager.isPositionHealthy(position);
     }
 
     /// @dev Expected that auth is checked before calling this function

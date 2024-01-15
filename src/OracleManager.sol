@@ -8,10 +8,23 @@ import {IterableMapAddress} from "src/lib/IterableMapAddress.sol";
 abstract contract OracleManager is Ownable, IOracle {
     using IterableMapAddress for IterableMapAddress.IterableMapAddressStorage;
 
+    error InvalidLTV();
+    error InvalidOracle();
+
     IterableMapAddress.IterableMapAddressStorage private oracle;
-    
-    function setOracle(address asset, IOracle _oracle) external onlyOwner {
-        oracle.set(asset, address(_oracle));
+    mapping(address => uint256) public loanToValueBP;
+
+    function setOracle(address asset, address _oracle, uint256 ltv) external onlyOwner {
+        if (ltv > 10000 || ltv == 0) revert InvalidLTV();
+        if (_oracle == address(0)) revert InvalidOracle();
+
+        oracle.set(asset, _oracle);
+        loanToValueBP[asset] = ltv;
+    }
+
+    function removeOracle(address asset) external onlyOwner {
+        oracle.remove(asset);
+        loanToValueBP[asset] = 0;
     }
 
     function value(address asset, uint256 amount) external view override returns (uint256) {

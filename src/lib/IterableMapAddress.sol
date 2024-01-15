@@ -13,6 +13,10 @@ library IterableMapAddress {
         return self.valueOf[key];
     }
 
+    function remove(IterableMapAddressStorage storage self, address key) internal returns (address) {
+        return set(self, key, address(0));
+    }
+
     function set(IterableMapAddressStorage storage self, address key, address val) internal returns (address) {
         // insert key
         if (self.idxOf[key] == 0) {

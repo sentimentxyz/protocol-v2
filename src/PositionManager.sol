@@ -7,6 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {PositionType} from "src/positions/BasePosition.sol";
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 enum Operation {
     Exec,
@@ -24,13 +25,14 @@ struct Operations {
     bytes[] data;
 }
 
-contract PositionManager {
+contract PositionManager is Ownable {
     using SafeERC20 for IERC20;
     error Unauthorized();
     error InvalidOperation();
     error UnknownPool();
     error PoolsAlreadyInitialized();
     error LengthMismatch();
+    error UnknownPositionType();
 
     /// @dev auth[x][y] stores whether address x is authorized to operate on position y
     /// 0x2 is the owner
@@ -38,15 +40,10 @@ contract PositionManager {
     /// 0x0 is unauthorized
     mapping(address user => mapping(address position => uint256)) auth;
     mapping(address position => address owner) public posOwner;
+    mapping(uint256 => address) public beacon;
 
-    address public singleDebt;
-    address public singleCollat;
-
-    /// @dev set the pools after creation so we can inline address(this) into positions
-    function setPools(address _singleDebt, address _singleCollat) external {
-        if (singleDebt != address(0)) revert PoolsAlreadyInitialized();
-        singleDebt = _singleDebt;
-        singleCollat = _singleCollat;
+    function setBeacon(uint256 typee, address _beacon) external onlyOwner {
+        beacon[typee] = _beacon;
     }
 
     function setAuth(
@@ -116,12 +113,12 @@ contract PositionManager {
             if (operations.op[i] == Operation.Exec) {
                 IPosition(position).exec(address(this), operations.data[i]);
             } else if (operations.op[i] == Operation.NewPosition) {
-                (PositionType posType, bytes32 _salt) = abi.decode(
+                (uint256 typee, bytes32 _salt) = abi.decode(
                     operations.data[i],
-                    (PositionType, bytes32)
+                    (uint256, bytes32)
                 );
 
-                newPosition(posType, _salt);
+                newPosition(typee, _salt);
             } else if (operations.op[i] == Operation.Repay) {
                 (address pool, uint256 amt) = abi.decode(
                     operations.data[i],
@@ -167,16 +164,14 @@ contract PositionManager {
     ////////////////////////// Operation Functions //////////////////////////
 
     function newPosition(
-        PositionType posType,
+        uint256 posType,
         bytes32 _salt
     ) public returns (address pos) {
-        if (posType == PositionType.SingleCollatMultiDebt) {
-            pos = address(new BeaconProxy{salt: _salt}(singleCollat, ""));
-        } else if (posType == PositionType.SingleDebtMultiCollat) {
-            pos = address(new BeaconProxy{salt: _salt}(singleDebt, ""));
-        } else {
-            revert UnknownPool();
-        }
+        address impl = beacon[posType];
+
+        if (impl == address(0)) revert UnknownPositionType();
+
+        pos = address(new BeaconProxy{salt: _salt}(impl, ""));
 
         posOwner[pos] = msg.sender;
         auth[msg.sender][pos] = 0x2;

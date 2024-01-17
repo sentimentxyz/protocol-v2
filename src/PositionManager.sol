@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+// Interfaces
 import {IPool} from "./interfaces/IPool.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
-
+// Libraries
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
+// Contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
@@ -31,9 +32,10 @@ contract PositionManager is Ownable, Pausable {
         bytes data;
     }
 
-    mapping(uint256 => address) public beaconFor;
+    mapping(address => address) public ownerFor; // position => owner
+    mapping(uint256 => address) public beaconFor; // position type => beacon
     /// @dev auth[x][y] stores whether address x is authorized to operate on position y
-    mapping(address => mapping(address => uint160)) public auth;
+    mapping(address => mapping(address => bool)) public auth;
 
     error Unauthorized();
     error InvalidOperation();
@@ -41,36 +43,44 @@ contract PositionManager is Ownable, Pausable {
     constructor() Ownable(msg.sender) {}
 
     function setAuth(address user, address position, bool isAuthorized) external {
-        if (auth[msg.sender][position] != 0x1) revert Unauthorized();
-        auth[user][position] = isAuthorized ? 0x2 : 0x0;
+        if (!auth[msg.sender][position]) revert Unauthorized();
+        auth[user][position] = isAuthorized;
     }
 
     function process(address position, Action[] calldata actions) external {
-        if (auth[msg.sender][position] == 0) revert Unauthorized();
         for (uint256 i; i < actions.length; ++i) {
-            if (actions[i].op == Operation.Exec) {
-                IPosition(position).exec(actions[i].target, actions[i].data);
-            } else if (actions[i].op == Operation.NewPosition) {
+            if (actions[i].op == Operation.NewPosition) {
+                // Deploy New Position
                 (uint256 positionType, bytes32 salt) = abi.decode(actions[i].data, (uint256, bytes32));
-                newPosition(actions[i].target, positionType, salt);
+                if (ownerFor[position] != address(0)) revert InvalidOperation();
                 if (position != newPosition(actions[i].target, positionType, salt)) revert InvalidOperation();
+                continue;
+            }
+
+            // Caller needs to be authorized for every other operation
+            if (!auth[msg.sender][position]) revert Unauthorized();
+
+            if (actions[i].op == Operation.Exec) {
+                // Execute arbitrary calldata on position
+                IPosition(position).exec(actions[i].target, actions[i].data);
             } else if (actions[i].op == Operation.Transfer) {
+                // Transfer assets out of position
                 (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
                 IPosition(position).transfer(actions[i].target, asset, amt);
             } else {
                 uint256 data = abi.decode(actions[i].data, (uint256));
                 if (actions[i].op == Operation.Repay) {
-                    repay(position, actions[i].target, data);
+                    repay(position, actions[i].target, data); // Decrease position debt
                 } else if (actions[i].op == Operation.Borrow) {
-                    borrow(position, actions[i].target, data);
+                    borrow(position, actions[i].target, data); // Increase position debt
                 } else if (actions[i].op == Operation.AddAsset) {
-                    IPosition(position).addAsset(actions[i].target);
+                    IPosition(position).addAsset(actions[i].target); // Register position asset
                 } else if (actions[i].op == Operation.RemoveAsset) {
-                    IPosition(position).removeAsset(actions[i].target);
+                    IPosition(position).removeAsset(actions[i].target); // Deregister position asset
                 } else if (actions[i].op == Operation.Deposit) {
-                    IERC20(actions[i].target).safeTransferFrom(msg.sender, position, data);
+                    IERC20(actions[i].target).safeTransferFrom(msg.sender, position, data); // Transfer assets to position
                 } else {
-                    revert InvalidOperation();
+                    revert InvalidOperation(); // Fallback revert
                 }
             }
         }
@@ -80,8 +90,8 @@ contract PositionManager is Ownable, Pausable {
     function newPosition(address owner, uint256 positionType, bytes32 salt) internal returns (address) {
         if (beaconFor[positionType] == address(0)) revert InvalidOperation();
         address position = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));
-        auth[position][address(0)] = uint160(owner);
-        auth[owner][position] = 0x1;
+        ownerFor[position] = owner;
+        auth[owner][position] = true;
         return position;
     }
 

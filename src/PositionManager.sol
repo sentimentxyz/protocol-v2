@@ -4,6 +4,7 @@ pragma solidity ^0.8.23;
 // Interfaces
 import {IPool} from "./interfaces/IPool.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
+import {IPositionManager} from "./interfaces/IPositionManager.sol";
 // Libraries
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -12,25 +13,8 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 
-contract PositionManager is Ownable, Pausable {
+contract PositionManager is Ownable, Pausable, IPositionManager {
     using SafeERC20 for IERC20;
-
-    enum Operation {
-        Exec,
-        Repay,
-        Borrow,
-        Deposit,
-        Transfer,
-        AddAsset,
-        RemoveAsset,
-        NewPosition
-    }
-
-    struct Action {
-        Operation op;
-        address target;
-        bytes data;
-    }
 
     mapping(address => address) public ownerFor; // position => owner
     mapping(uint256 => address) public beaconFor; // position type => beacon

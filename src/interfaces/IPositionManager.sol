@@ -2,12 +2,24 @@
 pragma solidity ^0.8.23;
 
 interface IPositionManager {
-    function repay(address position, address asset, uint256 amt) external;
-    function borrow(address position, address asset, uint256 amt) external;
-    function deposit(address position, address asset, uint256 amt) external;
-    function withdraw(address position, address asset, uint256 amt) external;
+    enum Operation {
+        Exec,
+        Repay,
+        Borrow,
+        Deposit,
+        Transfer,
+        AddAsset,
+        RemoveAsset,
+        NewPosition
+    }
 
-    function liquidate(address position) external;
-    function exec(address position, bytes calldata data) external;
-    function approve(address position, address asset, uint256 amt) external;
+    struct Action {
+        Operation op;
+        address target;
+        bytes data;
+    }
+
+    function setBeacon(uint256 positionType, address beacon) external;
+    function process(address position, Action[] calldata actions) external;
+    function setAuth(address user, address position, bool isAuthorized) external;
 }

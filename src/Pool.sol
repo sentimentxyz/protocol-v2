@@ -25,9 +25,6 @@ contract Pool is Ownable, ERC4626, Pausable {
     uint256 public totalBorrows;
     uint256 public totalBorrowShares;
     mapping(address => uint256) borrowSharesOf;
-    mapping(address => uint256) public lastBorrow;
-
-    mapping (address => uint256) public lastDeposit;
 
     error ZeroShares();
     error PositionManagerOnly();

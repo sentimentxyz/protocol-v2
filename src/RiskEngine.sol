@@ -12,7 +12,7 @@ contract RiskEngine is RiskEngineBase, Ownable {
     error InvalidOracle();
 
     mapping(address => address) poolManager;
-    mapping (uint256 => address impl) public implementations;
+    mapping (uint256 => address impl) public healthCheckFor;
 
     constructor(address _owner) Ownable(_owner) {}
 
@@ -30,20 +30,22 @@ contract RiskEngine is RiskEngineBase, Ownable {
     function isPositionHealthy(
         address position
     ) external view override returns (bool success) {
-        IPosition _position = IPosition(position);
-        address impl = implementations[_position.TYPE()];
+        // IPosition _position = IPosition(position);
+        // address impl = implementations[_position.TYPE()];
 
-        assembly {
-            if iszero(mload(impl)) {
-                revert(0, 0)
-            }
-            // should fit in scratch space 
-            calldatacopy(0, 0, calldatasize())
-            success := delegatecall(gas(), mload(impl), 0, calldatasize(), 0, 0)
-            if iszero(success) {
-                revert(0, 0)
-            }
-        }
+        // assembly {
+        //     if iszero(mload(impl)) {
+        //         revert(0, 0)
+        //     }
+        //     // should fit in scratch space 
+        //     calldatacopy(0, 0, calldatasize())
+        //     success := delegatecall(gas(), mload(impl), 0, calldatasize(), 0, 0)
+        //     if iszero(success) {
+        //         revert(0, 0)
+        //     }
+        // }
+
+        return true;
     }
 
     // todo only registry?

@@ -10,9 +10,8 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
-import {LoanManager} from "src/LoanManager.sol";
 
-contract Pool is Ownable, ERC4626, LoanManager, Pausable {
+contract Pool is Ownable, ERC4626, Pausable {
     using Math for uint256;
     using SafeERC20 for IERC20;
 

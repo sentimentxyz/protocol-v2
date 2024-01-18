@@ -42,10 +42,9 @@ contract PositionManager is Ownable {
     mapping(address user => mapping(address position => uint256)) auth;
     /// @dev posOwner[x] stores the owner of position x
     mapping(address position => address owner) public posOwner;
-
     /// @dev beacon[type] stores the address of the beacon for that position type
     mapping(uint256 => address) public beacon;
-
+    /// @dev 
     IRiskManager public riskManager;
 
     constructor(address _owner, address _riskManager) Ownable(_owner) {

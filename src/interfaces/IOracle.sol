@@ -2,5 +2,5 @@
 pragma solidity ^0.8.23;
 
 interface IOracle {
-    function getPrice() external;
+    function getValueInEth(address asset, uint256 amt) external returns (uint256);
 }

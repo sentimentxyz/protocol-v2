@@ -4,6 +4,7 @@ pragma solidity ^0.8.23;
 // Interfaces
 import {IPool} from "./interfaces/IPool.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
+import {IRiskEngine} from "./interfaces/IRiskEngine.sol";
 import {IPositionManager} from "./interfaces/IPositionManager.sol";
 // Libraries
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -16,6 +17,8 @@ import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol"
 contract PositionManager is Ownable, Pausable, IPositionManager {
     using SafeERC20 for IERC20;
 
+    address public riskEngine;
+
     mapping(address => address) public ownerFor; // position => owner
     mapping(uint256 => address) public beaconFor; // position type => beacon
     /// @dev auth[x][y] stores whether address x is authorized to operate on position y
@@ -23,6 +26,7 @@ contract PositionManager is Ownable, Pausable, IPositionManager {
 
     error Unauthorized();
     error InvalidOperation();
+    error HealthCheckFailed();
 
     constructor() Ownable(msg.sender) {}
 
@@ -68,7 +72,7 @@ contract PositionManager is Ownable, Pausable, IPositionManager {
                 }
             }
         }
-        // TODO health check
+        if (!IRiskEngine(riskEngine).isPositionHealthy(position)) revert HealthCheckFailed();
     }
 
     function newPosition(address owner, uint256 positionType, bytes32 salt) internal returns (address) {
@@ -97,5 +101,9 @@ contract PositionManager is Ownable, Pausable, IPositionManager {
     // Admin Functions
     function setBeacon(uint256 positionType, address beacon) external onlyOwner {
         beaconFor[positionType] = beacon;
+    }
+
+    function setRiskEngine(address _riskEngine) external onlyOwner {
+        riskEngine = _riskEngine;
     }
 }

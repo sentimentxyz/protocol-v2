@@ -41,12 +41,12 @@ contract SingleDebtHealthCheck is IHealthCheck {
             borrowAsset, IPool(pool).getBorrowsOf(position)
         );
 
-        uint256 minBalReqInWei = 0;
+        uint256 minReqBalanceInWei = 0;
         for (uint256 i; i < assets.length; ++i) {
-            minBalReqInWei +=
-                totalBorrowsInWei.mulDiv(assetData[i], riskEngine.ltvFor(pool, assets[i]), Math.Rounding.Floor);
+            minReqBalanceInWei +=
+                totalBorrowsInWei.mulDiv(assetData[i], riskEngine.ltvFor(pool, assets[i]), Math.Rounding.Ceil);
         }
 
-        return totalBalanceInWei > minBalReqInWei;
+        return totalBalanceInWei > minReqBalanceInWei;
     }
 }

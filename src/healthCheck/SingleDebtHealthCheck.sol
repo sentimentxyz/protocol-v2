@@ -16,7 +16,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
 
     IRiskEngine public riskEngine;
 
-    function isPositionHealthy(address position) external returns (bool) {
+    function isPositionHealthy(address position) external view returns (bool) {
         address pool = IPosition(position).getDebtPools()[0];
 
         address[] memory assets = IPosition(position).getAssets();

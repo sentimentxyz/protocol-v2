@@ -21,8 +21,8 @@ contract SingleCollatHealthCheck is IHealthCheck {
         uint256[] memory debtInfo = new uint256[](debtPools.length);
 
         address collateralAsset = IPosition(position).getAssets()[0];
-        uint256 totalDebtInWei = 0;
-        uint256 minReqBalanceInWei = 0;
+        uint256 totalDebtInWei;
+        uint256 minReqBalanceInWei;
 
         for (uint256 i; i < debtPools.length; ++i) {
             uint256 debtInWei = IOracle(riskEngine.oracleFor(debtPools[i], IPool(debtPools[i]).asset())).getValueInEth(
@@ -40,7 +40,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
         }
 
         uint256 notionalBal = IERC20(collateralAsset).balanceOf(position);
-        uint256 totalBalanceInWei = 0;
+        uint256 totalBalanceInWei;
         for (uint256 i; i < debtPools.length; ++i) {
             totalBalanceInWei += IOracle(riskEngine.oracleFor(debtPools[i], collateralAsset)).getValueInEth(
                 collateralAsset, notionalBal.mulDiv(debtInfo[i], 1e18, Math.Rounding.Floor)

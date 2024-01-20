@@ -22,7 +22,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
         address[] memory assets = IPosition(position).getAssets();
         uint256[] memory assetData = new uint256[](assets.length);
 
-        uint256 totalBalanceInWei = 0;
+        uint256 totalBalanceInWei;
         for (uint256 i; i < assets.length; ++i) {
             uint256 bal = IOracle(riskEngine.oracleFor(pool, assets[i])).getValueInEth(
                 assets[i], IERC20(assets[i]).balanceOf(position)
@@ -41,7 +41,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
             borrowAsset, IPool(pool).getBorrowsOf(position)
         );
 
-        uint256 minReqBalanceInWei = 0;
+        uint256 minReqBalanceInWei;
         for (uint256 i; i < assets.length; ++i) {
             minReqBalanceInWei +=
                 totalBorrowsInWei.mulDiv(assetData[i], riskEngine.ltvFor(pool, assets[i]), Math.Rounding.Ceil);

@@ -96,7 +96,28 @@ contract PositionManager is Ownable, Pausable, IPositionManager {
         IPool(pool).borrow(position, amt);
     }
 
-    // TODO liquidation
+    struct DebtData {
+        address pool;
+        address asset;
+        uint256 amt;
+    }
+
+    struct AssetData {
+        address asset;
+        uint256 amt;
+    }
+
+    function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external {
+        if (IRiskEngine(riskEngine).isPositionHealthy(position)) revert InvalidOperation();
+        for (uint256 i; i < debt.length; ++i) {
+            IERC20(debt[i].asset).transferFrom(msg.sender, debt[i].pool, debt[i].amt);
+            IPool(debt[i].pool).repay(position, debt[i].amt);
+        }
+        for (uint256 i; i < collat.length; ++i) {
+            IPosition(position).transfer(msg.sender, collat[i].asset, collat[i].amt);
+        }
+        if (!IRiskEngine(riskEngine).isPositionHealthy(position)) revert InvalidOperation();
+    }
 
     // Admin Functions
     function setBeacon(uint256 positionType, address beacon) external onlyOwner {

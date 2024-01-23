@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {IPool} from "../interfaces/IPool.sol";
+import {Pool} from "../Pool.sol";
 import {IterableSet} from "../lib/IterableSet.sol";
 
 import {BasePosition} from "./BasePosition.sol";
@@ -25,8 +25,8 @@ contract SingleCollatPosition is BasePosition {
     }
 
     function repay(address pool, uint256 amt) external override onlyPositionManager {
-        if (IPool(pool).getBorrowsOf(address(this)) == amt) debtPools.remove(pool);
-        IERC20(IPool(pool).asset()).safeTransfer(pool, amt);
+        if (Pool(pool).getBorrowsOf(address(this)) == amt) debtPools.remove(pool);
+        IERC20(Pool(pool).asset()).safeTransfer(pool, amt);
     }
 
     function exec(address target, bytes calldata data) external override onlyPositionManager {

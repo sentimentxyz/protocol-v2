@@ -2,10 +2,9 @@
 pragma solidity ^0.8.23;
 
 // Interfaces
-import {IPool} from "./interfaces/IPool.sol";
+import {Pool} from "./Pool.sol";
+import {RiskEngine} from "./RiskEngine.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
-import {IRiskEngine} from "./interfaces/IRiskEngine.sol";
-import {IPositionManager} from "./interfaces/IPositionManager.sol";
 // Libraries
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -14,7 +13,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 
-contract PositionManager is Ownable, Pausable, IPositionManager {
+contract PositionManager is Ownable, Pausable {
     using SafeERC20 for IERC20;
 
     address public riskEngine;
@@ -33,6 +32,23 @@ contract PositionManager is Ownable, Pausable, IPositionManager {
     function setAuth(address user, address position, bool isAuthorized) external {
         if (!auth[msg.sender][position]) revert Unauthorized();
         auth[user][position] = isAuthorized;
+    }
+
+    enum Operation {
+        Exec,
+        Repay,
+        Borrow,
+        Deposit,
+        Transfer,
+        AddAsset,
+        RemoveAsset,
+        NewPosition
+    }
+
+    struct Action {
+        Operation op;
+        address target;
+        bytes data;
     }
 
     function process(address position, Action[] calldata actions) external {
@@ -72,7 +88,7 @@ contract PositionManager is Ownable, Pausable, IPositionManager {
                 }
             }
         }
-        if (!IRiskEngine(riskEngine).isPositionHealthy(position)) revert HealthCheckFailed();
+        if (!RiskEngine(riskEngine).isPositionHealthy(position)) revert HealthCheckFailed();
     }
 
     function newPosition(address owner, uint256 positionType, bytes32 salt) internal returns (address) {
@@ -85,15 +101,15 @@ contract PositionManager is Ownable, Pausable, IPositionManager {
 
     function repay(address position, address pool, uint256 _amt) internal {
         // to repay the entire debt set _amt to uint.max
-        uint256 amt = (_amt == type(uint256).max) ? IPool(pool).getBorrowsOf(position) : _amt;
+        uint256 amt = (_amt == type(uint256).max) ? Pool(pool).getBorrowsOf(position) : _amt;
 
-        IPosition(position).repay(IPool(pool).asset(), amt);
-        IPool(pool).repay(position, amt);
+        IPosition(position).repay(Pool(pool).asset(), amt);
+        Pool(pool).repay(position, amt);
     }
 
     function borrow(address position, address pool, uint256 amt) internal {
         IPosition(position).borrow(pool, amt);
-        IPool(pool).borrow(position, amt);
+        Pool(pool).borrow(position, amt);
     }
 
     struct DebtData {
@@ -108,15 +124,15 @@ contract PositionManager is Ownable, Pausable, IPositionManager {
     }
 
     function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external {
-        if (IRiskEngine(riskEngine).isPositionHealthy(position)) revert InvalidOperation();
+        if (RiskEngine(riskEngine).isPositionHealthy(position)) revert InvalidOperation();
         for (uint256 i; i < debt.length; ++i) {
             IERC20(debt[i].asset).transferFrom(msg.sender, debt[i].pool, debt[i].amt);
-            IPool(debt[i].pool).repay(position, debt[i].amt);
+            Pool(debt[i].pool).repay(position, debt[i].amt);
         }
         for (uint256 i; i < collat.length; ++i) {
             IPosition(position).transfer(msg.sender, collat[i].asset, collat[i].amt);
         }
-        if (!IRiskEngine(riskEngine).isPositionHealthy(position)) revert InvalidOperation();
+        if (!RiskEngine(riskEngine).isPositionHealthy(position)) revert InvalidOperation();
     }
 
     // Admin Functions

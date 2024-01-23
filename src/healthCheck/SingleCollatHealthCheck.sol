@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {IPool} from "../interfaces/IPool.sol";
+import {Pool} from "../Pool.sol";
+import {RiskEngine} from "../RiskEngine.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 import {IPosition} from "../interfaces/IPosition.sol";
-import {IRiskEngine} from "../interfaces/IRiskEngine.sol";
 import {IHealthCheck} from "../interfaces/IHealthCheck.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -14,7 +14,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract SingleCollatHealthCheck is IHealthCheck {
     using Math for uint256;
 
-    IRiskEngine public riskEngine;
+    RiskEngine public riskEngine;
 
     function isPositionHealthy(address position) external view returns (bool) {
         address[] memory debtPools = IPosition(position).getDebtPools();
@@ -25,8 +25,8 @@ contract SingleCollatHealthCheck is IHealthCheck {
         uint256 minReqBalanceInWei;
 
         for (uint256 i; i < debtPools.length; ++i) {
-            uint256 debtInWei = IOracle(riskEngine.oracleFor(debtPools[i], IPool(debtPools[i]).asset())).getValueInEth(
-                IPool(debtPools[i]).asset(), IPool(debtPools[i]).getBorrowsOf(position)
+            uint256 debtInWei = IOracle(riskEngine.oracleFor(debtPools[i], Pool(debtPools[i]).asset())).getValueInEth(
+                Pool(debtPools[i]).asset(), Pool(debtPools[i]).getBorrowsOf(position)
             );
             totalDebtInWei += debtInWei;
             minReqBalanceInWei +=

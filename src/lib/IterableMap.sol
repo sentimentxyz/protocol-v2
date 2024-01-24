@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-// custom impl for (address => uint256) iterable map
+// custom impl for an (address => uint256) iterable map
 library IterableMap {
     struct IterableMapStorage {
         address[] keys; // list of address keys
@@ -9,10 +9,13 @@ library IterableMap {
         mapping(address => uint256) valueOf; // mapping of keys to uint256 values
     }
 
+    /// @notice get mapped value for given key
     function get(IterableMapStorage storage self, address key) internal view returns (uint256) {
         return self.valueOf[key];
     }
 
+    /// @notice upsert and remove key-value pairs
+    /// @dev setting the value of a key to zero will remove it from the map
     function set(IterableMapStorage storage self, address key, uint256 val) internal returns (uint256) {
         // insert key
         if (self.idxOf[key] == 0) {
@@ -46,11 +49,14 @@ library IterableMap {
         return val;
     }
 
-    /// @dev zero-indexed key queries
+    /// @notice fetch key by index
+    /// @dev queries must be zero-indexed, assume the map is unordered
     function getByIdx(IterableMapStorage storage self, uint256 idx) internal view returns (address) {
         return self.keys[idx];
     }
 
+    /// @notice get all keys
+    /// @dev map is unordered
     function getKeys(IterableMapStorage storage self) internal view returns (address[] memory) {
         return self.keys;
     }

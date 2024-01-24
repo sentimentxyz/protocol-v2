@@ -39,6 +39,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     ////////////////////////// Only Owner //////////////////////////
 
     function setPoolCap(address pool, uint256 assets) external onlyOwner {
+        // TODO verify that the pool asset matches the superpool asset
         if (assets == 0 && poolCaps.get(pool) == 0) {
             return; // nothing to do
         }

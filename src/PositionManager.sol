@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-// Types
+// types
 import {Pool} from "./Pool.sol";
 import {RiskEngine} from "./RiskEngine.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
-// Libraries
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+// libraries
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-// Contracts
+// contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 
 contract PositionManager is Ownable, Pausable {
     using SafeERC20 for IERC20;

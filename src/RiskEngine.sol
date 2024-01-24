@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+// types
 import {Pool} from "./Pool.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
 import {IHealthCheck} from "./interfaces/IHealthCheck.sol";
+// contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract RiskEngine is Ownable {
-    mapping(address => mapping(address => uint256)) public ltvFor;
-    mapping(address => mapping(address => address)) public oracleFor;
-
-    mapping(uint256 => address) public healthCheckFor;
-
     error Unauthorized();
+
+    mapping(address pool => mapping(address asset => uint256 ltv)) public ltvFor;
+    mapping(uint256 positionType => address healthCheckImpl) public healthCheckFor;
+    mapping(address pool => mapping(address asset => address oracle)) public oracleFor;
 
     constructor() Ownable(msg.sender) {}
 

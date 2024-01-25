@@ -4,24 +4,27 @@ pragma solidity ^0.8.23;
 // types
 import {Pool} from "./Pool.sol";
 import {RiskEngine} from "./RiskEngine.sol";
+import {PoolFactory} from "./PoolFactory.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 // libraries
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract PositionManager is ReentrancyGuard, Ownable, Pausable {
     using SafeERC20 for IERC20;
 
+    error InvalidPool();
     error Unauthorized();
     error InvalidOperation();
     error HealthCheckFailed();
     error InvalidPositionType();
 
+    PoolFactory public poolFactory;
     RiskEngine public riskEngine;
 
     mapping(address position => address owner) public ownerOf; // position => owner mapping
@@ -122,7 +125,8 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
     }
 
     function borrow(address position, address pool, uint256 amt) internal {
-        IPosition(position).borrow(pool, amt);
+        if (poolFactory.managerFor(pool) == address(0)) revert InvalidPool();
+        IPosition(position).borrow(pool, amt); // this must check if borrow is valid
         Pool(pool).borrow(position, amt);
     }
 
@@ -157,5 +161,9 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
 
     function setRiskEngine(address _riskEngine) external onlyOwner {
         riskEngine = RiskEngine(_riskEngine);
+    }
+
+    function setPoolFactory(address _poolFactory) external onlyOwner {
+        poolFactory = PoolFactory(_poolFactory);
     }
 }

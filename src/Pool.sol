@@ -32,10 +32,10 @@ contract Pool is Ownable, Pausable, ERC4626 {
     error ZeroShares();
     error PositionManagerOnly();
 
-    constructor(IERC20 asset, string memory name_, string memory symbol_)
+    constructor(address asset, string memory name_, string memory symbol_)
         Ownable(msg.sender)
         ERC20(name_, symbol_)
-        ERC4626(asset)
+        ERC4626(IERC20(asset))
     {}
 
     // Pool Actions
@@ -74,7 +74,7 @@ contract Pool is Ownable, Pausable, ERC4626 {
 
     /// @notice fetch total notional pool borrows
     function getBorrows() public view returns (uint256) {
-        return totalBorrows.mulDiv(1e18 + rateModel.rateFactor(), 1e18, Math.Rounding.Ceil);
+        return totalBorrows.mulDiv(1e18 + IRateModel(rateModel).rateFactor(), 1e18, Math.Rounding.Ceil);
     }
 
     /// @notice fetch total notional pool borrows for a given position
@@ -131,8 +131,8 @@ contract Pool is Ownable, Pausable, ERC4626 {
         positionManager = _positionManager;
     }
 
-    function setRateModel(IRateModel _rateModel) external onlyOwner {
-        rateModel = _rateModel;
+    function setRateModel(address _rateModel) external onlyOwner {
+        rateModel = IRateModel(_rateModel);
     }
 
     function setOriginationFee(uint256 _originationFee) external onlyOwner {

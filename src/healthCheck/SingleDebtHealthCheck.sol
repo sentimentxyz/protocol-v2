@@ -24,11 +24,9 @@ contract SingleDebtHealthCheck is IHealthCheck {
 
         uint256 totalBalanceInWei;
         for (uint256 i; i < assets.length; ++i) {
-            uint256 bal = IOracle(riskEngine.oracleFor(pool, assets[i])).getValueInEth(
-                assets[i], IERC20(assets[i]).balanceOf(position)
-            );
-            assetData[i] = bal; // assetData[i] -> position balance of asset[i] in wei
-            totalBalanceInWei += bal;
+            uint256 balanceInWei = fetchBalanceInWei(pool, position, assets[i]);
+            assetData[i] = balanceInWei; // assetData[i] -> position balance of asset[i] in wei
+            totalBalanceInWei += balanceInWei;
         }
 
         for (uint256 i; i < assets.length; ++i) {
@@ -48,5 +46,9 @@ contract SingleDebtHealthCheck is IHealthCheck {
         }
 
         return totalBalanceInWei > minReqBalanceInWei;
+    }
+
+    function fetchBalanceInWei(address pool, address position, address asset) internal view returns (uint256) {
+        return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, IERC20(asset).balanceOf(position));
     }
 }

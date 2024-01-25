@@ -25,9 +25,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
         uint256 minReqBalanceInWei;
 
         for (uint256 i; i < debtPools.length; ++i) {
-            uint256 debtInWei = IOracle(riskEngine.oracleFor(debtPools[i], Pool(debtPools[i]).asset())).getValueInEth(
-                Pool(debtPools[i]).asset(), Pool(debtPools[i]).getBorrowsOf(position)
-            );
+            uint256 debtInWei = fetchDebtInWei(debtPools[i], position);
             totalDebtInWei += debtInWei;
             minReqBalanceInWei +=
                 debtInWei.mulDiv(1e18, riskEngine.ltvFor(debtPools[i], collateralAsset), Math.Rounding.Ceil);
@@ -39,14 +37,23 @@ contract SingleCollatHealthCheck is IHealthCheck {
             // debtInfo[i] -> fraction of total debt owed to debtPools[i]
         }
 
-        uint256 notionalBal = IERC20(collateralAsset).balanceOf(position);
+        uint256 notionalBalance = IERC20(collateralAsset).balanceOf(position);
         uint256 totalBalanceInWei;
         for (uint256 i; i < debtPools.length; ++i) {
-            totalBalanceInWei += IOracle(riskEngine.oracleFor(debtPools[i], collateralAsset)).getValueInEth(
-                collateralAsset, notionalBal.mulDiv(debtInfo[i], 1e18, Math.Rounding.Floor)
-            );
+            totalBalanceInWei += fetchBalanceInWei(debtPools[i], collateralAsset, notionalBalance, debtInfo[i]);
         }
 
         return totalBalanceInWei > minReqBalanceInWei;
+    }
+
+    function fetchDebtInWei(address pool, address position) internal view returns (uint256) {
+        return IOracle(riskEngine.oracleFor(pool, Pool(pool).asset())).getValueInEth(
+            Pool(pool).asset(), Pool(pool).getBorrowsOf(position)
+        );
+    }
+
+    function fetchBalanceInWei(address pool, address asset, uint256 amt, uint256 wt) internal view returns (uint256) {
+        return
+            IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt.mulDiv(wt, 1e18, Math.Rounding.Floor));
     }
 }

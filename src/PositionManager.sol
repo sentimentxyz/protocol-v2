@@ -75,8 +75,15 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
                 // data -> abi-encoded calldata to be passed
                 IPosition(position).exec(actions[i].target, actions[i].data);
             } else if (actions[i].op == Operation.Transfer) {
+                // target -> address to transfer assets to
+                // data -> asset to be transferred and amount
                 (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
                 IPosition(position).transfer(actions[i].target, asset, amt);
+            } else if (actions[i].op == Operation.Deposit) {
+                // target -> depositor address
+                // data -> asset to be transferred and amount
+                (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
+                IERC20(asset).safeTransferFrom(actions[i].target, position, amt);
             } else {
                 uint256 data = abi.decode(actions[i].data, (uint256));
                 if (actions[i].op == Operation.Repay) {
@@ -95,11 +102,6 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
                     // target -> asset to be deregistered as collateral
                     // data is ignored
                     IPosition(position).removeAsset(actions[i].target);
-                } else if (actions[i].op == Operation.Deposit) {
-                    // target -> asset to be transferred to position
-                    // data -> amount of asset to be transferred
-                    IERC20(actions[i].target).safeTransferFrom(msg.sender, position, data);
-                    // TODO remove msg.sender hardcode to generalise flow
                 } else {
                     revert InvalidOperation(); // Fallback revert
                 }

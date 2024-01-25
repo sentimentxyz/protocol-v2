@@ -106,14 +106,14 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
     ////////////////////////// Overrides //////////////////////////
 
-    function totalAssets() public view override returns (uint256 total) {
+    function totalAssets() public view override returns (uint256) {
         uint256 len = poolCaps.length();
+        uint256 total;
         for (uint256 i; i < len; i++) {
             IERC4626 pool = IERC4626(poolCaps.getByIdx(i));
-
-            uint256 sharesBalance = pool.balanceOf(address(this));
-            total += pool.previewRedeem(sharesBalance);
+            total += pool.previewRedeem(pool.balanceOf(address(this)));
         }
+        return total;
     }
 
     function maxDeposit(address) public view override returns (uint256) {

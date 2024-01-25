@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-// Interfaces
+// types
 import {IRateModel} from "./interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-// Libraries
+// libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-// Contracts
+// contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -21,13 +21,13 @@ contract Pool is Ownable, Pausable, ERC4626 {
     IRateModel public rateModel;
     address public positionManager;
 
-    uint256 public lastUpdated;
-    uint256 public originationFee;
+    uint256 public lastUpdated; // last time ping() was called
+    uint256 public originationFee; // accrued to pool owner
 
-    /// @dev cached total notional borrows, call getBorrows() for updated value
-    uint256 public totalBorrows;
+    uint256 public totalBorrows; // cached total pool debt, call getBorrows() for up to date value
     uint256 public totalBorrowShares;
-    mapping(address => uint256) borrowSharesOf;
+
+    mapping(address position => uint256 borrowShares) borrowSharesOf;
 
     error ZeroShares();
     error PositionManagerOnly();
@@ -42,50 +42,63 @@ contract Pool is Ownable, Pausable, ERC4626 {
 
     function borrow(address position, uint256 amt) external whenNotPaused {
         if (msg.sender != positionManager) revert PositionManagerOnly();
-        ping();
+        ping(); // accrue pending interest
+
+        // update borrows
         uint256 borrowShares = convertAssetToBorrowShares(amt);
         if (borrowShares == 0) revert ZeroShares();
-        borrowSharesOf[position] += borrowShares;
-        totalBorrows += amt;
+        totalBorrows += amt; // update total pool debt, notional
+        totalBorrowShares += borrowShares; // update total pool debt, shares
+        borrowSharesOf[position] += borrowShares; // update position debt, shares
+
+        // accrue origination fee
         uint256 fee = amt.mulDiv(originationFee, 1e18, Math.Rounding.Floor);
-        IERC20(asset()).safeTransfer(owner(), fee);
-        IERC20(asset()).safeTransfer(position, amt - fee);
+        IERC20(asset()).safeTransfer(owner(), fee); // send origination fee to owner
+        IERC20(asset()).safeTransfer(position, amt - fee); // send borrowed assets to position
     }
 
     /// @dev assume assets have already been transferred successfully in the same txn
     function repay(address position, uint256 amt) external returns (uint256) {
         if (msg.sender != positionManager) revert PositionManagerOnly();
-        ping();
+        ping(); // accrue pending interest
+
+        // update borrows
         uint256 borrowShares = convertAssetToBorrowShares(amt);
         if (borrowShares == 0) revert ZeroShares();
-        totalBorrows -= amt;
-        totalBorrowShares -= borrowShares;
-        return (borrowSharesOf[position] -= borrowShares);
+        totalBorrows -= amt; // update total pool debt, notional
+        totalBorrowShares -= borrowShares; // update total pool debt, shares
+        return (borrowSharesOf[position] -= borrowShares); // remaining position debt, in shares
     }
 
     // View Functions
 
+    /// @notice fetch total notional pool borrows
     function getBorrows() public view returns (uint256) {
         return totalBorrows.mulDiv(1e18 + rateModel.rateFactor(), 1e18, Math.Rounding.Ceil);
     }
 
+    /// @notice fetch total notional pool borrows for a given position
     function getBorrowsOf(address position) public view returns (uint256) {
         return convertBorrowSharesToAsset(borrowSharesOf[position]);
     }
 
+    /// @notice accrue pending interest and update pool state
     function ping() public {
         totalBorrows = getBorrows();
         lastUpdated = block.timestamp;
     }
 
+    /// @notice return total notional assets managed by pool, including lent out assets
     function totalAssets() public view override returns (uint256) {
         return IERC20(asset()).balanceOf(address(this)) + getBorrows();
     }
 
+    /// @notice convert notional asset amount to borrow shares
     function convertAssetToBorrowShares(uint256 amt) internal view returns (uint256) {
         return totalBorrowShares == 0 ? 0 : amt.mulDiv(totalBorrowShares, getBorrows(), Math.Rounding.Ceil);
     }
 
+    /// @notice convert borrow shares to notional asset amount
     function convertBorrowSharesToAsset(uint256 amt) internal view returns (uint256) {
         return totalBorrowShares == 0 ? 0 : amt.mulDiv(getBorrows(), totalBorrowShares, Math.Rounding.Floor);
     }

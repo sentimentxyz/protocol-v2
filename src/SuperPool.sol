@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {Pool} from "./Pool.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -28,6 +29,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     event PoolWithdraw(address indexed pool, uint256 assets);
 
     error PoolCapTooLow();
+    error InvalidPoolAsset();
     error OnlyAllocatorOrOwner();
 
     constructor(address _asset, string memory _name, string memory _symbol, address owner)
@@ -39,7 +41,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     ////////////////////////// Only Owner //////////////////////////
 
     function setPoolCap(address pool, uint256 assets) external onlyOwner {
-        // TODO verify that the pool asset matches the superpool asset
+        if (Pool(pool).asset() != asset()) revert InvalidPoolAsset();
         if (assets == 0 && poolCaps.get(pool) == 0) {
             return; // nothing to do
         }
@@ -53,7 +55,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
     function poolDeposit(address pool, uint256 assets) external {
         if (msg.sender != allocator && msg.sender != owner()) revert OnlyAllocatorOrOwner();
-        IERC20(this.asset()).approve(address(pool), assets);
+        IERC20(asset()).approve(address(pool), assets);
         IERC4626(pool).deposit(assets, address(this));
         require(IERC4626(pool).balanceOf(address(this)) <= poolCap(pool));
         emit PoolDeposit(pool, assets);
@@ -82,7 +84,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     }
 
     function _withdrawWithPath(uint256 assets, uint256[] memory path) internal {
-        uint256 balance = IERC20(this.asset()).balanceOf(address(this));
+        uint256 balance = IERC20(asset()).balanceOf(address(this));
 
         if (balance > assets) {
             return;
@@ -104,14 +106,14 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
     ////////////////////////// Overrides //////////////////////////
 
-    function totalAssets() public view override returns (uint256 total) {
+    function totalAssets() public view override returns (uint256) {
         uint256 len = poolCaps.length();
+        uint256 total;
         for (uint256 i; i < len; i++) {
             IERC4626 pool = IERC4626(poolCaps.getByIdx(i));
-
-            uint256 sharesBalance = pool.balanceOf(address(this));
-            total += pool.previewRedeem(sharesBalance);
+            total += pool.previewRedeem(pool.balanceOf(address(this)));
         }
+        return total;
     }
 
     function maxDeposit(address) public view override returns (uint256) {

@@ -12,8 +12,9 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 // contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract PositionManager is Ownable, Pausable {
+contract PositionManager is ReentrancyGuard, Ownable, Pausable {
     using SafeERC20 for IERC20;
 
     error Unauthorized();
@@ -54,7 +55,7 @@ contract PositionManager is Ownable, Pausable {
         bytes data;
     }
 
-    function process(address position, Action[] calldata actions) external {
+    function process(address position, Action[] calldata actions) external nonReentrant {
         for (uint256 i; i < actions.length; ++i) {
             // new position creation need not be authzd
             if (actions[i].op == Operation.NewPosition) {

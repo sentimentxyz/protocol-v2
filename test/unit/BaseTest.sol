@@ -11,13 +11,9 @@ import {Deploy} from "script/Deploy.s.sol";
 contract BaseTest is Test {
     Deploy public deploy;
 
-    function setUp() public {
+    function setUp() public virtual {
         deploy = new Deploy();
 
         deploy.run(address(this));
-    }
-
-    function testMet() public {
-        assert(true);
     }
 }

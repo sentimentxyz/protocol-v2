@@ -40,12 +40,13 @@ contract Pool is Ownable, Pausable, ERC4626 {
 
     // Pool Actions
 
-    function borrow(address position, uint256 amt) external whenNotPaused {
+    /// @return borrowShares the amount of shares minted
+    function borrow(address position, uint256 amt) external whenNotPaused returns (uint256 borrowShares) {
         if (msg.sender != positionManager) revert PositionManagerOnly();
         ping(); // accrue pending interest
 
         // update borrows
-        uint256 borrowShares = convertAssetToBorrowShares(amt);
+        borrowShares = convertAssetToBorrowShares(amt);
         if (borrowShares == 0) revert ZeroShares();
         // update total pool debt, notional
         totalBorrows += amt;
@@ -63,6 +64,7 @@ contract Pool is Ownable, Pausable, ERC4626 {
     }
 
     /// @dev assume assets have already been transferred successfully in the same txn
+    /// @return the remaining shares owned in the position
     function repay(address position, uint256 amt) external returns (uint256) {
         if (msg.sender != positionManager) revert PositionManagerOnly();
         // accrue pending interest
@@ -84,7 +86,7 @@ contract Pool is Ownable, Pausable, ERC4626 {
 
     /// @notice fetch total notional pool borrows
     function getBorrows() public view returns (uint256) {
-        return totalBorrows.mulDiv(1e18 + IRateModel(rateModel).rateFactor(), 1e18, Math.Rounding.Ceil);
+        return totalBorrows.mulDiv(1e18 + IRateModel(rateModel).rateFactor(lastUpdated), 1e18, Math.Rounding.Ceil);
     }
 
     /// @notice fetch total notional pool borrows for a given position
@@ -105,12 +107,12 @@ contract Pool is Ownable, Pausable, ERC4626 {
 
     /// @notice convert notional asset amount to borrow shares
     function convertAssetToBorrowShares(uint256 amt) internal view returns (uint256) {
-        return totalBorrowShares == 0 ? 0 : amt.mulDiv(totalBorrowShares, getBorrows(), Math.Rounding.Ceil);
+        return totalBorrowShares == 0 ? amt : amt.mulDiv(totalBorrowShares, getBorrows(), Math.Rounding.Ceil);
     }
 
     /// @notice convert borrow shares to notional asset amount
     function convertBorrowSharesToAsset(uint256 amt) internal view returns (uint256) {
-        return totalBorrowShares == 0 ? 0 : amt.mulDiv(getBorrows(), totalBorrowShares, Math.Rounding.Floor);
+        return totalBorrowShares == 0 ? amt : amt.mulDiv(getBorrows(), totalBorrowShares, Math.Rounding.Floor);
     }
 
     // ERC4626 Functions

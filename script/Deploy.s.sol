@@ -37,17 +37,18 @@ contract Deploy is Script {
     }
 
     function run(address owner) public {
+        positionManager = new PositionManager();
+        riskEngine = new RiskEngine();
+        poolFactory = new PoolFactory(address(positionManager));
+
+        singleCollatHealthCheck = new SingleCollatHealthCheck();
+        singleDebtHealthCheck = new SingleDebtHealthCheck();
+
         // deploy impls and beacons
         singleCollatPositionImpl = new SingleCollatPosition();
         singleDebtPositionImpl = new SingleDebtPosition();
         singleCollatPositionBeacon = new UpgradeableBeacon(address(singleCollatPositionImpl), owner);
         singleDebtPositionBeacon = new UpgradeableBeacon(address(singleDebtPositionImpl), owner);
-        // deploys impls
-        singleCollatHealthCheck = new SingleCollatHealthCheck();
-        singleDebtHealthCheck = new SingleDebtHealthCheck();
-        positionManager = new PositionManager();
-        riskEngine = new RiskEngine();
-        poolFactory = new PoolFactory(address(positionManager));
 
         // set up position manager
         positionManager.setBeacon(singleDebtPositionImpl.TYPE(), address(singleDebtPositionBeacon));

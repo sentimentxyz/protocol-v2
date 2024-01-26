@@ -2,5 +2,5 @@
 pragma solidity ^0.8.23;
 
 interface IRateModel {
-    function rateFactor() external view returns (uint256);
+    function rateFactor(uint256 lastKnownTimestamp) external view returns (uint256);
 }

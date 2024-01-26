@@ -23,15 +23,17 @@ contract SingleDebtHealthCheck is IHealthCheck {
         uint256[] memory assetData = new uint256[](assets.length);
 
         uint256 totalBalanceInWei;
-        for (uint256 i; i < assets.length; ++i) {
-            uint256 balanceInWei = fetchBalanceInWei(pool, position, assets[i]);
-            assetData[i] = balanceInWei; // assetData[i] -> position balance of asset[i] in wei
+        for (uint256 i; i < assets.length; ++i) {   
+            uint256 balanceInWei = collateralValue(pool, position, assets[i]);
+
+            // assetData[i] -> collateral value of asset[i]
+            assetData[i] = balanceInWei;
             totalBalanceInWei += balanceInWei;
         }
 
         for (uint256 i; i < assets.length; ++i) {
-            assetData[i] = assetData[i].mulDiv(1e18, totalBalanceInWei, Math.Rounding.Floor);
             // assetData[i] -> fraction of total account balance in asset[i]
+            assetData[i] = assetData[i].mulDiv(1e18, totalBalanceInWei, Math.Rounding.Floor);
         }
 
         address borrowAsset = Pool(pool).asset();
@@ -48,7 +50,8 @@ contract SingleDebtHealthCheck is IHealthCheck {
         return totalBalanceInWei > minReqBalanceInWei;
     }
 
-    function fetchBalanceInWei(address pool, address position, address asset) internal view returns (uint256) {
+    /// @notice the vaule of asset of a position in eth according to the pools oracle    
+    function collateralValue(address pool, address position, address asset) internal view returns (uint256) {
         return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, IERC20(asset).balanceOf(position));
     }
 }

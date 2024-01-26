@@ -4,8 +4,10 @@ pragma solidity ^0.8.23;
 // custom impl for an iterable address set
 library IterableSet {
     struct IterableSetStorage {
-        address[] elements; // list of set elements
-        mapping(address => uint256) idxOf; // idxOf[elem] = index of elem in self.elements + 1
+        // list of set elements
+        address[] elements;
+        // idxOf[elem] = index of elem in self.elements + 1
+        mapping(address => uint256) idxOf; 
     }
 
     /// @notice add element to set

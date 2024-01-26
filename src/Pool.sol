@@ -47,27 +47,37 @@ contract Pool is Ownable, Pausable, ERC4626 {
         // update borrows
         uint256 borrowShares = convertAssetToBorrowShares(amt);
         if (borrowShares == 0) revert ZeroShares();
-        totalBorrows += amt; // update total pool debt, notional
-        totalBorrowShares += borrowShares; // update total pool debt, shares
-        borrowSharesOf[position] += borrowShares; // update position debt, shares
+        // update total pool debt, notional
+        totalBorrows += amt;
+        // update total pool debt, shares
+        totalBorrowShares += borrowShares;
+        // update position debt, shares
+        borrowSharesOf[position] += borrowShares;
 
         // accrue origination fee
         uint256 fee = amt.mulDiv(originationFee, 1e18, Math.Rounding.Floor);
-        IERC20(asset()).safeTransfer(owner(), fee); // send origination fee to owner
-        IERC20(asset()).safeTransfer(position, amt - fee); // send borrowed assets to position
+        // send origination fee to owner
+        IERC20(asset()).safeTransfer(owner(), fee);
+        // send borrowed assets to position
+        IERC20(asset()).safeTransfer(position, amt - fee);
     }
 
     /// @dev assume assets have already been transferred successfully in the same txn
     function repay(address position, uint256 amt) external returns (uint256) {
         if (msg.sender != positionManager) revert PositionManagerOnly();
-        ping(); // accrue pending interest
+        // accrue pending interest
+        ping();
 
         // update borrows
         uint256 borrowShares = convertAssetToBorrowShares(amt);
         if (borrowShares == 0) revert ZeroShares();
-        totalBorrows -= amt; // update total pool debt, notional
-        totalBorrowShares -= borrowShares; // update total pool debt, shares
-        return (borrowSharesOf[position] -= borrowShares); // remaining position debt, in shares
+
+        // update total pool debt, notional
+        totalBorrows -= amt;
+        // update total pool debt, shares
+        totalBorrowShares -= borrowShares;
+        // remaining position debt, in shares
+        return (borrowSharesOf[position] -= borrowShares);
     }
 
     // View Functions

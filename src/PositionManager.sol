@@ -143,7 +143,7 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
         uint256 amt;
     }
 
-    function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external {
+    function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external nonReentrant {
         if (riskEngine.isPositionHealthy(position)) revert InvalidOperation();
         for (uint256 i; i < debt.length; ++i) {
             IERC20(debt[i].asset).transferFrom(msg.sender, debt[i].pool, debt[i].amt);

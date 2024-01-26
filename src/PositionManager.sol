@@ -4,23 +4,27 @@ pragma solidity ^0.8.23;
 // types
 import {Pool} from "./Pool.sol";
 import {RiskEngine} from "./RiskEngine.sol";
+import {PoolFactory} from "./PoolFactory.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 // libraries
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract PositionManager is Ownable, Pausable {
+contract PositionManager is ReentrancyGuard, Ownable, Pausable {
     using SafeERC20 for IERC20;
 
+    error InvalidPool();
     error Unauthorized();
     error InvalidOperation();
     error HealthCheckFailed();
     error InvalidPositionType();
 
+    PoolFactory public poolFactory;
     RiskEngine public riskEngine;
 
     mapping(address position => address owner) public ownerOf; // position => owner mapping
@@ -54,7 +58,7 @@ contract PositionManager is Ownable, Pausable {
         bytes data;
     }
 
-    function process(address position, Action[] calldata actions) external {
+    function process(address position, Action[] calldata actions) external nonReentrant {
         for (uint256 i; i < actions.length; ++i) {
             // new position creation need not be authzd
             if (actions[i].op == Operation.NewPosition) {
@@ -71,8 +75,15 @@ contract PositionManager is Ownable, Pausable {
                 // data -> abi-encoded calldata to be passed
                 IPosition(position).exec(actions[i].target, actions[i].data);
             } else if (actions[i].op == Operation.Transfer) {
+                // target -> address to transfer assets to
+                // data -> asset to be transferred and amount
                 (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
                 IPosition(position).transfer(actions[i].target, asset, amt);
+            } else if (actions[i].op == Operation.Deposit) {
+                // target -> depositor address
+                // data -> asset to be transferred and amount
+                (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
+                IERC20(asset).safeTransferFrom(actions[i].target, position, amt);
             } else {
                 uint256 data = abi.decode(actions[i].data, (uint256));
                 if (actions[i].op == Operation.Repay) {
@@ -91,11 +102,6 @@ contract PositionManager is Ownable, Pausable {
                     // target -> asset to be deregistered as collateral
                     // data is ignored
                     IPosition(position).removeAsset(actions[i].target);
-                } else if (actions[i].op == Operation.Deposit) {
-                    // target -> asset to be transferred to position
-                    // data -> amount of asset to be transferred
-                    IERC20(actions[i].target).safeTransferFrom(msg.sender, position, data);
-                    // TODO remove msg.sender hardcode to generalise flow
                 } else {
                     revert InvalidOperation(); // Fallback revert
                 }
@@ -121,7 +127,8 @@ contract PositionManager is Ownable, Pausable {
     }
 
     function borrow(address position, address pool, uint256 amt) internal {
-        IPosition(position).borrow(pool, amt);
+        if (poolFactory.managerFor(pool) == address(0)) revert InvalidPool();
+        IPosition(position).borrow(pool, amt); // this must check if borrow is valid
         Pool(pool).borrow(position, amt);
     }
 
@@ -136,7 +143,7 @@ contract PositionManager is Ownable, Pausable {
         uint256 amt;
     }
 
-    function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external {
+    function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external nonReentrant {
         if (riskEngine.isPositionHealthy(position)) revert InvalidOperation();
         for (uint256 i; i < debt.length; ++i) {
             IERC20(debt[i].asset).transferFrom(msg.sender, debt[i].pool, debt[i].amt);
@@ -156,5 +163,9 @@ contract PositionManager is Ownable, Pausable {
 
     function setRiskEngine(address _riskEngine) external onlyOwner {
         riskEngine = RiskEngine(_riskEngine);
+    }
+
+    function setPoolFactory(address _poolFactory) external onlyOwner {
+        poolFactory = PoolFactory(_poolFactory);
     }
 }

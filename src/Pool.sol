@@ -19,7 +19,7 @@ contract Pool is Ownable, Pausable, ERC4626 {
     using SafeERC20 for IERC20;
 
     IRateModel public rateModel;
-    address public positionManager;
+    address immutable positionManager;
 
     uint256 public lastUpdated; // last time ping() was called
     uint256 public originationFee; // accrued to pool owner
@@ -32,11 +32,13 @@ contract Pool is Ownable, Pausable, ERC4626 {
     error ZeroShares();
     error PositionManagerOnly();
 
-    constructor(address asset, string memory name_, string memory symbol_)
+    constructor(address _positionManager, address asset, string memory name_, string memory symbol_)
         Ownable(msg.sender)
         ERC20(name_, symbol_)
         ERC4626(IERC20(asset))
-    {}
+    {
+        positionManager = _positionManager;
+    }
 
     // Pool Actions
 
@@ -126,10 +128,6 @@ contract Pool is Ownable, Pausable, ERC4626 {
     }
 
     // Admin Functions
-
-    function setPositionManager(address _positionManager) external onlyOwner {
-        positionManager = _positionManager;
-    }
 
     function setRateModel(address _rateModel) external onlyOwner {
         rateModel = IRateModel(_rateModel);

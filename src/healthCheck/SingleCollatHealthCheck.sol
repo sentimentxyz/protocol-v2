@@ -14,6 +14,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract SingleCollatHealthCheck is IHealthCheck {
     using Math for uint256;
 
+    uint256 public constant TYPE = 2;
+
     RiskEngine public riskEngine;
 
     function isPositionHealthy(address position) external view returns (bool) {
@@ -26,7 +28,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
 
         for (uint256 i; i < debtPools.length; ++i) {
             uint256 debtInWei = debtValue(debtPools[i], position);
-            
+
             totalDebtInWei += debtInWei;
             minReqBalanceInWei +=
                 debtInWei.mulDiv(1e18, riskEngine.ltvFor(debtPools[i], collateralAsset), Math.Rounding.Ceil);

@@ -14,6 +14,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract SingleDebtHealthCheck is IHealthCheck {
     using Math for uint256;
 
+    uint256 public constant TYPE = 1;
+
     RiskEngine public riskEngine;
 
     function isPositionHealthy(address position) external view returns (bool) {

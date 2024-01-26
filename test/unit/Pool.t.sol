@@ -27,7 +27,7 @@ contract PoolTest is BaseTest {
 
     function testExpectedBorrowSharesMinted(uint256 debt) public {
         // play nicely with the test setup / rounding
-        vm.assume(debt% 4 == 0);
+        vm.assume(debt % 4 == 0);
         vm.assume(debt < BIG_NUMBER);
         vm.assume(debt > 1 gwei);
 
@@ -55,7 +55,7 @@ contract PoolTest is BaseTest {
     }
 
     function testExpectedBorrowSharesBurned(uint256 debt) public {
-        vm.assume(debt% 2 == 0);
+        vm.assume(debt % 2 == 0);
         vm.assume(debt < BIG_NUMBER);
         vm.assume(debt > 0);
 

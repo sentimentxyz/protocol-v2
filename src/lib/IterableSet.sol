@@ -7,7 +7,7 @@ library IterableSet {
         // list of set elements
         address[] elements;
         // idxOf[elem] = index of elem in self.elements + 1
-        mapping(address => uint256) idxOf; 
+        mapping(address => uint256) idxOf;
     }
 
     /// @notice add element to set

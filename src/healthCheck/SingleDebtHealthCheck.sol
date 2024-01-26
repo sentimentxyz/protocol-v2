@@ -25,7 +25,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
         uint256[] memory assetData = new uint256[](assets.length);
 
         uint256 totalBalanceInWei;
-        for (uint256 i; i < assets.length; ++i) {   
+        for (uint256 i; i < assets.length; ++i) {
             uint256 balanceInWei = collateralValue(pool, position, assets[i]);
 
             // assetData[i] -> collateral value of asset[i]
@@ -52,7 +52,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
         return totalBalanceInWei > minReqBalanceInWei;
     }
 
-    /// @notice the vaule of asset of a position in eth according to the pools oracle    
+    /// @notice the vaule of asset of a position in eth according to the pools oracle
     function collateralValue(address pool, address position, address asset) internal view returns (uint256) {
         return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, IERC20(asset).balanceOf(position));
     }

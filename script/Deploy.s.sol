@@ -17,8 +17,6 @@ import {SingleDebtPosition} from "src/positions/SingleDebtPosition.sol";
 import {SingleCollatHealthCheck} from "src/healthcheck/SingleCollatHealthCheck.sol";
 import {SingleDebtHealthCheck} from "src/healthcheck/SingleDebtHealthCheck.sol";
 
-
-
 contract Deploy is Script {
     SingleCollatPosition public singleCollatPositionImpl;
     SingleDebtPosition public singleDebtPositionImpl;
@@ -29,7 +27,6 @@ contract Deploy is Script {
     PositionManager public positionManager;
     RiskEngine public riskEngine;
     PoolFactory public poolFactory;
-
 
     /// @notice uses values from the constants file in src/
     function run() public {

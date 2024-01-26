@@ -83,7 +83,6 @@ contract MockPool {
         asset = _asset;
     }
 
-
     function balanceOf(address) external pure returns (uint256) {
         return 0;
     }

@@ -50,6 +50,7 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
         NewPosition, // deploy and create a new position
         AddAsset, // upsert collateral asset to position storage
         RemoveAsset // delete collateral asset from position storage
+
     }
 
     struct Action {

@@ -34,7 +34,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
                 debtInWei.mulDiv(1e18, riskEngine.ltvFor(debtPools[i], collateralAsset), Math.Rounding.Ceil);
 
             // debtInfo[i] -> position debt in eth owed to debtPools[i]
-            debtInfo[i] = debtInWei; 
+            debtInfo[i] = debtInWei;
         }
 
         for (uint256 i; i < debtPools.length; ++i) {
@@ -57,7 +57,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
             Pool(pool).asset(), Pool(pool).getBorrowsOf(position)
         );
     }
-    
+
     /// @notice The collateral value of wt * amt of asset according to the pools oracle
     /// @notice we break up the collateral into "virtual" positions according to the reported amount of debt
     /// @param wt weight of the asset in the pool

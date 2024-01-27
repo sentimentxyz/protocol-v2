@@ -8,12 +8,16 @@ import {PoolFactory} from "./PoolFactory.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract PositionManager is OwnableUpgradeable, PausableUpgradeable {
+contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, PausableUpgradeable {
+    using Math for uint256;
     using SafeERC20 for IERC20;
 
     error InvalidPool();
@@ -22,8 +26,9 @@ contract PositionManager is OwnableUpgradeable, PausableUpgradeable {
     error HealthCheckFailed();
     error InvalidPositionType();
 
-    PoolFactory public poolFactory;
     RiskEngine public riskEngine;
+    uint256 public liquidationFee;
+    PoolFactory public poolFactory;
 
     mapping(address position => address owner) public ownerOf; // position => owner mapping
     mapping(uint256 positionType => address beacon) public beaconFor; // type => UpgradeableBeacon
@@ -36,6 +41,7 @@ contract PositionManager is OwnableUpgradeable, PausableUpgradeable {
     }
 
     function initialize() public initializer {
+        ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         OwnableUpgradeable.__Ownable_init(msg.sender);
         PausableUpgradeable.__Pausable_init();
     }
@@ -155,7 +161,9 @@ contract PositionManager is OwnableUpgradeable, PausableUpgradeable {
             Pool(debt[i].pool).repay(position, debt[i].amt);
         }
         for (uint256 i; i < collat.length; ++i) {
-            IPosition(position).transfer(msg.sender, collat[i].asset, collat[i].amt);
+            uint256 fee = liquidationFee.mulDiv(1e18, collat[i].amt);
+            IPosition(position).transfer(owner(), collat[i].asset, fee);
+            IPosition(position).transfer(msg.sender, collat[i].asset, collat[i].amt - fee);
         }
         if (!riskEngine.isPositionHealthy(position)) revert InvalidOperation();
         // TODO emit liquidation event and/or reset position
@@ -172,5 +180,9 @@ contract PositionManager is OwnableUpgradeable, PausableUpgradeable {
 
     function setPoolFactory(address _poolFactory) external onlyOwner {
         poolFactory = PoolFactory(_poolFactory);
+    }
+
+    function setLiquidationFee(uint256 _liquidationFee) external onlyOwner {
+        liquidationFee = _liquidationFee;
     }
 }

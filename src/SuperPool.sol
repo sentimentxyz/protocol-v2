@@ -22,8 +22,8 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// The cumlative deposit cap for all pools
     uint256 public totalPoolCap;
 
-    /// Privileged address allowed to allocate funds to and from pools on behalf of the owner
-    address public allocator;
+    uint256 public fee; // protocol fee
+    address public allocator; // priveilaged address to allocate assets between pools
 
     event PoolCapSet(address indexed pool, uint256 amt);
     event PoolDeposit(address indexed pool, uint256 assets);

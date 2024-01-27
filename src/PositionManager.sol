@@ -29,7 +29,14 @@ contract PositionManager is OwnableUpgradeable, PausableUpgradeable {
     /// @dev auth[x][y] stores if address x is authorized to operate on position y
     mapping(address caller => mapping(address position => bool isAuthz)) public auth;
 
-    // TODO INIT
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize() public initializer {
+        OwnableUpgradeable.__Ownable_init(msg.sender);
+        PausableUpgradeable.__Pausable_init();
+    }
 
     /// @notice allow other addresses to call process() on behalf of the position owner
     function setAuth(address user, address position, bool isAuthorized) external {

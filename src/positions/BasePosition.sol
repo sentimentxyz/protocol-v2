@@ -17,7 +17,13 @@ abstract contract BasePosition is Initializable, IPosition {
     error InvalidOperation();
     error PositionManagerOnly();
 
-    // TODO INIT
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _positionManager) public virtual initializer {
+        positionManager = _positionManager;
+    }
 
     modifier onlyPositionManager() {
         if (msg.sender != positionManager) revert PositionManagerOnly();

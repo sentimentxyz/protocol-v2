@@ -32,7 +32,16 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     error ZeroShares();
     error PositionManagerOnly();
 
-    // TODO INIT
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address asset, string memory _name, string memory _symbol) public initializer {
+        OwnableUpgradeable.__Ownable_init(msg.sender);
+        PausableUpgradeable.__Pausable_init();
+        ERC20Upgradeable.__ERC20_init(_name, _symbol);
+        ERC4626Upgradeable.__ERC4626_init(IERC20(asset));
+    }
 
     // Pool Actions
 

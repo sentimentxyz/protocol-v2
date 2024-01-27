@@ -15,7 +15,13 @@ contract RiskEngine is OwnableUpgradeable {
     mapping(uint256 positionType => address healthCheckImpl) public healthCheckFor;
     mapping(address pool => mapping(address asset => address oracle)) public oracleFor;
 
-    // TODO INIT
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize() public initializer {
+        OwnableUpgradeable.__Ownable_init(msg.sender);
+    }
 
     function isPositionHealthy(address position) external returns (bool) {
         return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isPositionHealthy(position);

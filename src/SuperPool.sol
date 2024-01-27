@@ -7,6 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
 import {IterableMap} from "src/lib/IterableMap.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //contracts
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -14,6 +15,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
 contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
+    using Math for uint256;
     using IterableMap for IterableMap.IterableMapStorage;
 
     /// An internal mapping of Pool => Pool Cap, incldudes an array of pools with non zero cap.
@@ -22,8 +24,8 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// The cumlative deposit cap for all pools
     uint256 public totalPoolCap;
 
-    /// Privileged address allowed to allocate funds to and from pools on behalf of the owner
-    address public allocator;
+    uint256 public protocolFee; // protocol fee
+    address public allocator; // priveilaged address to allocate assets between pools
 
     event PoolCapSet(address indexed pool, uint256 amt);
     event PoolDeposit(address indexed pool, uint256 assets);
@@ -76,6 +78,19 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     ////////////////////////// Withdraw //////////////////////////
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
+        uint256 fee = protocolFee.mulDiv(assets, 1e18);
+        uint256 feeShares = ERC4626Upgradeable.withdraw(fee, OwnableUpgradeable.owner(), owner);
+        uint256 recieverShares = ERC4626Upgradeable.withdraw(assets, receiver, owner);
+        return feeShares + recieverShares;
+    }
+
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
+        uint256 fee = protocolFee.mulDiv(shares, 1e18);
+        uint256 feeAssets = ERC4626Upgradeable.redeem(fee, OwnableUpgradeable.owner(), owner);
+        uint256 receiverAssets = ERC4626Upgradeable.redeem(shares, receiver, owner);
+        return feeAssets + receiverAssets;
+    }
 
     function withdrawWithPath(uint256 assets, uint256[] memory path) external whenNotPaused {
         _withdrawWithPath(assets, path);
@@ -127,8 +142,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     function maxMint(address) public view override returns (uint256) {
-        uint256 _maxDeposit = maxDeposit(address(0));
-        return previewDeposit(_maxDeposit);
+        return previewDeposit(maxDeposit(address(0)));
     }
 
     ////////////////////////// Public //////////////////////////

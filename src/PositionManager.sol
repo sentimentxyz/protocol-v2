@@ -10,10 +10,10 @@ import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol"
 // libraries
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
-contract PositionManager is Ownable, Pausable {
+contract PositionManager is OwnableUpgradeable, PausableUpgradeable {
     using SafeERC20 for IERC20;
 
     error Unauthorized();
@@ -29,7 +29,7 @@ contract PositionManager is Ownable, Pausable {
     /// @dev auth[x][y] stores if address x is authorized to operate on position y
     mapping(address caller => mapping(address position => bool isAuthz)) public auth;
 
-    constructor() Ownable(msg.sender) {}
+    // TODO INIT
 
     /// @notice allow other addresses to call process() on behalf of the position owner
     function setAuth(address user, address position, bool isAuthorized) external {

@@ -3,17 +3,17 @@ pragma solidity ^0.8.23;
 
 //types
 import {Pool} from "./Pool.sol";
-import {IERC20} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts-upgradeable/interfaces/IERC4626.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
 import {IterableMap} from "src/lib/IterableMap.sol";
 //contracts
-import {ERC20} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {Ownable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {Pausable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {ERC4626} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
-contract SuperPool is Ownable, Pausable, ERC4626 {
+contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     using IterableMap for IterableMap.IterableMapStorage;
 
     /// An internal mapping of Pool => Pool Cap, incldudes an array of pools with non zero cap.
@@ -33,11 +33,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     error InvalidPoolAsset();
     error OnlyAllocatorOrOwner();
 
-    constructor(address _asset, string memory _name, string memory _symbol, address owner)
-        Ownable(owner)
-        ERC20(_name, _symbol)
-        ERC4626(IERC20(_asset))
-    {}
+    // TODO INIT
 
     ////////////////////////// Only Owner //////////////////////////
 

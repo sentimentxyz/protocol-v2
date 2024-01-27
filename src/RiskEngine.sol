@@ -6,16 +6,16 @@ import {Pool} from "./Pool.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
 import {IHealthCheck} from "./interfaces/IHealthCheck.sol";
 // contracts
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract RiskEngine is Ownable {
+contract RiskEngine is OwnableUpgradeable {
     error Unauthorized();
 
     mapping(address pool => mapping(address asset => uint256 ltv)) public ltvFor;
     mapping(uint256 positionType => address healthCheckImpl) public healthCheckFor;
     mapping(address pool => mapping(address asset => address oracle)) public oracleFor;
 
-    constructor() Ownable(msg.sender) {}
+    // TODO INIT
 
     function isPositionHealthy(address position) external returns (bool) {
         return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isPositionHealthy(position);

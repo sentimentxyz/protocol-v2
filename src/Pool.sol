@@ -19,7 +19,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     using SafeERC20 for IERC20;
 
     IRateModel public rateModel;
-    address public positionManager;
+    address immutable positionManager;
 
     uint256 public lastUpdated; // last time ping() was called
     uint256 public originationFee; // accrued to pool owner
@@ -79,7 +79,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
 
     /// @notice fetch total notional pool borrows
     function getBorrows() public view returns (uint256) {
-        return totalBorrows.mulDiv(1e18 + rateModel.rateFactor(), 1e18, Math.Rounding.Ceil);
+        return totalBorrows.mulDiv(1e18 + IRateModel(rateModel).rateFactor(), 1e18, Math.Rounding.Ceil);
     }
 
     /// @notice fetch total notional pool borrows for a given position
@@ -132,12 +132,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
 
     // Admin Functions
 
-    function setPositionManager(address _positionManager) external onlyOwner {
-        positionManager = _positionManager;
-    }
-
-    function setRateModel(IRateModel _rateModel) external onlyOwner {
-        rateModel = _rateModel;
+    function setRateModel(address _rateModel) external onlyOwner {
+        rateModel = IRateModel(_rateModel);
     }
 
     function setOriginationFee(uint256 _originationFee) external onlyOwner {

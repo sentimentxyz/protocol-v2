@@ -27,6 +27,14 @@ contract SingleDebtPosition is BasePosition {
         }
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _positionManager) public override initializer {
+        BasePosition.initialize(_positionManager);
+    }
+
     function repay(address pool, uint256 amt) external override onlyPositionManager {
         if (pool != debtPool) revert InvalidOperation();
         if (Pool(pool).getBorrowsOf(address(this)) == amt) {

@@ -20,6 +20,14 @@ contract SingleCollatPosition is BasePosition {
 
     IterableSet.IterableSetStorage internal debtPools;
 
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _positionManager) public override initializer {
+        BasePosition.initialize(_positionManager);
+    }
+
     function borrow(address pool, uint256) external override onlyPositionManager {
         debtPools.insert(pool);
     }

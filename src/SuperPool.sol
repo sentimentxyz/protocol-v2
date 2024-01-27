@@ -142,8 +142,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     function maxMint(address) public view override returns (uint256) {
-        uint256 _maxDeposit = maxDeposit(address(0));
-        return previewDeposit(_maxDeposit);
+        return previewDeposit(maxDeposit(address(0)));
     }
 
     ////////////////////////// Public //////////////////////////

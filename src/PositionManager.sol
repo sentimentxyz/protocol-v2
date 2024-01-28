@@ -36,6 +36,11 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @dev auth[x][y] stores if address x is authorized to operate on position y
     mapping(address caller => mapping(address position => bool isAuthz)) public auth;
 
+    // defines the entire universe of exec calls that can be performed on a position
+    // execUniverse[x][bytes4(y)] stores if a position can call method y on x
+    // execUniverse[x][address(y)] stores if a position can approve x as a spender of asset y
+    mapping(address => mapping(bytes20 => bool)) public execUniverse;
+
     constructor() {
         _disableInitializers();
     }
@@ -53,14 +58,16 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     enum Operation {
+        NewPosition, // deploy and create a new position
+        Exec, // interact with an external contract
+        Deposit, // send assets to the position
+        Transfer, // transfer assets from the position
+        Approve, // Allow a spender to transfer assets from a position
         Repay, // decrease position debt
         Borrow, // increase position debt
-        Deposit, // send assets to the position
-        Exec, // interact with an external contract
-        Transfer, // transfer assets from the position
-        NewPosition, // deploy and create a new position
         AddAsset, // upsert collateral asset to position storage
         RemoveAsset // delete collateral asset from position storage
+
     }
 
     struct Action {
@@ -84,6 +91,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             if (actions[i].op == Operation.Exec) {
                 // target -> contract address to be called by the position
                 // data -> abi-encoded calldata to be passed
+                if (!execUniverse[actions[i].target][bytes4(actions[i].data)]) revert InvalidOperation();
                 IPosition(position).exec(actions[i].target, actions[i].data);
             } else if (actions[i].op == Operation.Transfer) {
                 // target -> address to transfer assets to
@@ -95,6 +103,12 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
                 // data -> asset to be transferred and amount
                 (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
                 IERC20(asset).safeTransferFrom(actions[i].target, position, amt);
+            } else if (actions[i].op == Operation.Approve) {
+                // target -> spender
+                // data -> asset and amount to be approved
+                (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
+                if (!execUniverse[actions[i].target][bytes20(asset)]) revert InvalidOperation();
+                IPosition(position).approve(asset, actions[i].target, amt);
             } else {
                 uint256 data = abi.decode(actions[i].data, (uint256));
                 if (actions[i].op == Operation.Repay) {

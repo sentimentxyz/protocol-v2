@@ -5,6 +5,8 @@ import "forge-std/Test.sol";
 import {SuperPool} from "src/SuperPool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {TestUtils} from "test/Utils.sol";
+
 
 contract SuperPoolTest is Test {
     SuperPool superPool;
@@ -12,7 +14,9 @@ contract SuperPoolTest is Test {
 
     function setUp() public {
         mockERC20 = IERC20(address(deployMockERC20("Mock token", "MT", 18)));
-        superPool = new SuperPool(address(mockERC20), "SuperPool", "SP", address(this));
+        superPool = new SuperPool();
+        superPool = SuperPool(address(TestUtils.makeProxy(address(superPool), address(this))));
+        superPool.initialize(address(mockERC20), "SuperPool", "SP");
     }
 
     function testZereodPoolsAreRemoved() public {

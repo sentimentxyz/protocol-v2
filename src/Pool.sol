@@ -32,7 +32,9 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     error ZeroShares();
     error PositionManagerOnly();
 
-    constructor() {
+    constructor(address _positionManager) {
+        // written to only once when we deploy the initial impl
+        positionManager = _positionManager;
         _disableInitializers();
     }
 
@@ -143,10 +145,6 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     }
 
     // Admin Functions
-
-    function setPositionManager(address _positionManager) external onlyOwner {
-        positionManager = _positionManager;
-    }
 
     function setRateModel(address _rateModel) external onlyOwner {
         rateModel = IRateModel(_rateModel);

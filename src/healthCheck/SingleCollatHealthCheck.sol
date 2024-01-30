@@ -16,7 +16,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
 
     uint256 public constant TYPE = 2;
 
-    RiskEngine public riskEngine;
+    RiskEngine public immutable riskEngine;
 
     constructor(address _riskEngine) {
         riskEngine = RiskEngine(_riskEngine);

@@ -5,6 +5,7 @@ import {BaseTest} from "./BaseTest.sol";
 import {Pool} from "src/Pool.sol";
 import {IRateModel} from "src/interfaces/IRateModel.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
+import {TestUtils} from "test/Utils.sol";
 
 contract PoolTest is BaseTest {
     Pool public pool;
@@ -15,11 +16,12 @@ contract PoolTest is BaseTest {
 
     function setUp() public override {
         mockToken = new MintableToken();
-        pool = new Pool(address(mockToken), "mock pool", "mp");
-        mockRateModel = new MockRateModel();
+        // set ourselves as the pos manager so we can mint/burn at will
+        pool = new Pool(address(this));
+        pool = Pool(payable(address(TestUtils.makeProxy(address(pool), address(this)))));
+        pool.initialize(address(mockToken), "test", "test");
 
-        // set the position manager to ourselves so we can just mint/burn at will
-        pool.setPositionManager(address(this));
+        mockRateModel = new MockRateModel();
 
         pool.setRateModel(address(mockRateModel));
         super.setUp();

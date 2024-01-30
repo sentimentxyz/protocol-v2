@@ -22,7 +22,8 @@ contract PoolFactory is Ownable {
     }
 
     function deployPool(PoolDeployParams calldata params) external {
-        Pool pool = new Pool();
+        // todo change to clones
+        Pool pool = new Pool(positionManager);
         pool.initialize(params.asset, params.name, params.symbol);
         pool.setRateModel(params.rateModel);
         pool.setOriginationFee(params.originationFee);

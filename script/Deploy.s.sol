@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import {Script} from "forge-std/Script.sol";
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {PoolFactory} from "src/PoolFactory.sol";
 import {Pool} from "src/Pool.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
@@ -24,9 +25,12 @@ contract Deploy is Script {
     UpgradeableBeacon public singleDebtPositionBeacon;
     SingleCollatHealthCheck public singleCollatHealthCheck;
     SingleDebtHealthCheck public singleDebtHealthCheck;
+    PoolFactory public poolFactory;
     PositionManager public positionManager;
     RiskEngine public riskEngine;
-    PoolFactory public poolFactory;
+
+    PositionManager public positionManagerImpl;
+    RiskEngine public riskEngineImpl;
 
     /// @notice uses values from the constants file in src/
     function run() public {
@@ -34,12 +38,20 @@ contract Deploy is Script {
     }
 
     function run(address owner) public {
-        positionManager = new PositionManager();
-        riskEngine = new RiskEngine();
+        positionManagerImpl = new PositionManager();
+        TransparentUpgradeableProxy proxy1 = new TransparentUpgradeableProxy(address(positionManagerImpl), owner, "");
+        positionManager = PositionManager(payable(address(proxy1)));
+        positionManager.initialize();
+
+        riskEngineImpl = new RiskEngine();
+        TransparentUpgradeableProxy proxy2 = new TransparentUpgradeableProxy(address(riskEngineImpl), owner, "");
+        riskEngine = RiskEngine(payable(address(proxy2)));
+        riskEngine.initialize();
+
         poolFactory = new PoolFactory(address(positionManager));
 
-        singleCollatHealthCheck = new SingleCollatHealthCheck();
-        singleDebtHealthCheck = new SingleDebtHealthCheck();
+        singleCollatHealthCheck = new SingleCollatHealthCheck(address(riskEngine));
+        singleDebtHealthCheck = new SingleDebtHealthCheck(address(riskEngine));
 
         // deploy impls and beacons
         singleCollatPositionImpl = new SingleCollatPosition();

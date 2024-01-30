@@ -38,6 +38,10 @@ abstract contract BasePosition is Initializable, IPosition {
     function borrow(address pool, uint256 amt) external virtual;
     function exec(address target, bytes calldata data) external virtual;
 
+    function approve(address token, address spender, uint256 amt) external onlyPositionManager {
+        IERC20(token).forceApprove(spender, amt);
+    }
+
     function transfer(address to, address asset, uint256 amt) external onlyPositionManager {
         IERC20(asset).safeTransfer(to, amt);
     }

@@ -8,12 +8,10 @@ import {Pool} from "./Pool.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract PoolFactory is Ownable {
-    address public positionManager;
     address public poolImplementation;
     mapping(address pool => address poolManager) public managerFor;
 
-    constructor(address _positionManager, address _poolImplementation) Ownable(msg.sender) {
-        positionManager = _positionManager;
+    constructor(address _poolImplementation) Ownable(msg.sender) {
         poolImplementation = _poolImplementation;
     }
 
@@ -31,10 +29,8 @@ contract PoolFactory is Ownable {
         pool.setRateModel(params.rateModel);
         pool.setOriginationFee(params.originationFee);
         pool.transferOwnership(msg.sender);
-    }
-
-    function setPositionManager(address _positionManager) external onlyOwner {
-        positionManager = _positionManager;
+        managerFor[pool] = msg.sender;
+        // TODO pool created event
     }
 
     function setPoolImplementation(address _poolImplementation) external onlyOwner {

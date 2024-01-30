@@ -29,7 +29,7 @@ contract PoolFactory is Ownable {
         pool.setRateModel(params.rateModel);
         pool.setOriginationFee(params.originationFee);
         pool.transferOwnership(msg.sender);
-        managerFor[pool] = msg.sender;
+        managerFor[address(pool)] = msg.sender;
         // TODO pool created event
     }
 

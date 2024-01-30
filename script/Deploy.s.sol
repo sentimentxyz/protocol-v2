@@ -50,7 +50,7 @@ contract Deploy is Script {
         riskEngine.initialize();
 
         poolImplementation = new Pool(address(positionManager));
-        poolFactory = new PoolFactory(address(positionManager), address(poolImplementation));
+        poolFactory = new PoolFactory(address(poolImplementation));
 
         singleCollatHealthCheck = new SingleCollatHealthCheck(address(riskEngine));
         singleDebtHealthCheck = new SingleDebtHealthCheck(address(riskEngine));

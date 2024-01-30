@@ -86,7 +86,7 @@ contract PoolTest is BaseTest {
 
 contract MockRateModel is IRateModel {
     /// Doubles every year
-    function rateFactor(uint256 lastUpdated) external view returns (uint256) {
+    function interestAccrued(uint256 lastUpdated, uint256, uint256) external view returns (uint256) {
         uint256 secondsInYear = 365 days;
         return (1e18 * (block.timestamp - lastUpdated) / secondsInYear);
     }

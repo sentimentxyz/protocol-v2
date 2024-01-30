@@ -18,6 +18,10 @@ contract SingleCollatHealthCheck is IHealthCheck {
 
     RiskEngine public riskEngine;
 
+    constructor(address _riskEngine) {
+        riskEngine = RiskEngine(_riskEngine);
+    }
+
     function isPositionHealthy(address position) external view returns (bool) {
         address[] memory debtPools = IPosition(position).getDebtPools();
         uint256[] memory debtInfo = new uint256[](debtPools.length);

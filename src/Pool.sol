@@ -9,17 +9,17 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
-contract Pool is Ownable, Pausable, ERC4626 {
+contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
     IRateModel public rateModel;
-    address public positionManager;
+    address immutable positionManager;
 
     uint256 public lastUpdated; // last time ping() was called
     uint256 public originationFee; // accrued to pool owner
@@ -32,11 +32,16 @@ contract Pool is Ownable, Pausable, ERC4626 {
     error ZeroShares();
     error PositionManagerOnly();
 
-    constructor(address asset, string memory name_, string memory symbol_)
-        Ownable(msg.sender)
-        ERC20(name_, symbol_)
-        ERC4626(IERC20(asset))
-    {}
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address asset, string memory _name, string memory _symbol) public initializer {
+        OwnableUpgradeable.__Ownable_init(msg.sender);
+        PausableUpgradeable.__Pausable_init();
+        ERC20Upgradeable.__ERC20_init(_name, _symbol);
+        ERC4626Upgradeable.__ERC4626_init(IERC20(asset));
+    }
 
     // Pool Actions
 
@@ -150,6 +155,4 @@ contract Pool is Ownable, Pausable, ERC4626 {
     function setOriginationFee(uint256 _originationFee) external onlyOwner {
         originationFee = _originationFee;
     }
-
-    // TODO pool caps?
 }

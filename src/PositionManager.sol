@@ -8,14 +8,17 @@ import {PoolFactory} from "./PoolFactory.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract PositionManager is ReentrancyGuard, Ownable, Pausable {
+// 11.004
+contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, PausableUpgradeable {
+    using Math for uint256;
     using SafeERC20 for IERC20;
 
     error InvalidPool();
@@ -26,6 +29,7 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
 
     PoolFactory public poolFactory;
     RiskEngine public riskEngine;
+    uint256 public liquidationFee;
 
     mapping(address position => address owner) public ownerOf; // position => owner mapping
     mapping(uint256 positionType => address beacon) public beaconFor; // type => UpgradeableBeacon
@@ -33,7 +37,20 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
     /// @dev auth[x][y] stores if address x is authorized to operate on position y
     mapping(address caller => mapping(address position => bool isAuthz)) public auth;
 
-    constructor() Ownable(msg.sender) {}
+    // defines the universe of approved contracts and methods that a position can interact with
+    // mapping key -> first 20 bytes store the target address, next 4 bytes store the method selector
+    mapping(address target => bool isAllowed) public contractUniverse;
+    mapping(address target => mapping(bytes4 method => bool isAllowed)) public funcUniverse;
+
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize() public initializer {
+        ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
+        OwnableUpgradeable.__Ownable_init(msg.sender);
+        PausableUpgradeable.__Pausable_init();
+    }
 
     /// @notice allow other addresses to call process() on behalf of the position owner
     function setAuth(address user, address position, bool isAuthorized) external {
@@ -42,12 +59,13 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
     }
 
     enum Operation {
+        NewPosition, // deploy and create a new position
+        Exec, // interact with an external contract
+        Deposit, // send assets to the position
+        Transfer, // transfer assets from the position
+        Approve, // Allow a spender to transfer assets from a position
         Repay, // decrease position debt
         Borrow, // increase position debt
-        Deposit, // send assets to the position
-        Exec, // interact with an external contract
-        Transfer, // transfer assets from the position
-        NewPosition, // deploy and create a new position
         AddAsset, // upsert collateral asset to position storage
         RemoveAsset // delete collateral asset from position storage
 
@@ -74,6 +92,7 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
             if (actions[i].op == Operation.Exec) {
                 // target -> contract address to be called by the position
                 // data -> abi-encoded calldata to be passed
+                if (!funcUniverse[actions[i].target][bytes4(actions[i].data[:4])]) revert InvalidOperation();
                 IPosition(position).exec(actions[i].target, actions[i].data);
             } else if (actions[i].op == Operation.Transfer) {
                 // target -> address to transfer assets to
@@ -85,6 +104,12 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
                 // data -> asset to be transferred and amount
                 (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
                 IERC20(asset).safeTransferFrom(actions[i].target, position, amt);
+            } else if (actions[i].op == Operation.Approve) {
+                // target -> spender
+                // data -> asset and amount to be approved
+                if (!contractUniverse[actions[i].target]) revert InvalidOperation();
+                (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
+                IPosition(position).approve(asset, actions[i].target, amt);
             } else {
                 uint256 data = abi.decode(actions[i].data, (uint256));
                 if (actions[i].op == Operation.Repay) {
@@ -108,6 +133,7 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
                 }
             }
         }
+
         if (!riskEngine.isPositionHealthy(position)) revert HealthCheckFailed();
     }
 
@@ -144,14 +170,16 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
         uint256 amt;
     }
 
-    function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external {
+    function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external nonReentrant {
         if (riskEngine.isPositionHealthy(position)) revert InvalidOperation();
         for (uint256 i; i < debt.length; ++i) {
             IERC20(debt[i].asset).transferFrom(msg.sender, debt[i].pool, debt[i].amt);
             Pool(debt[i].pool).repay(position, debt[i].amt);
         }
         for (uint256 i; i < collat.length; ++i) {
-            IPosition(position).transfer(msg.sender, collat[i].asset, collat[i].amt);
+            uint256 fee = liquidationFee.mulDiv(1e18, collat[i].amt);
+            IPosition(position).transfer(owner(), collat[i].asset, fee);
+            IPosition(position).transfer(msg.sender, collat[i].asset, collat[i].amt - fee);
         }
         if (!riskEngine.isPositionHealthy(position)) revert InvalidOperation();
         // TODO emit liquidation event and/or reset position
@@ -168,5 +196,9 @@ contract PositionManager is ReentrancyGuard, Ownable, Pausable {
 
     function setPoolFactory(address _poolFactory) external onlyOwner {
         poolFactory = PoolFactory(_poolFactory);
+    }
+
+    function setLiquidationFee(uint256 _liquidationFee) external onlyOwner {
+        liquidationFee = _liquidationFee;
     }
 }

@@ -27,9 +27,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     error HealthCheckFailed();
     error InvalidPositionType();
 
+    PoolFactory public poolFactory;
     RiskEngine public riskEngine;
     uint256 public liquidationFee;
-    PoolFactory public poolFactory;
 
     mapping(address position => address owner) public ownerOf; // position => owner mapping
     mapping(uint256 positionType => address beacon) public beaconFor; // type => UpgradeableBeacon
@@ -133,6 +133,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
                 }
             }
         }
+
         if (!riskEngine.isPositionHealthy(position)) revert HealthCheckFailed();
     }
 

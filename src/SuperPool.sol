@@ -92,6 +92,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         return feeAssets + receiverAssets;
     }
 
+    /// @notice withdraw assets from the superpool by taking path[i] underlying from the pool at poolCaps[i]
     function withdrawWithPath(uint256 assets, uint256[] memory path) external whenNotPaused {
         _withdrawWithPath(assets, path);
         withdraw(assets, msg.sender, msg.sender);
@@ -104,6 +105,8 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         emit PoolWithdraw(address(pool), assets);
     }
 
+    /// @dev returns early if the amount they want to withdraw is already in the superpool
+    /// @dev if you try to withdraw more this function will ignore it
     function _withdrawWithPath(uint256 assets, uint256[] memory path) internal {
         uint256 balance = IERC20(asset()).balanceOf(address(this));
 
@@ -114,6 +117,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
             uint256 diff = assets - balance;
 
             for (uint256 i; i < path.length; i++) {
+                // if we covering the rest of the funds from this last pool
                 if (path[i] > diff) {
                     diff -= path[i];
                     _poolWithdraw(IERC4626(poolCaps.getByIdx(i)), path[i]);

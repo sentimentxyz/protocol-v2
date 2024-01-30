@@ -28,6 +28,7 @@ contract Deploy is Script {
     PoolFactory public poolFactory;
     PositionManager public positionManager;
     RiskEngine public riskEngine;
+    Pool public poolImplementation;
 
     PositionManager public positionManagerImpl;
     RiskEngine public riskEngineImpl;
@@ -48,7 +49,8 @@ contract Deploy is Script {
         riskEngine = RiskEngine(payable(address(proxy2)));
         riskEngine.initialize();
 
-        poolFactory = new PoolFactory(address(positionManager));
+        poolImplementation = new Pool(address(positionManager));
+        poolFactory = new PoolFactory(address(poolImplementation));
 
         singleCollatHealthCheck = new SingleCollatHealthCheck(address(riskEngine));
         singleDebtHealthCheck = new SingleDebtHealthCheck(address(riskEngine));

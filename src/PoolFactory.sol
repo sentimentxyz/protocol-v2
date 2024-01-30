@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+// libraries
+import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 // contracts
 import {Pool} from "./Pool.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract PoolFactory is Ownable {
-    address public positionManager;
+    address public poolImplementation;
     mapping(address pool => address poolManager) public managerFor;
 
-    constructor(address _positionManager) Ownable(msg.sender) {
-        positionManager = _positionManager;
+    constructor(address _poolImplementation) Ownable(msg.sender) {
+        poolImplementation = _poolImplementation;
     }
 
     struct PoolDeployParams {
@@ -22,15 +24,16 @@ contract PoolFactory is Ownable {
     }
 
     function deployPool(PoolDeployParams calldata params) external {
-        // todo change to clones
-        Pool pool = new Pool(positionManager);
+        Pool pool = new Pool(Clones.clone(poolImplementation));
         pool.initialize(params.asset, params.name, params.symbol);
         pool.setRateModel(params.rateModel);
         pool.setOriginationFee(params.originationFee);
         pool.transferOwnership(msg.sender);
+        managerFor[address(pool)] = msg.sender;
+        // TODO pool created event
     }
 
-    function setPositionManager(address _positionManager) external onlyOwner {
-        positionManager = _positionManager;
+    function setPoolImplementation(address _poolImplementation) external onlyOwner {
+        poolImplementation = _poolImplementation;
     }
 }

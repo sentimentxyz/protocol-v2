@@ -11,9 +11,17 @@ import {Deploy} from "script/Deploy.s.sol";
 contract BaseTest is Test {
     Deploy public deploy;
 
+    uint256 constant BIG_NUMBER = 100000000000000000000000e18;
+
     function setUp() public virtual {
         deploy = new Deploy();
 
         deploy.run(address(this));
+    }
+}
+
+contract MintableToken is MockERC20 {
+    function mint(address to, uint256 amount) public {
+        _mint(to, amount);
     }
 }

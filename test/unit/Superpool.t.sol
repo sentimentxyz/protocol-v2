@@ -6,25 +6,28 @@ import {SuperPool} from "src/SuperPool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {TestUtils} from "test/Utils.sol";
+import {BaseTest, MintableToken} from "test/unit/BaseTest.sol";
 
 
-contract SuperPoolTest is Test {
+contract SuperPoolTest is BaseTest {
     SuperPool superPool;
-    IERC20 mockERC20;
+    MintableToken mockToken;
 
-    function setUp() public {
-        mockERC20 = IERC20(address(deployMockERC20("Mock token", "MT", 18)));
+    function setUp() public override {
+        super.setUp();
+
+        mockToken = new MintableToken();
         superPool = new SuperPool();
         superPool = SuperPool(address(TestUtils.makeProxy(address(superPool), address(this))));
-        superPool.initialize(address(mockERC20), "SuperPool", "SP");
+        superPool.initialize(address(mockToken), "SuperPool", "SP");
     }
 
     function testZereodPoolsAreRemoved() public {
-        address pool1 = setDefaultPoolCap();
-        address pool2 = setDefaultPoolCap();
-        address pool3 = setDefaultPoolCap();
+        address pool1 = _setDefaultPoolCap();
+        address pool2 = _setDefaultPoolCap();
+        address pool3 = _setDefaultPoolCap();
 
-        setPoolCap(pool2, 0);
+        _setPoolCap(pool2, 0);
 
         address[] memory pools = superPool.pools();
 
@@ -35,48 +38,107 @@ contract SuperPoolTest is Test {
     }
 
     function testRemoveAllPools() public {
-        address pool1 = setDefaultPoolCap();
-        address pool2 = setDefaultPoolCap();
-        address pool3 = setDefaultPoolCap();
+        address pool1 = _setDefaultPoolCap();
+        address pool2 = _setDefaultPoolCap();
+        address pool3 = _setDefaultPoolCap();
 
         assertEq(superPool.pools().length, 3);
 
-        setPoolCap(pool1, 0);
-        setPoolCap(pool2, 0);
-        setPoolCap(pool3, 0);
+        _setPoolCap(pool1, 0);
+        _setPoolCap(pool2, 0);
+        _setPoolCap(pool3, 0);
 
         assertEq(superPool.pools().length, 0);
     }
 
     function testPoolCapAdjusted() public {
-        address pool1 = setDefaultPoolCap();
+        address pool1 = _setDefaultPoolCap();
         assertEq(superPool.poolCap(pool1), 100);
         assertEq(superPool.totalPoolCap(), 100);
-        address pool2 = setDefaultPoolCap();
+        address pool2 = _setDefaultPoolCap();
         assertEq(superPool.poolCap(pool2), 101);
         assertEq(superPool.totalPoolCap(), 201);
 
-        setPoolCap(pool1, 0);
+        _setPoolCap(pool1, 0);
 
         assertEq(superPool.poolCap(pool1), 0);
         assertEq(superPool.totalPoolCap(), 101);
     }
 
-    function setDefaultPoolCap() public returns (address) {
+    function testDepositsWork(uint256 amount) public {
+        vm.assume(amount < BIG_NUMBER);
+
+        _setPoolCap(_deployMockPool(), type(uint256).max);
+
+        mockToken.mint(address(this), amount);
+        mockToken.approve(address(superPool), amount);
+        superPool.deposit(amount, address(this));
+        assertEq(superPool.balanceOf(address(this)), amount);
+    }
+
+    function testWithdrawsWork(uint256 amount) public {
+        vm.assume(amount < BIG_NUMBER);
+
+        _setPoolCap(_deployMockPool(), type(uint256).max);
+
+        mockToken.mint(address(this), amount);
+        mockToken.approve(address(superPool), amount);
+
+
+        uint256 startingAmount = mockToken.balanceOf(address(this));
+        superPool.deposit(amount, address(this));
+        assertEq(superPool.balanceOf(address(this)), amount);
+
+        superPool.withdraw(amount, address(this), address(this));
+        assertEq(superPool.balanceOf(address(this)), 0);
+        assertEq(mockToken.balanceOf(address(this)), startingAmount);
+    }
+
+    function testRedeemsWork(uint256 amount) public {
+        vm.assume(amount < BIG_NUMBER);
+        vm.assume(amount > 10);
+
+        _setPoolCap(_deployMockPool(), type(uint256).max);
+
+        mockToken.mint(address(this), amount);
+        mockToken.approve(address(superPool), amount);
+
+        uint256 startingAmount = mockToken.balanceOf(address(this));
+        superPool.deposit(amount, address(this));
+        assertEq(superPool.balanceOf(address(this)), amount);
+
+        superPool.redeem(amount, address(this), address(this));
+        assertEq(superPool.balanceOf(address(this)), 0);
+        assertEq(mockToken.balanceOf(address(this)), startingAmount);
+    }
+
+    function testAllocateToPool() public {}
+
+    function testRemoveAllocationFromPool() public {}
+
+    function testSetPoolCapOnlyOwner() public {}
+
+    function testPoolDepositOnlyOwner() public {}
+
+    function testPoolWithdrawOnlyOwner() public {}
+
+    function testSetAllocatorOnlyOwner() public {}
+
+    function _setDefaultPoolCap() public returns (address) {
         uint256 len = superPool.pools().length;
-        address pool = deployMockPool();
+        address pool = _deployMockPool();
 
         superPool.setPoolCap(pool, 100 + len);
 
         return pool;
     }
 
-    function setPoolCap(address pool, uint256 cap) public {
+    function _setPoolCap(address pool, uint256 cap) public {
         superPool.setPoolCap(address(pool), cap);
     }
 
-    function deployMockPool() public returns (address) {
-        return address(new MockPool(address(mockERC20)));
+    function _deployMockPool() public returns (address) {
+        return address(new MockPool(address(mockToken)));
     }
 }
 
@@ -87,11 +149,11 @@ contract MockPool {
         asset = _asset;
     }
 
-    function balanceOf(address) external pure returns (uint256) {
+    function balanceOf(address) external returns (uint256) {
         return 0;
     }
 
-    function previewRedeem(uint256) external pure returns (uint256) {
-        return 0;
+    function previewRedeem(uint256 amt) external returns (uint256) {
+        return amt;
     }
 }

@@ -77,6 +77,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         allocator = _allocator;
     }
 
+    function setProtocolFee(uint256 _protocolFee) external onlyOwner {
+        protocolFee = _protocolFee;
+    }
+
     ////////////////////////// Withdraw //////////////////////////
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
         uint256 fee = protocolFee.mulDiv(assets, 1e18);
@@ -137,6 +141,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         for (uint256 i; i < len; i++) {
             IERC4626 pool = IERC4626(poolCaps.getByIdx(i));
             total += pool.previewRedeem(pool.balanceOf(address(this)));
+            total += IERC20(pool.asset()).balanceOf(address(this));
         }
         return total;
     }

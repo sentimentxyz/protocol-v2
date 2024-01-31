@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {BaseTest} from "./BaseTest.sol";
+import {BaseTest, MintableToken} from "./BaseTest.sol";
 import {Pool} from "src/Pool.sol";
 import {IRateModel} from "src/interfaces/IRateModel.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
@@ -11,8 +11,6 @@ contract PoolTest is BaseTest {
     Pool public pool;
     MintableToken public mockToken;
     MockRateModel public mockRateModel;
-
-    uint256 constant BIG_NUMBER = 100000000000000000000000e18;
 
     function setUp() public override {
         mockToken = new MintableToken();
@@ -82,6 +80,111 @@ contract PoolTest is BaseTest {
         // after paying off the oringal debt
         assertEq(debtRemaining2, debt / 2);
     }
+
+    function testDepositsWork(uint256 amount) public {
+        vm.assume(amount < BIG_NUMBER);
+        mockToken.mint(address(this), amount);
+        mockToken.approve(address(pool), amount);
+        pool.deposit(amount, address(this));
+        assertEq(pool.balanceOf(address(this)), amount);
+    }
+
+    function testWithdrawsWork(uint256 amount) public {
+        vm.assume(amount < BIG_NUMBER);
+        mockToken.mint(address(this), amount);
+        mockToken.approve(address(pool), amount);
+
+
+        uint256 startingAmount = mockToken.balanceOf(address(this));
+        pool.deposit(amount, address(this));
+        assertEq(pool.balanceOf(address(this)), amount);
+
+        pool.withdraw(amount, address(this), address(this));
+        assertEq(pool.balanceOf(address(this)), 0);
+        assertEq(mockToken.balanceOf(address(this)), startingAmount);
+    }
+
+    function testRedeemsWork(uint256 amount) public {
+        vm.assume(amount < BIG_NUMBER);
+        mockToken.mint(address(this), amount);
+        mockToken.approve(address(pool), amount);
+
+        uint256 startingAmount = mockToken.balanceOf(address(this));
+        pool.deposit(amount, address(this));
+        assertEq(pool.balanceOf(address(this)), amount);
+
+        pool.redeem(amount, address(this), address(this));
+        assertEq(pool.balanceOf(address(this)), 0);
+        assertEq(mockToken.balanceOf(address(this)), startingAmount);
+    }
+
+    function testCantWithdrawIfTooManyBorrows() public {
+        uint256 depositAmount = 20e18;
+
+        mockToken.mint(address(this), depositAmount);
+        mockToken.approve(address(pool), depositAmount);
+        pool.deposit(depositAmount, address(this));
+
+        uint256 borrowAmount = 10e18;
+        pool.borrow(address(1), borrowAmount);
+
+        // should fail because we have too many borrows
+        vm.expectRevert("ERC20: subtraction underflow");
+        pool.withdraw(depositAmount, address(this), address(this));
+
+        pool.repay(address(1), borrowAmount);
+        // we actullay need to transfer the funds back seperately since were acting as a privledged role above
+        vm.prank(address(1));
+        mockToken.transfer(address(pool), borrowAmount);
+
+        // should succeed now that we have repaid
+        pool.withdraw(depositAmount, address(this), address(this));
+    }
+
+    function testCantRedeemIfTooManyBorrows() public {
+        uint256 depositAmount = 20e18;
+        
+        mockToken.mint(address(this), depositAmount);
+        mockToken.approve(address(pool), depositAmount);
+        pool.deposit(depositAmount, address(this));
+
+        uint256 borrowAmount = 10e18;
+        pool.borrow(address(1), borrowAmount);
+
+        // should fail because we have too many borrows
+        vm.expectRevert("ERC20: subtraction underflow");
+        pool.redeem(depositAmount, address(this), address(this));
+
+        pool.repay(address(1), borrowAmount);
+        // we actullay need to transfer the funds back seperately since were acting as a privledged role above
+        vm.prank(address(1));
+        mockToken.transfer(address(pool), borrowAmount);
+
+        // should succeed now that we have repaid
+        pool.redeem(depositAmount, address(this), address(this));
+    }
+
+    function testSetRateModelOnlyOwner(address tryMe) public {
+        vm.assume(tryMe != address(this));
+
+        vm.startPrank(tryMe);
+
+        vm.expectRevert();
+        pool.setRateModel(tryMe);
+
+        vm.stopPrank();
+    }
+
+    function testFeeOnlyOwner(address tryMe) public {
+        vm.assume(tryMe != address(this));
+
+        vm.startPrank(tryMe);
+
+        vm.expectRevert();
+        pool.setOriginationFee(1);
+
+        vm.stopPrank();
+    }
 }
 
 contract MockRateModel is IRateModel {
@@ -89,11 +192,5 @@ contract MockRateModel is IRateModel {
     function rateFactor(uint256 lastUpdated) external view returns (uint256) {
         uint256 secondsInYear = 365 days;
         return (1e18 * (block.timestamp - lastUpdated) / secondsInYear);
-    }
-}
-
-contract MintableToken is MockERC20 {
-    function mint(address to, uint256 amount) public {
-        _mint(to, amount);
     }
 }

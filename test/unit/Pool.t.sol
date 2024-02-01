@@ -6,11 +6,12 @@ import {Pool} from "src/Pool.sol";
 import {IRateModel} from "src/interfaces/IRateModel.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 import {TestUtils} from "test/Utils.sol";
+import {FixedRateModel} from "src/FixedRateModel.sol";
 
 contract PoolTest is BaseTest {
     Pool public pool;
     MintableToken public mockToken;
-    MockRateModel public mockRateModel;
+    FixedRateModel public rateModel;
 
     uint256 constant BIG_NUMBER = 100000000000000000000000e18;
 
@@ -21,9 +22,9 @@ contract PoolTest is BaseTest {
         pool = Pool(payable(address(TestUtils.makeProxy(address(pool), address(this)))));
         pool.initialize(address(mockToken), "test", "test");
 
-        mockRateModel = new MockRateModel();
+        rateModel = new FixedRateModel(1e18);
 
-        pool.setRateModel(address(mockRateModel));
+        pool.setRateModel(address(rateModel));
         super.setUp();
     }
 
@@ -81,14 +82,6 @@ contract PoolTest is BaseTest {
         // shares have doubled in price from 1:1 so we should have half the debt remaining
         // after paying off the oringal debt
         assertEq(debtRemaining2, debt / 2);
-    }
-}
-
-contract MockRateModel is IRateModel {
-    /// Doubles every year
-    function interestAccrued(uint256 lastUpdated, uint256, uint256) external view returns (uint256) {
-        uint256 secondsInYear = 365 days;
-        return (1e18 * (block.timestamp - lastUpdated) / secondsInYear);
     }
 }
 

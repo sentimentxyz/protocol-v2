@@ -7,6 +7,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {TestUtils} from "test/Utils.sol";
 import {BaseTest, MintableToken} from "test/unit/BaseTest.sol";
+import {FixedRateModel} from "src/FixedRateModel.sol";
+import {Pool} from "src/Pool.sol";
 
 
 contract SuperPoolTest is BaseTest {
@@ -112,17 +114,98 @@ contract SuperPoolTest is BaseTest {
         assertEq(mockToken.balanceOf(address(this)), startingAmount);
     }
 
-    function testAllocateToPool() public {}
+    function testAllocateToPool() public {
+        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
+        address rateModel = address(new FixedRateModel(1e18));
+        Pool(pool).setRateModel(rateModel);
 
-    function testRemoveAllocationFromPool() public {}
+        mockToken.mint(address(this), 10e18);
+        mockToken.approve(address(superPool), 10e18);
+        superPool.setPoolCap(pool, 10e18);
+        superPool.deposit(10e18, address(this));
 
-    function testSetPoolCapOnlyOwner() public {}
+        assertEq(mockToken.balanceOf(address(superPool)), 10e18);
 
-    function testPoolDepositOnlyOwner() public {}
+        superPool.poolDeposit(pool, 10e18);
 
-    function testPoolWithdrawOnlyOwner() public {}
+        assertEq(mockToken.balanceOf(pool), 10e18);
+    }
 
-    function testSetAllocatorOnlyOwner() public {}
+    function testRemoveAllocationFromPool() public {
+        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
+        address rateModel = address(new FixedRateModel(1e18));
+        Pool(pool).setRateModel(rateModel);
+
+        mockToken.mint(address(this), 10e18);
+        mockToken.approve(address(superPool), 10e18);
+        superPool.setPoolCap(pool, 10e18);
+        superPool.deposit(10e18, address(this));
+
+        superPool.poolDeposit(pool, 10e18);
+
+        assertEq(mockToken.balanceOf(pool), 10e18);
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 10e18;
+
+        superPool.withdrawWithPath(10e18, amounts);
+
+        assertEq(mockToken.balanceOf(pool), 0);
+    }
+
+    function testWithdrawMultiplePools() public {}
+
+    function testSetPoolCapOnlyOwner(address notOwner) public {
+        vm.assume(notOwner != address(this));
+
+        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
+
+        vm.startPrank(notOwner);
+
+        vm.expectRevert();
+        superPool.setPoolCap(pool, 1e18);
+
+        vm.stopPrank();
+    }
+
+    function testPoolDepositOnlyOwner(address notOwner) public {
+        vm.assume(notOwner != address(this));
+
+        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
+
+        vm.startPrank(notOwner);
+
+        vm.expectRevert(SuperPool.OnlyAllocatorOrOwner.selector);
+        superPool.poolDeposit(pool, 1e18);
+
+        vm.stopPrank();
+    }
+
+    function testPoolWithdrawOnlyOwner(address notOwner) public {
+        vm.assume(notOwner != address(this));
+
+        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
+
+        vm.startPrank(notOwner);
+
+        vm.expectRevert();
+        superPool.poolWithdraw(pool, 1e18);
+
+        vm.stopPrank();
+    }
+
+    function testSetAllocatorOnlyOwner(address notOwner) public {
+        vm.assume(notOwner != address(this));
+
+        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
+
+        vm.startPrank(notOwner);
+
+        vm.expectRevert();
+        superPool.setAllocator(address(1));
+
+        vm.stopPrank();
+    }
 
     function _setDefaultPoolCap() public returns (address) {
         uint256 len = superPool.pools().length;

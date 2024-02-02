@@ -187,9 +187,3 @@ contract PoolTest is BaseTest {
         vm.stopPrank();
     }
 }
-
-contract MintableToken is MockERC20 {
-    function mint(address to, uint256 amount) public {
-        _mint(to, amount);
-    }
-}

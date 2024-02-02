@@ -93,7 +93,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
 
     /// @notice fetch total notional pool borrows
     function getBorrows() public view returns (uint256) {
-        return totalBorrows.mulDiv(1e18 + IRateModel(rateModel).rateFactor(lastUpdated), 1e18, Math.Rounding.Ceil);
+        return totalBorrows
+            + rateModel.interestAccrued(lastUpdated, totalBorrows, IERC20(asset()).balanceOf(address(this)));
     }
 
     /// @notice fetch total notional pool borrows for a given position

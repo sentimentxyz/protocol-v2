@@ -6,11 +6,12 @@ import {Pool} from "src/Pool.sol";
 import {IRateModel} from "src/interfaces/IRateModel.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 import {TestUtils} from "test/Utils.sol";
+import {FixedRateModel} from "src/FixedRateModel.sol";
 
 contract PoolTest is BaseTest {
     Pool public pool;
     MintableToken public mockToken;
-    MockRateModel public mockRateModel;
+    FixedRateModel public rateModel;
 
     function setUp() public override {
         mockToken = new MintableToken();
@@ -19,9 +20,9 @@ contract PoolTest is BaseTest {
         pool = Pool(payable(address(TestUtils.makeProxy(address(pool), address(this)))));
         pool.initialize(address(mockToken), "test", "test");
 
-        mockRateModel = new MockRateModel();
+        rateModel = new FixedRateModel(1e18);
 
-        pool.setRateModel(address(mockRateModel));
+        pool.setRateModel(address(rateModel));
         super.setUp();
     }
 
@@ -187,10 +188,8 @@ contract PoolTest is BaseTest {
     }
 }
 
-contract MockRateModel is IRateModel {
-    /// Doubles every year
-    function rateFactor(uint256 lastUpdated) external view returns (uint256) {
-        uint256 secondsInYear = 365 days;
-        return (1e18 * (block.timestamp - lastUpdated) / secondsInYear);
+contract MintableToken is MockERC20 {
+    function mint(address to, uint256 amount) public {
+        _mint(to, amount);
     }
 }

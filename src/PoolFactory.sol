@@ -23,6 +23,9 @@ contract PoolFactory is Ownable {
         string symbol;
     }
 
+    /// @notice deploys a new pool, setting the caller as the owner
+    /// @dev the owner can set things like oracles and LTV
+    /// @param params the parameters to deploy the pool with
     function deployPool(PoolDeployParams calldata params) external {
         Pool pool = new Pool(Clones.clone(poolImplementation));
         pool.initialize(params.asset, params.name, params.symbol);

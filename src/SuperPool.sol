@@ -48,6 +48,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
     ////////////////////////// Only Owner //////////////////////////
 
+    /// @notice set the maximum deposit cap for a pool
+    /// @param pool the pool to set the cap for
+    /// @param assets the amount of assets to set the cap to
+    /// @dev checks if pool.asset() == this.asset()
     function setPoolCap(address pool, uint256 assets) external onlyOwner {
         if (Pool(pool).asset() != asset()) revert InvalidPoolAsset();
         if (assets == 0 && poolCaps.get(pool) == 0) {
@@ -61,6 +65,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         emit PoolCapSet(pool, assets);
     }
 
+    /// @notice deposit assets into a pool
+    /// @notice callable by privilaged allocator or owner
+    /// @param pool the pool to deposit assets into
+    /// @param assets the amount of assets to deposit
     function poolDeposit(address pool, uint256 assets) external {
         if (msg.sender != allocator && msg.sender != owner()) revert OnlyAllocatorOrOwner();
         IERC20(asset()).approve(address(pool), assets);
@@ -68,20 +76,34 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         require(IERC4626(pool).balanceOf(address(this)) <= poolCap(pool));
         emit PoolDeposit(pool, assets);
     }
-
+    
+    /// @notice withdraw assets from a pool
+    /// @notice only callable by owner
+    /// @param pool the pool to withdraw assets from
+    /// @param assets the amount of assets to withdraw
     function poolWithdraw(address pool, uint256 assets) external onlyOwner {
         _poolWithdraw(IERC4626(pool), assets);
     }
 
+    /// @notice set the allocator address
+    /// @param _allocator the address to set the allocator to
     function setAllocator(address _allocator) external onlyOwner {
         allocator = _allocator;
     }
 
+    /// @notice set the protocol fee
+    /// @param _protocolFee the fee to set
     function setProtocolFee(uint256 _protocolFee) external onlyOwner {
         protocolFee = _protocolFee;
     }
 
     ////////////////////////// Withdraw //////////////////////////
+
+    /// @notice withdraw assets from the superpool
+    /// @dev override to account for protocol fee
+    /// @param assets the amount of assets to withdraw
+    /// @param receiver the address to send the assets to
+    /// @param owner the owner of the shares were burning from
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
         uint256 fee = protocolFee.mulDiv(assets, 1e18);
         uint256 feeShares = ERC4626Upgradeable.withdraw(fee, OwnableUpgradeable.owner(), owner);
@@ -89,6 +111,11 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         return feeShares + recieverShares;
     }
 
+    /// @notice redeem shares for assets from the superpool
+    /// @dev override to account for protocol fee
+    /// @param shares the amount of shares to redeem
+    /// @param receiver the address to send the assets to
+    /// @param owner the owner of the shares were burning from
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
         uint256 fee = protocolFee.mulDiv(shares, 1e18);
         uint256 feeAssets = ERC4626Upgradeable.redeem(fee, OwnableUpgradeable.owner(), owner);
@@ -96,7 +123,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         return feeAssets + receiverAssets;
     }
 
-    /// @notice withdraw assets from the superpool by taking path[i] underlying from the pool at poolCaps[i]
+    /// @notice withdraw assets from the superpool using a path
+    /// @dev withdraw assets from the superpool by taking path[i] underlying from the pool at poolCaps[i]
+    /// @param assets the amount of assets to withdraw
+    /// @param path the amounts to withdraw from each pool
     function withdrawWithPath(uint256 assets, uint256[] memory path) external whenNotPaused {
         _withdrawWithPath(assets, path);
         withdraw(assets, msg.sender, msg.sender);
@@ -135,6 +165,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
     ////////////////////////// Overrides //////////////////////////
 
+    /// @inheritdoc ERC4626Upgradeable
     function totalAssets() public view override returns (uint256) {
         uint256 len = poolCaps.length();
         uint256 total;
@@ -146,20 +177,26 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         return total;
     }
 
+    /// @inheritdoc ERC4626Upgradeable
     function maxDeposit(address) public view override returns (uint256) {
         return totalPoolCap - totalAssets();
     }
 
+    /// @inheritdoc ERC4626Upgradeable
     function maxMint(address) public view override returns (uint256) {
         return previewDeposit(maxDeposit(address(0)));
     }
 
     ////////////////////////// Public //////////////////////////
 
+    /// @notice returns the pools with non zero deposit caps
+    /// @return an array of pool addresses
     function pools() public view returns (address[] memory) {
         return poolCaps.getKeys();
     }
 
+    /// @notice returns the deposit cap for a give pool
+    /// @param _pool the pool to get the cap for
     function poolCap(address _pool) public view returns (uint256) {
         return poolCaps.get(_pool);
     }

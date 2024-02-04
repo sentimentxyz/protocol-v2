@@ -38,15 +38,18 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         _disableInitializers();
     }
 
-    function initialize(address asset, string memory _name, string memory _symbol) public initializer {
+    function initialize(address _asset, string memory _name, string memory _symbol) public initializer {
         OwnableUpgradeable.__Ownable_init(msg.sender);
         PausableUpgradeable.__Pausable_init();
         ERC20Upgradeable.__ERC20_init(_name, _symbol);
-        ERC4626Upgradeable.__ERC4626_init(IERC20(asset));
+        ERC4626Upgradeable.__ERC4626_init(IERC20(_asset));
     }
 
     // Pool Actions
 
+    /// @notice mint borrow shares to the borrower, callable only by the position manager
+    /// @param position the position to mint shares to
+    /// @param amt the amount of assets to borrow
     /// @return borrowShares the amount of shares minted
     function borrow(address position, uint256 amt) external whenNotPaused returns (uint256 borrowShares) {
         if (msg.sender != positionManager) revert PositionManagerOnly();
@@ -70,7 +73,10 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         IERC20(asset()).safeTransfer(position, amt - fee);
     }
 
+    /// @notice repay borrow shares, callable only by the position manager
     /// @dev assume assets have already been transferred successfully in the same txn
+    /// @param position the position to repay
+    /// @param amt the amount of assets to repay
     /// @return the remaining shares owned in the position
     function repay(address position, uint256 amt) external returns (uint256) {
         if (msg.sender != positionManager) revert PositionManagerOnly();
@@ -91,13 +97,14 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
 
     // View Functions
 
-    /// @notice fetch total notional pool borrows
+    /// @return the total notional pool borrows
     function getBorrows() public view returns (uint256) {
         return totalBorrows
             + rateModel.interestAccrued(lastUpdated, totalBorrows, IERC20(asset()).balanceOf(address(this)));
     }
 
-    /// @notice fetch total notional pool borrows for a given position
+    /// @param position the position to query
+    /// @return total notional pool borrows for a given position
     function getBorrowsOf(address position) public view returns (uint256) {
         return convertBorrowSharesToAsset(borrowSharesOf[position]);
     }
@@ -114,43 +121,51 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     }
 
     /// @notice convert notional asset amount to borrow shares
+    /// @param amt the amount of assets to convert to borrow shares
+    /// @return the amount of shares 
     function convertAssetToBorrowShares(uint256 amt) internal view returns (uint256) {
         return totalBorrowShares == 0 ? amt : amt.mulDiv(totalBorrowShares, getBorrows(), Math.Rounding.Ceil);
     }
 
     /// @notice convert borrow shares to notional asset amount
+    /// @param amt the amount of shares to convert to assets
+    /// @return the amount of assets
     function convertBorrowSharesToAsset(uint256 amt) internal view returns (uint256) {
         return totalBorrowShares == 0 ? amt : amt.mulDiv(getBorrows(), totalBorrowShares, Math.Rounding.Floor);
     }
 
-    // ERC4626 Functions
-
+    /// @inheritdoc ERC4626Upgradeable
     function deposit(uint256 assets, address receiver) public override returns (uint256) {
         ping();
         return super.deposit(assets, receiver);
     }
 
+    /// @inheritdoc ERC4626Upgradeable
     function mint(uint256 shares, address receiver) public override returns (uint256) {
         ping();
         return super.mint(shares, receiver);
     }
 
+    /// @inheritdoc ERC4626Upgradeable
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
         ping();
         return super.withdraw(assets, receiver, owner);
     }
 
+    /// @inheritdoc ERC4626Upgradeable
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
         ping();
         return super.redeem(shares, receiver, owner);
     }
 
-    // Admin Functions
-
+    /// @notice Set the rate model for the pool
+    /// @notice callable only by the owner
     function setRateModel(address _rateModel) external onlyOwner {
         rateModel = IRateModel(_rateModel);
     }
 
+    /// @notice Set the origination fee for the pool
+    /// @notice callable only by the owner
     function setOriginationFee(uint256 _originationFee) external onlyOwner {
         originationFee = _originationFee;
     }

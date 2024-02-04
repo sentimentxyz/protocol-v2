@@ -16,6 +16,10 @@ contract FixedRateModel is IRateModel {
         RATE = rate;
     }
 
+    /// @notice calculates the interest accrued since the last update
+    /// @param lastUpdated the timestamp of the last update
+    /// @param borrows the total amount of borrows
+    /// @return interest accrued since the last update
     function interestAccrued(uint256 lastUpdated, uint256 borrows, uint256) external view returns (uint256) {
         // rateFactor = time delta * apr / secs_per_year
         uint256 rateFactor = ((block.timestamp - lastUpdated) * 1e18).mulDiv(RATE, SECONDS_PER_YEAR, Math.Rounding.Ceil);

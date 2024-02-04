@@ -77,6 +77,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         bytes data;
     }
 
+    /// @notice procces a batch of actions on a given position
+    /// @dev only one position can be processed at a time, including creating new ones.
+    /// @param position the position to process the actions on
+    /// @param actions the list of actions to process
     function process(address position, Action[] calldata actions) external nonReentrant {
         for (uint256 i; i < actions.length; ++i) {
             // new position creation need not be authzd
@@ -137,7 +141,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         if (!riskEngine.isPositionHealthy(position)) revert HealthCheckFailed();
     }
 
-    /// @notice deterministically deploy a new beacon proxy position
+    /// @dev deterministically deploy a new beacon proxy position
     function newPosition(address owner, uint256 positionType, bytes32 salt) internal returns (address) {
         if (beaconFor[positionType] == address(0)) revert InvalidPositionType();
         address position = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));

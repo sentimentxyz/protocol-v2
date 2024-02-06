@@ -24,6 +24,11 @@ contract SuperPoolTest is BaseTest {
         superPool.initialize(address(mockToken), "SuperPool", "SP");
     }
 
+    function testWithdrawFailIfNoFunds() public {
+        vm.expectRevert();
+        superPool.withdraw(100, address(this), address(this));
+    }
+
     function testZereodPoolsAreRemoved() public {
         address pool1 = _setDefaultPoolCap();
         address pool2 = _setDefaultPoolCap();
@@ -65,6 +70,54 @@ contract SuperPoolTest is BaseTest {
 
         assertEq(superPool.poolCap(pool1), 0);
         assertEq(superPool.totalPoolCap(), 101);
+    }
+
+    function testIncreasePoolCap() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        assertEq(superPool.poolCap(pool), 100);
+
+        superPool.setPoolCap(pool, 200);
+
+        assertEq(superPool.poolCap(pool), 200);
+
+        superPool.setPoolCap(pool, 300);
+
+        assertEq(superPool.poolCap(pool), 300);
+    }
+
+    function testMultipleDepositersCanWithdrawFully() public {
+        _setPoolCap(_deployMockPool(), type(uint256).max);
+
+        address a = address(1);
+        address b = address(2);
+        mockToken.mint(a, 100);
+        mockToken.mint(b, 100);
+
+        vm.startPrank(a);
+        
+        mockToken.approve(address(superPool), 100);
+        superPool.deposit(100, a);
+
+        vm.stopPrank();
+        vm.startPrank(b);
+         mockToken.approve(address(superPool), 100);
+        superPool.deposit(100, b);
+
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(a), 100);
+        assertEq(superPool.balanceOf(b), 100);
+
+        vm.prank(a);
+        superPool.withdraw(100, a, a);
+
+        vm.prank(b);
+        superPool.withdraw(100, b, b);
+
+        assertEq(superPool.balanceOf(a), 0);
+        assertEq(superPool.balanceOf(b), 0);
     }
 
     function testDepositsWork(uint256 amount) public {
@@ -153,7 +206,76 @@ contract SuperPoolTest is BaseTest {
         assertEq(mockToken.balanceOf(pool), 0);
     }
 
-    function testWithdrawMultiplePools() public {}
+    function testWithdrawWithPath() public {
+        Pool poolA = TestUtils.deployPool(address(this), address(this), address(mockToken));
+        Pool poolB = TestUtils.deployPool(address(this), address(this), address(mockToken));
+
+        FixedRateModel rateModel = new FixedRateModel(1e18);
+
+        poolA.setRateModel(address(rateModel));
+        poolB.setRateModel(address(rateModel));
+
+        _setPoolCap(address(poolA), 10e18);
+        _setPoolCap(address(poolB), 10e18);
+
+        mockToken.mint(address(this), 10e18);
+        mockToken.approve(address(superPool), 10e18);
+        superPool.deposit(10e18, address(this));
+
+        superPool.poolDeposit(address(poolA), 5e18);
+        superPool.poolDeposit(address(poolB), 5e18);
+
+        assertEq(mockToken.balanceOf(address(poolA)), 5e18);
+        assertEq(mockToken.balanceOf(address(poolB)), 5e18);
+
+        vm.expectRevert();
+        superPool.withdrawWithPath(10e18, new uint256[](0));
+
+        vm.expectRevert();
+        superPool.withdraw(10e18, address(this), address(this));
+
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 5e18;
+        amounts[1] = 5e18;
+
+        superPool.withdrawWithPath(10e18, amounts);
+
+        assertEq(mockToken.balanceOf(address(poolA)), 0);
+        assertEq(mockToken.balanceOf(address(poolB)), 0);
+    }
+
+    function testWithdrawFailsIfAssetsLent() public {}
+
+    function testFeeAccruedRedeem() public {}
+
+    function testFeeAccruedWithdraw() public {}
+
+    function testCantMintMoreThanCap() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        mockToken.mint(address(this), 101);
+        mockToken.approve(address(superPool), 101);
+
+        vm.expectRevert();
+        superPool.mint(101, address(this));
+
+        superPool.mint(100, address(this));
+    }
+
+    function testCantDepositMoreThanCap() public {
+       address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        mockToken.mint(address(this), 101);
+        mockToken.approve(address(superPool), 101);
+
+        vm.expectRevert();
+        superPool.deposit(101, address(this));
+
+        superPool.deposit(100, address(this));
+    }
+
 
     function testSetPoolCapOnlyOwner(address notOwner) public {
         vm.assume(notOwner != address(this));

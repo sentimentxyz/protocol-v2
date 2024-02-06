@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.24;
 
 //types
 import {Pool} from "./Pool.sol";
@@ -76,7 +76,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         require(IERC4626(pool).balanceOf(address(this)) <= poolCap(pool));
         emit PoolDeposit(pool, assets);
     }
-    
+
     /// @notice withdraw assets from a pool
     /// @notice only callable by owner
     /// @param pool the pool to withdraw assets from

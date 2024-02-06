@@ -3,6 +3,10 @@ pragma solidity ^0.8.24;
 
 // custom impl for an iterable address set
 library IterableSet {
+    /*//////////////////////////////////////////////////////////////
+                            Storage Struct
+    //////////////////////////////////////////////////////////////*/
+
     // storage struct for iterable set
     struct IterableSetStorage {
         // list of elements in the set
@@ -12,6 +16,38 @@ library IterableSet {
         // idxOf[element] = 0 denotes that element is not present in the map
         mapping(address => uint256) idxOf;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                            View Functions
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice check if the set contains a give element
+    function contains(IterableSetStorage storage self, address elem) internal view returns (bool) {
+        // since idxOf[element] = 0 denotes that element is not present in the map
+        // any other value implies that the element is in the set
+        return self.idxOf[elem] > 0;
+    }
+
+    /// @notice fetch element by index
+    /// @dev zero-indexed queries. set does not preserve order after inserts and removals
+    function getByIdx(IterableSetStorage storage self, uint256 idx) internal view returns (address) {
+        return self.elements[idx];
+    }
+
+    /// @notice fetch all elements in the set
+    /// @dev set does not preserve order after inserts and deletes
+    function getElements(IterableSetStorage storage self) internal view returns (address[] memory) {
+        return self.elements;
+    }
+
+    /// @notice fetch the number of elements in the set
+    function length(IterableSetStorage storage self) internal view returns (uint256) {
+        return self.elements.length;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       State Mutating Functions
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice add element to set
     /// @dev no-op if element already exists
@@ -59,29 +95,5 @@ library IterableSet {
 
         // pop the elements array to reduce its length by 1 effectively deleting elem
         self.elements.pop();
-    }
-
-    /// @notice check if the set contains a give element
-    function contains(IterableSetStorage storage self, address elem) internal view returns (bool) {
-        // since idxOf[element] = 0 denotes that element is not present in the map
-        // any other value implies that the element is in the set
-        return self.idxOf[elem] > 0;
-    }
-
-    /// @notice fetch element by index
-    /// @dev assume the set is unordered
-    function getByIdx(IterableSetStorage storage self, uint256 idx) internal view returns (address) {
-        return self.elements[idx];
-    }
-
-    /// @notice fetch all elements in the set
-    /// @dev assume the set is unordered
-    function getElements(IterableSetStorage storage self) internal view returns (address[] memory) {
-        return self.elements;
-    }
-
-    /// @notice fetch the number of elements in the set
-    function length(IterableSetStorage storage self) internal view returns (uint256) {
-        return self.elements.length;
     }
 }

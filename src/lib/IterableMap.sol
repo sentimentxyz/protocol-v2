@@ -3,6 +3,10 @@ pragma solidity ^0.8.24;
 
 // custom impl for an (address => uint256) iterable map
 library IterableMap {
+    /*//////////////////////////////////////////////////////////////
+                            Storage Struct
+    //////////////////////////////////////////////////////////////*/
+
     // storage struct for iterable map
     struct IterableMapStorage {
         // list of address keys
@@ -15,10 +19,35 @@ library IterableMap {
         mapping(address key => uint256 value) valueOf;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            View Functions
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice get mapped value for given key
     function get(IterableMapStorage storage self, address key) internal view returns (uint256) {
         return self.valueOf[key];
     }
+
+    /// @notice fetch key by index
+    /// @dev zero-indexed queries. map does not preserve order after inserts and deletes
+    function getByIdx(IterableMapStorage storage self, uint256 idx) internal view returns (address) {
+        return self.keys[idx];
+    }
+
+    /// @notice get all keys
+    /// @dev map does not preserve order after inserts and deletes
+    function getKeys(IterableMapStorage storage self) internal view returns (address[] memory) {
+        return self.keys;
+    }
+
+    /// @notice fetch the number of elements in the map
+    function length(IterableMapStorage storage self) internal view returns (uint256) {
+        return self.keys.length;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       State Mutating Functions
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice upsert and remove key-value pairs
     /// @dev setting the value of a key to zero will remove it from the map
@@ -68,22 +97,5 @@ library IterableMap {
 
         // return the value that was inserted or removed
         return val; // TODO is this value ever used
-    }
-
-    /// @notice fetch key by index
-    /// @dev queries must be zero-indexed, assume the map is unordered
-    function getByIdx(IterableMapStorage storage self, uint256 idx) internal view returns (address) {
-        return self.keys[idx];
-    }
-
-    /// @notice get all keys
-    /// @dev assume map is unordered
-    function getKeys(IterableMapStorage storage self) internal view returns (address[] memory) {
-        return self.keys;
-    }
-
-    /// @notice fetch the number of elements in the map
-    function length(IterableMapStorage storage self) internal view returns (uint256) {
-        return self.keys.length;
     }
 }

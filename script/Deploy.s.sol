@@ -8,7 +8,7 @@ import {PoolFactory} from "src/PoolFactory.sol";
 import {Pool} from "src/Pool.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 import {PositionManager} from "src/PositionManager.sol";
-import {OWNER} from "src/Constants.sol";
+// import {OWNER} from "src/Constants.sol";
 
 // position impls
 import {SingleCollatPosition} from "src/positions/SingleCollatPosition.sol";
@@ -33,10 +33,10 @@ contract Deploy is Script {
     PositionManager public positionManagerImpl;
     RiskEngine public riskEngineImpl;
 
-    /// @notice uses values from the constants file in src/
-    function run() public {
-        run(OWNER);
-    }
+    // /// @notice uses values from the constants file in src/
+    // function run() public {
+    //     run(OWNER);
+    // }
 
     function run(address owner) public {
         positionManagerImpl = new PositionManager();

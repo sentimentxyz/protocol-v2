@@ -288,7 +288,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // update position owner
         ownerOf[position] = owner;
 
-        // owner is authz'd by default
+        // owner is authzd by default
         auth[owner][position] = true;
 
         // return new position address to be verified against process() calldata params

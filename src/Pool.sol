@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.24;
 
 // types
 import {IRateModel} from "./interfaces/IRateModel.sol";
@@ -122,7 +122,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
 
     /// @notice convert notional asset amount to borrow shares
     /// @param amt the amount of assets to convert to borrow shares
-    /// @return the amount of shares 
+    /// @return the amount of shares
     function convertAssetToBorrowShares(uint256 amt) internal view returns (uint256) {
         return totalBorrowShares == 0 ? amt : amt.mulDiv(totalBorrowShares, getBorrows(), Math.Rounding.Ceil);
     }

@@ -13,8 +13,11 @@ contract FixedRateModel is IRateModel {
                                Storage
     //////////////////////////////////////////////////////////////*/
 
-    uint256 public immutable RATE; // 18 decimal scaled APR
-    uint256 constant SECONDS_PER_YEAR = 31_557_600e18; // 1 year = 365.25 days
+    // 18 decimal scaled fixed APR
+    uint256 public immutable RATE;
+
+    // 1 year = 365.25 days
+    uint256 constant SECONDS_PER_YEAR = 31_557_600e18;
 
     /*//////////////////////////////////////////////////////////////
                               Initialize

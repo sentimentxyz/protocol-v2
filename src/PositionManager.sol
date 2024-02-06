@@ -297,12 +297,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @dev to repay the entire debt set _amt to uint.max
     function repay(address position, address pool, uint256 _amt) internal {
+        // if the passed amt is type(uint).max assume repayment of the entire debt
         uint256 amt = (_amt == type(uint256).max) ? Pool(pool).getBorrowsOf(position) : _amt;
 
         // transfer assets to be repaid from the position to the given pool
         // signals repayment to the position without making any changes in the pool
         // since every position is structured differently
-        // we assume that the position implements any checks needed to validate the repay
+        // we assume that any checks needed to validate repayment are implemented in the position
         IPosition(position).repay(Pool(pool).asset(), amt);
 
         // trigger pool repayment which assumes successful transfer of repaid assets

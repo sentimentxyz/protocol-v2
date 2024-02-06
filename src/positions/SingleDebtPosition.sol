@@ -13,19 +13,19 @@ contract SingleDebtPosition is BasePosition {
     using SafeERC20 for IERC20;
     using IterableSet for IterableSet.IterableSetStorage;
 
+    /*//////////////////////////////////////////////////////////////
+                               Storage
+    //////////////////////////////////////////////////////////////*/
+
     // single debt pool; multiple position assets
     uint256 public constant override TYPE = 0x1;
 
     address internal debtPool;
     IterableSet.IterableSetStorage internal assets;
 
-    function borrow(address pool, uint256) external override onlyPositionManager {
-        if (debtPool == address(0)) {
-            debtPool = pool;
-        } else if (pool != debtPool) {
-            revert InvalidOperation();
-        }
-    }
+    /*//////////////////////////////////////////////////////////////
+                              Initialize
+    //////////////////////////////////////////////////////////////*/
 
     constructor() {
         _disableInitializers();
@@ -33,6 +33,32 @@ contract SingleDebtPosition is BasePosition {
 
     function initialize(address _positionManager) public override initializer {
         BasePosition.initialize(_positionManager);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            View Functions
+    //////////////////////////////////////////////////////////////*/
+
+    function getAssets() external view override returns (address[] memory) {
+        return assets.getElements();
+    }
+
+    function getDebtPools() external view override returns (address[] memory) {
+        address[] memory debtPools = new address[](1);
+        debtPools[0] = debtPool;
+        return debtPools;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       State Mutating Functions
+    //////////////////////////////////////////////////////////////*/
+
+    function borrow(address pool, uint256) external override onlyPositionManager {
+        if (debtPool == address(0)) {
+            debtPool = pool;
+        } else if (pool != debtPool) {
+            revert InvalidOperation();
+        }
     }
 
     function repay(address pool, uint256 amt) external override onlyPositionManager {
@@ -48,21 +74,11 @@ contract SingleDebtPosition is BasePosition {
         if (!success) revert InvalidOperation();
     }
 
-    function getAssets() external view override returns (address[] memory) {
-        return assets.getElements();
-    }
-
-    function getDebtPools() external view override returns (address[] memory) {
-        address[] memory debtPools = new address[](1);
-        debtPools[0] = debtPool;
-        return debtPools;
-    }
-
-    function addAsset(address asset) external onlyPositionManager {
+    function addAsset(address asset) external override onlyPositionManager {
         assets.insert(asset);
     }
 
-    function removeAsset(address asset) external onlyPositionManager {
+    function removeAsset(address asset) external override onlyPositionManager {
         assets.remove(asset);
     }
 }

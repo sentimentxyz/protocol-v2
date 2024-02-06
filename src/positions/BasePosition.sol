@@ -46,6 +46,7 @@ abstract contract BasePosition is Initializable, IPosition {
     /*//////////////////////////////////////////////////////////////
                            Base Operations
     //////////////////////////////////////////////////////////////*/
+
     // approve an external contract to spend funds from the position
     // this function can only be called by the position manager
     // the position manager imposes additional checks on the spender
@@ -67,15 +68,42 @@ abstract contract BasePosition is Initializable, IPosition {
                         Virtual View Functions
     //////////////////////////////////////////////////////////////*/
 
+    // position type
+    // must not repeat across all position types
+    // position types shouldn't be reused for any reason except upgrades
     function TYPE() external view virtual returns (uint256);
+
+    // fetch a list of all the assets being used as collateral in the position
     function getAssets() external view virtual returns (address[] memory);
+
+    // fetch a list of all pools that the position is borrowing from
     function getDebtPools() external view virtual returns (address[] memory);
 
     /*//////////////////////////////////////////////////////////////
                    Virtual State Mutating Functions
     //////////////////////////////////////////////////////////////*/
 
+    // transfer assets to be repaid in order to decrease debt
+    // must be followed by Pool.repay() to trigger debt repayment
+    // any position-specfic repay validation should be implemented within this function
     function repay(address pool, uint256 amt) external virtual;
+
+    // signal borrow without any transfer of assets
+    // should be followed by Pool.borrow() to actually transfer assets
+    // any position specific borrow validation should be implemented within this function
     function borrow(address pool, uint256 amt) external virtual;
+
+    // intereact with external contracts and arbitrary calldata
+    // any target and calldata validation must be implementeed in the position manager
     function exec(address target, bytes calldata data) external virtual;
+
+    // register a new asset to be used collateral in the position
+    // any position specific validation should be implemented within this function
+    // must no-op if asset is already being used as collateral
+    function addAsset(address asset) external virtual;
+
+    // deregister an asset from being used as collateral in the position
+    // any position specific validation should be implemented within this function
+    // must no-op if the asset wasn't being used as collateral in the first place
+    function removeAsset(address asset) external virtual;
 }

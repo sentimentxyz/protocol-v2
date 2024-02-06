@@ -77,6 +77,7 @@ abstract contract BasePosition is Initializable, IPosition {
     function getAssets() external view virtual returns (address[] memory);
 
     // fetch a list of all pools that the position is borrowing from
+    // returns the address of the debt pools and not the debt asset themselves
     function getDebtPools() external view virtual returns (address[] memory);
 
     /*//////////////////////////////////////////////////////////////

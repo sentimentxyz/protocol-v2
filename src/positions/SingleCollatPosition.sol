@@ -48,7 +48,7 @@ contract SingleCollatPosition is BasePosition {
     //////////////////////////////////////////////////////////////*/
 
     // IPosition compliant function to fetch assets held by the position
-    // return value will always be a singleton asset since there's only one
+    // return value will always be a singleton array since there's only one
     // collateral asset registered by the position at a given point in time
     function getAssets() external view override returns (address[] memory) {
         // positionAsset is the only asset to be returned
@@ -58,6 +58,7 @@ contract SingleCollatPosition is BasePosition {
     }
 
     // IPosition compliant way to fetch all debt pools that the position is currently borrowing from
+    // returns the address of the debt pools and not the debt assets
     function getDebtPools() external view override returns (address[] memory) {
         return debtPools.getElements();
     }

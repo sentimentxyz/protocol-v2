@@ -5,5 +5,8 @@ interface IRateModel {
     /*//////////////////////////////////////////////////////////////
                             View Functions
     //////////////////////////////////////////////////////////////*/
-    function interestAccrued(uint256 lastUpdated, uint256 borrows, uint256 idleAmt) external view returns (uint256);
+    function interestAccrued(uint256 lastUpdated, uint256 borrows, uint256 idleAmt)
+        external
+        view
+        returns (uint256 interest);
 }

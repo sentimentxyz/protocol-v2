@@ -6,6 +6,6 @@ interface IHealthCheck {
                             View Functions
     //////////////////////////////////////////////////////////////*/
 
-    function TYPE() external view returns (uint256);
-    function isPositionHealthy(address) external view returns (bool);
+    function TYPE() external view returns (uint256 positionType);
+    function isPositionHealthy(address) external view returns (bool isHealthy);
 }

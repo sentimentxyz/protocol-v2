@@ -6,5 +6,5 @@ interface IOracle {
                             View Functions
     //////////////////////////////////////////////////////////////*/
 
-    function getValueInEth(address asset, uint256 amt) external view returns (uint256);
+    function getValueInEth(address asset, uint256 amt) external view returns (uint256 valueInEth);
 }

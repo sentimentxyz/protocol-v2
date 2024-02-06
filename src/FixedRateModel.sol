@@ -9,18 +9,31 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 contract FixedRateModel is IRateModel {
     using Math for uint256;
 
+    /*//////////////////////////////////////////////////////////////
+                               Storage
+    //////////////////////////////////////////////////////////////*/
+
     uint256 public immutable RATE; // 18 decimal scaled APR
     uint256 constant SECONDS_PER_YEAR = 31_557_600e18; // 1 year = 365.25 days
 
+    /*//////////////////////////////////////////////////////////////
+                              Initialize
+    //////////////////////////////////////////////////////////////*/
+
     constructor(uint256 rate) {
+        // store fixed rate as immutable constant
         RATE = rate;
     }
 
-    /// @notice calculates the interest accrued since the last update
-    /// @param lastUpdated the timestamp of the last update
-    /// @param borrows the total amount of borrows
-    /// @return interest accrued since the last update
-    function interestAccrued(uint256 lastUpdated, uint256 borrows, uint256) external view returns (uint256) {
+    /*//////////////////////////////////////////////////////////////
+                        Public View Functions
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice calculate the interest accrued since the last update
+    /// @param lastUpdated timestamp for the last update
+    /// @param borrows the total amount of borrows, denominated in notional asset units
+    /// @return interest notional amount of interest accrued since the last update
+    function interestAccrued(uint256 lastUpdated, uint256 borrows, uint256) external view returns (uint256 interest) {
         // rateFactor = time delta * apr / secs_per_year
         uint256 rateFactor = ((block.timestamp - lastUpdated) * 1e18).mulDiv(RATE, SECONDS_PER_YEAR, Math.Rounding.Ceil);
 

@@ -181,7 +181,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             Pool(debt[i].pool).repay(position, debt[i].amt);
         }
         for (uint256 i; i < collat.length; ++i) {
-            uint256 fee = liquidationFee.mulDiv(1e18, collat[i].amt);
+            uint256 fee = liquidationFee.mulDiv(collat[i].amt, 1e18);
             IPosition(position).transfer(owner(), collat[i].asset, fee);
             IPosition(position).transfer(msg.sender, collat[i].asset, collat[i].amt - fee);
         }

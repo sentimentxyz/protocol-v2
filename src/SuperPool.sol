@@ -18,14 +18,26 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     using Math for uint256;
     using IterableMap for IterableMap.IterableMapStorage;
 
-    /// An internal mapping of Pool => Pool Cap, incldudes an array of pools with non zero cap.
+    /*//////////////////////////////////////////////////////////////
+                               Storage
+    //////////////////////////////////////////////////////////////*/
+
+    // internal iterable mapping of (pool => pool cap)
     IterableMap.IterableMapStorage internal poolCaps;
 
-    /// The cumlative deposit cap for all pools
+    // aggregate deposit cap for all pools
+    // updated dynamically when individual pool caps are updated
     uint256 public totalPoolCap;
 
-    uint256 public protocolFee; // protocol fee
-    address public allocator; // priveilaged address to allocate assets between pools
+    // protocol fee, collected on withdrawal
+    uint256 public protocolFee;
+
+    // privileged address to allocate assets between pools
+    address public allocator;
+
+    /*//////////////////////////////////////////////////////////////
+                                Events
+    //////////////////////////////////////////////////////////////*/
 
     event PoolCapSet(address indexed pool, uint256 amt);
     event PoolDeposit(address indexed pool, uint256 assets);
@@ -34,6 +46,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     error PoolCapTooLow();
     error InvalidPoolAsset();
     error OnlyAllocatorOrOwner();
+
+    /*//////////////////////////////////////////////////////////////
+                              Initialize
+    //////////////////////////////////////////////////////////////*/
 
     constructor() {
         _disableInitializers();
@@ -46,34 +62,196 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         ERC4626Upgradeable.__ERC4626_init(IERC20(asset));
     }
 
-    ////////////////////////// Only Owner //////////////////////////
+    /*//////////////////////////////////////////////////////////////
+                             Public View
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice returns the pools with non zero deposit caps
+    /// @return an array of pool addresses
+    function pools() public view returns (address[] memory) {
+        return poolCaps.getKeys();
+    }
+
+    /// @notice returns the deposit cap for a give pool
+    /// @param _pool the pool to get the cap for
+    function poolCap(address _pool) public view returns (uint256) {
+        return poolCaps.get(_pool);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        ERC4626 View Overrides
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ERC4626Upgradeable
+    function totalAssets() public view override returns (uint256) {
+        // fetch number of pools
+        uint256 len = poolCaps.length();
+
+        // compute total assets managed by superpool across associated pools
+        uint256 total;
+        for (uint256 i; i < len; i++) {
+            // fetch pool by id
+            IERC4626 pool = IERC4626(poolCaps.getByIdx(i));
+
+            // fetch assets owned by superpool in the pool
+            total += pool.previewRedeem(pool.balanceOf(address(this)));
+        }
+
+        // fetch idle assets held in superpool
+        total += IERC20(asset()).balanceOf(address(this));
+
+        return total;
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function maxDeposit(address) public view override returns (uint256) {
+        return totalPoolCap - totalAssets();
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function maxMint(address) public view override returns (uint256) {
+        return previewDeposit(maxDeposit(address(0)));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               Withdraw
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice withdraw assets from the superpool
+    /// @dev override to account for protocol fee
+    /// @param assets the amount of assets to withdraw
+    /// @param receiver the address to send the assets to
+    /// @param owner the owner of the shares were burning from
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
+        // compute fee amount for given assets
+        uint256 fee = protocolFee.mulDiv(assets, 1e18);
+
+        // erc4626 return val for fee withdrawal
+        uint256 feeShares = ERC4626Upgradeable.withdraw(fee, OwnableUpgradeable.owner(), owner);
+
+        // erc4626 return val for receiver shares withdrawal
+        uint256 recieverShares = ERC4626Upgradeable.withdraw(assets, receiver, owner);
+
+        // final return value must comply with erc4626 spec
+        return feeShares + recieverShares;
+    }
+
+    /// @notice redeem shares for assets from the superpool
+    /// @dev override to account for protocol fee
+    /// @param shares the amount of shares to redeem
+    /// @param receiver the address to send the assets to
+    /// @param owner the owner of the shares were burning from
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
+        // compute fee amount for given shares
+        uint256 fee = protocolFee.mulDiv(shares, 1e18);
+
+        // erc4626 return val for fee redemption
+        uint256 feeAssets = ERC4626Upgradeable.redeem(fee, OwnableUpgradeable.owner(), owner);
+
+        // erc4626 return val for receiver asset redemption
+        uint256 receiverAssets = ERC4626Upgradeable.redeem(shares, receiver, owner);
+
+        // final return value must comply with erc4626 spec
+        return feeAssets + receiverAssets;
+    }
+
+    /// @notice withdraw assets from the superpool using a given path
+    /// @dev withdraw assets from the superpool by taking path[i] underlying from the pool at poolCaps[i]
+    /// @param assets the amount of assets to withdraw
+    /// @param path the amounts to withdraw from each pool
+    function withdrawWithPath(uint256 assets, uint256[] memory path) external whenNotPaused {
+        // withdraw assets from pool to superpool along given path
+        _withdrawWithPath(assets, path);
+
+        // withdraw assets to depositor
+        withdraw(assets, msg.sender, msg.sender);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          Internal Functions
+    //////////////////////////////////////////////////////////////*/
+
+    function _poolWithdraw(IERC4626 pool, uint256 assets) internal {
+        // withdraw assets from pool back to superpool
+        pool.withdraw(assets, address(this), address(this));
+
+        emit PoolWithdraw(address(pool), assets);
+    }
+
+    /// @dev returns early if the amount they want to withdraw is already in the superpool
+    /// @dev if you try to withdraw more this function will ignore it
+    function _withdrawWithPath(uint256 assets, uint256[] memory path) internal {
+        // fetch amount of idle funds currently held in pool
+        uint256 balance = IERC20(asset()).balanceOf(address(this));
+
+        // no need to withdraw from pools if the superpool has enough to meet the withdrawal
+        // TODO refactor if-else
+        if (balance > assets) {
+            return;
+        } else {
+            // fetch amount diff that needs to be withdrawn from pools to meet withdrawal
+            uint256 diff = assets - balance;
+
+            for (uint256 i; i < path.length; i++) {
+                // if we covering the rest of the funds from this last pool
+                if (path[i] > diff) {
+                    diff -= path[i];
+                    _poolWithdraw(IERC4626(poolCaps.getByIdx(i)), path[i]);
+                } else {
+                    _poolWithdraw(IERC4626(poolCaps.getByIdx(i)), diff);
+                    break;
+                }
+            }
+
+            // TODO revert if diff is still > 0
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              Only Owner
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice set the maximum deposit cap for a pool
     /// @param pool the pool to set the cap for
     /// @param assets the amount of assets to set the cap to
-    /// @dev checks if pool.asset() == this.asset()
     function setPoolCap(address pool, uint256 assets) external onlyOwner {
+        // revert if pool asset does not match superpool asset
         if (Pool(pool).asset() != asset()) revert InvalidPoolAsset();
+
+        // shortcut no-op path to handle zeroed out params
         if (assets == 0 && poolCaps.get(pool) == 0) {
-            return; // nothing to do
+            return;
         }
+
+        // revert if current superpool holdings are greater than new cap
         if (IERC4626(pool).previewRedeem(IERC4626(pool).balanceOf(address(this))) > assets) {
             revert PoolCapTooLow();
         }
+
+        // update aggregate pool cap across superpool
         totalPoolCap = totalPoolCap - poolCaps.get(pool) + assets;
+
+        // update pool cap in storage mapping
         poolCaps.set(pool, assets);
+
         emit PoolCapSet(pool, assets);
     }
 
-    /// @notice deposit assets into a pool
-    /// @notice callable by privilaged allocator or owner
+    /// @notice deposit assets from the superpool into a pool
+    /// @notice callable only by privilaged allocator or owner
     /// @param pool the pool to deposit assets into
     /// @param assets the amount of assets to deposit
     function poolDeposit(address pool, uint256 assets) external {
+        // revert unauthorized calls
         if (msg.sender != allocator && msg.sender != owner()) revert OnlyAllocatorOrOwner();
+
+        // approve and deposit assets from superpool to given pool
         IERC20(asset()).approve(address(pool), assets);
         IERC4626(pool).deposit(assets, address(this));
+
+        // revert if pool balance
         require(IERC4626(pool).balanceOf(address(this)) <= poolCap(pool));
+
         emit PoolDeposit(pool, assets);
     }
 
@@ -95,109 +273,5 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param _protocolFee the fee to set
     function setProtocolFee(uint256 _protocolFee) external onlyOwner {
         protocolFee = _protocolFee;
-    }
-
-    ////////////////////////// Withdraw //////////////////////////
-
-    /// @notice withdraw assets from the superpool
-    /// @dev override to account for protocol fee
-    /// @param assets the amount of assets to withdraw
-    /// @param receiver the address to send the assets to
-    /// @param owner the owner of the shares were burning from
-    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
-        uint256 fee = protocolFee.mulDiv(assets, 1e18);
-        uint256 feeShares = ERC4626Upgradeable.withdraw(fee, OwnableUpgradeable.owner(), owner);
-        uint256 recieverShares = ERC4626Upgradeable.withdraw(assets, receiver, owner);
-        return feeShares + recieverShares;
-    }
-
-    /// @notice redeem shares for assets from the superpool
-    /// @dev override to account for protocol fee
-    /// @param shares the amount of shares to redeem
-    /// @param receiver the address to send the assets to
-    /// @param owner the owner of the shares were burning from
-    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
-        uint256 fee = protocolFee.mulDiv(shares, 1e18);
-        uint256 feeAssets = ERC4626Upgradeable.redeem(fee, OwnableUpgradeable.owner(), owner);
-        uint256 receiverAssets = ERC4626Upgradeable.redeem(shares, receiver, owner);
-        return feeAssets + receiverAssets;
-    }
-
-    /// @notice withdraw assets from the superpool using a path
-    /// @dev withdraw assets from the superpool by taking path[i] underlying from the pool at poolCaps[i]
-    /// @param assets the amount of assets to withdraw
-    /// @param path the amounts to withdraw from each pool
-    function withdrawWithPath(uint256 assets, uint256[] memory path) external whenNotPaused {
-        _withdrawWithPath(assets, path);
-        withdraw(assets, msg.sender, msg.sender);
-    }
-
-    ////////////////////////// Internal //////////////////////////
-
-    function _poolWithdraw(IERC4626 pool, uint256 assets) internal {
-        pool.withdraw(assets, address(this), address(this));
-        emit PoolWithdraw(address(pool), assets);
-    }
-
-    /// @dev returns early if the amount they want to withdraw is already in the superpool
-    /// @dev if you try to withdraw more this function will ignore it
-    function _withdrawWithPath(uint256 assets, uint256[] memory path) internal {
-        uint256 balance = IERC20(asset()).balanceOf(address(this));
-
-        if (balance > assets) {
-            return;
-        } else {
-            // We only want to allow a user to withdraw enough to cover the differnce
-            uint256 diff = assets - balance;
-
-            for (uint256 i; i < path.length; i++) {
-                // if we covering the rest of the funds from this last pool
-                if (path[i] > diff) {
-                    diff -= path[i];
-                    _poolWithdraw(IERC4626(poolCaps.getByIdx(i)), path[i]);
-                } else {
-                    _poolWithdraw(IERC4626(poolCaps.getByIdx(i)), diff);
-                    break;
-                }
-            }
-        }
-    }
-
-    ////////////////////////// Overrides //////////////////////////
-
-    /// @inheritdoc ERC4626Upgradeable
-    function totalAssets() public view override returns (uint256) {
-        uint256 len = poolCaps.length();
-        uint256 total;
-        for (uint256 i; i < len; i++) {
-            IERC4626 pool = IERC4626(poolCaps.getByIdx(i));
-            total += pool.previewRedeem(pool.balanceOf(address(this)));
-            total += IERC20(pool.asset()).balanceOf(address(this));
-        }
-        return total;
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function maxDeposit(address) public view override returns (uint256) {
-        return totalPoolCap - totalAssets();
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function maxMint(address) public view override returns (uint256) {
-        return previewDeposit(maxDeposit(address(0)));
-    }
-
-    ////////////////////////// Public //////////////////////////
-
-    /// @notice returns the pools with non zero deposit caps
-    /// @return an array of pool addresses
-    function pools() public view returns (address[] memory) {
-        return poolCaps.getKeys();
-    }
-
-    /// @notice returns the deposit cap for a give pool
-    /// @param _pool the pool to get the cap for
-    function poolCap(address _pool) public view returns (uint256) {
-        return poolCaps.get(_pool);
     }
 }

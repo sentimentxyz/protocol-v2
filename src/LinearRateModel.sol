@@ -9,10 +9,18 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 contract LinearRateModel is IRateModel {
     using Math for uint256;
 
+    /*//////////////////////////////////////////////////////////////
+                               Storage
+    //////////////////////////////////////////////////////////////*/
+
     uint256 public immutable MIN_RATE; // 18 decimal scaled APR
     uint256 public immutable MAX_RATE; // 18 decimal scaled APR
     uint256 immutable RATE_DIFF; // MAX_RATE - MIN_RATE
     uint256 constant SECONDS_PER_YEAR = 31_557_600e18; // 1 year = 365.25 days
+
+    /*//////////////////////////////////////////////////////////////
+                              Initialize
+    //////////////////////////////////////////////////////////////*/
 
     constructor(uint256 minRate, uint256 maxRate) {
         assert(maxRate > minRate);
@@ -20,6 +28,10 @@ contract LinearRateModel is IRateModel {
         MAX_RATE = maxRate;
         RATE_DIFF = maxRate - minRate;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                        Public View Functions
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice calculates the interest accrued since the last update
     /// @param lastUpdated the timestamp of the last update

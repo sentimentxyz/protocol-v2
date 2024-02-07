@@ -2,11 +2,16 @@
 pragma solidity ^0.8.24;
 
 interface IPosition {
-    // view functions
-    function TYPE() external view returns (uint256);
-    function getAssets() external view returns (address[] memory);
-    function getDebtPools() external view returns (address[] memory);
+    /*//////////////////////////////////////////////////////////////
+                            View Functions
+    //////////////////////////////////////////////////////////////*/
+    function TYPE() external view returns (uint256 positionType);
+    function getAssets() external view returns (address[] memory assets);
+    function getDebtPools() external view returns (address[] memory debtPool);
 
+    /*//////////////////////////////////////////////////////////////
+                       State Mutating Functions
+    //////////////////////////////////////////////////////////////*/
     function addAsset(address asset) external;
     function removeAsset(address asset) external;
     function repay(address pool, uint256 amt) external;

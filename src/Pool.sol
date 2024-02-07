@@ -18,22 +18,47 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
+    /*//////////////////////////////////////////////////////////////
+                               Storage
+    //////////////////////////////////////////////////////////////*/
+
+    // interest rate model associated with this pool
     IRateModel public rateModel;
+
+    // position manager associated with this pool
     address immutable positionManager;
 
-    uint256 public lastUpdated; // last time ping() was called
-    uint256 public originationFee; // accrued to pool owner
+    // last time ping() was called
+    // used to track pending interest accruals
+    uint256 public lastUpdated;
 
-    uint256 public totalBorrows; // cached total pool debt, call getBorrows() for up to date value
+    // origination fees are accrued to the pool manager on every borrow
+    // a part of the borrow amount is sent to the pool manager as fees
+    uint256 public originationFee;
+
+    // stores total assets lent out by the pool, in notional units
+    // this value is cached and doesn't account for accrued interest
+    // call getBorrows() to fetch the updated total borrows
+    uint256 public totalBorrows;
+
+    // stores total funds lent out by the pool, denominated in borrow shares
+    // borrow shares use a different base and are not related to erc4626 shares for this pool
     uint256 public totalBorrowShares;
 
+    // fetch debt for a given position, denominated in borrow shares
+    // borrow shares use a different base and are not related to erc4626 shares for this pool
     mapping(address position => uint256 borrowShares) borrowSharesOf;
 
     error ZeroShares();
     error PositionManagerOnly();
 
+    /*//////////////////////////////////////////////////////////////
+                              Initialize
+    //////////////////////////////////////////////////////////////*/
+
     constructor(address _positionManager) {
-        // written to only once when we deploy the initial impl
+        // stored only once when we deploy the initial implementation
+        // does not need to be update or initialized by clones
         positionManager = _positionManager;
         _disableInitializers();
     }
@@ -45,85 +70,171 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         ERC4626Upgradeable.__ERC4626_init(IERC20(_asset));
     }
 
-    // Pool Actions
+    /*//////////////////////////////////////////////////////////////
+                        Public View Functions
+    //////////////////////////////////////////////////////////////*/
 
-    /// @notice mint borrow shares to the borrower, callable only by the position manager
-    /// @param position the position to mint shares to
-    /// @param amt the amount of assets to borrow
-    /// @return borrowShares the amount of shares minted
-    function borrow(address position, uint256 amt) external whenNotPaused returns (uint256 borrowShares) {
-        if (msg.sender != positionManager) revert PositionManagerOnly();
-        ping(); // accrue pending interest
-
-        // update borrows
-        borrowShares = convertAssetToBorrowShares(amt);
-        if (borrowShares == 0) revert ZeroShares();
-        // update total pool debt, notional
-        totalBorrows += amt;
-        // update total pool debt, shares
-        totalBorrowShares += borrowShares;
-        // update position debt, shares
-        borrowSharesOf[position] += borrowShares;
-
-        // accrue origination fee
-        uint256 fee = amt.mulDiv(originationFee, 1e18, Math.Rounding.Floor);
-        // send origination fee to owner
-        IERC20(asset()).safeTransfer(owner(), fee);
-        // send borrowed assets to position
-        IERC20(asset()).safeTransfer(position, amt - fee);
-    }
-
-    /// @notice repay borrow shares, callable only by the position manager
-    /// @dev assume assets have already been transferred successfully in the same txn
-    /// @param position the position to repay
-    /// @param amt the amount of assets to repay
-    /// @return the remaining shares owned in the position
-    function repay(address position, uint256 amt) external returns (uint256) {
-        if (msg.sender != positionManager) revert PositionManagerOnly();
-        // accrue pending interest
-        ping();
-
-        // update borrows
-        uint256 borrowShares = convertAssetToBorrowShares(amt);
-        if (borrowShares == 0) revert ZeroShares();
-
-        // update total pool debt, notional
-        totalBorrows -= amt;
-        // update total pool debt, shares
-        totalBorrowShares -= borrowShares;
-        // remaining position debt, in shares
-        return (borrowSharesOf[position] -= borrowShares);
-    }
-
-    // View Functions
-
-    /// @return the total notional pool borrows
+    /// @notice fetch current total pool borrows, denominated in notional asset units
     function getBorrows() public view returns (uint256) {
+        // total current borrows = cached total borrows + pending interest
         return totalBorrows
             + rateModel.interestAccrued(lastUpdated, totalBorrows, IERC20(asset()).balanceOf(address(this)));
     }
 
-    /// @param position the position to query
-    /// @return total notional pool borrows for a given position
+    /// @notice fetch pool borrows for a given position, denominated in notional asset units
+    /// @param position the position to fetch borrows for
     function getBorrowsOf(address position) public view returns (uint256) {
+        // fetch borrow shares owed by given position
+        // convert borrow shares to notional asset units
         return convertBorrowSharesToAsset(borrowSharesOf[position]);
     }
 
-    /// @notice accrue pending interest and update pool state
+    /// @notice total assets managed by the pool, denominated in notional asset units
+    function totalAssets() public view override returns (uint256) {
+        // total assets = current total borrows + idle assets in pool
+        return getBorrows() + IERC20(asset()).balanceOf(address(this));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           ERC4626 Actions
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ERC4626Upgradeable
+    function deposit(uint256 assets, address receiver) public override returns (uint256) {
+        // update state to accrue interest since the last time ping() was called
+        ping();
+
+        // standard erc4626 call
+        return super.deposit(assets, receiver);
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function mint(uint256 shares, address receiver) public override returns (uint256) {
+        // update state to accrue interest since the last time ping() was called
+        ping();
+
+        // inherited erc4626 call
+        return super.mint(shares, receiver);
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
+        // update state to accrue interest since the last time ping() was called
+        ping();
+
+        // inherited erc4626 call
+        return super.withdraw(assets, receiver, owner);
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
+        // update state to accrue interest since the last time ping() was called
+        ping();
+
+        // inherited erc4626 call
+        return super.redeem(shares, receiver, owner);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             Pool Actions
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice update pool state to accrue interest since the last time ping() was called
     function ping() public {
+        // update cached notional borrows to current borrow amount
         totalBorrows = getBorrows();
+
+        // store a timestamp for this ping() call
+        // used to compute the pending interest next time ping() is called
         lastUpdated = block.timestamp;
     }
 
-    /// @notice return total notional assets managed by pool, including lent out assets
-    function totalAssets() public view override returns (uint256) {
-        return IERC20(asset()).balanceOf(address(this)) + getBorrows();
+    /// @notice mint borrow shares and send borrowed assets to the borrowing position
+    /// @dev only callable by the position manager
+    /// @param position the position to mint shares to
+    /// @param amt the amount of assets to borrow, denominated in notional asset units
+    /// @return borrowShares the amount of shares minted
+    function borrow(address position, uint256 amt) external whenNotPaused returns (uint256 borrowShares) {
+        // revert if the caller is not the position manager
+        if (msg.sender != positionManager) revert PositionManagerOnly();
+
+        // update state to accrue interest since the last time ping() was called
+        ping();
+
+        // compute borrow shares equivalant for notional borrow amt
+        borrowShares = convertAssetToBorrowShares(amt);
+
+        // revert if borrow amt is too small
+        if (borrowShares == 0) revert ZeroShares();
+
+        // update total pool debt, denominated in notional asset units
+        totalBorrows += amt;
+
+        // update total pool debt, denominated in borrow shares
+        totalBorrowShares += borrowShares;
+
+        // update position debt, denominated in borrow shares
+        borrowSharesOf[position] += borrowShares;
+
+        // compute origination fee amt
+        uint256 fee = amt.mulDiv(originationFee, 1e18, Math.Rounding.Floor);
+
+        // send origination fee to owner
+        IERC20(asset()).safeTransfer(owner(), fee);
+
+        // send borrowed assets to position
+        IERC20(asset()).safeTransfer(position, amt - fee);
+
+        // TODO emit borrow event
     }
+
+    /// @notice repay borrow shares
+    /// @dev only callable by position manager, assume assets have already been sent to the pool
+    /// @param position the position for which debt is being repaid
+    /// @param amt the notional amount of debt asset repaid
+    /// @return remainingShares remaining debt in borrow shares owed by the position
+    function repay(address position, uint256 amt) external returns (uint256 remainingShares) {
+        // the only way to call repay() is through the position manager
+        // PositionManager.repay() MUST transfer the assets to be repaid before calling Pool.repay()
+        // this function assumes the transfer of assets was completed successfully
+
+        // there is an implicit assumption that assets were transferred in the same txn lest
+        // the call to Pool.repay() is not frontrun allowing debt repayment for another position
+
+        // revert if the caller is not the position manager
+        if (msg.sender != positionManager) revert PositionManagerOnly();
+
+        // update state to accrue interest since the last time ping() was called
+        ping();
+
+        // compute borrow shares equivalent to notional asset amt
+        uint256 borrowShares = convertAssetToBorrowShares(amt);
+
+        // revert if repaid amt is too small
+        if (borrowShares == 0) revert ZeroShares();
+
+        // update total pool debt, denominated in notional asset units
+        totalBorrows -= amt;
+
+        // update total pool debt, denominated in borrow shares
+        totalBorrowShares -= borrowShares;
+
+        // return the remaining position debt, denominated in borrow shares
+        return (borrowSharesOf[position] -= borrowShares);
+
+        // TODO emit repay event
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          Borrow Share Math
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice convert notional asset amount to borrow shares
     /// @param amt the amount of assets to convert to borrow shares
     /// @return the amount of shares
     function convertAssetToBorrowShares(uint256 amt) internal view returns (uint256) {
+        // borrow shares = amt * totalBorrowShares / currentTotalBorrows
+        // handle edge case for when borrows are zero by minting shares in 1:1 amt
         return totalBorrowShares == 0 ? amt : amt.mulDiv(totalBorrowShares, getBorrows(), Math.Rounding.Ceil);
     }
 
@@ -131,41 +242,23 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     /// @param amt the amount of shares to convert to assets
     /// @return the amount of assets
     function convertBorrowSharesToAsset(uint256 amt) internal view returns (uint256) {
+        // notional asset amount = borrowSharesAmt * currenTotalBorrows / totalBorrowShares
+        // handle edge case for when borrows are zero by minting shares in 1:1 amt
         return totalBorrowShares == 0 ? amt : amt.mulDiv(getBorrows(), totalBorrowShares, Math.Rounding.Floor);
     }
 
-    /// @inheritdoc ERC4626Upgradeable
-    function deposit(uint256 assets, address receiver) public override returns (uint256) {
-        ping();
-        return super.deposit(assets, receiver);
-    }
+    /*//////////////////////////////////////////////////////////////
+                              Only Owner
+    //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc ERC4626Upgradeable
-    function mint(uint256 shares, address receiver) public override returns (uint256) {
-        ping();
-        return super.mint(shares, receiver);
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
-        ping();
-        return super.withdraw(assets, receiver, owner);
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
-        ping();
-        return super.redeem(shares, receiver, owner);
-    }
-
-    /// @notice Set the rate model for the pool
-    /// @notice callable only by the owner
+    /// @notice set the rate model for the pool
+    /// @notice callable only by the pool manager who is also the pool contract clone owner
     function setRateModel(address _rateModel) external onlyOwner {
         rateModel = IRateModel(_rateModel);
     }
 
-    /// @notice Set the origination fee for the pool
-    /// @notice callable only by the owner
+    /// @notice set the origination fee for the pool
+    /// @notice callable only by the pool manager who is also the pool contract clone owner
     function setOriginationFee(uint256 _originationFee) external onlyOwner {
         originationFee = _originationFee;
     }

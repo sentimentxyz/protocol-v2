@@ -9,23 +9,30 @@ import {IterableSet} from "../lib/IterableSet.sol";
 
 import {BasePosition} from "./BasePosition.sol";
 
+// TYPE -- 0x1
+// single debt pool; multiple position assets
+// single debt positions are structured to allow using multiple assets as collateral
+// the borrower is only allowed to borrow from one debt pool at a time
+// this implies that any collateral not supported by the current debt pool is ignored risk-wise
 contract SingleDebtPosition is BasePosition {
     using SafeERC20 for IERC20;
     using IterableSet for IterableSet.IterableSetStorage;
 
-    // single debt pool; multiple position assets
+    /*//////////////////////////////////////////////////////////////
+                               Storage
+    //////////////////////////////////////////////////////////////*/
+
     uint256 public constant override TYPE = 0x1;
 
+    // debt pool that is currently being borrowed from
     address internal debtPool;
+
+    // iterable set that stores a list of assets being used as collateral
     IterableSet.IterableSetStorage internal assets;
 
-    function borrow(address pool, uint256) external override onlyPositionManager {
-        if (debtPool == address(0)) {
-            debtPool = pool;
-        } else if (pool != debtPool) {
-            revert InvalidOperation();
-        }
-    }
+    /*//////////////////////////////////////////////////////////////
+                              Initialize
+    //////////////////////////////////////////////////////////////*/
 
     constructor() {
         _disableInitializers();
@@ -35,6 +42,42 @@ contract SingleDebtPosition is BasePosition {
         BasePosition.initialize(_positionManager);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            View Functions
+    //////////////////////////////////////////////////////////////*/
+
+    // IPosition compliant function to fetch assets held by the position
+    function getAssets() external view override returns (address[] memory) {
+        return assets.getElements();
+    }
+
+    // IPosition compliant way to fetch all debt pools that the position is currently borrowing from
+    // will always return a singleton array since there's at most one active debt pool at any time
+    function getDebtPools() external view override returns (address[] memory) {
+        // debtPool is the only pool to be returned
+        address[] memory debtPools = new address[](1);
+        debtPools[0] = debtPool;
+        return debtPools;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       State Mutating Functions
+    //////////////////////////////////////////////////////////////*/
+
+    // signal borrow without any transfer of assets
+    // should be followed by Pool.borrow() to actually transfer assets
+    // must implement any position-specific borrow validation
+    function borrow(address pool, uint256) external override onlyPositionManager {
+        if (debtPool == address(0)) {
+            debtPool = pool;
+        } else if (pool != debtPool) {
+            revert InvalidOperation();
+        }
+    }
+
+    // transfer assets to be repaid in order to decrease debt
+    // must be followed by Pool.repay() to trigger debt repayment
+    // must implement repay validation, if any
     function repay(address pool, uint256 amt) external override onlyPositionManager {
         if (pool != debtPool) revert InvalidOperation();
         if (Pool(pool).getBorrowsOf(address(this)) == amt) {
@@ -43,26 +86,24 @@ contract SingleDebtPosition is BasePosition {
         IERC20(Pool(debtPool).asset()).safeTransfer(address(pool), amt);
     }
 
+    // intereact with external contracts and arbitrary calldata
+    // assume any target and calldata validation is done by the position manager
     function exec(address target, bytes calldata data) external override onlyPositionManager {
         (bool success,) = target.call(data);
         if (!success) revert InvalidOperation();
     }
 
-    function getAssets() external view override returns (address[] memory) {
-        return assets.getElements();
-    }
-
-    function getDebtPools() external view override returns (address[] memory) {
-        address[] memory debtPools = new address[](1);
-        debtPools[0] = debtPool;
-        return debtPools;
-    }
-
-    function addAsset(address asset) external onlyPositionManager {
+    // register a new asset to be used collateral in the position
+    // must no-op if asset is already being used as collateral
+    // must implement any position specifc validation
+    function addAsset(address asset) external override onlyPositionManager {
         assets.insert(asset);
     }
 
-    function removeAsset(address asset) external onlyPositionManager {
+    // deregister an asset from being used as collateral in the position
+    // must no-op if the asset wasn't being used as collateral in the first place
+    // must implement any position specifc validation
+    function removeAsset(address asset) external override onlyPositionManager {
         assets.remove(asset);
     }
 }

@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+// types
 import {Pool} from "../Pool.sol";
 import {RiskEngine} from "../RiskEngine.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 import {IPosition} from "../interfaces/IPosition.sol";
 import {IHealthCheck} from "../interfaces/IHealthCheck.sol";
-
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// libraries
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // TYPE == 0x2
 contract SingleCollatHealthCheck is IHealthCheck {
@@ -18,7 +19,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
                                Storage
     //////////////////////////////////////////////////////////////*/
 
-    // the position that this health check corresponds to
+    // the position type that this health check corresponds to
     uint256 public constant TYPE = 0x2;
 
     // address of the risk engine to be associated with this health check
@@ -38,7 +39,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
     //////////////////////////////////////////////////////////////*/
 
     function isPositionHealthy(address position) external view returns (bool) {
-        // fetch the list of pools with active borrows for the given position
+        // fetch list of pools with active borrows for the given position
         address[] memory debtPools = IPosition(position).getDebtPools();
 
         // container array used to store additional info for each debt pool
@@ -46,7 +47,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
 
         // fetch collateral asset for the position using getAsset()
         // since single collateral positions can only have one collateral asset
-        // we hardcode the first element of the array and ignore the rest
+        // only read the first element of the array and ignore the rest
         address collateralAsset = IPosition(position).getAssets()[0];
 
         // total debt accrued by account, denominated in eth, with 18 decimals
@@ -93,7 +94,9 @@ contract SingleCollatHealthCheck is IHealthCheck {
         // pricing the collateral is non-trivial since every debt pool has a different oracle
         // it is priced as a weighted average of all debt pool prices
         // the weight of each pool is the fraction of total debt owed to that pool
+        // loop over debt pools
         for (uint256 i; i < debtPools.length; ++i) {
+            // compute total position balance using debt pool weighted prices
             totalBalanceInWei += collateralValue(debtPools[i], collateralAsset, notionalBalance, debtInfo[i]);
         }
 

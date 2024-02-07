@@ -244,7 +244,57 @@ contract SuperPoolTest is BaseTest {
         assertEq(mockToken.balanceOf(address(poolB)), 0);
     }
 
-    function testWithdrawFailsIfAssetsLent() public {}
+    function testWithdrawWithPartialFromPath() public {
+        Pool poolA = TestUtils.deployPool(address(this), address(this), address(mockToken));
+
+        FixedRateModel rateModel = new FixedRateModel(1e18);
+
+        poolA.setRateModel(address(rateModel));
+
+        _setPoolCap(address(poolA), 10e18);
+
+        mockToken.mint(address(this), 10e18);
+        mockToken.approve(address(superPool), 10e18);
+        superPool.deposit(10e18, address(this));
+
+        superPool.poolDeposit(address(poolA), 5e18);
+
+        assertEq(mockToken.balanceOf(address(poolA)), 5e18);
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 2e18;
+
+        superPool.withdrawWithPath(7e18, amounts);
+    }
+
+    function testWithdrawFailsIfAssetsLent() public {
+        Pool pool = TestUtils.deployPool(address(this), address(this), address(mockToken));
+
+        FixedRateModel rateModel = new FixedRateModel(1e18);
+
+        pool.setRateModel(address(rateModel));
+
+        _setPoolCap(address(pool), 10e18);
+
+        mockToken.mint(address(this), 10e18);
+        mockToken.approve(address(superPool), 10e18);
+        superPool.deposit(10e18, address(this));
+
+        superPool.poolDeposit(address(pool), 5e18);
+
+        assertEq(mockToken.balanceOf(address(pool)), 5e18);
+
+        pool.borrow(address(this), 5e18);
+
+        vm.expectRevert();
+        superPool.withdraw(10e18, address(this), address(this));
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 5e18;
+
+        vm.expectRevert();
+        superPool.withdrawWithPath(10e18, amounts);
+    }
 
     function testFeeAccruedRedeem() public {}
 

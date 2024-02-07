@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
 import {SuperPool} from "src/SuperPool.sol";
@@ -9,7 +9,6 @@ import {TestUtils} from "test/Utils.sol";
 import {BaseTest, MintableToken} from "test/unit/BaseTest.sol";
 import {FixedRateModel} from "src/FixedRateModel.sol";
 import {Pool} from "src/Pool.sol";
-
 
 contract SuperPoolTest is BaseTest {
     SuperPool superPool;
@@ -138,7 +137,6 @@ contract SuperPoolTest is BaseTest {
 
         mockToken.mint(address(this), amount);
         mockToken.approve(address(superPool), amount);
-
 
         uint256 startingAmount = mockToken.balanceOf(address(this));
         superPool.deposit(amount, address(this));

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.24;
 
 import {BaseTest, MintableToken} from "./BaseTest.sol";
 import {Pool} from "src/Pool.sol";
@@ -95,7 +95,6 @@ contract PoolTest is BaseTest {
         mockToken.mint(address(this), amount);
         mockToken.approve(address(pool), amount);
 
-
         uint256 startingAmount = mockToken.balanceOf(address(this));
         pool.deposit(amount, address(this));
         assertEq(pool.balanceOf(address(this)), amount);
@@ -144,7 +143,7 @@ contract PoolTest is BaseTest {
 
     function testCantRedeemIfTooManyBorrows() public {
         uint256 depositAmount = 20e18;
-        
+
         mockToken.mint(address(this), depositAmount);
         mockToken.approve(address(pool), depositAmount);
         pool.deposit(depositAmount, address(this));

@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.24;
 
 interface IHealthCheck {
-    function TYPE() external returns (uint256);
+    /*//////////////////////////////////////////////////////////////
+                            View Functions
+    //////////////////////////////////////////////////////////////*/
 
-    function isPositionHealthy(address) external returns (bool);
+    function TYPE() external view returns (uint256 positionType);
+    function isPositionHealthy(address) external view returns (bool isHealthy);
 }

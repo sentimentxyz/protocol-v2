@@ -35,7 +35,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                Public
+                             Public View
     //////////////////////////////////////////////////////////////*/
 
     function isPositionHealthy(address position) external view returns (bool) {
@@ -106,7 +106,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               Internal
+                            Internal View
     //////////////////////////////////////////////////////////////*/
 
     /// @notice The debt value of position according to the pools oracle

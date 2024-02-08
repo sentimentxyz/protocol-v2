@@ -158,7 +158,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @param position the position to process the actions on
     /// @param actions the list of actions to process
     function process(address position, Action[] calldata actions) external nonReentrant {
-        // TODO comments
+        // TODO comments, pausable
         for (uint256 i; i < actions.length; ++i) {
             // new position creation need not be authzd
             if (actions[i].op == Operation.NewPosition) {

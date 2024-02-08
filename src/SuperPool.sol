@@ -114,8 +114,26 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     /*//////////////////////////////////////////////////////////////
-                               Withdraw
+                      ERC4626 Deposit Overrides
     //////////////////////////////////////////////////////////////*/
+
+    // deposit and mint are used as-is from ERC4626Upgradeable, but are modified to be pausable
+
+    /// @inheritdoc ERC4626Upgradeable
+    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
+        ERC4626Upgradeable.deposit(assets, receiver);
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+        ERC4626Upgradeable.mint(shares, receiver);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      ERC4626 WIthdraw Overrides
+    //////////////////////////////////////////////////////////////*/
+
+    // withdraw functions are not pausable so that depositors can withdraw, no matter what
 
     /// @notice withdraw assets from the superpool
     /// @dev override to account for protocol fee

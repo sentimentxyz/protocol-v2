@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // types
 import {IRateModel} from "./interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -14,6 +18,18 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+
+/*//////////////////////////////////////////////////////////////
+                            Events
+//////////////////////////////////////////////////////////////*/
+
+event Repay(address indexed position, address indexed asset, uint256 amount);
+
+event Borrow(address indexed position, address indexed asset, uint256 amount);
+
+/*//////////////////////////////////////////////////////////////
+                            Pool
+//////////////////////////////////////////////////////////////*/
 
 contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     using Math for uint256;
@@ -186,7 +202,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // send borrowed assets to position
         IERC20(asset()).safeTransfer(position, amt - fee);
 
-        // TODO emit borrow event
+        emit Borrow(position, ERC4626Upgradeable.asset(), amt);
     }
 
     /// @notice repay borrow shares
@@ -220,10 +236,10 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // update total pool debt, denominated in borrow shares
         totalBorrowShares -= borrowShares;
 
+        emit Repay(position, ERC4626Upgradeable.asset(), amt);
+
         // return the remaining position debt, denominated in borrow shares
         return (borrowSharesOf[position] -= borrowShares);
-
-        // TODO emit repay event
     }
 
     /*//////////////////////////////////////////////////////////////

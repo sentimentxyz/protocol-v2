@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // types
 import {Pool} from "./Pool.sol";
 import {RiskEngine} from "./RiskEngine.sol";
@@ -16,6 +20,34 @@ import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol"
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+
+/*//////////////////////////////////////////////////////////////
+                            Events
+//////////////////////////////////////////////////////////////*/
+
+event AddAsset(address indexed position, address indexed caller, address asset);
+
+event RemoveAsset(address indexed position, address indexed caller, address asset);
+
+event PositionDeployed(address indexed position, address indexed caller, address indexed owner);
+
+event Repay(address indexed position, address indexed caller, address indexed pool, uint256 amount);
+
+event Borrow(address indexed position, address indexed caller, address indexed pool, uint256 amount);
+
+event Exec(address indexed position, address indexed caller, address indexed target, bytes4 functionSelector);
+
+event Transfer(address indexed position, address indexed caller, address indexed target, address asset, uint256 amount);
+
+event Approve(address indexed position, address indexed caller, address indexed spender, address asset, uint256 amount);
+
+event Deposit(
+    address indexed position, address indexed caller, address indexed depositor, address asset, uint256 amount
+);
+
+/*//////////////////////////////////////////////////////////////
+                        Position Manager
+//////////////////////////////////////////////////////////////*/
 
 contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     using Math for uint256;
@@ -73,7 +105,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
                           External Functions
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice allow other addresses to call process() on behalf of the position owner
+    /// @notice authorize a caller other than the owner to call process() on a position
     function setAuth(address user, address position, bool isAuthorized) external {
         // only account owners are allowed to modify authorizations
         // disables transitive auth operations
@@ -90,51 +122,17 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     // defines various operation types that can be applied to a position
     // every operation except NewPosition requires that the caller must be an authz caller or owner
     enum Operation {
-        //
-        // New Position: create2 a new position with a given type
-        // new positions are deployed as beacon proxies
-        // anyone can create a new position
-        NewPosition,
-        //
-        // Exec: execute arbitrary calldata on a position
-        // the target contract and function must be recognized via funcUniverse
-        // only owners + authz callers can exec on a position
-        Exec,
-        //
-        // Deposit: deposit collateral assets to a given position
-        // while assets can directly be transferred to the position this does
-        // only owners + authz callers can deposit to a position
-        Deposit,
-        //
-        // Transfer: transfer assets from the position to a external address
-        // only owners + authz callers can deposit to a position
-        Transfer,
-        //
-        // Approve: allow a spender to transfer assets from a position
-        // the spender address must be recognized via contractUniverse
-        // behaves as a wrapper over ERC20 approve for the position
-        // only owners + authz callers can deposit to a position
-        Approve,
-        //
-        // Repay: decrease position debt
-        // transfers debt assets from the position back to the given pool
-        // and decreases position debt
-        Repay,
-        //
-        // Borrow: increase position debt
-        // transfers debt assets from the given pool to the position
-        // and increases position debt
-        Borrow,
-        //
-        // AddAsset: upsert collateral asset to position storage
-        // signals position to register new collateral with sanity checks
-        // each position type should handle this call differently to account for their structure
-        AddAsset,
-        //
-        // RemoveAsset: remove collateral asset from position storage
-        // signals position to deregister a given collateral with sanity checks
-        // each position type should handle this call differently to account for their structure
-        RemoveAsset
+        NewPosition, // create2 a new position with a given type, no auth needed
+        // the following operations require msg.sender to be authorized
+        Exec, // execute arbitrary calldata on a position
+        Deposit, // deposit collateral assets to a given position
+        Transfer, // transfer assets from the position to a external address
+        Approve, // allow a spender to transfer assets from a position
+        Repay, // decrease position debt
+        Borrow, // increase position debt
+        AddAsset, // upsert collateral asset to position storage
+        RemoveAsset // remove collateral asset from position storage
+
     }
 
     // loosely defined data struct to create a common data container for all operation types
@@ -153,64 +151,219 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @param position the position to process the actions on
     /// @param actions the list of actions to process
     function process(address position, Action[] calldata actions) external nonReentrant {
-        // TODO comments, pausable, events
-        for (uint256 i; i < actions.length; ++i) {
-            // new position creation need not be authzd
-            if (actions[i].op == Operation.NewPosition) {
-                (uint256 positionType, bytes32 salt) = abi.decode(actions[i].data, (uint256, bytes32));
-                if (ownerOf[position] != address(0)) revert Errors.InvalidOperation();
-                if (position != newPosition(actions[i].target, positionType, salt)) revert Errors.InvalidOperation();
-                continue;
-            }
+        // init counter for the loop
+        uint256 i;
 
-            if (!auth[msg.sender][position]) revert Errors.Unauthorized();
+        //
+        // New Position: create2 a new position with a given type
+        // new positions are deployed as beacon proxies
+        // anyone can create a new position
+        // if a new position is to be created, it must be the first action
+        if (actions[i].op == Operation.NewPosition) {
+            deployPosition(position, actions[i]);
+            ++i;
+        }
 
+        // total number of actions to be processed
+        uint256 len = actions.length;
+
+        // the caller should be authzd to call anything other than NewPosition
+        // this check will fail if msg.sender creates a position on behalf of someone else
+        // and then tries to operate on it, because deployPosition() only authz the position owner
+        if (len > 1 && !auth[msg.sender][position]) revert Errors.Unauthorized();
+
+        // loop over actions and process them sequentially based on operation
+        for (; i < len; ++i) {
+            //
+            // exec: execute arbitrary calldata on a position
+            // the target contract and function must be recognized via funcUniverse
+            //
             if (actions[i].op == Operation.Exec) {
-                // target -> contract address to be called by the position
-                // data -> abi-encoded calldata to be passed
-                if (!funcUniverse[actions[i].target][bytes4(actions[i].data[:4])]) revert Errors.InvalidOperation();
-                IPosition(position).exec(actions[i].target, actions[i].data);
-            } else if (actions[i].op == Operation.Transfer) {
-                // target -> address to transfer assets to
-                // data -> asset to be transferred and amount
-                (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
-                IPosition(position).transfer(actions[i].target, asset, amt);
-            } else if (actions[i].op == Operation.Deposit) {
-                // target -> depositor address
-                // data -> asset to be transferred and amount
-                (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
-                IERC20(asset).safeTransferFrom(actions[i].target, position, amt);
-            } else if (actions[i].op == Operation.Approve) {
-                // target -> spender
-                // data -> asset and amount to be approved
-                if (!contractUniverse[actions[i].target]) revert Errors.InvalidOperation();
-                (address asset, uint256 amt) = abi.decode(actions[i].data, (address, uint256));
-                IPosition(position).approve(asset, actions[i].target, amt);
-            } else {
-                uint256 data = abi.decode(actions[i].data, (uint256));
-                if (actions[i].op == Operation.Repay) {
-                    // target -> pool to be repaid
-                    // data -> notional amount to be repaid
-                    repay(position, actions[i].target, data);
-                } else if (actions[i].op == Operation.Borrow) {
-                    // target -> pool to borrow from
-                    // amt -> notional amount to be borrowed
-                    borrow(position, actions[i].target, data);
-                } else if (actions[i].op == Operation.AddAsset) {
-                    // target -> asset to be registered as collateral
-                    // data is ignored
-                    IPosition(position).addAsset(actions[i].target);
-                } else if (actions[i].op == Operation.RemoveAsset) {
-                    // target -> asset to be deregistered as collateral
-                    // data is ignored
-                    IPosition(position).removeAsset(actions[i].target);
-                } else {
-                    revert Errors.InvalidOperation(); // Fallback revert
-                }
+                exec(position, actions[i]);
+            }
+            //
+            // transfer: transfer assets from the position to a external address
+            else if (actions[i].op == Operation.Transfer) {
+                transfer(position, actions[i]);
+            }
+            //
+            // deposit: deposit collateral assets to a given position
+            // while assets can directly be transferred to the position this does
+            //
+            else if (actions[i].op == Operation.Deposit) {
+                deposit(position, actions[i]);
+            }
+            //
+            // approve: allow a spender to transfer assets from a position
+            // the spender address must be recognized via contractUniverse
+            // behaves as a wrapper over ERC20 approve for the position
+            //
+            else if (actions[i].op == Operation.Approve) {
+                approve(position, actions[i]);
+            }
+            //
+            // repay: decrease position debt
+            // transfers debt assets from the position back to the given pool
+            // and decreases position debt
+            //
+            else if (actions[i].op == Operation.Repay) {
+                repay(position, actions[i]);
+            }
+            //
+            // borrow: increase position debt
+            // transfers debt assets from the given pool to the position
+            // and increases position debt
+            //
+            else if (actions[i].op == Operation.Borrow) {
+                borrow(position, actions[i]);
+            }
+            //
+            // addAsset: upsert collateral asset to position storage
+            // signals position to register new collateral with sanity checks
+            // each position type should handle this call differently to account for their structure
+            //
+            else if (actions[i].op == Operation.AddAsset) {
+                addAsset(position, actions[i].target);
+            }
+            //
+            // removeAsset: remove collateral asset from position storage
+            // signals position to deregister a given collateral with sanity checks
+            // each position type should handle this call differently to account for their structure
+            //
+            else if (actions[i].op == Operation.RemoveAsset) {
+                removeAsset(position, actions[i].target);
+            }
+            //
+            // fallback
+            // revert if none of the conditions above match because the operation is unrecognized
+            //
+            else {
+                // fallback revert
+                revert Errors.InvalidOperation();
             }
         }
 
+        // after all the actions are processed, the position should be within risk thresholds
         if (!riskEngine.isPositionHealthy(position)) revert Errors.HealthCheckFailed();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          Internal Functions
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev deterministically deploy a new beacon proxy representin a position
+    function deployPosition(address position, Action calldata action) internal whenNotPaused {
+        (uint256 positionType, bytes32 salt) = abi.decode(action.data, (uint256, bytes32));
+
+        // revert if given position type doesn't have a register beacon
+        if (beaconFor[positionType] == address(0)) revert Errors.InvalidPositionType();
+
+        // create2 a new position as a beacon proxy
+        address newPosition = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));
+
+        // update position owner
+        ownerOf[newPosition] = action.target;
+
+        // owner is authzd by default
+        auth[action.target][newPosition] = true;
+
+        if (newPosition != position) revert Errors.InvalidOperation();
+
+        emit PositionDeployed(position, msg.sender, action.target);
+    }
+
+    function exec(address position, Action calldata action) internal {
+        // target -> contract address to be called by the position
+        // data -> abi-encoded calldata to be passed
+        if (!funcUniverse[action.target][bytes4(action.data[:4])]) revert Errors.InvalidOperation();
+        IPosition(position).exec(action.target, action.data);
+
+        emit Exec(position, msg.sender, action.target, bytes4(action.data[:4]));
+    }
+
+    function transfer(address position, Action calldata action) internal {
+        // target -> address to transfer assets to
+        // data -> asset to be transferred and amount
+        (address asset, uint256 amt) = abi.decode(action.data, (address, uint256));
+        IPosition(position).transfer(action.target, asset, amt);
+
+        emit Transfer(position, msg.sender, action.target, asset, amt);
+    }
+
+    function deposit(address position, Action calldata action) internal {
+        // target -> depositor address
+        // data -> asset to be transferred and amount
+        (address asset, uint256 amt) = abi.decode(action.data, (address, uint256));
+        IERC20(asset).safeTransferFrom(action.target, position, amt);
+
+        emit Deposit(position, msg.sender, action.target, asset, amt);
+    }
+
+    function approve(address position, Action calldata action) internal {
+        // target -> spender
+        // data -> asset and amount to be approved
+        if (!contractUniverse[action.target]) revert Errors.InvalidOperation();
+        (address asset, uint256 amt) = abi.decode(action.data, (address, uint256));
+        IPosition(position).approve(asset, action.target, amt);
+
+        emit Approve(position, msg.sender, action.target, asset, amt);
+    }
+
+    /// @dev to repay the entire debt set _amt to uint.max
+    function repay(address position, Action calldata action) internal {
+        // target -> pool to be repaid
+        // data -> notional amount to be repaid
+
+        uint256 _amt = abi.decode(action.data, (uint256));
+        // if the passed amt is type(uint).max assume repayment of the entire debt
+        uint256 amt = (_amt == type(uint256).max) ? Pool(action.target).getBorrowsOf(position) : _amt;
+
+        // transfer assets to be repaid from the position to the given pool
+        // signals repayment to the position without making any changes in the pool
+        // since every position is structured differently
+        // we assume that any checks needed to validate repayment are implemented in the position
+        IPosition(position).repay(Pool(action.target).asset(), amt);
+
+        // trigger pool repayment which assumes successful transfer of repaid assets
+        Pool(action.target).repay(position, amt);
+
+        emit Repay(position, msg.sender, action.target, amt);
+    }
+
+    function borrow(address position, Action calldata action) internal whenNotPaused {
+        // target -> pool to borrow from
+        // amt -> notional amount to be borrowed
+
+        uint256 amt = abi.decode(action.data, (uint256));
+        // revert if the given pool was not deployed by the protocol pool factory
+        if (poolFactory.managerFor(action.target) == address(0)) revert Errors.InvalidPool();
+
+        // signals a borrow operation without any actual transfer of borrowed assets
+        // since every position type is structured differently
+        // we assume that the position implements any checks needed to validate the borrow
+        IPosition(position).borrow(action.target, amt);
+
+        // transfer borrowed assets from given pool to position
+        // trigger pool borrow and increase debt owed by the position
+        Pool(action.target).borrow(position, amt);
+
+        emit Borrow(position, msg.sender, action.target, amt);
+    }
+
+    function addAsset(address position, address asset) internal whenNotPaused {
+        // target -> asset to be registered as collateral
+        // data is ignored
+        IPosition(position).addAsset(asset);
+
+        emit AddAsset(position, msg.sender, asset);
+    }
+
+    function removeAsset(address position, address asset) internal whenNotPaused {
+        // target -> asset to be deregistered as collateral
+        // data is ignored
+        IPosition(position).removeAsset(asset);
+
+        emit RemoveAsset(position, msg.sender, asset);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -266,57 +419,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         if (!riskEngine.isPositionHealthy(position)) revert Errors.InvalidOperation();
 
         // TODO emit liquidation event and/or reset position
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                          Internal Functions
-    //////////////////////////////////////////////////////////////*/
-
-    /// @dev deterministically deploy a new beacon proxy representin a position
-    function newPosition(address owner, uint256 positionType, bytes32 salt) internal returns (address) {
-        // revert if given position type doesn't have a register beacon
-        if (beaconFor[positionType] == address(0)) revert Errors.InvalidPositionType();
-
-        // create2 a new position as a beacon proxy
-        address position = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));
-
-        // update position owner
-        ownerOf[position] = owner;
-
-        // owner is authzd by default
-        auth[owner][position] = true;
-
-        // return new position address to be verified against process() calldata params
-        return position;
-    }
-
-    /// @dev to repay the entire debt set _amt to uint.max
-    function repay(address position, address pool, uint256 _amt) internal {
-        // if the passed amt is type(uint).max assume repayment of the entire debt
-        uint256 amt = (_amt == type(uint256).max) ? Pool(pool).getBorrowsOf(position) : _amt;
-
-        // transfer assets to be repaid from the position to the given pool
-        // signals repayment to the position without making any changes in the pool
-        // since every position is structured differently
-        // we assume that any checks needed to validate repayment are implemented in the position
-        IPosition(position).repay(Pool(pool).asset(), amt);
-
-        // trigger pool repayment which assumes successful transfer of repaid assets
-        Pool(pool).repay(position, amt);
-    }
-
-    function borrow(address position, address pool, uint256 amt) internal {
-        // revert if the given pool was not deployed by the protocol pool factory
-        if (poolFactory.managerFor(pool) == address(0)) revert Errors.InvalidPool();
-
-        // signals a borrow operation without any actual transfer of borrowed assets
-        // since every position type is structured differently
-        // we assume that the position implements any checks needed to validate the borrow
-        IPosition(position).borrow(pool, amt);
-
-        // transfer borrowed assets from given pool to position
-        // trigger pool borrow and increase debt owed by the position
-        Pool(pool).borrow(position, amt);
     }
 
     /*//////////////////////////////////////////////////////////////

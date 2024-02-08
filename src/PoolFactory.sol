@@ -1,12 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // libraries
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 // contracts
 import {Pool} from "./Pool.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+
+/*//////////////////////////////////////////////////////////////
+                            Events
+//////////////////////////////////////////////////////////////*/
+
+event PoolCreated(address indexed poolManager, address pool);
 
 contract PoolFactory is Ownable, Pausable {
     /*//////////////////////////////////////////////////////////////
@@ -64,7 +74,7 @@ contract PoolFactory is Ownable, Pausable {
         // store pool manager for given pool
         managerFor[address(pool)] = msg.sender;
 
-        // TODO pool created event
+        emit PoolCreated(msg.sender, address(pool));
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -6,6 +6,7 @@ import {Pool} from "./Pool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
+import {Errors} from "src/lib/Errors.sol";
 import {IterableMap} from "src/lib/IterableMap.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //contracts
@@ -42,10 +43,6 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     event PoolCapSet(address indexed pool, uint256 amt);
     event PoolDeposit(address indexed pool, uint256 assets);
     event PoolWithdraw(address indexed pool, uint256 assets);
-
-    error PoolCapTooLow();
-    error InvalidPoolAsset();
-    error OnlyAllocatorOrOwner();
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -233,7 +230,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param assets the amount of assets to set the cap to
     function setPoolCap(address pool, uint256 assets) external onlyOwner {
         // revert if pool asset does not match superpool asset
-        if (Pool(pool).asset() != asset()) revert InvalidPoolAsset();
+        if (Pool(pool).asset() != asset()) revert Errors.InvalidPoolAsset();
 
         // shortcut no-op path to handle zeroed out params
         if (assets == 0 && poolCaps.get(pool) == 0) {
@@ -242,7 +239,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
         // revert if current superpool holdings are greater than new cap
         if (IERC4626(pool).previewRedeem(IERC4626(pool).balanceOf(address(this))) > assets) {
-            revert PoolCapTooLow();
+            revert Errors.PoolCapTooLow();
         }
 
         // update aggregate pool cap across superpool
@@ -260,7 +257,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param assets the amount of assets to deposit
     function poolDeposit(address pool, uint256 assets) external {
         // revert unauthorized calls
-        if (msg.sender != allocator && msg.sender != owner()) revert OnlyAllocatorOrOwner();
+        if (msg.sender != allocator && msg.sender != owner()) revert Errors.OnlyAllocatorOrOwner();
 
         // approve and deposit assets from superpool to given pool
         IERC20(asset()).approve(address(pool), assets);

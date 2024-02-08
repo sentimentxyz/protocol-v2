@@ -5,6 +5,8 @@ pragma solidity ^0.8.24;
 import {Pool} from "./Pool.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
 import {IHealthCheck} from "./interfaces/IHealthCheck.sol";
+// libraries
+import {Errors} from "src/lib/Errors.sol";
 // contracts
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
@@ -28,9 +30,6 @@ contract RiskEngine is OwnableUpgradeable {
     // pool managers are free to choose oracles for assets in pools they own
     /// @notice fetch the oracle for a given asset in a pool
     mapping(address pool => mapping(address asset => address oracle)) public oracleFor;
-
-    error Unauthorized();
-    error UnknownOracle();
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -66,7 +65,7 @@ contract RiskEngine is OwnableUpgradeable {
     /// @dev ltv is scaled by 18 decimals
     function setLtv(address pool, address asset, uint256 ltv) external {
         // only pool owners are allowed to set ltv
-        if (msg.sender != Pool(pool).owner()) revert Unauthorized();
+        if (msg.sender != Pool(pool).owner()) revert Errors.Unauthorized();
 
         // update asset ltv for the given pool
         ltvFor[pool][asset] = ltv;
@@ -76,10 +75,10 @@ contract RiskEngine is OwnableUpgradeable {
     /// @dev only pool owners can set the oracle for their pools
     function setOracle(address pool, address asset, address oracle) external {
         // revert if the oracle is not recognized by the protocol
-        if (!isKnownOracle[oracle]) revert UnknownOracle();
+        if (!isKnownOracle[oracle]) revert Errors.UnknownOracle();
 
         // only pool owners are allowed to set oracles
-        if (msg.sender != Pool(pool).owner()) revert Unauthorized();
+        if (msg.sender != Pool(pool).owner()) revert Errors.Unauthorized();
 
         // update asset oracle for pool
         oracleFor[pool][asset] = oracle;

@@ -35,7 +35,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                Public
+                             Public View
     //////////////////////////////////////////////////////////////*/
 
     /// @notice check if a given position violates
@@ -106,7 +106,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               Internal
+                            Internal View
     //////////////////////////////////////////////////////////////*/
 
     /// @notice the value of asset of a position in eth according to the pools oracle

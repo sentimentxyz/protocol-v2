@@ -6,8 +6,9 @@ import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 // contracts
 import {Pool} from "./Pool.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
-contract PoolFactory is Ownable {
+contract PoolFactory is Ownable, Pausable {
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
@@ -44,7 +45,7 @@ contract PoolFactory is Ownable {
     /// @notice deploys a new pool, setting the caller as the owner
     /// @dev the owner can set things like oracles and LTV
     /// @param params the parameters to deploy the pool with
-    function deployPool(PoolDeployParams calldata params) external {
+    function deployPool(PoolDeployParams calldata params) external whenNotPaused {
         // deploy pool as a minimal clone
         Pool pool = new Pool(Clones.clone(poolImplementation));
 

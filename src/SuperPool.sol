@@ -222,6 +222,38 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     /*//////////////////////////////////////////////////////////////
+                       Only Allocator and Owner
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice deposit assets from the superpool into a pool
+    /// @notice callable only by privilaged allocator or owner
+    /// @param pool the pool to deposit assets into
+    /// @param assets the amount of assets to deposit
+    function poolDeposit(address pool, uint256 assets) external {
+        // revert unauthorized calls
+        if (msg.sender != allocator && msg.sender != owner()) revert Errors.OnlyAllocatorOrOwner();
+
+        // approve and deposit assets from superpool to given pool
+        IERC20(asset()).approve(address(pool), assets);
+        IERC4626(pool).deposit(assets, address(this));
+
+        // revert if pool balance
+        require(IERC4626(pool).balanceOf(address(this)) <= poolCap(pool));
+
+        emit PoolDeposit(pool, assets);
+    }
+
+    /// @notice withdraw assets from a pool
+    /// @notice only callable by owner
+    /// @param pool the pool to withdraw assets from
+    /// @param assets the amount of assets to withdraw
+    function poolWithdraw(address pool, uint256 assets) external onlyOwner {
+        // revert unauthorized calls
+        if (msg.sender != allocator && msg.sender != owner()) revert Errors.OnlyAllocatorOrOwner();
+        _poolWithdraw(IERC4626(pool), assets);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               Only Owner
     //////////////////////////////////////////////////////////////*/
 
@@ -249,32 +281,6 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         poolCaps.set(pool, assets);
 
         emit PoolCapSet(pool, assets);
-    }
-
-    /// @notice deposit assets from the superpool into a pool
-    /// @notice callable only by privilaged allocator or owner
-    /// @param pool the pool to deposit assets into
-    /// @param assets the amount of assets to deposit
-    function poolDeposit(address pool, uint256 assets) external {
-        // revert unauthorized calls
-        if (msg.sender != allocator && msg.sender != owner()) revert Errors.OnlyAllocatorOrOwner();
-
-        // approve and deposit assets from superpool to given pool
-        IERC20(asset()).approve(address(pool), assets);
-        IERC4626(pool).deposit(assets, address(this));
-
-        // revert if pool balance
-        require(IERC4626(pool).balanceOf(address(this)) <= poolCap(pool));
-
-        emit PoolDeposit(pool, assets);
-    }
-
-    /// @notice withdraw assets from a pool
-    /// @notice only callable by owner
-    /// @param pool the pool to withdraw assets from
-    /// @param assets the amount of assets to withdraw
-    function poolWithdraw(address pool, uint256 assets) external onlyOwner {
-        _poolWithdraw(IERC4626(pool), assets);
     }
 
     /// @notice set the allocator address

@@ -96,25 +96,28 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           ERC4626 Actions
+                          ERC4626 Overrides
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc ERC4626Upgradeable
-    function deposit(uint256 assets, address receiver) public override returns (uint256) {
-        // update state to accrue interest since the last time ping() was called
-        ping();
-
-        // standard erc4626 call
-        return super.deposit(assets, receiver);
-    }
+    // pool state is updated after accrual of pending interest before any erc4626 call
+    // there is no internal change in the workings of these functions other than the above
 
     /// @inheritdoc ERC4626Upgradeable
-    function mint(uint256 shares, address receiver) public override returns (uint256) {
+    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
         // update state to accrue interest since the last time ping() was called
         ping();
 
         // inherited erc4626 call
-        return super.mint(shares, receiver);
+        return ERC4626Upgradeable.deposit(assets, receiver);
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+        // update state to accrue interest since the last time ping() was called
+        ping();
+
+        // inherited erc4626 call
+        return ERC4626Upgradeable.mint(shares, receiver);
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -123,7 +126,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         ping();
 
         // inherited erc4626 call
-        return super.withdraw(assets, receiver, owner);
+        return ERC4626Upgradeable.withdraw(assets, receiver, owner);
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -132,7 +135,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         ping();
 
         // inherited erc4626 call
-        return super.redeem(shares, receiver, owner);
+        return ERC4626Upgradeable.redeem(shares, receiver, owner);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -16,7 +16,14 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
                             Events
 //////////////////////////////////////////////////////////////*/
 
+/// @dev emitted on pool creation
+/// @param poolManager msg.sender and pool manager at the time of creation
+/// @param pool address to the newly created pool
 event PoolCreated(address indexed poolManager, address pool);
+
+/*//////////////////////////////////////////////////////////////
+                            Pool Factory
+//////////////////////////////////////////////////////////////*/
 
 contract PoolFactory is Ownable, Pausable {
     /*//////////////////////////////////////////////////////////////

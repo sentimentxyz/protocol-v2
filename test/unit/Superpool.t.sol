@@ -24,6 +24,11 @@ contract SuperPoolTest is BaseTest {
         superPool.initialize(address(mockToken), "SuperPool", "SP");
     }
 
+    function testWithdrawFailIfNoFunds() public {
+        vm.expectRevert();
+        superPool.withdraw(100, address(this), address(this));
+    }
+
     function testZereodPoolsAreRemoved() public {
         address pool1 = _setDefaultPoolCap();
         address pool2 = _setDefaultPoolCap();
@@ -40,12 +45,15 @@ contract SuperPoolTest is BaseTest {
     }
 
     function testRemoveAllPools() public {
+        // set all the pools to default cap
         address pool1 = _setDefaultPoolCap();
         address pool2 = _setDefaultPoolCap();
         address pool3 = _setDefaultPoolCap();
 
+        // we should have 3 pools
         assertEq(superPool.pools().length, 3);
 
+        // set them all to 0
         _setPoolCap(pool1, 0);
         _setPoolCap(pool2, 0);
         _setPoolCap(pool3, 0);
@@ -54,17 +62,82 @@ contract SuperPoolTest is BaseTest {
     }
 
     function testPoolCapAdjusted() public {
+        // set the default pool cap
         address pool1 = _setDefaultPoolCap();
         assertEq(superPool.poolCap(pool1), 100);
         assertEq(superPool.totalPoolCap(), 100);
+
+        // set the default pool cap for another pool
         address pool2 = _setDefaultPoolCap();
         assertEq(superPool.poolCap(pool2), 101);
         assertEq(superPool.totalPoolCap(), 201);
 
+        // zero out the first pool
         _setPoolCap(pool1, 0);
 
         assertEq(superPool.poolCap(pool1), 0);
         assertEq(superPool.totalPoolCap(), 101);
+    }
+
+    function testIncreasePoolCap() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        // chheck the original pool cap
+        assertEq(superPool.poolCap(pool), 100);
+        assertEq(superPool.totalPoolCap(), 100);
+
+        // set it to 200
+        superPool.setPoolCap(pool, 200);
+
+        assertEq(superPool.poolCap(pool), 200);
+        assertEq(superPool.totalPoolCap(), 200);
+
+        // set it to 300
+        superPool.setPoolCap(pool, 300);
+
+        assertEq(superPool.poolCap(pool), 300);
+        assertEq(superPool.totalPoolCap(), 300);
+    }
+
+    function testMultipleDepositersCanWithdrawFully() public {
+        _setPoolCap(_deployMockPool(), type(uint256).max);
+
+        // mint 100 tokens to two different addresses
+        address a = address(1);
+        address b = address(2);
+        mockToken.mint(a, 100);
+        mockToken.mint(b, 100);
+
+        // deposit all tokens from address a and b
+        vm.startPrank(a);
+        
+        mockToken.approve(address(superPool), 100);
+        superPool.deposit(100, a);
+
+        vm.stopPrank();
+
+        vm.startPrank(b);
+
+        mockToken.approve(address(superPool), 100);
+        superPool.deposit(100, b);
+
+        vm.stopPrank();
+
+        // check balances
+        assertEq(superPool.balanceOf(a), 100);
+        assertEq(superPool.balanceOf(b), 100);
+
+        // we should be able to fully withdraw
+        vm.prank(a);
+        superPool.withdraw(100, a, a);
+
+        vm.prank(b);
+        superPool.withdraw(100, b, b);
+
+        // both addresses should have no shares in the super pool
+        assertEq(superPool.balanceOf(a), 0);
+        assertEq(superPool.balanceOf(b), 0);
     }
 
     function testDepositsWork(uint256 amount) public {
@@ -81,15 +154,17 @@ contract SuperPoolTest is BaseTest {
     function testWithdrawsWork(uint256 amount) public {
         vm.assume(amount < BIG_NUMBER);
 
+        // set the pool cap to the max
         _setPoolCap(_deployMockPool(), type(uint256).max);
-
         mockToken.mint(address(this), amount);
         mockToken.approve(address(superPool), amount);
 
+        // we should be able to deposit
         uint256 startingAmount = mockToken.balanceOf(address(this));
         superPool.deposit(amount, address(this));
         assertEq(superPool.balanceOf(address(this)), amount);
 
+        // no change in exchange rate so just withdraw everything
         superPool.withdraw(amount, address(this), address(this));
         assertEq(superPool.balanceOf(address(this)), 0);
         assertEq(mockToken.balanceOf(address(this)), startingAmount);
@@ -99,60 +174,328 @@ contract SuperPoolTest is BaseTest {
         vm.assume(amount < BIG_NUMBER);
         vm.assume(amount > 10);
 
+        // setup pool
         _setPoolCap(_deployMockPool(), type(uint256).max);
-
         mockToken.mint(address(this), amount);
         mockToken.approve(address(superPool), amount);
 
+        // we should be able to deposit
         uint256 startingAmount = mockToken.balanceOf(address(this));
         superPool.deposit(amount, address(this));
         assertEq(superPool.balanceOf(address(this)), amount);
 
+        // no change in exchange rate so just redeem everything
         superPool.redeem(amount, address(this), address(this));
         assertEq(superPool.balanceOf(address(this)), 0);
         assertEq(mockToken.balanceOf(address(this)), startingAmount);
     }
 
     function testAllocateToPool() public {
+        uint256 depositAmount = 10e18;
+
+        // deploy pool and set rate model
         address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
         address rateModel = address(new FixedRateModel(1e18));
         Pool(pool).setRateModel(rateModel);
 
-        mockToken.mint(address(this), 10e18);
-        mockToken.approve(address(superPool), 10e18);
-        superPool.setPoolCap(pool, 10e18);
-        superPool.deposit(10e18, address(this));
+        // mint and deposit tokens
+        mockToken.mint(address(this), depositAmount);
+        mockToken.approve(address(superPool), depositAmount);
+        superPool.setPoolCap(pool, depositAmount);
+        superPool.deposit(depositAmount, address(this));
 
-        assertEq(mockToken.balanceOf(address(superPool)), 10e18);
+        // we hsould have deposted this amount into the super pool
+        assertEq(mockToken.balanceOf(address(superPool)), depositAmount);
 
-        superPool.poolDeposit(pool, 10e18);
+        // allocate to the pool
+        superPool.poolDeposit(pool, depositAmount);
 
-        assertEq(mockToken.balanceOf(pool), 10e18);
+        // we should have deposited this amount into the pool
+        assertEq(mockToken.balanceOf(pool), depositAmount);
     }
 
     function testRemoveAllocationFromPool() public {
+        uint256 depositAmount = 10e18;
+
+        // deploy pool and set rate model
         address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
         address rateModel = address(new FixedRateModel(1e18));
         Pool(pool).setRateModel(rateModel);
+        
+        // mint and deposit tokens
+        mockToken.mint(address(this), depositAmount);
+        mockToken.approve(address(superPool), depositAmount);
+        superPool.setPoolCap(pool, depositAmount);
+        superPool.deposit(depositAmount, address(this));
 
-        mockToken.mint(address(this), 10e18);
-        mockToken.approve(address(superPool), 10e18);
-        superPool.setPoolCap(pool, 10e18);
-        superPool.deposit(10e18, address(this));
+        // allocate to pool
+        superPool.poolDeposit(pool, depositAmount);
 
-        superPool.poolDeposit(pool, 10e18);
+        assertEq(mockToken.balanceOf(pool), depositAmount);
 
-        assertEq(mockToken.balanceOf(pool), 10e18);
+        // remove allocation from pool
+        superPool.poolWithdraw(pool, depositAmount);
 
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = 10e18;
-
-        superPool.withdrawWithPath(10e18, amounts);
-
+        // we should have no tokens in the pool
         assertEq(mockToken.balanceOf(pool), 0);
     }
 
-    function testWithdrawMultiplePools() public {}
+    function testWithdrawWithPath() public {
+        uint256 depositAmount = 10e18;
+        uint256 poolDepositAmount = depositAmount / 2;
+
+        // deploy two pools
+        Pool poolA = TestUtils.deployPool(address(this), address(this), address(mockToken));
+        Pool poolB = TestUtils.deployPool(address(this), address(this), address(mockToken));
+
+        FixedRateModel rateModel = new FixedRateModel(1e18);
+
+        poolA.setRateModel(address(rateModel));
+        poolB.setRateModel(address(rateModel));
+
+        // set the pool caps for each pool
+        _setPoolCap(address(poolA), depositAmount);
+        _setPoolCap(address(poolB), depositAmount);
+
+        // deposit tokens into the super pool
+        mockToken.mint(address(this), depositAmount);
+        mockToken.approve(address(superPool), depositAmount);
+        superPool.deposit(depositAmount, address(this));
+
+        // split the deposit between the two pools
+        superPool.poolDeposit(address(poolA), poolDepositAmount);
+        superPool.poolDeposit(address(poolB), poolDepositAmount);
+
+        assertEq(mockToken.balanceOf(address(poolA)), poolDepositAmount);
+        assertEq(mockToken.balanceOf(address(poolB)), poolDepositAmount);
+
+        // at this point we cant withdraw without specificing a path
+        vm.expectRevert();
+        superPool.withdrawWithPath(depositAmount, new uint256[](0));
+
+        // this should also fail because the balance is not in the super pool
+        vm.expectRevert();
+        superPool.withdraw(depositAmount, address(this), address(this));
+
+        // request to withdraw 10 tokens from the super pool split among the two pools
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = poolDepositAmount;
+        amounts[1] = poolDepositAmount;
+
+        superPool.withdrawWithPath(depositAmount, amounts);
+
+        // pools should  have no more balance
+        assertEq(mockToken.balanceOf(address(poolA)), 0);
+        assertEq(mockToken.balanceOf(address(poolB)), 0);
+    }
+
+    function testWithdrawWithPartialFromPath() public {
+        uint256 totalDepositAmount = 10e18;
+        uint256 poolDepositAmount = 5e18;
+        uint256 withdrawAmount = 7e18;
+
+        assertGt(totalDepositAmount, withdrawAmount);
+        assertGt(withdrawAmount, poolDepositAmount);
+        assertGt(totalDepositAmount, poolDepositAmount);
+
+        // set up the pool + cap
+        Pool poolA = TestUtils.deployPool(address(this), address(this), address(mockToken));
+        FixedRateModel rateModel = new FixedRateModel(1e18);
+        poolA.setRateModel(address(rateModel));
+        _setPoolCap(address(poolA), totalDepositAmount);
+
+        // depoist tokens into pool
+        mockToken.mint(address(this), totalDepositAmount);
+        mockToken.approve(address(superPool), totalDepositAmount);
+        superPool.deposit(totalDepositAmount, address(this));
+
+        // allocate tokens to the pool
+        superPool.poolDeposit(address(poolA), poolDepositAmount);
+
+        assertEq(mockToken.balanceOf(address(poolA)), poolDepositAmount);
+
+        // withdraw the diff
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = withdrawAmount - poolDepositAmount;
+
+        superPool.withdrawWithPath(withdrawAmount, amounts);
+    }
+
+    function testWithdrawFailsIfAssetsLent() public {
+        uint256 depositAmount = 10e18;
+        uint256 borrowAmount = 5e18;
+
+        // setup pool
+        Pool pool = TestUtils.deployPool(address(this), address(this), address(mockToken));
+        FixedRateModel rateModel = new FixedRateModel(1e18);
+        pool.setRateModel(address(rateModel));
+        _setPoolCap(address(pool), depositAmount);
+
+        // deposit tokens into the super pool
+        mockToken.mint(address(this), depositAmount);
+        mockToken.approve(address(superPool), depositAmount);
+        superPool.deposit(depositAmount, address(this));
+
+        // allocate to pool
+        superPool.poolDeposit(address(pool), borrowAmount);
+
+        assertEq(mockToken.balanceOf(address(pool)), borrowAmount);
+
+        // borrow some amounts
+        pool.borrow(address(this), borrowAmount);
+
+        // we should not be able the original amount from the pool since we moved assets to the pool
+        vm.expectRevert();
+        superPool.withdraw(depositAmount, address(this), address(this));
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = borrowAmount;
+
+        // we also shouldnt be able tow withdraw from the pool becuase it has lent its assets
+        vm.expectRevert();
+        superPool.withdrawWithPath(10e18, amounts);
+    }
+
+    function testFeeAccruedRedeem() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        superPool.setProtocolFee(5e17);
+        superPool.transferOwnership(address(1));
+
+        mockToken.mint(address(this), 100);
+        mockToken.approve(address(superPool), 100);
+        superPool.deposit(100, address(this));
+
+        superPool.redeem(100, address(this), address(this));
+
+        assertEq(mockToken.balanceOf(address(this)), 50);
+        assertEq(mockToken.balanceOf(superPool.owner()), 50);
+    }
+
+    function testFeeAccruedWithdraw() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        superPool.setProtocolFee(5e17);
+        superPool.transferOwnership(address(1));
+
+        mockToken.mint(address(this), 100);
+        mockToken.approve(address(superPool), 100);
+        superPool.deposit(100, address(this));
+
+        superPool.withdraw(100, address(this), address(this));
+
+        assertEq(mockToken.balanceOf(address(this)), 50);
+        assertEq(mockToken.balanceOf(superPool.owner()), 50);
+    }
+
+    function testOwnerCanChangeParamsAfterChange() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        superPool.setPoolCap(pool, 200);
+        assertEq(superPool.poolCap(pool), 200);
+
+        superPool.transferOwnership(address(1));
+
+        vm.expectRevert();
+        superPool.setPoolCap(pool, 300);
+
+        vm.prank(address(1));
+        superPool.setPoolCap(pool, 300);
+
+        assertEq(superPool.poolCap(pool), 300);
+    }
+
+    function testThreeActors() public {
+        address a = address(1);
+        address b = address(2);
+        address c = address(3);
+
+        uint256 amount = 10e18;
+
+        address pool = _deployMockPool();
+        _setPoolCap(pool, amount * 3);
+
+        mockToken.mint(a, amount);
+        mockToken.mint(b, amount);
+        mockToken.mint(c, amount);
+
+        vm.startPrank(a);
+        mockToken.approve(address(superPool), amount);
+        superPool.deposit(amount, a);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(a), amount);
+
+        vm.startPrank(b);
+        mockToken.approve(address(superPool), amount);
+        superPool.deposit(amount, b);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(b), amount);
+
+        vm.startPrank(a);
+        superPool.withdraw(amount / 2, a, a);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(a), amount / 2);
+
+        vm.startPrank(c);
+        mockToken.approve(address(superPool), amount);
+        superPool.deposit(amount, c);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(c), amount);
+
+        vm.startPrank(a);
+        superPool.withdraw(amount / 2, a, a);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(a), 0);
+
+        vm.startPrank(b);
+        superPool.withdraw(amount, b, b);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(b), 0);
+
+        vm.startPrank(c);
+        superPool.withdraw(amount, c, c);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(c), 0);
+    }
+
+    function testCantMintMoreThanCap() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        mockToken.mint(address(this), 101);
+        mockToken.approve(address(superPool), 101);
+
+        // we shouldnt be able to mint more than the cap
+        vm.expectRevert();
+        superPool.mint(101, address(this));
+
+        superPool.mint(100, address(this));
+    }
+
+    function testCantDepositMoreThanCap() public {
+       address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        mockToken.mint(address(this), 101);
+        mockToken.approve(address(superPool), 101);
+
+        // we shouldnt be able to deposit more than the cap
+        vm.expectRevert();
+        superPool.deposit(101, address(this));
+
+        superPool.deposit(100, address(this));
+    }
+
 
     function testSetPoolCapOnlyOwner(address notOwner) public {
         vm.assume(notOwner != address(this));

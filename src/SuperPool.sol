@@ -144,7 +144,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         uint256 feeShares = ERC4626Upgradeable.withdraw(fee, OwnableUpgradeable.owner(), owner);
 
         // erc4626 return val for receiver shares withdrawal
-        uint256 recieverShares = ERC4626Upgradeable.withdraw(assets, receiver, owner);
+        uint256 recieverShares = ERC4626Upgradeable.withdraw(assets - fee, receiver, owner);
 
         // final return value must comply with erc4626 spec
         return feeShares + recieverShares;
@@ -163,7 +163,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         uint256 feeAssets = ERC4626Upgradeable.redeem(fee, OwnableUpgradeable.owner(), owner);
 
         // erc4626 return val for receiver asset redemption
-        uint256 receiverAssets = ERC4626Upgradeable.redeem(shares, receiver, owner);
+        uint256 receiverAssets = ERC4626Upgradeable.redeem(shares - fee, receiver, owner);
 
         // final return value must comply with erc4626 spec
         return feeAssets + receiverAssets;
@@ -208,7 +208,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
             for (uint256 i; i < path.length; i++) {
                 // if we covering the rest of the funds from this last pool
-                if (path[i] > diff) {
+                if (path[i] < diff) {
                     diff -= path[i];
                     _poolWithdraw(IERC4626(poolCaps.getByIdx(i)), path[i]);
                 } else {
@@ -290,7 +290,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     /// @notice set the protocol fee
-    /// @param _protocolFee the fee to set
+    /// @param _protocolFee the fee to set scaled by 1e18
     function setProtocolFee(uint256 _protocolFee) external onlyOwner {
         protocolFee = _protocolFee;
     }

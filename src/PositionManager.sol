@@ -82,7 +82,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// [caller][position] => [isAuthorized]
     /// @notice check if a given address is allowed to operate on a particular position
     /// @dev auth[x][y] stores if address x is authorized to operate on position y
-    mapping(address caller => mapping(address position => bool isAuthz)) public auth;
+    mapping(address position => mapping(address caller => bool isAuthz)) public isAuth;
 
     // defines the universe of approved contracts and methods that a position can interact with
     // mapping key -> first 20 bytes store the target address, next 4 bytes store the method selector
@@ -114,7 +114,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         if (msg.sender != ownerOf[position]) revert Errors.Unauthorized();
 
         // update authz status in storage
-        auth[user][position] = isAuthorized;
+        isAuth[position][user] = isAuthorized;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -172,7 +172,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // the caller should be authzd to call anything other than NewPosition
         // this check will fail if msg.sender creates a position on behalf of someone else
         // and then tries to operate on it, because deployPosition() only authz the position owner
-        if (len > 1 && !auth[msg.sender][position]) revert Errors.Unauthorized();
+        if (len > 1 && !isAuth[position][msg.sender]) revert Errors.Unauthorized();
 
         // loop over actions and process them sequentially based on operation
         for (; i < len; ++i) {
@@ -267,7 +267,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         ownerOf[newPosition] = action.target;
 
         // owner is authzd by default
-        auth[action.target][newPosition] = true;
+        isAuth[newPosition][action.target] = true;
 
         if (newPosition != position) revert Errors.InvalidOperation();
 

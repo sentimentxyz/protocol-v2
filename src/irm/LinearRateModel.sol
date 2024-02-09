@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 // types
-import {IRateModel} from "./interfaces/IRateModel.sol";
+import {IRateModel} from "../interfaces/IRateModel.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 

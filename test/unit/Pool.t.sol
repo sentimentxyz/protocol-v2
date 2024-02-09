@@ -6,7 +6,7 @@ import {Pool} from "src/Pool.sol";
 import {IRateModel} from "src/interfaces/IRateModel.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 import {TestUtils} from "test/Utils.sol";
-import {FixedRateModel} from "src/FixedRateModel.sol";
+import {FixedRateModel} from "src/irm/FixedRateModel.sol";
 
 contract PoolTest is BaseTest {
     Pool public pool;

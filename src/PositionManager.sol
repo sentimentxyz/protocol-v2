@@ -29,6 +29,8 @@ event AddAsset(address indexed position, address indexed caller, address asset);
 
 event RemoveAsset(address indexed position, address indexed caller, address asset);
 
+event Liquidation(address indexed position, address indexed liquidator, address indexed owner);
+
 event PositionDeployed(address indexed position, address indexed caller, address indexed owner);
 
 event Repay(address indexed position, address indexed caller, address indexed pool, uint256 amount);
@@ -418,7 +420,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // position should be within risk thresholds after liqudiation
         if (!riskEngine.isPositionHealthy(position)) revert Errors.InvalidOperation();
 
-        // TODO emit liquidation event and/or reset position
+        emit Liquidation(position, msg.sender, ownerOf[position]);
     }
 
     /*//////////////////////////////////////////////////////////////

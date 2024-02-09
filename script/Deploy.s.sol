@@ -8,7 +8,7 @@ import {PoolFactory} from "src/PoolFactory.sol";
 import {Pool} from "src/Pool.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 import {PositionManager} from "src/PositionManager.sol";
-// import {OWNER} from "src/Constants.sol";
+import {OWNER} from "./Constants.sol";
 
 // position impls
 import {SingleCollatPosition} from "src/positions/SingleCollatPosition.sol";
@@ -33,38 +33,41 @@ contract Deploy is Script {
     PositionManager public positionManagerImpl;
     RiskEngine public riskEngineImpl;
 
-    // /// @notice uses values from the constants file in src/
-    // function run() public {
-    //     run(OWNER);
-    // }
+    /// @notice uses values from the constants file in src/
+    function run() public {
+        run(OWNER);
+    }
 
     function run(address owner) public {
+        // set up positon manager and proxy
         positionManagerImpl = new PositionManager();
         TransparentUpgradeableProxy proxy1 = new TransparentUpgradeableProxy(address(positionManagerImpl), owner, "");
         positionManager = PositionManager(payable(address(proxy1)));
         positionManager.initialize();
 
+        // set up risk engine and proxy
         riskEngineImpl = new RiskEngine();
         TransparentUpgradeableProxy proxy2 = new TransparentUpgradeableProxy(address(riskEngineImpl), owner, "");
         riskEngine = RiskEngine(payable(address(proxy2)));
         riskEngine.initialize();
 
+        // deploy pool impl and factory
         poolImplementation = new Pool(address(positionManager));
         poolFactory = new PoolFactory(address(poolImplementation));
 
+        // deploy health checks
         singleCollatHealthCheck = new SingleCollatHealthCheck(address(riskEngine));
         singleDebtHealthCheck = new SingleDebtHealthCheck(address(riskEngine));
 
-        // deploy impls and beacons
-        singleCollatPositionImpl = new SingleCollatPosition();
-        singleDebtPositionImpl = new SingleDebtPosition();
+        // deploy positions and setup becaons
+        singleCollatPositionImpl = new SingleCollatPosition(address(positionManager));
+        singleDebtPositionImpl = new SingleDebtPosition(address(positionManager));
         singleCollatPositionBeacon = new UpgradeableBeacon(address(singleCollatPositionImpl), owner);
         singleDebtPositionBeacon = new UpgradeableBeacon(address(singleDebtPositionImpl), owner);
 
         // set up position manager
         positionManager.setBeacon(singleDebtPositionImpl.TYPE(), address(singleDebtPositionBeacon));
         positionManager.setBeacon(singleCollatPositionImpl.TYPE(), address(singleCollatPositionBeacon));
-
         positionManager.setRiskEngine(address(riskEngine));
         positionManager.setPoolFactory(address(poolFactory));
 

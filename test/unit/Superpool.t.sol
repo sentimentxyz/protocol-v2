@@ -111,7 +111,7 @@ contract SuperPoolTest is BaseTest {
 
         // deposit all tokens from address a and b
         vm.startPrank(a);
-        
+
         mockToken.approve(address(superPool), 100);
         superPool.deposit(100, a);
 
@@ -221,7 +221,7 @@ contract SuperPoolTest is BaseTest {
         address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
         address rateModel = address(new FixedRateModel(1e18));
         Pool(pool).setRateModel(rateModel);
-        
+
         // mint and deposit tokens
         mockToken.mint(address(this), depositAmount);
         mockToken.approve(address(superPool), depositAmount);
@@ -483,7 +483,7 @@ contract SuperPoolTest is BaseTest {
     }
 
     function testCantDepositMoreThanCap() public {
-       address pool = _deployMockPool();
+        address pool = _deployMockPool();
         _setPoolCap(pool, 100);
 
         mockToken.mint(address(this), 101);
@@ -495,7 +495,6 @@ contract SuperPoolTest is BaseTest {
 
         superPool.deposit(100, address(this));
     }
-
 
     function testSetPoolCapOnlyOwner(address notOwner) public {
         vm.assume(notOwner != address(this));

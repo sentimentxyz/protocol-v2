@@ -25,6 +25,10 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
                             Events
 //////////////////////////////////////////////////////////////*/
 
+event ContractUniverseUpdated(address indexed target, bool isAllowed);
+
+event FuncUniverseUpdated(address indexed target, bytes4 indexed method, bool isAllowed);
+
 event AddAsset(address indexed position, address indexed caller, address asset);
 
 event RemoveAsset(address indexed position, address indexed caller, address asset);
@@ -48,6 +52,52 @@ event Deposit(
 /*//////////////////////////////////////////////////////////////
                         Position Manager
 //////////////////////////////////////////////////////////////*/
+
+// defines various operation types that can be applied to a position
+// every operation except NewPosition requires that the caller must be an authz caller or owner
+enum Operation {
+    NewPosition, // create2 a new position with a given type, no auth needed
+    // the following operations require msg.sender to be authorized
+    Exec, // execute arbitrary calldata on a position
+    Deposit, // deposit collateral assets to a given position
+    Transfer, // transfer assets from the position to a external address
+    Approve, // allow a spender to transfer assets from a position
+    Repay, // decrease position debt
+    Borrow, // increase position debt
+    AddAsset, // upsert collateral asset to position storage
+    RemoveAsset // remove collateral asset from position storage
+
+}
+
+// loosely defined data struct to create a common data container for all operation types
+// target and data are interpreted in different ways based on the operation type
+struct Action {
+    // operation type
+    Operation op;
+    // target address, interpreted differently across operations types
+    address target;
+    // dynamic bytes data, interepreted differently across operation types
+    bytes data;
+}
+
+// data for position debt to be repaid by the liquidator
+struct DebtData {
+    // pool address for debt to be repaid
+    address pool;
+    // debt asset for pool, utility param to avoid calling pool.asset()
+    address asset;
+    // amount of debt to be repaid by the liqudiator
+    // position manager assumes that this amount has already been approved
+    uint256 amt;
+}
+
+// data for collateral assets to be received by the liquidator
+struct AssetData {
+    // token address
+    address asset;
+    // amount of collateral to be received by liquidator
+    uint256 amt;
+}
 
 contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     using Math for uint256;
@@ -115,36 +165,18 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         auth[user][position] = isAuthorized;
     }
 
+    function predictAddress(uint256 positionType, bytes32 salt) external view returns (address) {
+        bytes memory creationCode =
+            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(beaconFor[positionType], ""));
+
+        return address(
+            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(creationCode)))))
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                          Position Interaction
     //////////////////////////////////////////////////////////////*/
-
-    // defines various operation types that can be applied to a position
-    // every operation except NewPosition requires that the caller must be an authz caller or owner
-    enum Operation {
-        NewPosition, // create2 a new position with a given type, no auth needed
-        // the following operations require msg.sender to be authorized
-        Exec, // execute arbitrary calldata on a position
-        Deposit, // deposit collateral assets to a given position
-        Transfer, // transfer assets from the position to a external address
-        Approve, // allow a spender to transfer assets from a position
-        Repay, // decrease position debt
-        Borrow, // increase position debt
-        AddAsset, // upsert collateral asset to position storage
-        RemoveAsset // remove collateral asset from position storage
-
-    }
-
-    // loosely defined data struct to create a common data container for all operation types
-    // target and data are interpreted in different ways based on the operation type
-    struct Action {
-        // operation type
-        Operation op;
-        // target address, interpreted differently across operations types
-        address target;
-        // dynamic bytes data, interepreted differently across operation types
-        bytes data;
-    }
 
     /// @notice procces a batch of actions on a given position
     /// @dev only one position can be operated on in one txn, including creation
@@ -252,6 +284,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     //////////////////////////////////////////////////////////////*/
 
     /// @dev deterministically deploy a new beacon proxy representin a position
+    /// @dev the target field in the action is the new owner of the position
     function deployPosition(address position, Action calldata action) internal whenNotPaused {
         (uint256 positionType, bytes32 salt) = abi.decode(action.data, (uint256, bytes32));
 
@@ -370,25 +403,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
                              Liquidation
     //////////////////////////////////////////////////////////////*/
 
-    // data for position debt to be repaid by the liquidator
-    struct DebtData {
-        // pool address for debt to be repaid
-        address pool;
-        // debt asset for pool, utility param to avoid calling pool.asset()
-        address asset;
-        // amount of debt to be repaid by the liqudiator
-        // position manager assumes that this amount has already been approved
-        uint256 amt;
-    }
-
-    // data for collateral assets to be received by the liquidator
-    struct AssetData {
-        // token address
-        address asset;
-        // amount of collateral to be received by liquidator
-        uint256 amt;
-    }
-
     function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external nonReentrant {
         // position must breach risk thresholds before liquidation
         if (riskEngine.isPositionHealthy(position)) revert Errors.InvalidOperation();
@@ -447,5 +461,21 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @dev only callable by the position manager owner
     function setLiquidationFee(uint256 _liquidationFee) external onlyOwner {
         liquidationFee = _liquidationFee;
+    }
+
+    /// @notice toggle contract inclusion in the contract universe
+    /// @dev only callable by the position manager owner
+    function toggleContractUniverseInclusion(address target) external onlyOwner {
+        contractUniverse[target] = !contractUniverse[target];
+
+        emit ContractUniverseUpdated(target, contractUniverse[target]);
+    }
+
+    /// @notice toggle function inclusion in the function universe
+    /// @dev only callable by the position manager owner
+    function toggleFuncUniverseInclusion(address target, bytes4 method) external onlyOwner {
+        funcUniverse[target][method] = !funcUniverse[target][method];
+
+        emit FuncUniverseUpdated(target, method, funcUniverse[target][method]);
     }
 }

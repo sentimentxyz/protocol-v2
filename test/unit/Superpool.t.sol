@@ -356,9 +356,117 @@ contract SuperPoolTest is BaseTest {
         superPool.withdrawWithPath(10e18, amounts);
     }
 
-    function testFeeAccruedRedeem() public {}
+    function testFeeAccruedRedeem() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
 
-    function testFeeAccruedWithdraw() public {}
+        superPool.setProtocolFee(5e17);
+        superPool.transferOwnership(address(1));
+
+        mockToken.mint(address(this), 100);
+        mockToken.approve(address(superPool), 100);
+        superPool.deposit(100, address(this));
+
+        superPool.redeem(100, address(this), address(this));
+
+        assertEq(mockToken.balanceOf(address(this)), 50);
+        assertEq(mockToken.balanceOf(superPool.owner()), 50);
+    }
+
+    function testFeeAccruedWithdraw() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        superPool.setProtocolFee(5e17);
+        superPool.transferOwnership(address(1));
+
+        mockToken.mint(address(this), 100);
+        mockToken.approve(address(superPool), 100);
+        superPool.deposit(100, address(this));
+
+        superPool.withdraw(100, address(this), address(this));
+
+        assertEq(mockToken.balanceOf(address(this)), 50);
+        assertEq(mockToken.balanceOf(superPool.owner()), 50);
+    }
+
+    function testOwnerCanChangeParamsAfterChange() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        superPool.setPoolCap(pool, 200);
+        assertEq(superPool.poolCap(pool), 200);
+
+        superPool.transferOwnership(address(1));
+
+        vm.expectRevert();
+        superPool.setPoolCap(pool, 300);
+
+        vm.prank(address(1));
+        superPool.setPoolCap(pool, 300);
+
+        assertEq(superPool.poolCap(pool), 300);
+    }
+
+    function testThreeActors() public {
+        address a = address(1);
+        address b = address(2);
+        address c = address(3);
+
+        uint256 amount = 10e18;
+
+        address pool = _deployMockPool();
+        _setPoolCap(pool, amount * 3);
+
+        mockToken.mint(a, amount);
+        mockToken.mint(b, amount);
+        mockToken.mint(c, amount);
+
+        vm.startPrank(a);
+        mockToken.approve(address(superPool), amount);
+        superPool.deposit(amount, a);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(a), amount);
+
+        vm.startPrank(b);
+        mockToken.approve(address(superPool), amount);
+        superPool.deposit(amount, b);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(b), amount);
+
+        vm.startPrank(a);
+        superPool.withdraw(amount / 2, a, a);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(a), amount / 2);
+
+        vm.startPrank(c);
+        mockToken.approve(address(superPool), amount);
+        superPool.deposit(amount, c);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(c), amount);
+
+        vm.startPrank(a);
+        superPool.withdraw(amount / 2, a, a);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(a), 0);
+
+        vm.startPrank(b);
+        superPool.withdraw(amount, b, b);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(b), 0);
+
+        vm.startPrank(c);
+        superPool.withdraw(amount, c, c);
+        vm.stopPrank();
+
+        assertEq(superPool.balanceOf(c), 0);
+    }
 
     function testCantMintMoreThanCap() public {
         address pool = _deployMockPool();

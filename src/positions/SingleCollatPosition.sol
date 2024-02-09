@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
+// types
 import {Pool} from "../Pool.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// libraries
+import {Errors} from "src/lib/Errors.sol";
 import {IterableSet} from "../lib/IterableSet.sol";
-
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+// contracts
 import {BasePosition} from "./BasePosition.sol";
 
 // TYPE -- 0x2
@@ -87,7 +89,7 @@ contract SingleCollatPosition is BasePosition {
     // assume any target and calldata validation is done by the position manager
     function exec(address target, bytes calldata data) external override onlyPositionManager {
         (bool success,) = target.call(data);
-        if (!success) revert InvalidOperation();
+        if (!success) revert Errors.InvalidOperation();
     }
 
     // register a new asset to be used collateral in the position

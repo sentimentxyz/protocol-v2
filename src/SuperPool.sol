@@ -6,6 +6,7 @@ import {Pool} from "./Pool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
+import {Errors} from "src/lib/Errors.sol";
 import {IterableMap} from "src/lib/IterableMap.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //contracts
@@ -42,10 +43,6 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     event PoolCapSet(address indexed pool, uint256 amt);
     event PoolDeposit(address indexed pool, uint256 assets);
     event PoolWithdraw(address indexed pool, uint256 assets);
-
-    error PoolCapTooLow();
-    error InvalidPoolAsset();
-    error OnlyAllocatorOrOwner();
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -114,8 +111,25 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     /*//////////////////////////////////////////////////////////////
-                               Withdraw
+                          ERC4626 Overrides
     //////////////////////////////////////////////////////////////*/
+
+    // deposit and mint work as-is, but are pausable
+
+    /// @inheritdoc ERC4626Upgradeable
+    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
+        ERC4626Upgradeable.deposit(assets, receiver);
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+        ERC4626Upgradeable.mint(shares, receiver);
+    }
+
+    // withdraw and mint have no major changes, but the superpool implements a withdrawal fee
+    // the fee is deducted as a portion of the withdrawn assets and accrues to the protocol
+    // the return values are recalibrated to comply with the ERC4626 specification
+    // withdraw and mint are not pausable so that depositors can withdraw, no matter what
 
     /// @notice withdraw assets from the superpool
     /// @dev override to account for protocol fee
@@ -208,34 +222,8 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     /*//////////////////////////////////////////////////////////////
-                              Only Owner
+                       Only Allocator and Owner
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice set the maximum deposit cap for a pool
-    /// @param pool the pool to set the cap for
-    /// @param assets the amount of assets to set the cap to
-    function setPoolCap(address pool, uint256 assets) external onlyOwner {
-        // revert if pool asset does not match superpool asset
-        if (Pool(pool).asset() != asset()) revert InvalidPoolAsset();
-
-        // shortcut no-op path to handle zeroed out params
-        if (assets == 0 && poolCaps.get(pool) == 0) {
-            return;
-        }
-
-        // revert if current superpool holdings are greater than new cap
-        if (IERC4626(pool).previewRedeem(IERC4626(pool).balanceOf(address(this))) > assets) {
-            revert PoolCapTooLow();
-        }
-
-        // update aggregate pool cap across superpool
-        totalPoolCap = totalPoolCap - poolCaps.get(pool) + assets;
-
-        // update pool cap in storage mapping
-        poolCaps.set(pool, assets);
-
-        emit PoolCapSet(pool, assets);
-    }
 
     /// @notice deposit assets from the superpool into a pool
     /// @notice callable only by privilaged allocator or owner
@@ -243,7 +231,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param assets the amount of assets to deposit
     function poolDeposit(address pool, uint256 assets) external {
         // revert unauthorized calls
-        if (msg.sender != allocator && msg.sender != owner()) revert OnlyAllocatorOrOwner();
+        if (msg.sender != allocator && msg.sender != owner()) revert Errors.OnlyAllocatorOrOwner();
 
         // approve and deposit assets from superpool to given pool
         IERC20(asset()).approve(address(pool), assets);
@@ -260,7 +248,39 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param pool the pool to withdraw assets from
     /// @param assets the amount of assets to withdraw
     function poolWithdraw(address pool, uint256 assets) external onlyOwner {
+        // revert unauthorized calls
+        if (msg.sender != allocator && msg.sender != owner()) revert Errors.OnlyAllocatorOrOwner();
         _poolWithdraw(IERC4626(pool), assets);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              Only Owner
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice set the maximum deposit cap for a pool
+    /// @param pool the pool to set the cap for
+    /// @param assets the amount of assets to set the cap to
+    function setPoolCap(address pool, uint256 assets) external onlyOwner {
+        // revert if pool asset does not match superpool asset
+        if (Pool(pool).asset() != asset()) revert Errors.InvalidPoolAsset();
+
+        // shortcut no-op path to handle zeroed out params
+        if (assets == 0 && poolCaps.get(pool) == 0) {
+            return;
+        }
+
+        // revert if current superpool holdings are greater than new cap
+        if (IERC4626(pool).previewRedeem(IERC4626(pool).balanceOf(address(this))) > assets) {
+            revert Errors.PoolCapTooLow();
+        }
+
+        // update aggregate pool cap across superpool
+        totalPoolCap = totalPoolCap - poolCaps.get(pool) + assets;
+
+        // update pool cap in storage mapping
+        poolCaps.set(pool, assets);
+
+        emit PoolCapSet(pool, assets);
     }
 
     /// @notice set the allocator address

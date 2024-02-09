@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
+import {Errors} from "src/lib/Errors.sol";
 import {SuperPool} from "src/SuperPool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -408,7 +409,7 @@ contract SuperPoolTest is BaseTest {
 
         vm.startPrank(notOwner);
 
-        vm.expectRevert(SuperPool.OnlyAllocatorOrOwner.selector);
+        vm.expectRevert(Errors.OnlyAllocatorOrOwner.selector);
         superPool.poolDeposit(pool, 1e18);
 
         vm.stopPrank();

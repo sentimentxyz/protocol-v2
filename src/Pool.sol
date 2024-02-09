@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // types
 import {IRateModel} from "./interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
+import {Errors} from "src/lib/Errors.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
@@ -13,6 +18,26 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+
+/*//////////////////////////////////////////////////////////////
+                            Events
+//////////////////////////////////////////////////////////////*/
+
+/// @dev emitted on repay()
+/// @param position address to position for which debt was repaid
+/// @param asset debt asset for this pool
+/// @param amount amount of debt repaid, in debt asset units
+event Repay(address indexed position, address indexed asset, uint256 amount);
+
+/// @dev emitted on borrow()
+/// @param position address to position which borrowed funds
+/// @param asset debt asset for this pool
+/// @param amount amount of funds borrowed, in debt asset units
+event Borrow(address indexed position, address indexed asset, uint256 amount);
+
+/*//////////////////////////////////////////////////////////////
+                            Pool
+//////////////////////////////////////////////////////////////*/
 
 contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     using Math for uint256;
@@ -48,9 +73,6 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     // fetch debt for a given position, denominated in borrow shares
     // borrow shares use a different base and are not related to erc4626 shares for this pool
     mapping(address position => uint256 borrowShares) borrowSharesOf;
-
-    error ZeroShares();
-    error PositionManagerOnly();
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -96,25 +118,28 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           ERC4626 Actions
+                          ERC4626 Overrides
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc ERC4626Upgradeable
-    function deposit(uint256 assets, address receiver) public override returns (uint256) {
-        // update state to accrue interest since the last time ping() was called
-        ping();
-
-        // standard erc4626 call
-        return super.deposit(assets, receiver);
-    }
+    // pool state is updated after accrual of pending interest before any erc4626 call
+    // there is no internal change in the workings of these functions other than the above
 
     /// @inheritdoc ERC4626Upgradeable
-    function mint(uint256 shares, address receiver) public override returns (uint256) {
+    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
         // update state to accrue interest since the last time ping() was called
         ping();
 
         // inherited erc4626 call
-        return super.mint(shares, receiver);
+        return ERC4626Upgradeable.deposit(assets, receiver);
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+        // update state to accrue interest since the last time ping() was called
+        ping();
+
+        // inherited erc4626 call
+        return ERC4626Upgradeable.mint(shares, receiver);
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -123,7 +148,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         ping();
 
         // inherited erc4626 call
-        return super.withdraw(assets, receiver, owner);
+        return ERC4626Upgradeable.withdraw(assets, receiver, owner);
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -132,7 +157,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         ping();
 
         // inherited erc4626 call
-        return super.redeem(shares, receiver, owner);
+        return ERC4626Upgradeable.redeem(shares, receiver, owner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -156,7 +181,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     /// @return borrowShares the amount of shares minted
     function borrow(address position, uint256 amt) external whenNotPaused returns (uint256 borrowShares) {
         // revert if the caller is not the position manager
-        if (msg.sender != positionManager) revert PositionManagerOnly();
+        if (msg.sender != positionManager) revert Errors.PositionManagerOnly();
 
         // update state to accrue interest since the last time ping() was called
         ping();
@@ -165,7 +190,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         borrowShares = convertAssetToBorrowShares(amt);
 
         // revert if borrow amt is too small
-        if (borrowShares == 0) revert ZeroShares();
+        if (borrowShares == 0) revert Errors.ZeroShares();
 
         // update total pool debt, denominated in notional asset units
         totalBorrows += amt;
@@ -185,7 +210,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // send borrowed assets to position
         IERC20(asset()).safeTransfer(position, amt - fee);
 
-        // TODO emit borrow event
+        emit Borrow(position, ERC4626Upgradeable.asset(), amt);
     }
 
     /// @notice repay borrow shares
@@ -202,7 +227,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // the call to Pool.repay() is not frontrun allowing debt repayment for another position
 
         // revert if the caller is not the position manager
-        if (msg.sender != positionManager) revert PositionManagerOnly();
+        if (msg.sender != positionManager) revert Errors.PositionManagerOnly();
 
         // update state to accrue interest since the last time ping() was called
         ping();
@@ -211,7 +236,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         uint256 borrowShares = convertAssetToBorrowShares(amt);
 
         // revert if repaid amt is too small
-        if (borrowShares == 0) revert ZeroShares();
+        if (borrowShares == 0) revert Errors.ZeroShares();
 
         // update total pool debt, denominated in notional asset units
         totalBorrows -= amt;
@@ -219,10 +244,10 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // update total pool debt, denominated in borrow shares
         totalBorrowShares -= borrowShares;
 
+        emit Repay(position, ERC4626Upgradeable.asset(), amt);
+
         // return the remaining position debt, denominated in borrow shares
         return (borrowSharesOf[position] -= borrowShares);
-
-        // TODO emit repay event
     }
 
     /*//////////////////////////////////////////////////////////////

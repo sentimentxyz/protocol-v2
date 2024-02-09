@@ -1,13 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // libraries
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 // contracts
 import {Pool} from "./Pool.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
-contract PoolFactory is Ownable {
+/*//////////////////////////////////////////////////////////////
+                            Events
+//////////////////////////////////////////////////////////////*/
+
+/// @dev emitted on pool creation
+/// @param poolManager msg.sender and pool manager at the time of creation
+/// @param pool address to the newly created pool
+event PoolCreated(address indexed poolManager, address pool);
+
+/*//////////////////////////////////////////////////////////////
+                            Pool Factory
+//////////////////////////////////////////////////////////////*/
+
+contract PoolFactory is Ownable, Pausable {
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
@@ -44,7 +62,7 @@ contract PoolFactory is Ownable {
     /// @notice deploys a new pool, setting the caller as the owner
     /// @dev the owner can set things like oracles and LTV
     /// @param params the parameters to deploy the pool with
-    function deployPool(PoolDeployParams calldata params) external {
+    function deployPool(PoolDeployParams calldata params) external whenNotPaused {
         // deploy pool as a minimal clone
         Pool pool = new Pool(Clones.clone(poolImplementation));
 
@@ -63,7 +81,7 @@ contract PoolFactory is Ownable {
         // store pool manager for given pool
         managerFor[address(pool)] = msg.sender;
 
-        // TODO pool created event
+        emit PoolCreated(msg.sender, address(pool));
     }
 
     /*//////////////////////////////////////////////////////////////

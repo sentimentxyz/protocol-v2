@@ -5,6 +5,7 @@ pragma solidity ^0.8.24;
 import {IPosition} from "../interfaces/IPosition.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
+import {Errors} from "src/lib/Errors.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -18,9 +19,6 @@ abstract contract BasePosition is Initializable, IPosition {
     // position manager associated with this position
     // this cannot be modified but is mutable to comply with the init deploy pattern
     address public positionManager;
-
-    error InvalidOperation();
-    error PositionManagerOnly();
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -39,7 +37,7 @@ abstract contract BasePosition is Initializable, IPosition {
     //////////////////////////////////////////////////////////////*/
 
     modifier onlyPositionManager() {
-        if (msg.sender != positionManager) revert PositionManagerOnly();
+        if (msg.sender != positionManager) revert Errors.PositionManagerOnly();
         _;
     }
 

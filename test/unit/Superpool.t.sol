@@ -8,7 +8,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {TestUtils} from "test/Utils.sol";
 import {BaseTest, MintableToken} from "test/unit/BaseTest.sol";
-import {FixedRateModel} from "src/FixedRateModel.sol";
+import {FixedRateModel} from "src/irm/FixedRateModel.sol";
 import {Pool} from "src/Pool.sol";
 
 contract SuperPoolTest is BaseTest {
@@ -111,7 +111,7 @@ contract SuperPoolTest is BaseTest {
 
         // deposit all tokens from address a and b
         vm.startPrank(a);
-        
+
         mockToken.approve(address(superPool), 100);
         superPool.deposit(100, a);
 
@@ -221,7 +221,7 @@ contract SuperPoolTest is BaseTest {
         address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
         address rateModel = address(new FixedRateModel(1e18));
         Pool(pool).setRateModel(rateModel);
-        
+
         // mint and deposit tokens
         mockToken.mint(address(this), depositAmount);
         mockToken.approve(address(superPool), depositAmount);
@@ -483,7 +483,7 @@ contract SuperPoolTest is BaseTest {
     }
 
     function testCantDepositMoreThanCap() public {
-       address pool = _deployMockPool();
+        address pool = _deployMockPool();
         _setPoolCap(pool, 100);
 
         mockToken.mint(address(this), 101);
@@ -495,7 +495,6 @@ contract SuperPoolTest is BaseTest {
 
         superPool.deposit(100, address(this));
     }
-
 
     function testSetPoolCapOnlyOwner(address notOwner) public {
         vm.assume(notOwner != address(this));

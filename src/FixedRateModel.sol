@@ -17,7 +17,7 @@ contract FixedRateModel is IRateModel {
     uint256 public immutable RATE;
 
     // 1 year = 365.25 days
-    uint256 constant SECONDS_PER_YEAR = 31_557_600e18;
+    uint256 constant SECONDS_PER_YEAR = 31_557_600;
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -38,9 +38,14 @@ contract FixedRateModel is IRateModel {
     /// @return interest notional amount of interest accrued since the last update
     function interestAccrued(uint256 lastUpdated, uint256 borrows, uint256) external view returns (uint256 interest) {
         // rateFactor = time delta * apr / secs_per_year
-        uint256 rateFactor = ((block.timestamp - lastUpdated) * 1e18).mulDiv(RATE, SECONDS_PER_YEAR, Math.Rounding.Ceil);
+        // rate is scaled but time delta and seconds_per_year are not scaled, to preserve precision
+        uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(RATE, SECONDS_PER_YEAR, Math.Rounding.Ceil);
 
         // interest accrued = borrows * rateFactor
         return borrows.mulDiv(rateFactor, 1e18, Math.Rounding.Ceil);
+    }
+
+    function getInterestRate(uint256, uint256) external view returns (uint256) {
+        return RATE;
     }
 }

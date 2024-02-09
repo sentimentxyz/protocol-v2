@@ -2,8 +2,8 @@
 pragma solidity ^0.8.24;
 
 // types
-import {Pool} from "./Pool.sol";
-import {PositionManager} from "./PositionManager.sol";
+import {Pool} from "../Pool.sol";
+import {PositionManager} from "../PositionManager.sol";
 import {IPosition} from "src/interfaces/IPosition.sol";
 import {IRateModel} from "src/interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

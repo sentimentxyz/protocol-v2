@@ -9,4 +9,6 @@ interface IRateModel {
         external
         view
         returns (uint256 interest);
+
+    function getInterestRate(uint256 borrows, uint256 idleAmt) external view returns (uint256 interestRate);
 }

@@ -33,6 +33,8 @@ event AddAsset(address indexed position, address indexed caller, address asset);
 
 event RemoveAsset(address indexed position, address indexed caller, address asset);
 
+event Liquidation(address indexed position, address indexed liquidator, address indexed owner);
+
 event PositionDeployed(address indexed position, address indexed caller, address indexed owner);
 
 event Repay(address indexed position, address indexed caller, address indexed pool, uint256 amount);
@@ -130,7 +132,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// [caller][position] => [isAuthorized]
     /// @notice check if a given address is allowed to operate on a particular position
     /// @dev auth[x][y] stores if address x is authorized to operate on position y
-    mapping(address caller => mapping(address position => bool isAuthz)) public auth;
+    mapping(address position => mapping(address caller => bool isAuthz)) public isAuth;
 
     // defines the universe of approved contracts and methods that a position can interact with
     // mapping key -> first 20 bytes store the target address, next 4 bytes store the method selector
@@ -162,7 +164,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         if (msg.sender != ownerOf[position]) revert Errors.Unauthorized();
 
         // update authz status in storage
-        auth[user][position] = isAuthorized;
+        isAuth[position][user] = isAuthorized;
     }
 
     function predictAddress(uint256 positionType, bytes32 salt) external view returns (address) {
@@ -298,7 +300,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         ownerOf[newPosition] = action.target;
 
         // owner is authzd by default
-        auth[action.target][newPosition] = true;
+        isAuth[newPosition][action.target] = true;
 
         if (newPosition != position) revert Errors.InvalidOperation();
 
@@ -432,7 +434,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // position should be within risk thresholds after liqudiation
         if (!riskEngine.isPositionHealthy(position)) revert Errors.InvalidOperation();
 
-        // TODO emit liquidation event and/or reset position
+        emit Liquidation(position, msg.sender, ownerOf[position]);
     }
 
     /*//////////////////////////////////////////////////////////////

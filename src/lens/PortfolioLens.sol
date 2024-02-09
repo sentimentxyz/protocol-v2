@@ -3,17 +3,30 @@ pragma solidity ^0.8.24;
 
 // types
 import {Pool} from "./Pool.sol";
+import {PositionManager} from "./PositionManager.sol";
 import {IPosition} from "src/interfaces/IPosition.sol";
 import {IRateModel} from "src/interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract PortfolioLens {
     /*//////////////////////////////////////////////////////////////
+                               Storage
+    //////////////////////////////////////////////////////////////*/
+    PositionManager immutable POSITION_MANAGER;
+
+    /*//////////////////////////////////////////////////////////////
+                              Initialize
+    //////////////////////////////////////////////////////////////*/
+
+    constructor(address positionManager) {
+        POSITION_MANAGER = PositionManager(positionManager);
+    }
+    /*//////////////////////////////////////////////////////////////
                              Data Structs
     //////////////////////////////////////////////////////////////*/
 
     struct AssetData {
-        address token;
+        address asset;
         uint256 amount;
     }
 
@@ -25,6 +38,8 @@ contract PortfolioLens {
     }
 
     struct PositionData {
+        address position;
+        address owner;
         AssetData[] assets;
         DebtData[] debts;
     }
@@ -48,7 +63,12 @@ contract PortfolioLens {
     }
 
     function getPositionData(address position) public view returns (PositionData memory) {
-        return PositionData({assets: getAssetData(position), debts: getDebtData(position)});
+        return PositionData({
+            position: position,
+            owner: POSITION_MANAGER.ownerOf(position),
+            assets: getAssetData(position),
+            debts: getDebtData(position)
+        });
     }
 
     function getAssetData(address position) public view returns (AssetData[] memory) {
@@ -56,7 +76,7 @@ contract PortfolioLens {
         AssetData[] memory assetData = new AssetData[](assets.length);
 
         for (uint256 i; i < assets.length; ++i) {
-            assetData[i] = AssetData({token: assets[i], amount: IERC20(assets[i]).balanceOf(position)});
+            assetData[i] = AssetData({asset: assets[i], amount: IERC20(assets[i]).balanceOf(position)});
         }
 
         return assetData;
@@ -71,8 +91,13 @@ contract PortfolioLens {
             address debtAsset = debtPool.asset();
             uint256 borrows = debtPool.getBorrows();
             uint256 idleAmt = IERC20(debtAsset).balanceOf(debtPools[i]);
-            uint256 rate = debtPool.rateModel().getInterestRate(borrows, idleAmt);
-            DebtData({pool: debtPools[i], asset: debtAsset, amount: debtPool.getBorrowsOf(position), interestRate: rate});
+
+            DebtData({
+                pool: debtPools[i],
+                asset: debtAsset,
+                amount: debtPool.getBorrowsOf(position),
+                interestRate: debtPool.rateModel().getInterestRate(borrows, idleAmt)
+            });
         }
 
         return debtData;

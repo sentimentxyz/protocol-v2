@@ -6,6 +6,7 @@ import {Pool} from "../Pool.sol";
 import {RiskEngine} from "../RiskEngine.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 import {IPosition} from "../interfaces/IPosition.sol";
+import {DebtData, AssetData} from "../PositionManager.sol";
 import {IHealthCheck} from "../interfaces/IHealthCheck.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
@@ -61,7 +62,8 @@ contract SingleCollatHealthCheck is IHealthCheck {
         for (uint256 i; i < debtPools.length; ++i) {
             // fetch debt owed to debtPools[i] in eth, with 18 decimals
             // the oracle for the debt asset is pool-specific and is configured by the pool manager
-            uint256 debtInWei = debtValue(debtPools[i], position);
+            uint256 debtInWei =
+                getDebtValueInWei(debtPools[i], Pool(debtPools[i]).asset(), Pool(debtPools[i]).getBorrowsOf(position));
 
             // add current pool debt to aggregate position debt
             totalDebtInWei += debtInWei;
@@ -94,10 +96,16 @@ contract SingleCollatHealthCheck is IHealthCheck {
         // pricing the collateral is non-trivial since every debt pool has a different oracle
         // it is priced as a weighted average of all debt pool prices
         // the weight of each pool is the fraction of total debt owed to that pool
-        // loop over debt pools
+        // loop over debt pools to compute total position balance using debt pool weighted prices
         for (uint256 i; i < debtPools.length; ++i) {
-            // compute total position balance using debt pool weighted prices
-            totalBalanceInWei += collateralValue(debtPools[i], collateralAsset, notionalBalance, debtInfo[i]);
+            // collateral value = weight * total notional collateral price of collateral
+            // weight = fraction of the total debt owed to the given pool
+            // total notional collateral is denominated in terms of the collateral asset of the position
+            // the value of collateral is fetched using the given pool's oracle for collateralAsset
+            // this oracle is set by the pool manager and can be different for different pools
+            totalBalanceInWei += IOracle(riskEngine.oracleFor(debtPools[i], collateralAsset)).getValueInEth(
+                collateralAsset, notionalBalance
+            ).mulDiv(debtInfo[i], 1e18);
         }
 
         // the position is healthy if the value of the assets in the position is more than the
@@ -105,29 +113,57 @@ contract SingleCollatHealthCheck is IHealthCheck {
         return totalBalanceInWei > minReqBalanceInWei;
     }
 
+    function isValidLiquidation(
+        address position,
+        DebtData[] calldata debt,
+        AssetData[] calldata collat,
+        uint256 liquidationDiscount
+    ) external view returns (bool) {
+        // compute the total amount of debt repaid by the liquidator in wei
+        uint256 debtInWei;
+        for (uint256 i; i < debt.length; ++i) {
+            debtInWei += getDebtValueInWei(debt[0].pool, debt[i].asset, debt[i].amt);
+        }
+
+        uint256 collatInWei;
+        for (uint256 i; i < collat.length; ++i) {
+            collatInWei += getCollateralValueInWei(position, collat[i].asset, collat[i].amt);
+        }
+
+        // TODO add custom error
+        if (collatInWei > debtInWei.mulDiv((1e18 + liquidationDiscount), 1e18)) revert();
+
+        return true;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             Internal View
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The debt value of position according to the pools oracle
-    function debtValue(address pool, address position) internal view returns (uint256) {
-        // debt = notional debt * eth price of debt asset
-        // notional debt is denominated in the debt assets
-        // the value of debt in eth is fetched from the associated oracle for the given pool
-        // this oracle is set by the pool manager in RiskEngine and can be diff for diff pools
-        return IOracle(riskEngine.oracleFor(pool, Pool(pool).asset())).getValueInEth(
-            Pool(pool).asset(), Pool(pool).getBorrowsOf(position)
-        );
+    function getDebtValueInWei(address pool, address asset, uint256 amt) internal view returns (uint256) {
+        return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt);
     }
 
-    /// @notice fetch weighted collateral value for a given asset using a particular pool's oracle
-    function collateralValue(address pool, address asset, uint256 amt, uint256 wt) internal view returns (uint256) {
-        // collateral value = weight * total notional collateral price of collateral
-        // weight = fraction of the total debt owed to the given pool
-        // total notional collateral is denominated in terms of the collateral asset of the position
-        // the value of collateral is fetched using the given pool's oracle for collateralAsset
-        // this oracle is set by the pool manager and can be different for different pools
-        return
-            IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt.mulDiv(wt, 1e18, Math.Rounding.Floor));
+    function getCollateralValueInWei(address position, address asset, uint256 amt) internal view returns (uint256) {
+        address[] memory debtPools = IPosition(position).getDebtPools();
+        uint256[] memory debtInfo = new uint256[](debtPools.length);
+
+        uint256 totalDebt;
+        for (uint256 i; i < debtPools.length; ++i) {
+            uint256 debt = Pool(debtPools[i]).getBorrowsOf(position);
+            totalDebt += debt;
+            debtInfo[i] = debt;
+        }
+        for (uint256 i; i < debtPools.length; ++i) {
+            debtInfo[i] = debtInfo[i].mulDiv(1e18, totalDebt);
+        }
+
+        uint256 collateralValue;
+        for (uint256 i; i < debtPools.length; ++i) {
+            collateralValue +=
+                IOracle(riskEngine.oracleFor(debtPools[i], asset)).getValueInEth(asset, amt).mulDiv(debtInfo[i], 1e18);
+        }
+
+        return collateralValue;
     }
 }

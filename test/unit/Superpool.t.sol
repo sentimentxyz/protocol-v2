@@ -538,7 +538,7 @@ contract SuperPoolTest is BaseTest {
     function testSetAllocatorOnlyOwner(address notOwner) public {
         vm.assume(notOwner != address(this));
 
-        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
+        TestUtils.deployPool(address(this), address(this), address(mockToken));
 
         vm.startPrank(notOwner);
 
@@ -573,11 +573,11 @@ contract MockPool {
         asset = _asset;
     }
 
-    function balanceOf(address) external returns (uint256) {
+    function balanceOf(address) external pure returns (uint256) {
         return 0;
     }
 
-    function previewRedeem(uint256 amt) external returns (uint256) {
+    function previewRedeem(uint256 amt) external pure returns (uint256) {
         return amt;
     }
 }

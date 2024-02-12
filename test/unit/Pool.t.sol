@@ -39,7 +39,7 @@ contract PoolTest is BaseTest {
 
         // After a year borrowing the same amount should only give you half the shares
         // becasue the debt per share has doubled
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + 365.25 days);
         mockToken.mint(address(pool), debt);
         uint256 shares2 = pool.borrow(address(1), debt);
         assertEq(shares2, debt / 2);
@@ -49,7 +49,7 @@ contract PoolTest is BaseTest {
 
         // After another year borrowing the same amount should only give you half the shares
         // becasue the debt per share has doubled
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + 365.25 days);
         mockToken.mint(address(pool), debt);
         uint256 shares3 = pool.borrow(address(1), debt);
         assertEq(shares3, debt / 4);
@@ -74,7 +74,7 @@ contract PoolTest is BaseTest {
         assertEq(shares2, debt);
 
         // after 1 year the debt per share should have doubled
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + 365.25 days);
         // returns debt in shares
         uint256 debtRemaining2 = pool.repay(address(2), debt);
         // shares have doubled in price from 1:1 so we should have half the debt remaining

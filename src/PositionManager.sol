@@ -108,13 +108,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     //////////////////////////////////////////////////////////////*/
 
     /// @notice authorize a caller other than the owner to call process() on a position
-    function setAuth(address user, address position, bool isAuthorized) external {
+    function toggleAuth(address user, address position) external {
         // only account owners are allowed to modify authorizations
         // disables transitive auth operations
         if (msg.sender != ownerOf[position]) revert Errors.Unauthorized();
 
         // update authz status in storage
-        isAuth[position][user] = isAuthorized;
+        isAuth[position][user] = !isAuth[position][user];
     }
 
     /*//////////////////////////////////////////////////////////////

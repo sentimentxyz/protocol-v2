@@ -7,6 +7,8 @@ import {PositionManager} from "../PositionManager.sol";
 import {IPosition} from "src/interfaces/IPosition.sol";
 import {IRateModel} from "src/interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// contracts
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 
 contract PortfolioLens {
     /*//////////////////////////////////////////////////////////////
@@ -101,5 +103,15 @@ contract PortfolioLens {
         }
 
         return debtData;
+    }
+
+    function predictAddress(uint256 positionType, bytes32 salt) external view returns (address) {
+        bytes memory creationCode = abi.encodePacked(
+            type(BeaconProxy).creationCode, abi.encode(PositionManager(POSITION_MANAGER).beaconFor(positionType), "")
+        );
+
+        return address(
+            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(creationCode)))))
+        );
     }
 }

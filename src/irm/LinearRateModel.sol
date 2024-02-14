@@ -1,10 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // types
 import {IRateModel} from "../interfaces/IRateModel.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
+/*//////////////////////////////////////////////////////////////
+                        LinearRateModel
+//////////////////////////////////////////////////////////////*/
 
 contract LinearRateModel is IRateModel {
     using Math for uint256;

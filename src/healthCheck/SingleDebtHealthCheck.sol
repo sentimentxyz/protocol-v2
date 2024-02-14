@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // types
 import {Pool} from "../Pool.sol";
 import {RiskEngine} from "../RiskEngine.sol";
@@ -10,6 +14,10 @@ import {IHealthCheck} from "../interfaces/IHealthCheck.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
+/*//////////////////////////////////////////////////////////////
+                    SingleDebtHealthCheck
+//////////////////////////////////////////////////////////////*/
 
 // TYPE == 0x1
 contract SingleDebtHealthCheck is IHealthCheck {

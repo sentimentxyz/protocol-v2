@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // types
 import {Pool} from "./Pool.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
@@ -9,6 +13,10 @@ import {IHealthCheck} from "./interfaces/IHealthCheck.sol";
 import {Errors} from "src/lib/Errors.sol";
 // contracts
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
+/*//////////////////////////////////////////////////////////////
+                            RiskEngine
+//////////////////////////////////////////////////////////////*/
 
 contract RiskEngine is OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////

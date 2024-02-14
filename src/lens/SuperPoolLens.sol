@@ -131,7 +131,7 @@ contract SuperPoolLens {
 
     function getPoolInterestRate(address _pool) public view returns (uint256) {
         Pool pool = Pool(_pool);
-        uint256 borrows = pool.getBorrows();
+        uint256 borrows = pool.getTotalBorrows();
         uint256 idleAmt = IERC20(pool.asset()).balanceOf(_pool);
 
         return pool.rateModel().getInterestRate(borrows, idleAmt);

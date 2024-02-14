@@ -89,7 +89,7 @@ contract PortfolioLens {
         for (uint256 i; i < debtPools.length; ++i) {
             Pool debtPool = Pool(debtPools[i]);
             address debtAsset = debtPool.asset();
-            uint256 borrows = debtPool.getBorrows();
+            uint256 borrows = debtPool.getTotalBorrows();
             uint256 idleAmt = IERC20(debtAsset).balanceOf(debtPools[i]);
 
             DebtData({

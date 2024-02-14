@@ -39,6 +39,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
     //////////////////////////////////////////////////////////////*/
 
     function isPositionHealthy(address position) external view returns (bool) {
+        assert(TYPE == IPosition(position).TYPE());
         // fetch list of pools with active borrows for the given position
         address[] memory debtPools = IPosition(position).getDebtPools();
 

@@ -40,6 +40,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
 
     /// @notice check if a given position violates
     function isPositionHealthy(address position) external view returns (bool) {
+        assert(TYPE == IPosition(position).TYPE());
         // fetch the debt asset
         // since single debt positions can only have one debt asset
         // only read the first element of the array and ignore the rest

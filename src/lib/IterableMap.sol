@@ -96,6 +96,6 @@ library IterableMap {
         }
 
         // return the value that was inserted or removed
-        return val; // TODO is this value ever used
+        return val;
     }
 }

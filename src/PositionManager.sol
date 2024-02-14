@@ -86,8 +86,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     // defines the universe of approved contracts and methods that a position can interact with
     // mapping key -> first 20 bytes store the target address, next 4 bytes store the method selector
-    mapping(address target => bool isAllowed) public contractUniverse;
-    mapping(address target => mapping(bytes4 method => bool isAllowed)) public funcUniverse;
+    mapping(address target => bool isAllowed) public isKnownContract;
+    mapping(address target => mapping(bytes4 method => bool isAllowed)) public isKnownFunc;
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -108,13 +108,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     //////////////////////////////////////////////////////////////*/
 
     /// @notice authorize a caller other than the owner to call process() on a position
-    function setAuth(address user, address position, bool isAuthorized) external {
+    function toggleAuth(address user, address position) external {
         // only account owners are allowed to modify authorizations
         // disables transitive auth operations
         if (msg.sender != ownerOf[position]) revert Errors.Unauthorized();
 
         // update authz status in storage
-        isAuth[position][user] = isAuthorized;
+        isAuth[position][user] = !isAuth[position][user];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -277,7 +277,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     function exec(address position, Action calldata action) internal {
         // target -> contract address to be called by the position
         // data -> abi-encoded calldata to be passed
-        if (!funcUniverse[action.target][bytes4(action.data[:4])]) revert Errors.InvalidOperation();
+        if (!isKnownFunc[action.target][bytes4(action.data[:4])]) revert Errors.InvalidOperation();
         IPosition(position).exec(action.target, action.data);
 
         emit Exec(position, msg.sender, action.target, bytes4(action.data[:4]));
@@ -304,7 +304,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     function approve(address position, Action calldata action) internal {
         // target -> spender
         // data -> asset and amount to be approved
-        if (!contractUniverse[action.target]) revert Errors.InvalidOperation();
+        if (!isKnownContract[action.target]) revert Errors.InvalidOperation();
         (address asset, uint256 amt) = abi.decode(action.data, (address, uint256));
         IPosition(position).approve(asset, action.target, amt);
 

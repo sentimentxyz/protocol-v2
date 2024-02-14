@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 //types
 import {Pool} from "./Pool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -14,6 +18,10 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+
+/*//////////////////////////////////////////////////////////////
+                            SuperPool
+//////////////////////////////////////////////////////////////*/
 
 contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     using Math for uint256;

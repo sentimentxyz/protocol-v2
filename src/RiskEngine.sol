@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // types
 import {Pool} from "./Pool.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
@@ -9,6 +13,10 @@ import {IHealthCheck} from "./interfaces/IHealthCheck.sol";
 import {Errors} from "src/lib/Errors.sol";
 // contracts
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
+/*//////////////////////////////////////////////////////////////
+                            RiskEngine
+//////////////////////////////////////////////////////////////*/
 
 contract RiskEngine is OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////
@@ -50,7 +58,7 @@ contract RiskEngine is OwnableUpgradeable {
     /// @notice check if a position is healthy
     /// @param position the position to check
     function isPositionHealthy(address position) external view returns (bool) {
-        // TODO revert with error if health check impl does not exist
+        if (healthCheckFor[IPosition(position).TYPE()] == address(0)) revert Errors.HealthCheckImplNotFound();
 
         // call health check implementation based on position type
         return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isPositionHealthy(position);

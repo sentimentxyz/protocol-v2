@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // types
 import {Pool} from "../Pool.sol";
 import {SuperPool} from "../SuperPool.sol";
@@ -8,6 +12,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
+/*//////////////////////////////////////////////////////////////
+                        SuperPoolLens
+//////////////////////////////////////////////////////////////*/
 
 contract SuperPoolLens {
     using Math for uint256;
@@ -131,7 +139,7 @@ contract SuperPoolLens {
 
     function getPoolInterestRate(address _pool) public view returns (uint256) {
         Pool pool = Pool(_pool);
-        uint256 borrows = pool.getBorrows();
+        uint256 borrows = pool.getTotalBorrows();
         uint256 idleAmt = IERC20(pool.asset()).balanceOf(_pool);
 
         return pool.rateModel().getInterestRate(borrows, idleAmt);

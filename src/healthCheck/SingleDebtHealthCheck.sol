@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // types
 import {Pool} from "../Pool.sol";
 import {RiskEngine} from "../RiskEngine.sol";
@@ -10,6 +14,10 @@ import {IHealthCheck} from "../interfaces/IHealthCheck.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
+/*//////////////////////////////////////////////////////////////
+                    SingleDebtHealthCheck
+//////////////////////////////////////////////////////////////*/
 
 // TYPE == 0x1
 contract SingleDebtHealthCheck is IHealthCheck {
@@ -40,6 +48,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
 
     /// @notice check if a given position violates
     function isPositionHealthy(address position) external view returns (bool) {
+        assert(TYPE == IPosition(position).TYPE());
         // fetch the debt asset
         // since single debt positions can only have one debt asset
         // only read the first element of the array and ignore the rest

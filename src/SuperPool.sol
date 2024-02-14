@@ -111,7 +111,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     /*//////////////////////////////////////////////////////////////
-                          ERC4626 Overrides
+                       ERC4626 Public Overrides
     //////////////////////////////////////////////////////////////*/
 
     // deposit and mint work as-is, but are pausable
@@ -168,6 +168,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         // final return value must comply with erc4626 spec
         return feeAssets + receiverAssets;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                          External Functions
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice withdraw assets from the superpool using a given path
     /// @dev withdraw assets from the superpool by taking path[i] underlying from the pool at poolCaps[i]
@@ -267,11 +271,6 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         // shortcut no-op path to handle zeroed out params
         if (assets == 0 && poolCaps.get(pool) == 0) {
             return;
-        }
-
-        // revert if current superpool holdings are greater than new cap
-        if (IERC4626(pool).previewRedeem(IERC4626(pool).balanceOf(address(this))) > assets) {
-            revert Errors.PoolCapTooLow();
         }
 
         // update aggregate pool cap across superpool

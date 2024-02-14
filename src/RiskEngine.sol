@@ -50,7 +50,7 @@ contract RiskEngine is OwnableUpgradeable {
     /// @notice check if a position is healthy
     /// @param position the position to check
     function isPositionHealthy(address position) external view returns (bool) {
-        // TODO revert with error if health check impl does not exist
+        if (healthCheckFor[IPosition(position).TYPE()] == address(0)) revert Errors.HealthCheckImplNotFound();
 
         // call health check implementation based on position type
         return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isPositionHealthy(position);

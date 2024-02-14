@@ -13,4 +13,5 @@ library Errors {
     error InvalidPositionType();
     error ZeroShares();
     error PositionManagerOnly();
+    error HealthCheckImplNotFound();
 }

@@ -118,7 +118,7 @@ contract PositionManagerTest is BaseTest {
 
         // check were the owner and authed
         assertEq(deploy.positionManager().ownerOf(position), address(this));
-        assertEq(deploy.positionManager().auth(address(this), position), true);
+        assertEq(deploy.positionManager().isAuth(address(this), position), true);
         assertEq(IPosition(position).TYPE(), typee);
     }
 

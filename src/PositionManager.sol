@@ -204,7 +204,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // the caller should be authzd to call anything other than NewPosition
         // this check will fail if msg.sender creates a position on behalf of someone else
         // and then tries to operate on it, because deployPosition() only authz the position owner
-        if (len > i && !auth[msg.sender][position]) revert Errors.Unauthorized();
+        if (len > i && !isAuth[msg.sender][position]) revert Errors.Unauthorized();
 
         // loop over actions and process them sequentially based on operation
         for (; i < len; ++i) {

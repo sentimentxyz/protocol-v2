@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            IterableMap
+//////////////////////////////////////////////////////////////*/
+
 // custom impl for an (address => uint256) iterable map
 library IterableMap {
     /*//////////////////////////////////////////////////////////////
@@ -96,6 +100,6 @@ library IterableMap {
         }
 
         // return the value that was inserted or removed
-        return val; // TODO is this value ever used
+        return val;
     }
 }

@@ -25,9 +25,9 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
                             Events
 //////////////////////////////////////////////////////////////*/
 
-event ContractUniverseUpdated(address indexed target, bool isAllowed);
+event KnownContractAdded(address indexed target, bool isAllowed);
 
-event FuncUniverseUpdated(address indexed target, bytes4 indexed method, bool isAllowed);
+event KnownFunctionAdded(address indexed target, bytes4 indexed method, bool isAllowed);
 
 event AddAsset(address indexed position, address indexed caller, address asset);
 
@@ -204,7 +204,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // the caller should be authzd to call anything other than NewPosition
         // this check will fail if msg.sender creates a position on behalf of someone else
         // and then tries to operate on it, because deployPosition() only authz the position owner
-        if (len > i && !isAuth[msg.sender][position]) revert Errors.Unauthorized();
+        if (len > i && !isAuth[position][msg.sender]) revert Errors.Unauthorized();
 
         // loop over actions and process them sequentially based on operation
         for (; i < len; ++i) {
@@ -468,16 +468,16 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @notice toggle contract inclusion in the contract universe
     /// @dev only callable by the position manager owner
     function toggleContractUniverseInclusion(address target) external onlyOwner {
-        contractUniverse[target] = !contractUniverse[target];
+        isKnownContract[target] = !isKnownContract[target];
 
-        emit ContractUniverseUpdated(target, contractUniverse[target]);
+        emit KnownContractAdded(target, isKnownContract[target]);
     }
 
     /// @notice toggle function inclusion in the function universe
     /// @dev only callable by the position manager owner
     function toggleFuncUniverseInclusion(address target, bytes4 method) external onlyOwner {
-        funcUniverse[target][method] = !funcUniverse[target][method];
+        isKnownFunc[target][method] = !isKnownFunc[target][method];
 
-        emit FuncUniverseUpdated(target, method, funcUniverse[target][method]);
+        emit KnownFunctionAdded(target, method, isKnownFunc[target][method]);
     }
 }

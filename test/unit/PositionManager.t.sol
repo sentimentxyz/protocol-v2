@@ -83,11 +83,12 @@ contract PositionManagerTest is BaseTest {
         mockToken.approve(address(deploy.positionManager()), 100);
 
         PositionManager _manager = deploy.positionManager();
+
         vm.expectRevert();
         _manager.process(position, depositActionFromThis(address(mockToken), 100));
 
         vm.prank(owner);
-        _manager.setAuth(address(this), position, true);
+        _manager.toggleAuth(address(this), position);
 
         _manager.process(position, depositActionFromThis(address(mockToken), 100));
     }
@@ -118,7 +119,7 @@ contract PositionManagerTest is BaseTest {
 
         // check were the owner and authed
         assertEq(deploy.positionManager().ownerOf(position), address(this));
-        assertEq(deploy.positionManager().isAuth(address(this), position), true);
+        assertEq(deploy.positionManager().isAuth(position, address(this)), true);
         assertEq(IPosition(position).TYPE(), typee);
     }
 

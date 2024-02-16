@@ -6,6 +6,7 @@ import {PoolDeployParams} from "src/PoolFactory.sol";
 import {Operation, Action, PositionDeployed, PositionManager} from "src/PositionManager.sol";
 import {Vm} from "forge-std/Test.sol";
 import {IPosition} from "src/interfaces/IPosition.sol";
+import {Errors} from "src/lib/Errors.sol";
 
 contract PositionManagerTest is BaseTest {
     MintableToken mockToken;
@@ -21,6 +22,15 @@ contract PositionManagerTest is BaseTest {
 
     function testReentrantFunctions() public {
         // todo!()
+    }
+
+    function processRevertsForUnknownOperation() public {
+        // todo!
+        // will need to create maliciouls call data
+    }
+
+    function testChangePositionImpl() public {
+        // todo!
     }
 
     function testCantCallNonAuthorizedFunctions(address nonAuthedTarget) public {
@@ -70,8 +80,6 @@ contract PositionManagerTest is BaseTest {
         _manager.process(position, actions);
     }
 
-    function testChangePositionImpl() public {}
-
     function testAuthPositionAllowsCaller() public {
         uint256 typee = 1;
         bytes32 salt = keccak256("testAuthPositionAllowsCaller");
@@ -93,7 +101,21 @@ contract PositionManagerTest is BaseTest {
         _manager.process(position, depositActionFromThis(address(mockToken), 100));
     }
 
-    function testNonAuthCantCallPositionProcess() public {}
+    function testNonAuthCantCallPositionProcess() public {
+        uint256 typee = 1;
+        bytes32 salt = keccak256("testNonAuthCantCallPositionProcess");
+        address owner = address(10);
+
+        address position = _deployPosition(typee, salt, owner);
+
+        mockToken.mint(address(this), 100);
+        mockToken.approve(address(deploy.positionManager()), 100);
+
+        PositionManager _manager = deploy.positionManager();
+
+        vm.expectRevert(Errors.Unauthorized.selector);
+        _manager.process(position, depositActionFromThis(address(mockToken), 100));
+    }
 
     function testCanCreatePositionType1() public {
         bytes32 salt = keccak256("test");
@@ -137,11 +159,6 @@ contract PositionManagerTest is BaseTest {
 
         _testDeployPosition(typee, salt);
         _testDeployPosition(typee, salt);
-    }
-
-    function processRevertsForUnknownOperation() public {
-        // todo!
-        // will need to create maliciouls call data
     }
 
     function _deployPool(address token) internal {}

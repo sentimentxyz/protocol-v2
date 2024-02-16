@@ -44,13 +44,7 @@ contract SingleDebtPosition is BasePosition {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize(address _positionManager) public override initializer {
-        BasePosition.initialize(_positionManager);
-    }
+    constructor(address _positionManager) BasePosition(_positionManager) {}
 
     /*//////////////////////////////////////////////////////////////
                             View Functions

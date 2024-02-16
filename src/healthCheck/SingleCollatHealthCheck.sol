@@ -51,6 +51,11 @@ contract SingleCollatHealthCheck is IHealthCheck {
         // fetch list of pools with active borrows for the given position
         address[] memory debtPools = IPosition(position).getDebtPools();
 
+        // if there are no debt pools and therefore no debt
+        if (debtPools.length == 0) {
+            return true;
+        }
+
         // container array used to store additional info for each debt pool
         uint256[] memory debtInfo = new uint256[](debtPools.length);
 

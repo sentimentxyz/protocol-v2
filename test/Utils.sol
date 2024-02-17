@@ -14,6 +14,7 @@ library TestUtils {
         Pool pool = new Pool(positionManager);
         pool = Pool(address(makeProxy(address(pool), owner)));
         pool.initialize(asset, "test", "test");
+        pool.setPoolCap(type(uint256).max);
         return pool;
     }
 }

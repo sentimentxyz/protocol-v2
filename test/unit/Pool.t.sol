@@ -23,6 +23,7 @@ contract PoolTest is BaseTest {
         rateModel = new FixedRateModel(1e18);
 
         pool.setRateModel(address(rateModel));
+        pool.setPoolCap(type(uint256).max);
         super.setUp();
     }
 

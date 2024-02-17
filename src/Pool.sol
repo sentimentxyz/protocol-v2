@@ -70,6 +70,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     // borrow shares use a different base and are not related to erc4626 shares for this pool
     uint256 public totalBorrowShares;
 
+    uint256 public poolCap;
+
     // fetch debt for a given position, denominated in borrow shares
     // borrow shares use a different base and are not related to erc4626 shares for this pool
     mapping(address position => uint256 borrowShares) borrowSharesOf;
@@ -111,10 +113,24 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         return convertBorrowSharesToAsset(borrowSharesOf[position]);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        ERC4626 View Overrides
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice total assets managed by the pool, denominated in notional asset units
     function totalAssets() public view override returns (uint256) {
         // total assets = current total borrows + idle assets in pool
         return getTotalBorrows() + IERC20(asset()).balanceOf(address(this));
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function maxDeposit(address) public view override returns (uint256) {
+        return poolCap - totalAssets();
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function maxMint(address) public view override returns (uint256) {
+        return previewDeposit(maxDeposit(address(0)));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -286,5 +302,9 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     /// @notice callable only by the pool manager who is also the pool contract clone owner
     function setOriginationFee(uint256 _originationFee) external onlyOwner {
         originationFee = _originationFee;
+    }
+
+    function setPoolCap(uint256 _poolCap) external onlyOwner {
+        poolCap = _poolCap;
     }
 }

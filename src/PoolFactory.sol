@@ -25,6 +25,14 @@ event PoolCreated(address indexed poolManager, address pool);
                             Pool Factory
 //////////////////////////////////////////////////////////////*/
 
+struct PoolDeployParams {
+    address asset;
+    address rateModel;
+    uint256 originationFee;
+    string name;
+    string symbol;
+}
+
 contract PoolFactory is Ownable, Pausable {
     /*//////////////////////////////////////////////////////////////
                                Storage

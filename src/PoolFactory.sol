@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
 /*//////////////////////////////////////////////////////////////
                             Imports
@@ -54,6 +54,7 @@ contract PoolFactory is Ownable, Pausable {
     struct PoolDeployParams {
         address asset;
         address rateModel;
+        uint256 poolCap;
         uint256 originationFee;
         string name;
         string symbol;
@@ -71,6 +72,9 @@ contract PoolFactory is Ownable, Pausable {
 
         // set interest rate model used by the pool
         pool.setRateModel(params.rateModel);
+
+        // set pool cap
+        pool.setPoolCap(params.poolCap);
 
         // set origination fee for the pool
         pool.setOriginationFee(params.originationFee);

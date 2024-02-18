@@ -28,6 +28,7 @@ event PoolCreated(address indexed poolManager, address pool);
 struct PoolDeployParams {
     address asset;
     address rateModel;
+    uint256 poolCap;
     uint256 originationFee;
     string name;
     string symbol;
@@ -58,15 +59,6 @@ contract PoolFactory is Ownable, Pausable {
     /*//////////////////////////////////////////////////////////////
                                External
     //////////////////////////////////////////////////////////////*/
-
-    struct PoolDeployParams {
-        address asset;
-        address rateModel;
-        uint256 poolCap;
-        uint256 originationFee;
-        string name;
-        string symbol;
-    }
 
     /// @notice deploys a new pool, setting the caller as the owner
     /// @dev the owner can set things like oracles and LTV

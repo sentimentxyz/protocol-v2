@@ -10,6 +10,7 @@ import {Pool} from "../Pool.sol";
 import {RiskEngine} from "../RiskEngine.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 import {IPosition} from "../interfaces/IPosition.sol";
+import {DebtData, AssetData} from "../PositionManager.sol";
 import {IHealthCheck} from "../interfaces/IHealthCheck.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
@@ -46,7 +47,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
                              Public View
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice check if a given position violates
+    /// @notice check if a given position violates the risk thresholds
     function isPositionHealthy(address position) external view returns (bool) {
         assert(TYPE == IPosition(position).TYPE());
         // fetch the debt asset
@@ -73,7 +74,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
             // compute eth value of collateral, scaled by 18 decimals
             // since there is only one debt pool, all assets are priced using oracles from that pool
             // the oracles are set by the pool manager and are specific to the given pool
-            uint256 balanceInWei = collateralValue(pool, position, assets[i]);
+            uint256 balanceInWei = getCollatValueInWei(pool, assets[i], IERC20(assets[i]).balanceOf(position));
 
             // assetData[i] stores the value collateral asset[i] in eth, scaled by 18 decimals
             assetData[i] = balanceInWei;
@@ -88,14 +89,12 @@ contract SingleDebtHealthCheck is IHealthCheck {
             assetData[i] = assetData[i].mulDiv(1e18, totalBalanceInWei, Math.Rounding.Floor);
         }
 
-        address debtAsset = Pool(pool).asset();
         // compute aggregate position debt, since single debt position has only one debt pool this
         // value is equal to the borrows owed to that pool. the debt is converted to eth with 18 decimals
         // borrows = pool debt * price of borrow asset / eth
         // pool debt is denominated in notional debt asset terms
         // price of borrow asset / eth is fetched using the oracle associated with the same pool
-        uint256 totalBorrowsInWei =
-            IOracle(riskEngine.oracleFor(pool, debtAsset)).getValueInEth(debtAsset, Pool(pool).getBorrowsOf(position));
+        uint256 totalBorrowsInWei = getDebtValueInWei(pool, Pool(pool).asset(), Pool(pool).getBorrowsOf(position));
 
         // min account balance required in eth to meet risk threshold, scaled by 18 decimals
         uint256 minReqBalanceInWei;
@@ -119,15 +118,46 @@ contract SingleDebtHealthCheck is IHealthCheck {
         return totalBalanceInWei > minReqBalanceInWei;
     }
 
+    function isValidLiquidation(
+        address position,
+        DebtData[] calldata debt,
+        AssetData[] calldata collat,
+        uint256 liquidationDiscount
+    ) external view returns (bool) {
+        // compute the amount of debt repaid in wei. since there is only one debt pool, debt[]
+        // need not have more than one element. we ignore everything other than the first element.
+        uint256 debtInWei = getDebtValueInWei(debt[0].pool, debt[0].asset, debt[0].amt);
+        uint256 totalDebtInWei =
+            getDebtValueInWei(debt[0].pool, debt[0].asset, Pool(debt[0].pool).getBorrowsOf(position));
+
+        // TODO custom error
+        if (debtInWei > totalDebtInWei.mulDiv(riskEngine.closeFactor(), 1e18)) revert();
+
+        // fetch the debt pool. since single debt positions can only have one debt pool, only read
+        // the first element of the array and ignore the rest
+        address pool = IPosition(position).getDebtPools()[0];
+
+        // compute the amount of collat requested by the liquidator in wei.
+        uint256 collatInWei;
+        for (uint256 i; i < collat.length; ++i) {
+            collatInWei += getCollatValueInWei(pool, collat[i].asset, collat[i].amt);
+        }
+
+        // TODO add custom error
+        if (collatInWei > debtInWei.mulDiv((1e18 + liquidationDiscount), 1e18)) revert();
+
+        return true;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             Internal View
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice the value of asset of a position in eth according to the pools oracle
-    function collateralValue(address pool, address position, address asset) internal view returns (uint256) {
-        // collateral value = balanceOf[asset] * price[asset]
-        // balance[asset] is the amount of asset held in the position, or the ERC20.balanceOf asset
-        // price[asset] is the price of asset according to given pool's oracle
-        return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, IERC20(asset).balanceOf(position));
+    function getDebtValueInWei(address pool, address asset, uint256 amt) internal view returns (uint256) {
+        return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt);
+    }
+
+    function getCollatValueInWei(address pool, address asset, uint256 amt) internal view returns (uint256) {
+        return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt);
     }
 }

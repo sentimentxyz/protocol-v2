@@ -8,6 +8,7 @@ pragma solidity ^0.8.24;
 // types
 import {Pool} from "./Pool.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
+import {DebtData, AssetData} from "./PositionManager.sol";
 import {IHealthCheck} from "./interfaces/IHealthCheck.sol";
 // libraries
 import {Errors} from "src/lib/Errors.sol";
@@ -22,6 +23,19 @@ contract RiskEngine is OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
+
+    // lenders are free to set their own ltv within the global protocol limits
+    // the global limits can only be modified by the protocol
+    // ltv updates revert if they fall beyond the bounds
+    uint256 public minLtv;
+    uint256 public maxLtv;
+
+    uint256 public closeFactor;
+
+    // liquidators buy position collateral at a discount by receiving a higher value of collateral
+    // than debt repaid. the discount is a protocol parameter to incentivize liquidators while
+    // ensuring efficient liquidations of risky positions. the value stored is scaled by 18 decimals
+    uint256 public liqudiationDiscount;
 
     // pool managers are free to choose their own oracle, but it must be recognized by the protocol
     /// @notice check if an oracle is recognized by the protocol
@@ -64,6 +78,19 @@ contract RiskEngine is OwnableUpgradeable {
         return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isPositionHealthy(position);
     }
 
+    function isValidLiquidation(address position, DebtData[] calldata debt, AssetData[] calldata collat)
+        external
+        view
+        returns (bool)
+    {
+        // TODO add custom error if health check impl does not exist
+
+        // call health check implementation based on position type
+        return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isValidLiquidation(
+            position, debt, collat, liqudiationDiscount
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                            Only Pool Owner
     //////////////////////////////////////////////////////////////*/
@@ -74,6 +101,7 @@ contract RiskEngine is OwnableUpgradeable {
     function setLtv(address pool, address asset, uint256 ltv) external {
         // only pool owners are allowed to set ltv
         if (msg.sender != Pool(pool).owner()) revert Errors.Unauthorized();
+        if (ltv < minLtv || ltv > maxLtv) revert Errors.Unauthorized(); // TODO custom error
 
         // update asset ltv for the given pool
         ltvFor[pool][asset] = ltv;
@@ -95,6 +123,19 @@ contract RiskEngine is OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////
                               Only Owner
     //////////////////////////////////////////////////////////////*/
+
+    function setCloseFactor(uint256 _closeFactor) external onlyOwner {
+        closeFactor = _closeFactor;
+    }
+
+    function setLiquidationDiscount(uint256 _liquidationDiscount) external onlyOwner {
+        liqudiationDiscount = _liquidationDiscount;
+    }
+
+    function setLtvBounds(uint256 _minLtv, uint256 _maxLtv) external onlyOwner {
+        minLtv = _minLtv;
+        maxLtv = _maxLtv;
+    }
 
     /// @notice set the health check implementation for a given position type
     /// @dev only callable by RiskEngine owner

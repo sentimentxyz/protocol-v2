@@ -52,6 +52,29 @@ event Deposit(
 );
 
 /*//////////////////////////////////////////////////////////////
+                            Structs
+//////////////////////////////////////////////////////////////*/
+
+// data for position debt to be repaid by the liquidator
+struct DebtData {
+    // pool address for debt to be repaid
+    address pool;
+    // debt asset for pool, utility param to avoid calling pool.asset()
+    address asset;
+    // amount of debt to be repaid by the liqudiator
+    // position manager assumes that this amount has already been approved
+    uint256 amt;
+}
+
+// data for collateral assets to be received by the liquidator
+struct AssetData {
+    // token address
+    address asset;
+    // amount of collateral to be received by liquidator
+    uint256 amt;
+}
+
+/*//////////////////////////////////////////////////////////////
                         Position Manager
 //////////////////////////////////////////////////////////////*/
 
@@ -80,25 +103,6 @@ struct Action {
     address target;
     // dynamic bytes data, interepreted differently across operation types
     bytes data;
-}
-
-// data for position debt to be repaid by the liquidator
-struct DebtData {
-    // pool address for debt to be repaid
-    address pool;
-    // debt asset for pool, utility param to avoid calling pool.asset()
-    address asset;
-    // amount of debt to be repaid by the liqudiator
-    // position manager assumes that this amount has already been approved
-    uint256 amt;
-}
-
-// data for collateral assets to be received by the liquidator
-struct AssetData {
-    // token address
-    address asset;
-    // amount of collateral to be received by liquidator
-    uint256 amt;
 }
 
 contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, PausableUpgradeable {
@@ -407,7 +411,12 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external nonReentrant {
         // position must breach risk thresholds before liquidation
+        // TODO custom error
         if (riskEngine.isPositionHealthy(position)) revert Errors.InvalidOperation();
+
+        // verify that the liquidator seized by the liquidator is within bounds of the max
+        // liquidation discount. TODO custom error
+        if (!riskEngine.isValidLiquidation(position, debt, collat)) revert Errors.InvalidOperation();
 
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator
@@ -432,6 +441,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         }
 
         // position should be within risk thresholds after liqudiation
+        // TODO use custom error instead
         if (!riskEngine.isPositionHealthy(position)) revert Errors.InvalidOperation();
 
         emit Liquidation(position, msg.sender, ownerOf[position]);

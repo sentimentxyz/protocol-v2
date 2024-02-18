@@ -75,7 +75,6 @@ contract SingleDebtHealthCheck is IHealthCheck {
             assetData[i] = assetData[i].mulDiv(1e18, totalBalanceInWei, Math.Rounding.Floor);
         }
 
-        address debtAsset = Pool(pool).asset();
         // compute aggregate position debt, since single debt position has only one debt pool this
         // value is equal to the borrows owed to that pool. the debt is converted to eth with 18 decimals
         // borrows = pool debt * price of borrow asset / eth
@@ -111,13 +110,14 @@ contract SingleDebtHealthCheck is IHealthCheck {
         AssetData[] calldata collat,
         uint256 liquidationDiscount
     ) external view returns (bool) {
-        // compute the amount of debt repaid in wei. while the debt array should not have more than
-        // one element since there can only be one debt pool for this position, we don't assume that
-        // is the case to handle intentionally maligned calldata
-        uint256 debtInWei;
-        for (uint256 i; i < debt.length; ++i) {
-            debtInWei += getDebtValueInWei(debt[0].pool, debt[i].asset, debt[i].amt);
-        }
+        // compute the amount of debt repaid in wei. since there is only one debt pool, debt[]
+        // need not have more than one element. we ignore everything other than the first element.
+        uint256 debtInWei = getDebtValueInWei(debt[0].pool, debt[0].asset, debt[0].amt);
+        uint256 totalDebtInWei =
+            getDebtValueInWei(debt[0].pool, debt[0].asset, Pool(debt[0].pool).getBorrowsOf(position));
+
+        // TODO custom error
+        if (debtInWei > totalDebtInWei.mulDiv(riskEngine.closeFactor(), 1e18)) revert();
 
         // fetch the debt pool. since single debt positions can only have one debt pool, only read
         // the first element of the array and ignore the rest
@@ -140,7 +140,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
     //////////////////////////////////////////////////////////////*/
 
     function getDebtValueInWei(address pool, address asset, uint256 amt) internal view returns (uint256) {
-        IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt);
+        return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt);
     }
 
     function getCollatValueInWei(address pool, address asset, uint256 amt) internal view returns (uint256) {

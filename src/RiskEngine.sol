@@ -22,6 +22,8 @@ contract RiskEngine is OwnableUpgradeable {
     uint256 public minLtv;
     uint256 public maxLtv;
 
+    uint256 public closeFactor;
+
     // liquidators buy position collateral at a discount by receiving a higher value of collateral
     // than debt repaid. the discount is a protocol parameter to incentivize liquidators while
     // ensuring efficient liquidations of risky positions. the value stored is scaled by 18 decimals
@@ -113,6 +115,10 @@ contract RiskEngine is OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////
                               Only Owner
     //////////////////////////////////////////////////////////////*/
+
+    function setCloseFactor(uint256 _closeFactor) external onlyOwner {
+        closeFactor = _closeFactor;
+    }
 
     function setLiquidationDiscount(uint256 _liquidationDiscount) external onlyOwner {
         liqudiationDiscount = _liquidationDiscount;

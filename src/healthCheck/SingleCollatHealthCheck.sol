@@ -10,11 +10,13 @@ import {DebtData, AssetData} from "../PositionManager.sol";
 import {IHealthCheck} from "../interfaces/IHealthCheck.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
+import {IterableSet} from "../lib/IterableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // TYPE == 0x2
 contract SingleCollatHealthCheck is IHealthCheck {
     using Math for uint256;
+    using IterableSet for IterableSet.IterableSetStorage;
 
     /*//////////////////////////////////////////////////////////////
                                Storage
@@ -125,6 +127,9 @@ contract SingleCollatHealthCheck is IHealthCheck {
             debtInWei += getDebtValueInWei(debt[0].pool, debt[i].asset, debt[i].amt);
         }
 
+        // TODO custom error
+        if (debtInWei > getTotalDebtInWei(position).mulDiv(riskEngine.closeFactor(), 1e18)) revert();
+
         uint256 collatInWei;
         for (uint256 i; i < collat.length; ++i) {
             collatInWei += getCollateralValueInWei(position, collat[i].asset, collat[i].amt);
@@ -142,6 +147,16 @@ contract SingleCollatHealthCheck is IHealthCheck {
 
     function getDebtValueInWei(address pool, address asset, uint256 amt) internal view returns (uint256) {
         return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt);
+    }
+
+    function getTotalDebtInWei(address position) internal view returns (uint256) {
+        address[] memory debtPools = IPosition(position).getDebtPools();
+        uint256 totalDebtInWei;
+        for (uint256 i; i < debtPools.length; ++i) {
+            totalDebtInWei +=
+                getDebtValueInWei(debtPools[i], Pool(debtPools[i]).asset(), Pool(debtPools[i]).getBorrowsOf(position));
+        }
+        return totalDebtInWei;
     }
 
     function getCollateralValueInWei(address position, address asset, uint256 amt) internal view returns (uint256) {

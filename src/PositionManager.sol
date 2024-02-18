@@ -105,25 +105,6 @@ struct Action {
     bytes data;
 }
 
-// data for position debt to be repaid by the liquidator
-struct DebtData {
-    // pool address for debt to be repaid
-    address pool;
-    // debt asset for pool, utility param to avoid calling pool.asset()
-    address asset;
-    // amount of debt to be repaid by the liqudiator
-    // position manager assumes that this amount has already been approved
-    uint256 amt;
-}
-
-// data for collateral assets to be received by the liquidator
-struct AssetData {
-    // token address
-    address asset;
-    // amount of collateral to be received by liquidator
-    uint256 amt;
-}
-
 contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     using Math for uint256;
     using SafeERC20 for IERC20;

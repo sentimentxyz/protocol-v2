@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 //types
 import {Pool} from "./Pool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -14,6 +18,10 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+
+/*//////////////////////////////////////////////////////////////
+                            SuperPool
+//////////////////////////////////////////////////////////////*/
 
 contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     using Math for uint256;
@@ -111,19 +119,19 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     /*//////////////////////////////////////////////////////////////
-                          ERC4626 Overrides
+                       ERC4626 Public Overrides
     //////////////////////////////////////////////////////////////*/
 
     // deposit and mint work as-is, but are pausable
 
     /// @inheritdoc ERC4626Upgradeable
     function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
-        ERC4626Upgradeable.deposit(assets, receiver);
+        return ERC4626Upgradeable.deposit(assets, receiver);
     }
 
     /// @inheritdoc ERC4626Upgradeable
     function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
-        ERC4626Upgradeable.mint(shares, receiver);
+        return ERC4626Upgradeable.mint(shares, receiver);
     }
 
     // withdraw and mint have no major changes, but the superpool implements a withdrawal fee
@@ -168,6 +176,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         // final return value must comply with erc4626 spec
         return feeAssets + receiverAssets;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                          External Functions
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice withdraw assets from the superpool using a given path
     /// @dev withdraw assets from the superpool by taking path[i] underlying from the pool at poolCaps[i]
@@ -267,11 +279,6 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         // shortcut no-op path to handle zeroed out params
         if (assets == 0 && poolCaps.get(pool) == 0) {
             return;
-        }
-
-        // revert if current superpool holdings are greater than new cap
-        if (IERC4626(pool).previewRedeem(IERC4626(pool).balanceOf(address(this))) > assets) {
-            revert Errors.PoolCapTooLow();
         }
 
         // update aggregate pool cap across superpool

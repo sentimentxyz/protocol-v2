@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // types
 import {Pool} from "../Pool.sol";
 import {RiskEngine} from "../RiskEngine.sol";
@@ -12,6 +16,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
 import {IterableSet} from "../lib/IterableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
+/*//////////////////////////////////////////////////////////////
+                    SingleCollatHealthCheck
+//////////////////////////////////////////////////////////////*/
 
 // TYPE == 0x2
 contract SingleCollatHealthCheck is IHealthCheck {
@@ -42,8 +50,14 @@ contract SingleCollatHealthCheck is IHealthCheck {
     //////////////////////////////////////////////////////////////*/
 
     function isPositionHealthy(address position) external view returns (bool) {
+        assert(TYPE == IPosition(position).TYPE());
         // fetch list of pools with active borrows for the given position
         address[] memory debtPools = IPosition(position).getDebtPools();
+
+        // if there are no debt pools and therefore no debt
+        if (debtPools.length == 0) {
+            return true;
+        }
 
         // container array used to store additional info for each debt pool
         uint256[] memory debtInfo = new uint256[](debtPools.length);

@@ -25,6 +25,10 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
                             Events
 //////////////////////////////////////////////////////////////*/
 
+event KnownContractAdded(address indexed target, bool isAllowed);
+
+event KnownFunctionAdded(address indexed target, bytes4 indexed method, bool isAllowed);
+
 event AddAsset(address indexed position, address indexed caller, address asset);
 
 event RemoveAsset(address indexed position, address indexed caller, address asset);
@@ -74,6 +78,52 @@ struct AssetData {
                         Position Manager
 //////////////////////////////////////////////////////////////*/
 
+// defines various operation types that can be applied to a position
+// every operation except NewPosition requires that the caller must be an authz caller or owner
+enum Operation {
+    NewPosition, // create2 a new position with a given type, no auth needed
+    // the following operations require msg.sender to be authorized
+    Exec, // execute arbitrary calldata on a position
+    Deposit, // deposit collateral assets to a given position
+    Transfer, // transfer assets from the position to a external address
+    Approve, // allow a spender to transfer assets from a position
+    Repay, // decrease position debt
+    Borrow, // increase position debt
+    AddAsset, // upsert collateral asset to position storage
+    RemoveAsset // remove collateral asset from position storage
+
+}
+
+// loosely defined data struct to create a common data container for all operation types
+// target and data are interpreted in different ways based on the operation type
+struct Action {
+    // operation type
+    Operation op;
+    // target address, interpreted differently across operations types
+    address target;
+    // dynamic bytes data, interepreted differently across operation types
+    bytes data;
+}
+
+// data for position debt to be repaid by the liquidator
+struct DebtData {
+    // pool address for debt to be repaid
+    address pool;
+    // debt asset for pool, utility param to avoid calling pool.asset()
+    address asset;
+    // amount of debt to be repaid by the liqudiator
+    // position manager assumes that this amount has already been approved
+    uint256 amt;
+}
+
+// data for collateral assets to be received by the liquidator
+struct AssetData {
+    // token address
+    address asset;
+    // amount of collateral to be received by liquidator
+    uint256 amt;
+}
+
 contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     using Math for uint256;
     using SafeERC20 for IERC20;
@@ -109,8 +159,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     // defines the universe of approved contracts and methods that a position can interact with
     // mapping key -> first 20 bytes store the target address, next 4 bytes store the method selector
-    mapping(address target => bool isAllowed) public contractUniverse;
-    mapping(address target => mapping(bytes4 method => bool isAllowed)) public funcUniverse;
+    mapping(address target => bool isAllowed) public isKnownContract;
+    mapping(address target => mapping(bytes4 method => bool isAllowed)) public isKnownFunc;
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -131,45 +181,27 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     //////////////////////////////////////////////////////////////*/
 
     /// @notice authorize a caller other than the owner to call process() on a position
-    function setAuth(address user, address position, bool isAuthorized) external {
+    function toggleAuth(address user, address position) external {
         // only account owners are allowed to modify authorizations
         // disables transitive auth operations
         if (msg.sender != ownerOf[position]) revert Errors.Unauthorized();
 
         // update authz status in storage
-        isAuth[position][user] = isAuthorized;
+        isAuth[position][user] = !isAuth[position][user];
+    }
+
+    function predictAddress(uint256 positionType, bytes32 salt) external view returns (address) {
+        bytes memory creationCode =
+            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(beaconFor[positionType], ""));
+
+        return address(
+            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(creationCode)))))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
                          Position Interaction
     //////////////////////////////////////////////////////////////*/
-
-    // defines various operation types that can be applied to a position
-    // every operation except NewPosition requires that the caller must be an authz caller or owner
-    enum Operation {
-        NewPosition, // create2 a new position with a given type, no auth needed
-        // the following operations require msg.sender to be authorized
-        Exec, // execute arbitrary calldata on a position
-        Deposit, // deposit collateral assets to a given position
-        Transfer, // transfer assets from the position to a external address
-        Approve, // allow a spender to transfer assets from a position
-        Repay, // decrease position debt
-        Borrow, // increase position debt
-        AddAsset, // upsert collateral asset to position storage
-        RemoveAsset // remove collateral asset from position storage
-
-    }
-
-    // loosely defined data struct to create a common data container for all operation types
-    // target and data are interpreted in different ways based on the operation type
-    struct Action {
-        // operation type
-        Operation op;
-        // target address, interpreted differently across operations types
-        address target;
-        // dynamic bytes data, interepreted differently across operation types
-        bytes data;
-    }
 
     /// @notice procces a batch of actions on a given position
     /// @dev only one position can be operated on in one txn, including creation
@@ -195,7 +227,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // the caller should be authzd to call anything other than NewPosition
         // this check will fail if msg.sender creates a position on behalf of someone else
         // and then tries to operate on it, because deployPosition() only authz the position owner
-        if (len > 1 && !isAuth[position][msg.sender]) revert Errors.Unauthorized();
+        if (len > i && !isAuth[position][msg.sender]) revert Errors.Unauthorized();
 
         // loop over actions and process them sequentially based on operation
         for (; i < len; ++i) {
@@ -277,6 +309,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     //////////////////////////////////////////////////////////////*/
 
     /// @dev deterministically deploy a new beacon proxy representin a position
+    /// @dev the target field in the action is the new owner of the position
     function deployPosition(address position, Action calldata action) internal whenNotPaused {
         (uint256 positionType, bytes32 salt) = abi.decode(action.data, (uint256, bytes32));
 
@@ -300,7 +333,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     function exec(address position, Action calldata action) internal {
         // target -> contract address to be called by the position
         // data -> abi-encoded calldata to be passed
-        if (!funcUniverse[action.target][bytes4(action.data[:4])]) revert Errors.InvalidOperation();
+        if (!isKnownFunc[action.target][bytes4(action.data[:4])]) revert Errors.InvalidOperation();
         IPosition(position).exec(action.target, action.data);
 
         emit Exec(position, msg.sender, action.target, bytes4(action.data[:4]));
@@ -327,7 +360,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     function approve(address position, Action calldata action) internal {
         // target -> spender
         // data -> asset and amount to be approved
-        if (!contractUniverse[action.target]) revert Errors.InvalidOperation();
+        if (!isKnownContract[action.target]) revert Errors.InvalidOperation();
         (address asset, uint256 amt) = abi.decode(action.data, (address, uint256));
         IPosition(position).approve(asset, action.target, amt);
 
@@ -459,5 +492,21 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @dev only callable by the position manager owner
     function setLiquidationFee(uint256 _liquidationFee) external onlyOwner {
         liquidationFee = _liquidationFee;
+    }
+
+    /// @notice toggle contract inclusion in the contract universe
+    /// @dev only callable by the position manager owner
+    function toggleContractUniverseInclusion(address target) external onlyOwner {
+        isKnownContract[target] = !isKnownContract[target];
+
+        emit KnownContractAdded(target, isKnownContract[target]);
+    }
+
+    /// @notice toggle function inclusion in the function universe
+    /// @dev only callable by the position manager owner
+    function toggleFuncUniverseInclusion(address target, bytes4 method) external onlyOwner {
+        isKnownFunc[target][method] = !isKnownFunc[target][method];
+
+        emit KnownFunctionAdded(target, method, isKnownFunc[target][method]);
     }
 }

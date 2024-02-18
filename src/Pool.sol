@@ -70,6 +70,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     // borrow shares use a different base and are not related to erc4626 shares for this pool
     uint256 public totalBorrowShares;
 
+    uint256 public poolCap;
+
     // fetch debt for a given position, denominated in borrow shares
     // borrow shares use a different base and are not related to erc4626 shares for this pool
     mapping(address position => uint256 borrowShares) borrowSharesOf;
@@ -97,7 +99,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice fetch current total pool borrows, denominated in notional asset units
-    function getBorrows() public view returns (uint256) {
+    function getTotalBorrows() public view returns (uint256) {
         // total current borrows = cached total borrows + pending interest
         return totalBorrows
             + rateModel.interestAccrued(lastUpdated, totalBorrows, IERC20(asset()).balanceOf(address(this)));
@@ -111,10 +113,24 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         return convertBorrowSharesToAsset(borrowSharesOf[position]);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        ERC4626 View Overrides
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice total assets managed by the pool, denominated in notional asset units
     function totalAssets() public view override returns (uint256) {
         // total assets = current total borrows + idle assets in pool
-        return getBorrows() + IERC20(asset()).balanceOf(address(this));
+        return getTotalBorrows() + IERC20(asset()).balanceOf(address(this));
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function maxDeposit(address) public view override returns (uint256) {
+        return poolCap - totalAssets();
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function maxMint(address) public view override returns (uint256) {
+        return previewDeposit(maxDeposit(address(0)));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -167,7 +183,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     /// @notice update pool state to accrue interest since the last time ping() was called
     function ping() public {
         // update cached notional borrows to current borrow amount
-        totalBorrows = getBorrows();
+        totalBorrows = getTotalBorrows();
 
         // store a timestamp for this ping() call
         // used to compute the pending interest next time ping() is called
@@ -260,7 +276,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     function convertAssetToBorrowShares(uint256 amt) internal view returns (uint256) {
         // borrow shares = amt * totalBorrowShares / currentTotalBorrows
         // handle edge case for when borrows are zero by minting shares in 1:1 amt
-        return totalBorrowShares == 0 ? amt : amt.mulDiv(totalBorrowShares, getBorrows(), Math.Rounding.Ceil);
+        return totalBorrowShares == 0 ? amt : amt.mulDiv(totalBorrowShares, getTotalBorrows(), Math.Rounding.Ceil);
     }
 
     /// @notice convert borrow shares to notional asset amount
@@ -269,7 +285,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     function convertBorrowSharesToAsset(uint256 amt) internal view returns (uint256) {
         // notional asset amount = borrowSharesAmt * currenTotalBorrows / totalBorrowShares
         // handle edge case for when borrows are zero by minting shares in 1:1 amt
-        return totalBorrowShares == 0 ? amt : amt.mulDiv(getBorrows(), totalBorrowShares, Math.Rounding.Floor);
+        return totalBorrowShares == 0 ? amt : amt.mulDiv(getTotalBorrows(), totalBorrowShares, Math.Rounding.Floor);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -286,5 +302,9 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     /// @notice callable only by the pool manager who is also the pool contract clone owner
     function setOriginationFee(uint256 _originationFee) external onlyOwner {
         originationFee = _originationFee;
+    }
+
+    function setPoolCap(uint256 _poolCap) external onlyOwner {
+        poolCap = _poolCap;
     }
 }

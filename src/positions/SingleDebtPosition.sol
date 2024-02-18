@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Imports
+//////////////////////////////////////////////////////////////*/
+
 // types
 import {Pool} from "../Pool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -10,6 +14,10 @@ import {IterableSet} from "../lib/IterableSet.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
 import {BasePosition} from "./BasePosition.sol";
+
+/*//////////////////////////////////////////////////////////////
+                        SingleDebtPosition
+//////////////////////////////////////////////////////////////*/
 
 // TYPE -- 0x1
 // single debt pool; multiple position assets
@@ -36,13 +44,7 @@ contract SingleDebtPosition is BasePosition {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize(address _positionManager) public override initializer {
-        BasePosition.initialize(_positionManager);
-    }
+    constructor(address _positionManager) BasePosition(_positionManager) {}
 
     /*//////////////////////////////////////////////////////////////
                             View Functions

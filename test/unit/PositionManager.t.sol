@@ -53,7 +53,7 @@ contract PositionManagerTest is BaseTest {
         _manager.process(position, actions);
 
         // toggling it should allow us to call them
-        _manager.toggleFuncUniverseInclusion(nonAuthedTarget, bytes4(0x12345678));
+        _manager.toggleKnownFunc(nonAuthedTarget, bytes4(0x12345678));
         _manager.process(position, actions);
     }
 
@@ -76,7 +76,7 @@ contract PositionManagerTest is BaseTest {
         _manager.process(position, actions);
 
         // toggling it should allow us to call them
-        _manager.toggleContractUniverseInclusion(nonAuthedTarget);
+        _manager.toggleKnownContract(nonAuthedTarget);
         _manager.process(position, actions);
     }
 

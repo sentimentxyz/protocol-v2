@@ -341,8 +341,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     function approve(address position, Action calldata action) internal {
         // target -> spender
         // data -> asset and amount to be approved
-        if (!isKnownContract[action.target]) revert Errors.InvalidOperation();
         (address asset, uint256 amt) = abi.decode(action.data, (address, uint256));
+        if (!isKnownContract[asset]) revert Errors.UnknownContract();
         IPosition(position).approve(asset, action.target, amt);
 
         emit Approve(position, msg.sender, action.target, asset, amt);
@@ -477,7 +477,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @notice toggle contract inclusion in the contract universe
     /// @dev only callable by the position manager owner
-    function toggleContractUniverseInclusion(address target) external onlyOwner {
+    function toggleKnownContract(address target) external onlyOwner {
         isKnownContract[target] = !isKnownContract[target];
 
         emit KnownContractAdded(target, isKnownContract[target]);
@@ -485,7 +485,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @notice toggle function inclusion in the function universe
     /// @dev only callable by the position manager owner
-    function toggleFuncUniverseInclusion(address target, bytes4 method) external onlyOwner {
+    function toggleKnownFunc(address target, bytes4 method) external onlyOwner {
         isKnownFunc[target][method] = !isKnownFunc[target][method];
 
         emit KnownFunctionAdded(target, method, isKnownFunc[target][method]);

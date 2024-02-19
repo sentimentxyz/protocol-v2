@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {BaseTest} from "../BaseTest.sol";
+import {BaseTest, MintableToken} from "../BaseTest.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {SingleDebtPosition} from "src/positions/SingleDebtPosition.sol";
 import {PositionManager, Operation, Action} from "src/PositionManager.sol";
@@ -40,6 +40,22 @@ contract SingleDebtPositionTest is BaseTest {
 
         positionManager.process(address(position), actions);
         assertEq(erc20.allowance(address(position), spender), amt);
+    }
+
+    function testDeposit(uint256 amt) public {
+        vm.assume(amt < BIG_NUMBER);
+        MintableToken erc20 = new MintableToken();
+        erc20.mint(address(this), amt);
+        positionManager.toggleKnownContract(address(erc20));
+        erc20.approve(address(positionManager), type(uint256).max);
+
+        bytes memory data = abi.encode(erc20, amt);
+        Action memory action = Action({op: Operation.Deposit, target: address(this), data: data});
+        Action[] memory actions = new Action[](1);
+        actions[0] = action;
+
+        positionManager.process(address(position), actions);
+        assertEq(erc20.balanceOf(address(position)), amt);
     }
 
     function _deploySingleDebtPosition() internal returns (address) {

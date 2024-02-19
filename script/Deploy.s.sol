@@ -18,20 +18,34 @@ import {SingleDebtPosition} from "src/positions/SingleDebtPosition.sol";
 import {SingleCollatHealthCheck} from "src/healthcheck/SingleCollatHealthCheck.sol";
 import {SingleDebtHealthCheck} from "src/healthcheck/SingleDebtHealthCheck.sol";
 
+// lens contracts
+import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
+import {PortfolioLens} from "src/lens/PortfolioLens.sol";
+
 contract Deploy is Script {
-    SingleCollatPosition public singleCollatPositionImpl;
-    SingleDebtPosition public singleDebtPositionImpl;
-    UpgradeableBeacon public singleCollatPositionBeacon;
-    UpgradeableBeacon public singleDebtPositionBeacon;
-    SingleCollatHealthCheck public singleCollatHealthCheck;
-    SingleDebtHealthCheck public singleDebtHealthCheck;
+    // standard contracts
     PoolFactory public poolFactory;
-    PositionManager public positionManager;
+    SingleDebtHealthCheck public singleDebtHealthCheck;
+    SingleCollatHealthCheck public singleCollatHealthCheck;
+
+    // transparent erc1967 proxies
     RiskEngine public riskEngine;
     Pool public poolImplementation;
+    PositionManager public positionManager;
 
-    PositionManager public positionManagerImpl;
+    // beacon contracts
+    UpgradeableBeacon public singleDebtPositionBeacon;
+    UpgradeableBeacon public singleCollatPositionBeacon;
+
+    // implementation contracts
     RiskEngine public riskEngineImpl;
+    PositionManager public positionManagerImpl;
+    SingleDebtPosition public singleDebtPositionImpl;
+    SingleCollatPosition public singleCollatPositionImpl;
+
+    // lens contracts
+    SuperPoolLens public superPoolLens;
+    PortfolioLens public portfolioLens;
 
     /// @notice uses values from the constants file in src/
     function run() public {
@@ -74,6 +88,10 @@ contract Deploy is Script {
         // set up risk engine
         riskEngine.setHealthCheck(singleCollatHealthCheck.TYPE(), address(singleCollatHealthCheck));
         riskEngine.setHealthCheck(singleDebtHealthCheck.TYPE(), address(singleDebtHealthCheck));
+
+        // deploy lens contracts
+        superPoolLens = new SuperPoolLens();
+        portfolioLens = new PortfolioLens(address(positionManager));
 
         // clean up
         positionManager.transferOwnership(owner);

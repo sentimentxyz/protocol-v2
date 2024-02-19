@@ -176,11 +176,11 @@ contract PositionManagerTest is BaseTest {
         return predicted;
     }
 
-    function predictAddress(uint256 typee, bytes32 salt) internal returns (address) {
+    function predictAddress(uint256 typee, bytes32 salt) internal view returns (address) {
         return deploy.positionManager().predictAddress(typee, salt);
     }
 
-    function depositActionFromThis(address token, uint256 amt) internal returns (Action[] memory) {
+    function depositActionFromThis(address token, uint256 amt) internal view returns (Action[] memory) {
         Action memory action = Action({op: Operation.Deposit, target: address(this), data: abi.encode(token, amt)});
 
         Action[] memory actions = new Action[](1);
@@ -196,5 +196,7 @@ contract PositionManagerTest is BaseTest {
                 return address(uint160(uint256(logs[i].topics[1])));
             }
         }
+
+        return address(0);
     }
 }

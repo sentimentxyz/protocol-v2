@@ -59,24 +59,28 @@ contract SingleDebtPositionTest is BaseTest {
     }
 
     function testSingleAssetMultipleDeposit(uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER / 2);
+        vm.assume(amt < BIG_NUMBER);
 
         MintableToken erc20 = new MintableToken();
-        erc20.mint(address(this), amt * 2);
+        erc20.mint(address(this), amt);
         erc20.approve(address(positionManager), type(uint256).max);
 
         positionManager.toggleKnownContract(address(erc20));
 
-        bytes memory data = abi.encode(address(erc20), amt);
+        bytes memory data = abi.encode(address(erc20), amt / 2);
         Action memory action = Action({op: Operation.Deposit, target: address(this), data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
         positionManager.process(address(position), actions);
-        assertEq(erc20.balanceOf(address(position)), amt);
+        assertEq(erc20.balanceOf(address(position)), amt / 2);
+
+        data = abi.encode(address(erc20), amt - (amt / 2));
+        action = Action({op: Operation.Deposit, target: address(this), data: data});
+        actions[0] = action;
 
         positionManager.process(address(position), actions);
-        assertEq(erc20.balanceOf(address(position)), amt * 2);
+        assertEq(erc20.balanceOf(address(position)), amt);
     }
 
     function testMultipleAssetSingleDeposit(uint256 amt1, uint256 amt2) public {
@@ -105,6 +109,50 @@ contract SingleDebtPositionTest is BaseTest {
 
         positionManager.process(address(position), actions);
 
+        assertEq(erc201.balanceOf(address(position)), amt1);
+        assertEq(erc202.balanceOf(address(position)), amt2);
+    }
+
+    function testMultipleAssetMultipleDeposit(uint256 amt1, uint256 amt2) public {
+        vm.assume(amt1 > 1 && amt1 < BIG_NUMBER);
+        vm.assume(amt2 > 1 && amt2 < BIG_NUMBER);
+
+        MintableToken erc201 = new MintableToken();
+        erc201.mint(address(this), amt1);
+        positionManager.toggleKnownContract(address(erc201));
+        erc201.approve(address(positionManager), type(uint256).max);
+
+        MintableToken erc202 = new MintableToken();
+        erc202.mint(address(this), amt2);
+        positionManager.toggleKnownContract(address(erc202));
+        erc202.approve(address(positionManager), type(uint256).max);
+
+        bytes memory data1 = abi.encode(erc201, amt1 / 2);
+        Action memory action1 = Action({op: Operation.Deposit, target: address(this), data: data1});
+
+        bytes memory data2 = abi.encode(erc202, amt2 / 2);
+        Action memory action2 = Action({op: Operation.Deposit, target: address(this), data: data2});
+
+        Action[] memory actions = new Action[](2);
+        actions[0] = action1;
+        actions[1] = action2;
+
+        positionManager.process(address(position), actions);
+
+        assertEq(erc201.balanceOf(address(position)), amt1 / 2);
+        assertEq(erc202.balanceOf(address(position)), amt2 / 2);
+
+        data1 = abi.encode(erc201, amt1 - (amt1 / 2));
+        action1 = Action({op: Operation.Deposit, target: address(this), data: data1});
+
+        data2 = abi.encode(erc202, amt2 - (amt2 / 2));
+        action2 = Action({op: Operation.Deposit, target: address(this), data: data2});
+
+        // swap order of actions, shouldn't matter
+        actions[0] = action2;
+        actions[1] = action1;
+
+        positionManager.process(address(position), actions);
         assertEq(erc201.balanceOf(address(position)), amt1);
         assertEq(erc202.balanceOf(address(position)), amt2);
     }

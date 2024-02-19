@@ -31,7 +31,7 @@ contract PoolTest is BaseTest {
         // play nicely with the test setup / rounding
         vm.assume(debt % 4 == 0);
         vm.assume(debt < BIG_NUMBER);
-        vm.assume(debt > 1 gwei);
+        vm.assume(debt > 0);
 
         /// On the first mint we should have 1:1 shares
         mockToken.mint(address(pool), debt);

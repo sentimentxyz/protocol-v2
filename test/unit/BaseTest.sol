@@ -11,7 +11,7 @@ import {Deploy} from "script/Deploy.s.sol";
 contract BaseTest is Test {
     Deploy public deploy;
 
-    uint256 constant BIG_NUMBER = 100000000000000000000000e18;
+    uint256 constant BIG_NUMBER = type(uint144).max;
 
     function setUp() public virtual {
         deploy = new Deploy();

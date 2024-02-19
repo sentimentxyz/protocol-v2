@@ -76,7 +76,7 @@ contract PositionManagerTest is BaseTest {
         _manager.process(position, actions);
 
         // toggling it should allow us to call them
-        _manager.toggleKnownContract(nonAuthedTarget);
+        _manager.toggleKnownContract(address(mockToken));
         _manager.process(position, actions);
     }
 

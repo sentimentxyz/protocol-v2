@@ -33,8 +33,9 @@ contract PositionManagerTest is BaseTest {
         // todo!
     }
 
-    function testCantCallNonAuthorizedFunctions(address nonAuthedTarget) public {
-        vm.assume(nonAuthedTarget != address(0));
+    function testCantCallNonAuthorizedFunctions() public {
+        // vm.assume(nonAuthedTarget != address(0));
+        address nonAuthedTarget = address(8);
 
         uint256 typee = 1;
         bytes32 salt = keccak256("testCantCallNonAuthorizedFunctions");

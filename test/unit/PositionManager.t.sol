@@ -33,9 +33,11 @@ contract PositionManagerTest is BaseTest {
         // todo!
     }
 
-    function testCantCallNonAuthorizedFunctions() public {
-        // vm.assume(nonAuthedTarget != address(0));
-        address nonAuthedTarget = address(8);
+    function testCantCallNonAuthorizedFunctions(address nonAuthedTarget) public {
+        vm.assume(nonAuthedTarget != address(0));
+
+        // set the bytecode so it doesnt revert
+        vm.etch(nonAuthedTarget, type(AllowedContractMock).runtimeCode);
 
         uint256 typee = 1;
         bytes32 salt = keccak256("testCantCallNonAuthorizedFunctions");
@@ -43,7 +45,7 @@ contract PositionManagerTest is BaseTest {
         address position = _deployPosition(typee, salt, address(this));
 
         Action memory action =
-            Action({op: Operation.Exec, target: nonAuthedTarget, data: abi.encodePacked(bytes4(0x12345678))});
+            Action({op: Operation.Exec, target: nonAuthedTarget, data: abi.encodePacked(AllowedContractMock.callMe.selector)});
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -54,7 +56,7 @@ contract PositionManagerTest is BaseTest {
         _manager.process(position, actions);
 
         // toggling it should allow us to call them
-        _manager.toggleFuncUniverseInclusion(nonAuthedTarget, bytes4(0x12345678));
+        _manager.toggleFuncUniverseInclusion(nonAuthedTarget, AllowedContractMock.callMe.selector);
         _manager.process(position, actions);
     }
 
@@ -199,5 +201,11 @@ contract PositionManagerTest is BaseTest {
         }
 
         return address(0);
+    }
+}
+
+contract AllowedContractMock {
+    function callMe() public pure returns (bool) {
+        return true;
     }
 }

@@ -62,6 +62,13 @@ abstract contract BasePosition is IPosition {
         IERC20(asset).safeTransfer(to, amt);
     }
 
+    // intereact with external contracts and arbitrary calldata
+    // any target and calldata validation must be implementeed in the position manager
+    function exec(address target, bytes calldata data) external onlyPositionManager {
+        (bool success,) = target.call(data);
+        if (!success) revert Errors.ExecCallFailed();
+    }
+
     /*//////////////////////////////////////////////////////////////
                         Virtual View Functions
     //////////////////////////////////////////////////////////////*/
@@ -91,10 +98,6 @@ abstract contract BasePosition is IPosition {
     // should be followed by Pool.borrow() to actually transfer assets
     // any position specific borrow validation should be implemented within this function
     function borrow(address pool, uint256 amt) external virtual;
-
-    // intereact with external contracts and arbitrary calldata
-    // any target and calldata validation must be implementeed in the position manager
-    function exec(address target, bytes calldata data) external virtual;
 
     // register a new asset to be used collateral in the position
     // any position specific validation should be implemented within this function

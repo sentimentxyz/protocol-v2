@@ -15,3 +15,7 @@ docs/
 
 # VSCode configs
 .vscode/
+
+# coverage reports
+coverage/
+lcov.info

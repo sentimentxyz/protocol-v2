@@ -74,3 +74,12 @@ Manually export forge remappings if the solidity lsp isn't able to detect import
 ```shell
 $ forge remappings > remappings.txt
 ```
+
+### Coverage
+
+The script will attempt to install the prereqs if youre on a mac and its needed, otherwise you need to install `genhtml` and `lcov` yourself
+
+```shell
+$ chmod +x coverage.sh
+$ ./coverage.sh
+```

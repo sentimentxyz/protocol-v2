@@ -6,9 +6,7 @@ import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {SingleDebtPosition} from "src/positions/SingleDebtPosition.sol";
 import {PositionManager, Operation, Action} from "src/PositionManager.sol";
 
-import {MockERC20} from "forge-std/mocks/MockERC20.sol";
-
-contract SingleDebtPositionTest is BaseTest {
+contract SdpDepositWithdrawTest is BaseTest {
     SingleDebtPosition position;
     PortfolioLens portfolioLens;
     PositionManager positionManager;

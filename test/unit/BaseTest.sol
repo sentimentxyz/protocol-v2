@@ -21,6 +21,10 @@ contract BaseTest is Test {
 }
 
 contract MintableToken is MockERC20 {
+    constructor() {
+        MockERC20.initialize("TEST", "TEST", 18);
+    }
+
     function mint(address to, uint256 amount) public {
         _mint(to, amount);
     }

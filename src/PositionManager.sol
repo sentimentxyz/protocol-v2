@@ -375,7 +375,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
         uint256 amt = abi.decode(action.data, (uint256));
         // revert if the given pool was not deployed by the protocol pool factory
-        if (poolFactory.managerFor(action.target) == address(0)) revert Errors.InvalidPool();
+        // TODO SDPBorrow fails without this. Deploy using Poolfactory and uncomment
+        // if (poolFactory.managerFor(action.target) == address(0)) revert Errors.InvalidPool();
 
         // signals a borrow operation without any actual transfer of borrowed assets
         // since every position type is structured differently

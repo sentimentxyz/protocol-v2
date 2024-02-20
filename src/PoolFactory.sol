@@ -63,7 +63,7 @@ contract PoolFactory is Ownable, Pausable {
     /// @notice deploys a new pool, setting the caller as the owner
     /// @dev the owner can set things like oracles and LTV
     /// @param params the parameters to deploy the pool with
-    function deployPool(PoolDeployParams calldata params) external whenNotPaused {
+    function deployPool(PoolDeployParams calldata params) external whenNotPaused returns (address) {
         // deploy pool as a minimal clone
         Pool pool = new Pool(Clones.clone(poolImplementation));
 
@@ -86,6 +86,8 @@ contract PoolFactory is Ownable, Pausable {
         managerFor[address(pool)] = msg.sender;
 
         emit PoolCreated(msg.sender, address(pool));
+
+        return address(pool);
     }
 
     /*//////////////////////////////////////////////////////////////

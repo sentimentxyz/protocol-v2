@@ -361,7 +361,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // signals repayment to the position without making any changes in the pool
         // since every position is structured differently
         // we assume that any checks needed to validate repayment are implemented in the position
-        IPosition(position).repay(Pool(action.target).asset(), amt);
+        IPosition(position).repay(action.target, amt);
 
         // trigger pool repayment which assumes successful transfer of repaid assets
         Pool(action.target).repay(position, amt);

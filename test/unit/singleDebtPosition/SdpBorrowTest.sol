@@ -46,7 +46,7 @@ contract SdpBorrowTest is BaseTest {
         assertEq(assets[0], address(erc20Collat));
         assertEq(assets[1], address(erc20Borrow));
         assert(riskEngine.isPositionHealthy(address(position)));
-        assert(pool.getBorrowsOf(address(position)) == 1e17);
+        assertEq(pool.getBorrowsOf(address(position)), 1e17);
     }
 
     function testBorrowMultiple() public {
@@ -70,6 +70,27 @@ contract SdpBorrowTest is BaseTest {
     function testFailBorrowMoreThanLTV() public {
         _deposit(1e18); // 1 eth
         _borrow(4e18); // 8 eth
+    }
+
+    function testRepaySingle() public {
+        _deposit(1e18); // 1 eth
+        _borrow(1e18); // 2 eth
+        _repay(1e18); // 2 eth
+        assertEq(pool.getBorrowsOf(address(position)), 0);
+        address[] memory debtPools = position.getDebtPools();
+        assertEq(debtPools.length, 1);
+        assertEq(debtPools[0], address(0));
+    }
+
+    function testRepayMultiple() public {
+        _deposit(1e18); // 1 eth
+        _borrow(1e18); // 2 eth
+        _repay(5e17); // 1 eth
+        _repay(5e17); // 1 eth
+        assertEq(pool.getBorrowsOf(address(position)), 0);
+        address[] memory debtPools = position.getDebtPools();
+        assertEq(debtPools.length, 1);
+        assertEq(debtPools[0], address(0));
     }
 
     function _deposit(uint256 amt) internal {
@@ -116,25 +137,6 @@ contract SdpBorrowTest is BaseTest {
         return positionAddress;
     }
 
-    // function _deployPool() internal {
-    //     pool = new Pool(address(positionManager));
-    //     pool = Pool(payable(address(TestUtils.makeProxy(address(pool), address(this)))));
-    //     pool.initialize(address(erc20Borrow), "SDP Test Pool", "SDP-TEST");
-    //     FixedRateModel rateModel = new FixedRateModel(0); // 0% apr
-    //     pool.setRateModel(address(rateModel));
-    //     pool.setPoolCap(type(uint256).max);
-
-    //     FixedPriceOracle borrowTokenOracle = new FixedPriceOracle(2e18); // 1 borrow token = 2 eth
-    //     riskEngine.toggleOracleStatus(address(borrowTokenOracle));
-    //     riskEngine.setOracle(address(pool), address(erc20Borrow), address(borrowTokenOracle));
-    //     riskEngine.setLtv(address(pool), address(erc20Borrow), 4e18); // 400% ltv
-
-    //     FixedPriceOracle collatTokenOracle = new FixedPriceOracle(1e18); // 1 collat token = 1 eth
-    //     riskEngine.toggleOracleStatus(address(collatTokenOracle));
-    //     riskEngine.setOracle(address(pool), address(erc20Collat), address(collatTokenOracle));
-    //     riskEngine.setLtv(address(pool), address(erc20Collat), 4e18); // 400% ltv
-    // }
-
     function _deployPool() internal {
         FixedRateModel rateModel = new FixedRateModel(0); // 0% apr
         PoolDeployParams memory params = PoolDeployParams({
@@ -156,5 +158,14 @@ contract SdpBorrowTest is BaseTest {
         riskEngine.toggleOracleStatus(address(collatTokenOracle));
         riskEngine.setOracle(address(pool), address(erc20Collat), address(collatTokenOracle));
         riskEngine.setLtv(address(pool), address(erc20Collat), 4e18); // 400% ltv
+    }
+
+    function _repay(uint256 amt) internal {
+        bytes memory data = abi.encode(amt);
+        Action memory action = Action({op: Operation.Repay, target: address(pool), data: data});
+        Action[] memory actions = new Action[](1);
+        actions[0] = action;
+
+        positionManager.process(address(position), actions);
     }
 }

@@ -15,7 +15,6 @@ import {IHealthCheck} from "../interfaces/IHealthCheck.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {console2} from "forge-std/console2.sol"; // TODO remove console2
 
 /*//////////////////////////////////////////////////////////////
                     SingleDebtHealthCheck
@@ -105,8 +104,6 @@ contract SingleDebtHealthCheck is IHealthCheck {
         // different ltvs for each asset held by the position. we take a weighted average approach
         // where debt is weighted in proportion to the value of each asset in the position
         // loop over position assets
-        console2.log("--min Bal--");
-        console2.log("i", "assetData", "ltv");
         for (uint256 i; i < assets.length; ++i) {
             // min balance = SUM (total borrows * asset[i].weight / asset[i].ltv)
             // total borrows are denominated in eth, scaled by 18 decimals
@@ -114,20 +111,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
             // asset[i].ltv is the ltv for asset[i] according to the only debt pool for the position
             minReqBalanceInWei +=
                 totalBorrowsInWei.mulDiv(assetData[i], riskEngine.ltvFor(pool, assets[i]), Math.Rounding.Ceil);
-            console2.log(i, assetData[i], riskEngine.ltvFor(pool, assets[i]));
-            console2.log(
-                "minReq",
-                totalBorrowsInWei.mulDiv(assetData[i], riskEngine.ltvFor(pool, assets[i]), Math.Rounding.Ceil),
-                minReqBalanceInWei
-            );
         }
-        console2.log("------");
-        console2.log("--SDP HC--");
-        console2.log("totalBorrowsInWei", totalBorrowsInWei);
-        console2.log("minReqBalanceInWei", minReqBalanceInWei);
-        console2.log("totalBalanceInWei", totalBalanceInWei);
-        console2.log("collat", totalBalanceInWei - totalBorrowsInWei);
-        console2.log("----");
 
         // the position is healthy if the value of the assets in the position is more than the
         // minimum collateral required to meet the ltv requirements of debts from all pools

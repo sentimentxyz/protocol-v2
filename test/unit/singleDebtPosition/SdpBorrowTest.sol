@@ -49,6 +49,13 @@ contract SdpBorrowTest is BaseTest {
         assert(pool.getBorrowsOf(address(position)) == 1e17);
     }
 
+    function testBorrowMultiple() public {
+        _deposit(1e18);
+        _borrow(1e17);
+        _borrow(1e17);
+        assert(riskEngine.isPositionHealthy(address(position)));
+    }
+
     function testMaxBorrow() public {
         _deposit(1e18); // 1 eth
         _borrow(2e18 - 1); // 4eth

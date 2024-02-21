@@ -114,12 +114,11 @@ contract PortfolioLens {
     }
 
     function predictAddress(uint256 positionType, bytes32 salt) external view returns (address) {
-        bytes memory creationCode = abi.encodePacked(
-            type(BeaconProxy).creationCode, abi.encode(PositionManager(POSITION_MANAGER).beaconFor(positionType), "")
-        );
+        bytes memory creationCode =
+            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(POSITION_MANAGER.beaconFor(positionType), ""));
 
         return address(
-            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(creationCode)))))
+            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), POSITION_MANAGER, salt, keccak256(creationCode)))))
         );
     }
 }

@@ -116,13 +116,36 @@ contract SdpBorrowTest is BaseTest {
         return positionAddress;
     }
 
+    // function _deployPool() internal {
+    //     pool = new Pool(address(positionManager));
+    //     pool = Pool(payable(address(TestUtils.makeProxy(address(pool), address(this)))));
+    //     pool.initialize(address(erc20Borrow), "SDP Test Pool", "SDP-TEST");
+    //     FixedRateModel rateModel = new FixedRateModel(0); // 0% apr
+    //     pool.setRateModel(address(rateModel));
+    //     pool.setPoolCap(type(uint256).max);
+
+    //     FixedPriceOracle borrowTokenOracle = new FixedPriceOracle(2e18); // 1 borrow token = 2 eth
+    //     riskEngine.toggleOracleStatus(address(borrowTokenOracle));
+    //     riskEngine.setOracle(address(pool), address(erc20Borrow), address(borrowTokenOracle));
+    //     riskEngine.setLtv(address(pool), address(erc20Borrow), 4e18); // 400% ltv
+
+    //     FixedPriceOracle collatTokenOracle = new FixedPriceOracle(1e18); // 1 collat token = 1 eth
+    //     riskEngine.toggleOracleStatus(address(collatTokenOracle));
+    //     riskEngine.setOracle(address(pool), address(erc20Collat), address(collatTokenOracle));
+    //     riskEngine.setLtv(address(pool), address(erc20Collat), 4e18); // 400% ltv
+    // }
+
     function _deployPool() internal {
-        pool = new Pool(address(positionManager));
-        pool = Pool(payable(address(TestUtils.makeProxy(address(pool), address(this)))));
-        pool.initialize(address(erc20Borrow), "SDP Test Pool", "SDP-TEST");
         FixedRateModel rateModel = new FixedRateModel(0); // 0% apr
-        pool.setRateModel(address(rateModel));
-        pool.setPoolCap(type(uint256).max);
+        PoolDeployParams memory params = PoolDeployParams({
+            asset: address(erc20Borrow),
+            rateModel: address(rateModel),
+            poolCap: type(uint256).max,
+            originationFee: 0,
+            name: "SDP Test Pool",
+            symbol: "SDP-TEST"
+        });
+        pool = Pool(poolFactory.deployPool(params));
 
         FixedPriceOracle borrowTokenOracle = new FixedPriceOracle(2e18); // 1 borrow token = 2 eth
         riskEngine.toggleOracleStatus(address(borrowTokenOracle));

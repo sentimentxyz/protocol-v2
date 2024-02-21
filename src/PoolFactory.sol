@@ -65,7 +65,7 @@ contract PoolFactory is Ownable, Pausable {
     /// @param params the parameters to deploy the pool with
     function deployPool(PoolDeployParams calldata params) external whenNotPaused returns (address) {
         // deploy pool as a minimal clone
-        Pool pool = new Pool(Clones.clone(poolImplementation));
+        Pool pool = Pool(Clones.clone(poolImplementation));
 
         // init erc4626 params for the pool
         pool.initialize(params.asset, params.name, params.symbol);

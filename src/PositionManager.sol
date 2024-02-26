@@ -21,8 +21,6 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-import {console2} from "forge-std/console2.sol"; // TODO remove console2
-
 /*//////////////////////////////////////////////////////////////
                             Events
 //////////////////////////////////////////////////////////////*/

@@ -55,17 +55,17 @@ contract ScpBorrowTest is BaseTest {
 
     function testMaxBorrow() public {
         _deposit(1e18); // 1 eth
-        _borrow(4e18 - 1); // 4eth
+        _borrow(4e18); // 4eth
         address[] memory assets = position.getAssets();
         assertEq(assets.length, 1);
         assertEq(assets[0], address(erc20Collat));
         assert(riskEngine.isPositionHealthy(address(position)));
-        assert(pool.getBorrowsOf(address(position)) == 4e18 - 1);
+        assert(pool.getBorrowsOf(address(position)) == 4e18);
     }
 
     function testFailBorrowMoreThanLTV() public {
         _deposit(1e18); // 1 eth
-        _borrow(4e18); // 8 eth
+        _borrow(4e18 + 1); // 8 eth + 1
     }
 
     function testRepaySingle() public {

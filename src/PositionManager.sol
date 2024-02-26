@@ -171,15 +171,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         isAuth[position][user] = !isAuth[position][user];
     }
 
-    function predictAddress(uint256 positionType, bytes32 salt) external view returns (address) {
-        bytes memory creationCode =
-            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(beaconFor[positionType], ""));
-
-        return address(
-            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(creationCode)))))
-        );
-    }
-
     /*//////////////////////////////////////////////////////////////
                          Position Interaction
     //////////////////////////////////////////////////////////////*/

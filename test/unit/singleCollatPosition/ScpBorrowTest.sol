@@ -91,9 +91,9 @@ contract ScpBorrowTest is BaseTest {
         erc20Collat.mint(address(this), amt);
         erc20Collat.approve(address(positionManager), type(uint256).max);
 
-        bytes memory data = abi.encode(address(erc20Collat), amt);
-        Action memory action1 = Action({op: Operation.Deposit, target: address(this), data: data});
-        Action memory action2 = Action({op: Operation.AddAsset, target: address(erc20Collat), data: new bytes(0)});
+        bytes memory data = abi.encode(address(this), address(erc20Collat), amt);
+        Action memory action1 = Action({op: Operation.Deposit, data: data});
+        Action memory action2 = Action({op: Operation.AddAsset, data: abi.encode(address(erc20Collat))});
         Action[] memory actions = new Action[](2);
         actions[0] = action1;
         actions[1] = action2;
@@ -106,9 +106,9 @@ contract ScpBorrowTest is BaseTest {
         erc20Collat.approve(address(pool), type(uint256).max);
         pool.deposit(amt, address(this));
 
-        bytes memory data = abi.encode(amt);
-        Action memory action = Action({op: Operation.Borrow, target: address(pool), data: data});
-        Action memory action2 = Action({op: Operation.AddAsset, target: address(erc20Collat), data: new bytes(0)});
+        bytes memory data = abi.encode(address(pool), amt);
+        Action memory action = Action({op: Operation.Borrow, data: data});
+        Action memory action2 = Action({op: Operation.AddAsset, data: abi.encode(address(erc20Collat))});
         Action[] memory actions = new Action[](2);
         actions[0] = action;
         actions[1] = action2;
@@ -117,8 +117,8 @@ contract ScpBorrowTest is BaseTest {
     }
 
     function _repay(uint256 amt) internal {
-        bytes memory data = abi.encode(amt);
-        Action memory action = Action({op: Operation.Repay, target: address(pool), data: data});
+        bytes memory data = abi.encode(address(pool), amt);
+        Action memory action = Action({op: Operation.Repay, data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
@@ -128,10 +128,10 @@ contract ScpBorrowTest is BaseTest {
     function _deployPosition() internal returns (address) {
         uint256 POSITION_TYPE = 0x2;
         bytes32 salt = "SingleCollatPosition";
-        bytes memory data = abi.encode(POSITION_TYPE, salt);
+        bytes memory data = abi.encode(address(this), POSITION_TYPE, salt);
         address positionAddress = portfolioLens.predictAddress(POSITION_TYPE, salt);
 
-        Action memory action = Action({op: Operation.NewPosition, target: address(this), data: data});
+        Action memory action = Action({op: Operation.NewPosition, data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 

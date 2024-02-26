@@ -35,8 +35,8 @@ contract ScpDepositWithdrawTest is BaseTest {
     function testApproveTokens(address spender, uint256 amt) public {
         vm.assume(amt < BIG_NUMBER);
 
-        bytes memory data = abi.encode(address(erc201), amt);
-        Action memory action = Action({op: Operation.Approve, target: spender, data: data});
+        bytes memory data = abi.encode(spender, address(erc201), amt);
+        Action memory action = Action({op: Operation.Approve, data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
@@ -49,8 +49,8 @@ contract ScpDepositWithdrawTest is BaseTest {
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
 
-        bytes memory data = abi.encode(erc201, amt);
-        Action memory action = Action({op: Operation.Deposit, target: address(this), data: data});
+        bytes memory data = abi.encode(address(this), erc201, amt);
+        Action memory action = Action({op: Operation.Deposit, data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
@@ -65,16 +65,16 @@ contract ScpDepositWithdrawTest is BaseTest {
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
 
-        bytes memory data = abi.encode(address(erc201), amt / 2);
-        Action memory action = Action({op: Operation.Deposit, target: address(this), data: data});
+        bytes memory data = abi.encode(address(this), address(erc201), amt / 2);
+        Action memory action = Action({op: Operation.Deposit, data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
         positionManager.process(address(position), actions);
         assertEq(erc201.balanceOf(address(position)), amt / 2);
 
-        data = abi.encode(address(erc201), amt - (amt / 2));
-        action = Action({op: Operation.Deposit, target: address(this), data: data});
+        data = abi.encode(address(this), address(erc201), amt - (amt / 2));
+        action = Action({op: Operation.Deposit, data: data});
         actions[0] = action;
 
         positionManager.process(address(position), actions);
@@ -85,8 +85,8 @@ contract ScpDepositWithdrawTest is BaseTest {
         vm.assume(amt < BIG_NUMBER);
         erc201.mint(address(position), amt);
 
-        bytes memory data = abi.encode(erc201, amt);
-        Action memory action = Action({op: Operation.Transfer, target: address(this), data: data});
+        bytes memory data = abi.encode(address(this), erc201, amt);
+        Action memory action = Action({op: Operation.Transfer, data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
@@ -100,16 +100,16 @@ contract ScpDepositWithdrawTest is BaseTest {
 
         erc201.mint(address(position), amt);
 
-        bytes memory data = abi.encode(address(erc201), amt / 2);
-        Action memory action = Action({op: Operation.Transfer, target: address(this), data: data});
+        bytes memory data = abi.encode(address(this), address(erc201), amt / 2);
+        Action memory action = Action({op: Operation.Transfer, data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
         positionManager.process(address(position), actions);
         assertEq(erc201.balanceOf(address(this)), amt / 2);
 
-        data = abi.encode(address(erc201), amt - (amt / 2));
-        action = Action({op: Operation.Transfer, target: address(this), data: data});
+        data = abi.encode(address(this), address(erc201), amt - (amt / 2));
+        action = Action({op: Operation.Transfer, data: data});
         actions[0] = action;
 
         positionManager.process(address(position), actions);
@@ -119,10 +119,10 @@ contract ScpDepositWithdrawTest is BaseTest {
     function _deployPosition() internal returns (address) {
         uint256 POSITION_TYPE = 0x2;
         bytes32 salt = "SingleCollatPosition";
-        bytes memory data = abi.encode(POSITION_TYPE, salt);
+        bytes memory data = abi.encode(address(this), POSITION_TYPE, salt);
         address positionAddress = portfolioLens.predictAddress(POSITION_TYPE, salt);
 
-        Action memory action = Action({op: Operation.NewPosition, target: address(this), data: data});
+        Action memory action = Action({op: Operation.NewPosition, data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 

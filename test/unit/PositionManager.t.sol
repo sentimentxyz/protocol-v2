@@ -41,8 +41,10 @@ contract PositionManagerTest is BaseTest {
 
         address position = _deployPosition(typee, salt, address(this));
 
-        Action memory action =
-            Action({op: Operation.Exec, target: nonAuthedTarget, data: abi.encodePacked(bytes4(0x12345678))});
+        bytes memory callData = new bytes(0x123456789abcdef);
+        bytes memory data = abi.encode(nonAuthedTarget, callData);
+
+        Action memory action = Action({op: Operation.Exec, data: data});
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -65,7 +67,7 @@ contract PositionManagerTest is BaseTest {
         address position = _deployPosition(typee, salt, address(this));
 
         Action memory action =
-            Action({op: Operation.Approve, target: nonAuthedTarget, data: abi.encode(address(mockToken), uint256(100))});
+            Action({op: Operation.Approve, data: abi.encode(nonAuthedTarget, address(mockToken), uint256(100))});
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -166,7 +168,7 @@ contract PositionManagerTest is BaseTest {
     function _deployPosition(uint256 typee, bytes32 salt, address owner) internal returns (address) {
         address predicted = predictAddress(typee, salt);
 
-        Action memory action = Action({op: Operation.NewPosition, target: owner, data: abi.encode(typee, salt)});
+        Action memory action = Action({op: Operation.NewPosition, data: abi.encode(owner, typee, salt)});
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -181,7 +183,7 @@ contract PositionManagerTest is BaseTest {
     }
 
     function depositActionFromThis(address token, uint256 amt) internal view returns (Action[] memory) {
-        Action memory action = Action({op: Operation.Deposit, target: address(this), data: abi.encode(token, amt)});
+        Action memory action = Action({op: Operation.Deposit, data: abi.encode(address(this), token, amt)});
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;

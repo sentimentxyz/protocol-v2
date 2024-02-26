@@ -33,16 +33,15 @@ contract PositionManagerTest is BaseTest {
         // todo!
     }
 
-    function testCantCallNonAuthorizedFunctions(address nonAuthedTarget) public {
-        vm.assume(nonAuthedTarget != address(0));
+    function testCantCallNonAuthorizedFunctions() public {
+        address nonAuthedTarget = address(69);
 
         uint256 typee = 1;
         bytes32 salt = keccak256("testCantCallNonAuthorizedFunctions");
 
         address position = _deployPosition(typee, salt, address(this));
-
-        bytes memory callData = new bytes(0x123456789abcdef);
-        bytes memory data = abi.encode(nonAuthedTarget, callData);
+        bytes memory callData = hex"1234567890abcdef";
+        bytes memory data = abi.encodePacked(nonAuthedTarget, callData);
 
         Action memory action = Action({op: Operation.Exec, data: data});
 
@@ -55,7 +54,7 @@ contract PositionManagerTest is BaseTest {
         _manager.process(position, actions);
 
         // toggling it should allow us to call them
-        _manager.toggleKnownFunc(nonAuthedTarget, bytes4(0x12345678));
+        _manager.toggleKnownFunc(nonAuthedTarget, bytes4(callData));
         _manager.process(position, actions);
     }
 

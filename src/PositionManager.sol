@@ -21,6 +21,8 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
+import {console2} from "forge-std/console2.sol"; // TODO remove console2
+
 /*//////////////////////////////////////////////////////////////
                             Events
 //////////////////////////////////////////////////////////////*/
@@ -304,13 +306,14 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     function exec(address position, bytes calldata data) internal {
-        // target -> contract address to be called by the position
-        // data -> abi-encoded calldata to be passed
-        (address target, bytes memory callData) = abi.decode(data, (address, bytes));
-        if (!isKnownFunc[target][bytes4(callData)]) revert Errors.InvalidOperation();
-        IPosition(position).exec(target, callData);
+        // exec data is encodePacked (address, bytes)
+        // target -> first 20 bytes, contract address to be called by the position
+        // callData -> rest of the data, calldata to be executed on target
+        address target = address(bytes20(data[:20]));
+        if (!isKnownFunc[target][bytes4(data[20:24])]) revert Errors.InvalidOperation();
+        IPosition(position).exec(target, data[20:]);
 
-        emit Exec(position, msg.sender, target, bytes4(callData));
+        emit Exec(position, msg.sender, target, bytes4(data[20:24]));
     }
 
     function transfer(address position, bytes calldata data) internal {

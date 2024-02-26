@@ -250,7 +250,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         IERC4626(pool).deposit(assets, address(this));
 
         // revert if pool balance
-        require(IERC4626(pool).balanceOf(address(this)) <= poolCap(pool));
+        require(IERC4626(pool).previewRedeem(IERC4626(pool).balanceOf(address(this))) <= poolCap(pool));
 
         emit PoolDeposit(pool, assets);
     }

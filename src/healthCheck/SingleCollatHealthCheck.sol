@@ -126,7 +126,7 @@ contract SingleCollatHealthCheck is IHealthCheck {
 
         // the position is healthy if the value of the assets in the position is more than the
         // minimum balance required to meet the ltv requirements of debts from all pools
-        return totalBalanceInWei > minReqBalanceInWei;
+        return totalBalanceInWei - totalDebtInWei >= minReqBalanceInWei;
     }
 
     function isValidLiquidation(

@@ -230,10 +230,10 @@ contract SdpDepositWithdrawTest is BaseTest {
         assertEq(erc201.balanceOf(address(this)), amt1 / 2);
         assertEq(erc202.balanceOf(address(this)), amt2 / 2);
 
-        data1 = abi.encode(erc201, amt1 - (amt1 / 2));
+        data1 = abi.encode(address(this), address(erc201), amt1 - (amt1 / 2));
         action1 = Action({op: Operation.Transfer, data: data1});
 
-        data2 = abi.encode(erc202, amt2 - (amt2 / 2));
+        data2 = abi.encode(address(this), address(erc202), amt2 - (amt2 / 2));
         action2 = Action({op: Operation.Transfer, data: data2});
 
         // swap order of actions, shouldn't matter

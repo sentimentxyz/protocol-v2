@@ -177,7 +177,7 @@ contract PositionManagerTest is BaseTest {
     }
 
     function predictAddress(uint256 typee, bytes32 salt) internal view returns (address) {
-        return deploy.positionManager().predictAddress(typee, salt);
+        return deploy.portfolioLens().predictAddress(typee, salt);
     }
 
     function depositActionFromThis(address token, uint256 amt) internal view returns (Action[] memory) {

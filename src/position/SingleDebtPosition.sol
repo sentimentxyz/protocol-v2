@@ -58,6 +58,8 @@ contract SingleDebtPosition is BasePosition {
     // IPosition compliant way to fetch all debt pools that the position is currently borrowing from
     // will always return a singleton array since there's at most one active debt pool at any time
     function getDebtPools() external view override returns (address[] memory) {
+        if (debtPool == address(0)) return new address[](0);
+
         // debtPool is the only pool to be returned
         address[] memory debtPools = new address[](1);
         debtPools[0] = debtPool;

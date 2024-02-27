@@ -11,12 +11,12 @@ import {PositionManager} from "src/PositionManager.sol";
 import {OWNER} from "./Constants.sol";
 
 // position impls
-import {SingleCollatPosition} from "src/position/SingleCollatPosition.sol";
+import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
 import {SingleDebtPosition} from "src/position/SingleDebtPosition.sol";
 
 // healtcheck impls
-import {SingleCollatHealthCheck} from "src/healthcheck/SingleCollatHealthCheck.sol";
-import {SingleDebtHealthCheck} from "src/healthcheck/SingleDebtHealthCheck.sol";
+import {SingleAssetRiskModule} from "src/risk/SingleAssetRiskModule.sol";
+import {SingleDebtRiskModule} from "src/risk/SingleDebtRiskModule.sol";
 
 // lens contracts
 import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
@@ -25,8 +25,8 @@ import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 contract Deploy is Script {
     // standard contracts
     PoolFactory public poolFactory;
-    SingleDebtHealthCheck public singleDebtHealthCheck;
-    SingleCollatHealthCheck public singleCollatHealthCheck;
+    SingleDebtRiskModule public singleDebtRiskModule;
+    SingleAssetRiskModule public singleAssetRiskModule;
 
     // transparent erc1967 proxies
     RiskEngine public riskEngine;
@@ -35,13 +35,13 @@ contract Deploy is Script {
 
     // beacon contracts
     UpgradeableBeacon public singleDebtPositionBeacon;
-    UpgradeableBeacon public singleCollatPositionBeacon;
+    UpgradeableBeacon public singleAssetPositionBeacon;
 
     // implementation contracts
     RiskEngine public riskEngineImpl;
     PositionManager public positionManagerImpl;
     SingleDebtPosition public singleDebtPositionImpl;
-    SingleCollatPosition public singleCollatPositionImpl;
+    SingleAssetPosition public singleAssetPositionImpl;
 
     // lens contracts
     SuperPoolLens public superPoolLens;
@@ -70,24 +70,24 @@ contract Deploy is Script {
         poolFactory = new PoolFactory(address(poolImplementation));
 
         // deploy health checks
-        singleCollatHealthCheck = new SingleCollatHealthCheck(address(riskEngine));
-        singleDebtHealthCheck = new SingleDebtHealthCheck(address(riskEngine));
+        singleAssetRiskModule = new SingleAssetRiskModule(address(riskEngine));
+        singleDebtRiskModule = new SingleDebtRiskModule(address(riskEngine));
 
         // deploy positions and setup becaons
-        singleCollatPositionImpl = new SingleCollatPosition(address(positionManager));
+        singleAssetPositionImpl = new SingleAssetPosition(address(positionManager));
         singleDebtPositionImpl = new SingleDebtPosition(address(positionManager));
-        singleCollatPositionBeacon = new UpgradeableBeacon(address(singleCollatPositionImpl), owner);
+        singleAssetPositionBeacon = new UpgradeableBeacon(address(singleAssetPositionImpl), owner);
         singleDebtPositionBeacon = new UpgradeableBeacon(address(singleDebtPositionImpl), owner);
 
         // set up position manager
         positionManager.setBeacon(singleDebtPositionImpl.TYPE(), address(singleDebtPositionBeacon));
-        positionManager.setBeacon(singleCollatPositionImpl.TYPE(), address(singleCollatPositionBeacon));
+        positionManager.setBeacon(singleAssetPositionImpl.TYPE(), address(singleAssetPositionBeacon));
         positionManager.setRiskEngine(address(riskEngine));
         positionManager.setPoolFactory(address(poolFactory));
 
         // set up risk engine
-        riskEngine.setHealthCheck(singleCollatHealthCheck.TYPE(), address(singleCollatHealthCheck));
-        riskEngine.setHealthCheck(singleDebtHealthCheck.TYPE(), address(singleDebtHealthCheck));
+        riskEngine.setRiskModule(singleAssetPositionImpl.TYPE(), address(singleAssetRiskModule));
+        riskEngine.setRiskModule(singleDebtPositionImpl.TYPE(), address(singleDebtRiskModule));
 
         // deploy lens contracts
         superPoolLens = new SuperPoolLens();

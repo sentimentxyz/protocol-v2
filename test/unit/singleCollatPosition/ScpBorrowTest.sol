@@ -9,14 +9,14 @@ import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {FixedRateModel} from "src/irm/FixedRateModel.sol";
 import {PoolFactory, PoolDeployParams} from "src/PoolFactory.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
-import {SingleCollatPosition} from "src/position/SingleCollatPosition.sol";
+import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
 import {PositionManager, Operation, Action} from "src/PositionManager.sol";
 
 contract ScpBorrowTest is BaseTest {
     Pool pool;
     RiskEngine riskEngine;
     PoolFactory poolFactory;
-    SingleCollatPosition position;
+    SingleAssetPosition position;
     PortfolioLens portfolioLens;
     PositionManager positionManager;
 
@@ -27,7 +27,7 @@ contract ScpBorrowTest is BaseTest {
         poolFactory = deploy.poolFactory();
         portfolioLens = deploy.portfolioLens();
         positionManager = deploy.positionManager();
-        position = SingleCollatPosition(_deployPosition());
+        position = SingleAssetPosition(_deployPosition());
         riskEngine = deploy.riskEngine();
         erc20Collat = new MintableToken();
 
@@ -127,7 +127,7 @@ contract ScpBorrowTest is BaseTest {
 
     function _deployPosition() internal returns (address) {
         uint256 POSITION_TYPE = 0x2;
-        bytes32 salt = "SingleCollatPosition";
+        bytes32 salt = "SingleAssetPosition";
         bytes memory data = abi.encode(address(this), POSITION_TYPE, salt);
         address positionAddress = portfolioLens.predictAddress(POSITION_TYPE, salt);
 

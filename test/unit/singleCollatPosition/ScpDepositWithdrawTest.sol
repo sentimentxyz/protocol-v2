@@ -3,11 +3,11 @@ pragma solidity ^0.8.24;
 
 import {BaseTest, MintableToken} from "../BaseTest.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
-import {SingleCollatPosition} from "src/position/SingleCollatPosition.sol";
+import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
 import {PositionManager, Operation, Action} from "src/PositionManager.sol";
 
 contract ScpDepositWithdrawTest is BaseTest {
-    SingleCollatPosition position;
+    SingleAssetPosition position;
     PortfolioLens portfolioLens;
     PositionManager positionManager;
 
@@ -17,7 +17,7 @@ contract ScpDepositWithdrawTest is BaseTest {
         super.setUp();
         portfolioLens = deploy.portfolioLens();
         positionManager = deploy.positionManager();
-        position = SingleCollatPosition(_deployPosition());
+        position = SingleAssetPosition(_deployPosition());
 
         erc201 = new MintableToken();
 
@@ -26,8 +26,8 @@ contract ScpDepositWithdrawTest is BaseTest {
 
     function testPositionSanityCheck() public {
         assertEq(position.TYPE(), 0x2);
-        assertEq(position.getAssets()[0], address(0));
-        assertEq(position.getDebtPools(), new address[](0));
+        assertEq(position.getAssets().length, 0);
+        assertEq(position.getDebtPools().length, 0);
         assertEq(address(positionManager), position.positionManager());
         assertEq(positionManager.ownerOf(address(position)), address(this));
     }
@@ -118,7 +118,7 @@ contract ScpDepositWithdrawTest is BaseTest {
 
     function _deployPosition() internal returns (address) {
         uint256 POSITION_TYPE = 0x2;
-        bytes32 salt = "SingleCollatPosition";
+        bytes32 salt = "SingleAssetPosition";
         bytes memory data = abi.encode(address(this), POSITION_TYPE, salt);
         address positionAddress = portfolioLens.predictAddress(POSITION_TYPE, salt);
 

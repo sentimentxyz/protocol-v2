@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 // types
-import {IOracle} from "../interfaces/IOracle.sol";
+import {IOracle} from "../interface/IOracle.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";

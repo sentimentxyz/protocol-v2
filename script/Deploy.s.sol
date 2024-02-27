@@ -11,8 +11,8 @@ import {PositionManager} from "src/PositionManager.sol";
 import {OWNER} from "./Constants.sol";
 
 // position impls
-import {SingleCollatPosition} from "src/positions/SingleCollatPosition.sol";
-import {SingleDebtPosition} from "src/positions/SingleDebtPosition.sol";
+import {SingleCollatPosition} from "src/position/SingleCollatPosition.sol";
+import {SingleDebtPosition} from "src/position/SingleDebtPosition.sol";
 
 // healtcheck impls
 import {SingleCollatHealthCheck} from "src/healthcheck/SingleCollatHealthCheck.sol";

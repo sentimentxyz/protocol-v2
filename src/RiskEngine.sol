@@ -7,9 +7,9 @@ pragma solidity ^0.8.24;
 
 // types
 import {Pool} from "./Pool.sol";
-import {IPosition} from "./interfaces/IPosition.sol";
+import {IPosition} from "./interface/IPosition.sol";
 import {DebtData, AssetData} from "./PositionManager.sol";
-import {IHealthCheck} from "./interfaces/IHealthCheck.sol";
+import {IRiskModule} from "./interface/IRiskModule.sol";
 // libraries
 import {Errors} from "src/lib/Errors.sol";
 // contracts
@@ -43,7 +43,7 @@ contract RiskEngine is OwnableUpgradeable {
 
     // each position type implements its own health check
     /// @notice fetch the health check implementations for each position type
-    mapping(uint256 positionType => address healthCheckImpl) public healthCheckFor;
+    mapping(uint256 positionType => address riskModule) public riskModuleFor;
 
     // pool managers are free to choose LTVs for pool they own
     /// @notice fetch the ltv for a given asset in a pool
@@ -74,10 +74,10 @@ contract RiskEngine is OwnableUpgradeable {
     /// @notice check if a position is healthy
     /// @param position the position to check
     function isPositionHealthy(address position) external view returns (bool) {
-        if (healthCheckFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.MissingRiskModule();
 
         // call health check implementation based on position type
-        return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isPositionHealthy(position);
+        return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).isPositionHealthy(position);
     }
 
     function isValidLiquidation(address position, DebtData[] calldata debt, AssetData[] calldata collat)
@@ -85,12 +85,18 @@ contract RiskEngine is OwnableUpgradeable {
         view
         returns (bool)
     {
-        if (healthCheckFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.MissingRiskModule();
 
         // call health check implementation based on position type
-        return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isValidLiquidation(
+        return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).isValidLiquidation(
             position, debt, collat, liqudiationDiscount
         );
+    }
+
+    function getRiskData(address position) external view returns (uint256, uint256, uint256) {
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.MissingRiskModule();
+
+        return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).getRiskData(position);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -142,9 +148,9 @@ contract RiskEngine is OwnableUpgradeable {
     /// @notice set the health check implementation for a given position type
     /// @dev only callable by RiskEngine owner
     /// @param positionType the type of position
-    /// @param healthCheckImpl the address of the health check implementation
-    function setHealthCheck(uint256 positionType, address healthCheckImpl) external onlyOwner {
-        healthCheckFor[positionType] = healthCheckImpl;
+    /// @param riskModule the address of the risk module implementation
+    function setRiskModule(uint256 positionType, address riskModule) external onlyOwner {
+        riskModuleFor[positionType] = riskModule;
     }
 
     /// @notice toggle whether a given oracle is recognized by the protocol

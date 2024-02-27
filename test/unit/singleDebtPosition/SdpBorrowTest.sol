@@ -77,9 +77,7 @@ contract SdpBorrowTest is BaseTest {
         _borrow(1e18); // 2 eth
         _repay(1e18); // 2 eth
         assertEq(pool.getBorrowsOf(address(position)), 0);
-        address[] memory debtPools = position.getDebtPools();
-        assertEq(debtPools.length, 1);
-        assertEq(debtPools[0], address(0));
+        assertEq(position.getDebtPools().length, 0);
     }
 
     function testRepayMultiple() public {
@@ -88,9 +86,7 @@ contract SdpBorrowTest is BaseTest {
         _repay(5e17); // 1 eth
         _repay(5e17); // 1 eth
         assertEq(pool.getBorrowsOf(address(position)), 0);
-        address[] memory debtPools = position.getDebtPools();
-        assertEq(debtPools.length, 1);
-        assertEq(debtPools[0], address(0));
+        assertEq(position.getDebtPools().length, 0);
     }
 
     function _deposit(uint256 amt) internal {

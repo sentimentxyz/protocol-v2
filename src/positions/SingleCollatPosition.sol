@@ -87,13 +87,6 @@ contract SingleCollatPosition is BasePosition {
         IERC20(Pool(pool).asset()).safeTransfer(pool, amt);
     }
 
-    // intereact with external contracts and arbitrary calldata
-    // assume any target and calldata validation is done by the position manager
-    function exec(address target, bytes calldata data) external override onlyPositionManager {
-        (bool success,) = target.call(data);
-        if (!success) revert Errors.InvalidOperation();
-    }
-
     // register a new asset to be used collateral in the position
     // must no-op if asset is already being used as collateral
     // must implement any position specifc validation

@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import {BaseTest, MintableToken} from "../BaseTest.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
-import {SingleCollatPosition} from "src/positions/SingleCollatPosition.sol";
+import {SingleCollatPosition} from "src/position/SingleCollatPosition.sol";
 import {PositionManager, Operation, Action} from "src/PositionManager.sol";
 
 contract ScpDepositWithdrawTest is BaseTest {

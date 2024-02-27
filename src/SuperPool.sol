@@ -211,25 +211,23 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         uint256 balance = IERC20(asset()).balanceOf(address(this));
 
         // no need to withdraw from pools if the superpool has enough to meet the withdrawal
-        // TODO refactor if-else
-        if (balance > assets) {
-            return;
-        } else {
+        if (balance < assets) {
             // fetch amount diff that needs to be withdrawn from pools to meet withdrawal
             uint256 diff = assets - balance;
 
             for (uint256 i; i < path.length; i++) {
                 // if we covering the rest of the funds from this last pool
                 if (path[i] < diff) {
-                    diff -= path[i];
                     _poolWithdraw(IERC4626(poolCaps.getByIdx(i)), path[i]);
+                    diff -= path[i];
                 } else {
                     _poolWithdraw(IERC4626(poolCaps.getByIdx(i)), diff);
+                    diff = 0;
                     break;
                 }
             }
 
-            // TODO revert if diff is still > 0
+            if (diff > 0) revert Errors.InsufficientWithdrawPath();
         }
     }
 

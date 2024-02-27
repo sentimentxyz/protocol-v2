@@ -61,11 +61,10 @@ contract RiskEngine is OwnableUpgradeable {
         _disableInitializers();
     }
 
-    function initialize() public initializer {
+    function initialize(uint256 _minLtv, uint256 _maxLtv) public initializer {
         OwnableUpgradeable.__Ownable_init(msg.sender);
-        // TODO pass as params
-        minLtv = type(uint256).min;
-        maxLtv = type(uint256).max;
+        minLtv = _minLtv;
+        maxLtv = _maxLtv;
     }
 
     /*//////////////////////////////////////////////////////////////

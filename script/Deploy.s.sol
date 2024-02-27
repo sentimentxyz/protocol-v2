@@ -63,7 +63,7 @@ contract Deploy is Script {
         riskEngineImpl = new RiskEngine();
         TransparentUpgradeableProxy proxy2 = new TransparentUpgradeableProxy(address(riskEngineImpl), owner, "");
         riskEngine = RiskEngine(payable(address(proxy2)));
-        riskEngine.initialize();
+        riskEngine.initialize(type(uint256).min, type(uint256).max);
 
         // deploy pool impl and factory
         poolImplementation = new Pool(address(positionManager));

@@ -52,7 +52,8 @@ library Errors {
     // [IHealthCheck.isValidLiquidation] liquidation violates close factor by repaying too much debt
     error RepaidTooMuchDebt();
 
-    // TODO remove
+    // [PositionManager.liquidate] invalid liquidation params caused IHealthCheck.isValidLiquidation
+    // to return false
     error InvalidLiquidation();
 
     // [PositionManager.newPosition] missing upgradeable beacon config for given position type
@@ -81,4 +82,7 @@ library Errors {
 
     // [RiskEngine.setLtv] only pool owners can call this function
     error onlyPoolOwner();
+
+    // [SuperPool._withdrawWithPath] given path does not have sufficient funds to fullfill withdrawal
+    error InsufficientWithdrawPath();
 }

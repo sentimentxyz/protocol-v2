@@ -54,12 +54,14 @@ contract SingleDebtHealthCheck is IHealthCheck {
         // fetch the debt asset
         // since single debt positions can only have one debt asset
         // only read the first element of the array and ignore the rest
-        address pool = IPosition(position).getDebtPools()[0];
+        address[] memory debtPools = IPosition(position).getDebtPools();
 
         // there is no debt pool and therefore no debt
-        if (pool == address(0)) {
+        if (debtPools.length == 0) {
             return true;
         }
+
+        address pool = debtPools[0];
 
         // fetch list of assets for given position
         address[] memory assets = IPosition(position).getAssets();

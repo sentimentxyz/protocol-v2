@@ -55,7 +55,7 @@ contract SingleAssetPosition is BasePosition {
     // return value will always be a singleton array since there's only one
     // collateral asset registered by the position at a given point in time
     function getAssets() external view override returns (address[] memory) {
-        // if (positionAsset == address(0)) return new address[](0);
+        if (positionAsset == address(0)) return new address[](0);
 
         // positionAsset is the only asset to be returned
         address[] memory assets = new address[](1);

@@ -29,8 +29,7 @@ contract SdpDepositWithdrawTest is BaseTest {
 
     function testPositionSanityCheck() public {
         assertEq(position.TYPE(), 0x1);
-        assertEq(position.getAssets(), new address[](0));
-        assertEq(position.getDebtPools()[0], address(0));
+        assertEq(position.getAssets().length, 0);
         assertEq(address(positionManager), position.positionManager());
         assertEq(positionManager.ownerOf(address(position)), address(this));
     }

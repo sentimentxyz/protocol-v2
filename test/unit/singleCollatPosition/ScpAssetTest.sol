@@ -85,8 +85,7 @@ contract ScpAssetTest is BaseTest {
 
         positionManager.processBatch(address(position), actions);
         address[] memory assets = position.getAssets();
-        assertEq(assets.length, 1);
-        assertEq(assets[0], address(0));
+        assertEq(assets.length, 0);
     }
 
     function testRemoveAssetTwice(uint256 amt) public {
@@ -96,8 +95,7 @@ contract ScpAssetTest is BaseTest {
         actions[0] = action;
         positionManager.processBatch(address(position), actions);
         address[] memory assets = position.getAssets();
-        assertEq(assets.length, 1);
-        assertEq(assets[0], address(0));
+        assertEq(assets.length, 0);
     }
 
     function _deployPosition() internal returns (address) {

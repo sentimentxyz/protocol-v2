@@ -26,8 +26,8 @@ contract ScpDepositWithdrawTest is BaseTest {
 
     function testPositionSanityCheck() public {
         assertEq(position.TYPE(), 0x2);
-        assertEq(position.getAssets()[0], address(0));
-        assertEq(position.getDebtPools(), new address[](0));
+        assertEq(position.getAssets().length, 0);
+        assertEq(position.getDebtPools().length, 0);
         assertEq(address(positionManager), position.positionManager());
         assertEq(positionManager.ownerOf(address(position)), address(this));
     }

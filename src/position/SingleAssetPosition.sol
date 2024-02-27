@@ -16,7 +16,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {BasePosition} from "./BasePosition.sol";
 
 /*//////////////////////////////////////////////////////////////
-                        SingleCollatPosition
+                        SingleAssetPosition
 //////////////////////////////////////////////////////////////*/
 
 // TYPE -- 0x2
@@ -25,7 +25,7 @@ import {BasePosition} from "./BasePosition.sol";
 // these debt pools may have different debt assets
 // the borrower is only allowed to use one type of collateral asset at a given time
 // implicitly, all debt pools must support the position asset as collateral
-contract SingleCollatPosition is BasePosition {
+contract SingleAssetPosition is BasePosition {
     using SafeERC20 for IERC20;
     using IterableSet for IterableSet.IterableSetStorage;
 
@@ -55,6 +55,8 @@ contract SingleCollatPosition is BasePosition {
     // return value will always be a singleton array since there's only one
     // collateral asset registered by the position at a given point in time
     function getAssets() external view override returns (address[] memory) {
+        // if (positionAsset == address(0)) return new address[](0);
+
         // positionAsset is the only asset to be returned
         address[] memory assets = new address[](1);
         assets[0] = positionAsset;

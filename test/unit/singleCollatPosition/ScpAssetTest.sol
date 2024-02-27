@@ -5,11 +5,11 @@ import {BaseTest, MintableToken} from "../BaseTest.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 import {PositionManager, Operation, Action} from "src/PositionManager.sol";
-import {SingleCollatPosition} from "src/position/SingleCollatPosition.sol";
+import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
 
 contract ScpAssetTest is BaseTest {
     PortfolioLens portfolioLens;
-    SingleCollatPosition position;
+    SingleAssetPosition position;
     PositionManager positionManager;
 
     MintableToken erc201;
@@ -19,7 +19,7 @@ contract ScpAssetTest is BaseTest {
 
         portfolioLens = deploy.portfolioLens();
         positionManager = deploy.positionManager();
-        position = SingleCollatPosition(_deployPosition());
+        position = SingleAssetPosition(_deployPosition());
 
         erc201 = new MintableToken();
 
@@ -102,7 +102,7 @@ contract ScpAssetTest is BaseTest {
 
     function _deployPosition() internal returns (address) {
         uint256 POSITION_TYPE = 0x2;
-        bytes32 salt = "SingleCollatPosition";
+        bytes32 salt = "SingleAssetPosition";
         bytes memory data = abi.encode(address(this), POSITION_TYPE, salt);
         address positionAddress = portfolioLens.predictAddress(POSITION_TYPE, salt);
 

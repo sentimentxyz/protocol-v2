@@ -11,7 +11,7 @@ import {PositionManager} from "src/PositionManager.sol";
 import {OWNER} from "./Constants.sol";
 
 // position impls
-import {SingleCollatPosition} from "src/position/SingleCollatPosition.sol";
+import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
 import {SingleDebtPosition} from "src/position/SingleDebtPosition.sol";
 
 // healtcheck impls
@@ -35,13 +35,13 @@ contract Deploy is Script {
 
     // beacon contracts
     UpgradeableBeacon public singleDebtPositionBeacon;
-    UpgradeableBeacon public singleCollatPositionBeacon;
+    UpgradeableBeacon public singleAssetPositionBeacon;
 
     // implementation contracts
     RiskEngine public riskEngineImpl;
     PositionManager public positionManagerImpl;
     SingleDebtPosition public singleDebtPositionImpl;
-    SingleCollatPosition public singleCollatPositionImpl;
+    SingleAssetPosition public singleAssetPositionImpl;
 
     // lens contracts
     SuperPoolLens public superPoolLens;
@@ -74,14 +74,14 @@ contract Deploy is Script {
         singleDebtHealthCheck = new SingleDebtHealthCheck(address(riskEngine));
 
         // deploy positions and setup becaons
-        singleCollatPositionImpl = new SingleCollatPosition(address(positionManager));
+        singleAssetPositionImpl = new SingleAssetPosition(address(positionManager));
         singleDebtPositionImpl = new SingleDebtPosition(address(positionManager));
-        singleCollatPositionBeacon = new UpgradeableBeacon(address(singleCollatPositionImpl), owner);
+        singleAssetPositionBeacon = new UpgradeableBeacon(address(singleAssetPositionImpl), owner);
         singleDebtPositionBeacon = new UpgradeableBeacon(address(singleDebtPositionImpl), owner);
 
         // set up position manager
         positionManager.setBeacon(singleDebtPositionImpl.TYPE(), address(singleDebtPositionBeacon));
-        positionManager.setBeacon(singleCollatPositionImpl.TYPE(), address(singleCollatPositionBeacon));
+        positionManager.setBeacon(singleAssetPositionImpl.TYPE(), address(singleAssetPositionBeacon));
         positionManager.setRiskEngine(address(riskEngine));
         positionManager.setPoolFactory(address(poolFactory));
 

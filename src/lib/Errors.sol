@@ -82,4 +82,7 @@ library Errors {
 
     // [RiskEngine.setLtv] only pool owners can call this function
     error onlyPoolOwner();
+
+    // [SuperPool._withdrawWithPath] given path does not have sufficient funds to fullfill withdrawal
+    error InsufficientWithdrawPath();
 }

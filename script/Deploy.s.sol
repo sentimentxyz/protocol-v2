@@ -15,8 +15,8 @@ import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
 import {SingleDebtPosition} from "src/position/SingleDebtPosition.sol";
 
 // healtcheck impls
-import {SingleCollatHealthCheck} from "src/healthcheck/SingleCollatHealthCheck.sol";
-import {SingleDebtHealthCheck} from "src/healthcheck/SingleDebtHealthCheck.sol";
+import {SingleAssetRiskModule} from "src/risk/SingleAssetRiskModule.sol";
+import {SingleDebtRiskModule} from "src/risk/SingleDebtRiskModule.sol";
 
 // lens contracts
 import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
@@ -25,8 +25,8 @@ import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 contract Deploy is Script {
     // standard contracts
     PoolFactory public poolFactory;
-    SingleDebtHealthCheck public singleDebtHealthCheck;
-    SingleCollatHealthCheck public singleCollatHealthCheck;
+    SingleDebtRiskModule public singleDebtRiskModule;
+    SingleAssetRiskModule public singleAssetRiskModule;
 
     // transparent erc1967 proxies
     RiskEngine public riskEngine;
@@ -70,8 +70,8 @@ contract Deploy is Script {
         poolFactory = new PoolFactory(address(poolImplementation));
 
         // deploy health checks
-        singleCollatHealthCheck = new SingleCollatHealthCheck(address(riskEngine));
-        singleDebtHealthCheck = new SingleDebtHealthCheck(address(riskEngine));
+        singleAssetRiskModule = new SingleAssetRiskModule(address(riskEngine));
+        singleDebtRiskModule = new SingleDebtRiskModule(address(riskEngine));
 
         // deploy positions and setup becaons
         singleAssetPositionImpl = new SingleAssetPosition(address(positionManager));
@@ -86,8 +86,8 @@ contract Deploy is Script {
         positionManager.setPoolFactory(address(poolFactory));
 
         // set up risk engine
-        riskEngine.setHealthCheck(singleCollatHealthCheck.TYPE(), address(singleCollatHealthCheck));
-        riskEngine.setHealthCheck(singleDebtHealthCheck.TYPE(), address(singleDebtHealthCheck));
+        riskEngine.setRiskModule(singleAssetPositionImpl.TYPE(), address(singleAssetRiskModule));
+        riskEngine.setRiskModule(singleDebtPositionImpl.TYPE(), address(singleDebtRiskModule));
 
         // deploy lens contracts
         superPoolLens = new SuperPoolLens();

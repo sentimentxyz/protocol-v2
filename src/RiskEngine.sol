@@ -43,7 +43,7 @@ contract RiskEngine is OwnableUpgradeable {
 
     // each position type implements its own health check
     /// @notice fetch the health check implementations for each position type
-    mapping(uint256 positionType => address healthCheckImpl) public healthCheckFor;
+    mapping(uint256 positionType => address riskModule) public riskModuleFor;
 
     // pool managers are free to choose LTVs for pool they own
     /// @notice fetch the ltv for a given asset in a pool
@@ -74,10 +74,10 @@ contract RiskEngine is OwnableUpgradeable {
     /// @notice check if a position is healthy
     /// @param position the position to check
     function isPositionHealthy(address position) external view returns (bool) {
-        if (healthCheckFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
 
         // call health check implementation based on position type
-        return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isPositionHealthy(position);
+        return IHealthCheck(riskModuleFor[IPosition(position).TYPE()]).isPositionHealthy(position);
     }
 
     function isValidLiquidation(address position, DebtData[] calldata debt, AssetData[] calldata collat)
@@ -85,10 +85,10 @@ contract RiskEngine is OwnableUpgradeable {
         view
         returns (bool)
     {
-        if (healthCheckFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
 
         // call health check implementation based on position type
-        return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isValidLiquidation(
+        return IHealthCheck(riskModuleFor[IPosition(position).TYPE()]).isValidLiquidation(
             position, debt, collat, liqudiationDiscount
         );
     }
@@ -142,9 +142,9 @@ contract RiskEngine is OwnableUpgradeable {
     /// @notice set the health check implementation for a given position type
     /// @dev only callable by RiskEngine owner
     /// @param positionType the type of position
-    /// @param healthCheckImpl the address of the health check implementation
-    function setHealthCheck(uint256 positionType, address healthCheckImpl) external onlyOwner {
-        healthCheckFor[positionType] = healthCheckImpl;
+    /// @param riskModule the address of the risk module implementation
+    function setRiskModule(uint256 positionType, address riskModule) external onlyOwner {
+        riskModuleFor[positionType] = riskModule;
     }
 
     /// @notice toggle whether a given oracle is recognized by the protocol

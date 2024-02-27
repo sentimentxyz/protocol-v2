@@ -24,7 +24,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //////////////////////////////////////////////////////////////*/
 
 // TYPE == 0x2
-contract SingleAssetRisk is IRiskModule {
+contract SingleAssetRiskModule is IRiskModule {
     using Math for uint256;
     using IterableSet for IterableSet.IterableSetStorage;
 

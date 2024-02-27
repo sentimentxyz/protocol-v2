@@ -33,16 +33,17 @@ contract PositionManagerTest is BaseTest {
         // todo!
     }
 
-    function testCantCallNonAuthorizedFunctions(address nonAuthedTarget) public {
-        vm.assume(nonAuthedTarget != address(0));
+    function testCantCallNonAuthorizedFunctions() public {
+        address nonAuthedTarget = address(69);
 
         uint256 typee = 1;
         bytes32 salt = keccak256("testCantCallNonAuthorizedFunctions");
 
         address position = _deployPosition(typee, salt, address(this));
+        bytes memory callData = hex"1234567890abcdef";
+        bytes memory data = abi.encodePacked(nonAuthedTarget, callData);
 
-        Action memory action =
-            Action({op: Operation.Exec, target: nonAuthedTarget, data: abi.encodePacked(bytes4(0x12345678))});
+        Action memory action = Action({op: Operation.Exec, data: data});
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -50,11 +51,11 @@ contract PositionManagerTest is BaseTest {
         // we shouldnt be able to call this function yet
         PositionManager _manager = deploy.positionManager();
         vm.expectRevert();
-        _manager.process(position, actions);
+        _manager.processBatch(position, actions);
 
         // toggling it should allow us to call them
-        _manager.toggleKnownFunc(nonAuthedTarget, bytes4(0x12345678));
-        _manager.process(position, actions);
+        _manager.toggleKnownFunc(nonAuthedTarget, bytes4(callData));
+        _manager.processBatch(position, actions);
     }
 
     function testCantApproveNonAuthorizedAddress() public {
@@ -65,7 +66,7 @@ contract PositionManagerTest is BaseTest {
         address position = _deployPosition(typee, salt, address(this));
 
         Action memory action =
-            Action({op: Operation.Approve, target: nonAuthedTarget, data: abi.encode(address(mockToken), uint256(100))});
+            Action({op: Operation.Approve, data: abi.encode(nonAuthedTarget, address(mockToken), uint256(100))});
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -73,11 +74,11 @@ contract PositionManagerTest is BaseTest {
         // we shouldnt be able to call this function yet
         PositionManager _manager = deploy.positionManager();
         vm.expectRevert();
-        _manager.process(position, actions);
+        _manager.processBatch(position, actions);
 
         // toggling it should allow us to call them
         _manager.toggleKnownContract(address(mockToken));
-        _manager.process(position, actions);
+        _manager.processBatch(position, actions);
     }
 
     function testAuthPositionAllowsCaller() public {
@@ -93,12 +94,12 @@ contract PositionManagerTest is BaseTest {
         PositionManager _manager = deploy.positionManager();
 
         vm.expectRevert();
-        _manager.process(position, depositActionFromThis(address(mockToken), 100));
+        _manager.processBatch(position, depositActionFromThis(address(mockToken), 100));
 
         vm.prank(owner);
         _manager.toggleAuth(address(this), position);
 
-        _manager.process(position, depositActionFromThis(address(mockToken), 100));
+        _manager.processBatch(position, depositActionFromThis(address(mockToken), 100));
     }
 
     function testNonAuthCantCallPositionProcess() public {
@@ -114,7 +115,7 @@ contract PositionManagerTest is BaseTest {
         PositionManager _manager = deploy.positionManager();
 
         vm.expectRevert(Errors.Unauthorized.selector);
-        _manager.process(position, depositActionFromThis(address(mockToken), 100));
+        _manager.processBatch(position, depositActionFromThis(address(mockToken), 100));
     }
 
     function testCanCreatePositionType1() public {
@@ -166,22 +167,22 @@ contract PositionManagerTest is BaseTest {
     function _deployPosition(uint256 typee, bytes32 salt, address owner) internal returns (address) {
         address predicted = predictAddress(typee, salt);
 
-        Action memory action = Action({op: Operation.NewPosition, target: owner, data: abi.encode(typee, salt)});
+        Action memory action = Action({op: Operation.NewPosition, data: abi.encode(owner, typee, salt)});
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        deploy.positionManager().process(predicted, actions);
+        deploy.positionManager().processBatch(predicted, actions);
 
         return predicted;
     }
 
     function predictAddress(uint256 typee, bytes32 salt) internal view returns (address) {
-        return deploy.positionManager().predictAddress(typee, salt);
+        return deploy.portfolioLens().predictAddress(typee, salt);
     }
 
     function depositActionFromThis(address token, uint256 amt) internal view returns (Action[] memory) {
-        Action memory action = Action({op: Operation.Deposit, target: address(this), data: abi.encode(token, amt)});
+        Action memory action = Action({op: Operation.Deposit, data: abi.encode(address(this), token, amt)});
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;

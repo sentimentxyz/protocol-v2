@@ -9,7 +9,7 @@ pragma solidity ^0.8.24;
 import {Pool} from "./Pool.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
 import {DebtData, AssetData} from "./PositionManager.sol";
-import {IHealthCheck} from "./interfaces/IHealthCheck.sol";
+import {IRiskModule} from "./interfaces/IRiskModule.sol";
 // libraries
 import {Errors} from "src/lib/Errors.sol";
 // contracts
@@ -77,7 +77,7 @@ contract RiskEngine is OwnableUpgradeable {
         if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
 
         // call health check implementation based on position type
-        return IHealthCheck(riskModuleFor[IPosition(position).TYPE()]).isPositionHealthy(position);
+        return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).isPositionHealthy(position);
     }
 
     function isValidLiquidation(address position, DebtData[] calldata debt, AssetData[] calldata collat)
@@ -88,9 +88,15 @@ contract RiskEngine is OwnableUpgradeable {
         if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
 
         // call health check implementation based on position type
-        return IHealthCheck(riskModuleFor[IPosition(position).TYPE()]).isValidLiquidation(
+        return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).isValidLiquidation(
             position, debt, collat, liqudiationDiscount
         );
+    }
+
+    function getRiskData(address position) external view returns (uint256, uint256, uint256) {
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
+
+        return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).getRiskData(position);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -12,7 +12,6 @@ import {IOracle} from "../interfaces/IOracle.sol";
 import {IPosition} from "../interfaces/IPosition.sol";
 import {DebtData, AssetData} from "../PositionManager.sol";
 import {IRiskModule} from "../interfaces/IRiskModule.sol";
-import {IHealthCheck} from "../interfaces/IHealthCheck.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
 import {Errors} from "../lib/Errors.sol";

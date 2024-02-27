@@ -9,7 +9,7 @@ import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {FixedRateModel} from "src/irm/FixedRateModel.sol";
 import {PoolFactory, PoolDeployParams} from "src/PoolFactory.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
-import {SingleDebtPosition} from "src/positions/SingleDebtPosition.sol";
+import {SingleDebtPosition} from "src/position/SingleDebtPosition.sol";
 import {PositionManager, Operation, Action} from "src/PositionManager.sol";
 
 contract SdpBorrowTest is BaseTest {

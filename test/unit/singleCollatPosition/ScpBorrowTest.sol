@@ -9,7 +9,7 @@ import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {FixedRateModel} from "src/irm/FixedRateModel.sol";
 import {PoolFactory, PoolDeployParams} from "src/PoolFactory.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
-import {SingleCollatPosition} from "src/positions/SingleCollatPosition.sol";
+import {SingleCollatPosition} from "src/position/SingleCollatPosition.sol";
 import {PositionManager, Operation, Action} from "src/PositionManager.sol";
 
 contract ScpBorrowTest is BaseTest {

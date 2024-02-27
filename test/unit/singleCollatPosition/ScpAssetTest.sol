@@ -5,7 +5,7 @@ import {BaseTest, MintableToken} from "../BaseTest.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 import {PositionManager, Operation, Action} from "src/PositionManager.sol";
-import {SingleCollatPosition} from "src/positions/SingleCollatPosition.sol";
+import {SingleCollatPosition} from "src/position/SingleCollatPosition.sol";
 
 contract ScpAssetTest is BaseTest {
     PortfolioLens portfolioLens;

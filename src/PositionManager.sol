@@ -364,7 +364,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
         // verify that the liquidator seized by the liquidator is within bounds of the max
         // liquidation discount.
-        // TODO refactor to throw internal errors
         if (!riskEngine.isValidLiquidation(position, debt, collat)) revert Errors.InvalidLiquidation();
 
         // sequentially repay position debts

@@ -19,7 +19,7 @@ import {IterableSet} from "../lib/IterableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /*//////////////////////////////////////////////////////////////
-                    SingleCollatHealthCheck
+                    Single Asset Risk Module
 //////////////////////////////////////////////////////////////*/
 
 // TYPE == 0x2

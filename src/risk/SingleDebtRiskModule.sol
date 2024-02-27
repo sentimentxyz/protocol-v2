@@ -18,7 +18,7 @@ import {Errors} from "../lib/Errors.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /*//////////////////////////////////////////////////////////////
-                    SingleDebtHealthCheck
+                    Single Debt Risk Module
 //////////////////////////////////////////////////////////////*/
 
 // TYPE == 0x1

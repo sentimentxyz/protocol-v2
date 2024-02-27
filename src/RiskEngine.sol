@@ -74,7 +74,7 @@ contract RiskEngine is OwnableUpgradeable {
     /// @notice check if a position is healthy
     /// @param position the position to check
     function isPositionHealthy(address position) external view returns (bool) {
-        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.MissingRiskModule();
 
         // call health check implementation based on position type
         return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).isPositionHealthy(position);
@@ -85,7 +85,7 @@ contract RiskEngine is OwnableUpgradeable {
         view
         returns (bool)
     {
-        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.MissingRiskModule();
 
         // call health check implementation based on position type
         return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).isValidLiquidation(
@@ -94,7 +94,7 @@ contract RiskEngine is OwnableUpgradeable {
     }
 
     function getRiskData(address position) external view returns (uint256, uint256, uint256) {
-        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.MissingRiskModule();
 
         return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).getRiskData(position);
     }

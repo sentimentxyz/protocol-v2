@@ -14,6 +14,7 @@ import {DebtData, AssetData} from "../PositionManager.sol";
 import {IHealthCheck} from "../interfaces/IHealthCheck.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
+import {Errors} from "../lib/Errors.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -131,8 +132,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
         uint256 totalDebtInWei =
             getDebtValueInWei(debt[0].pool, debt[0].asset, Pool(debt[0].pool).getBorrowsOf(position));
 
-        // TODO custom error
-        if (debtInWei > totalDebtInWei.mulDiv(riskEngine.closeFactor(), 1e18)) revert();
+        if (debtInWei > totalDebtInWei.mulDiv(riskEngine.closeFactor(), 1e18)) revert Errors.RepaidTooMuchDebt();
 
         // fetch the debt pool. since single debt positions can only have one debt pool, only read
         // the first element of the array and ignore the rest
@@ -144,8 +144,7 @@ contract SingleDebtHealthCheck is IHealthCheck {
             collatInWei += getCollatValueInWei(pool, collat[i].asset, collat[i].amt);
         }
 
-        // TODO add custom error
-        if (collatInWei > debtInWei.mulDiv((1e18 + liquidationDiscount), 1e18)) revert();
+        if (collatInWei > debtInWei.mulDiv((1e18 + liquidationDiscount), 1e18)) revert Errors.SeizedTooMuchCollateral();
 
         return true;
     }

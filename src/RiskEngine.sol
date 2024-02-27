@@ -75,7 +75,7 @@ contract RiskEngine is OwnableUpgradeable {
     /// @notice check if a position is healthy
     /// @param position the position to check
     function isPositionHealthy(address position) external view returns (bool) {
-        if (healthCheckFor[IPosition(position).TYPE()] == address(0)) revert Errors.HealthCheckImplNotFound();
+        if (healthCheckFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
 
         // call health check implementation based on position type
         return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isPositionHealthy(position);
@@ -86,7 +86,7 @@ contract RiskEngine is OwnableUpgradeable {
         view
         returns (bool)
     {
-        // TODO add custom error if health check impl does not exist
+        if (healthCheckFor[IPosition(position).TYPE()] == address(0)) revert Errors.NoHealthCheckImpl();
 
         // call health check implementation based on position type
         return IHealthCheck(healthCheckFor[IPosition(position).TYPE()]).isValidLiquidation(
@@ -104,7 +104,7 @@ contract RiskEngine is OwnableUpgradeable {
     function setLtv(address pool, address asset, uint256 ltv) external {
         // only pool owners are allowed to set ltv
         if (msg.sender != Pool(pool).owner()) revert Errors.Unauthorized();
-        if (ltv < minLtv || ltv > maxLtv || ltv == 0) revert Errors.Unauthorized(); // TODO custom error
+        if (ltv < minLtv || ltv > maxLtv || ltv == 0) revert Errors.OutsideGlobalLtvLimits();
 
         // update asset ltv for the given pool
         ltvFor[pool][asset] = ltv;

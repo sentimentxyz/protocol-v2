@@ -75,7 +75,7 @@ contract SingleDebtPosition is BasePosition {
         if (debtPool == address(0)) {
             debtPool = pool;
         } else if (pool != debtPool) {
-            revert Errors.InvalidOperation();
+            revert Errors.InvalidBorrow();
         }
     }
 
@@ -83,7 +83,7 @@ contract SingleDebtPosition is BasePosition {
     // must be followed by Pool.repay() to trigger debt repayment
     // must implement repay validation, if any
     function repay(address pool, uint256 amt) external override onlyPositionManager {
-        if (pool != debtPool) revert Errors.InvalidOperation();
+        if (pool != debtPool) revert Errors.InvalidRepay();
         if (Pool(pool).getBorrowsOf(address(this)) == amt) {
             debtPool = address(0);
         }

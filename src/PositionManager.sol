@@ -163,7 +163,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     function toggleAuth(address user, address position) external {
         // only account owners are allowed to modify authorizations
         // disables transitive auth operations
-        if (msg.sender != ownerOf[position]) revert Errors.Unauthorized();
+        if (msg.sender != ownerOf[position]) revert Errors.OnlyPositionOwner();
 
         // update authz status in storage
         isAuth[position][user] = !isAuth[position][user];
@@ -220,12 +220,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         } else if (action.op == Operation.RemoveAsset) {
             removeAsset(position, action.data);
         } else {
-            revert Errors.InvalidOperation();
+            revert Errors.UnknownOperation();
         }
     }
 
     /// @dev deterministically deploy a new beacon proxy representin a position
     /// @dev the target field in the action is the new owner of the position
+    // TODO rename to newPosition
     function deployPosition(address position, bytes calldata data) internal whenNotPaused {
         // positionType -> position type of new position to be deployed
         // owner -> owner to create the position on behalf of
@@ -244,7 +245,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // owner is authzd by default
         isAuth[newPosition][owner] = true;
 
-        if (newPosition != position) revert Errors.InvalidOperation();
+        if (newPosition != position) revert Errors.PositionAddressMismatch();
 
         emit PositionDeployed(position, msg.sender, owner);
     }
@@ -254,7 +255,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // target -> first 20 bytes, contract address to be called by the position
         // callData -> rest of the data, calldata to be executed on target
         address target = address(bytes20(data[:20]));
-        if (!isKnownFunc[target][bytes4(data[20:24])]) revert Errors.InvalidOperation();
+        if (!isKnownFunc[target][bytes4(data[20:24])]) revert Errors.UnknownExecCall();
         IPosition(position).exec(target, data[20:]);
 
         emit Exec(position, msg.sender, target, bytes4(data[20:24]));
@@ -319,7 +320,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         (address pool, uint256 amt) = abi.decode(data, (address, uint256));
 
         // revert if the given pool was not deployed by the protocol pool factory
-        if (poolFactory.managerFor(pool) == address(0)) revert Errors.InvalidPool();
+        if (poolFactory.managerFor(pool) == address(0)) revert Errors.UnknownPool();
 
         // signals a borrow operation without any actual transfer of borrowed assets
         // since every position type is structured differently
@@ -360,12 +361,12 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external nonReentrant {
         // position must breach risk thresholds before liquidation
-        // TODO custom error
-        if (riskEngine.isPositionHealthy(position)) revert Errors.InvalidOperation();
+        if (riskEngine.isPositionHealthy(position)) revert Errors.LiquidateHealthyPosition();
 
         // verify that the liquidator seized by the liquidator is within bounds of the max
-        // liquidation discount. TODO custom error
-        if (!riskEngine.isValidLiquidation(position, debt, collat)) revert Errors.InvalidOperation();
+        // liquidation discount.
+        // TODO refactor to throw internal errors
+        if (!riskEngine.isValidLiquidation(position, debt, collat)) revert Errors.InvalidLiquidation();
 
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator
@@ -390,8 +391,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         }
 
         // position should be within risk thresholds after liqudiation
-        // TODO use custom error instead
-        if (!riskEngine.isPositionHealthy(position)) revert Errors.InvalidOperation();
+        if (!riskEngine.isPositionHealthy(position)) revert Errors.HealthCheckFailed();
 
         emit Liquidation(position, msg.sender, ownerOf[position]);
     }

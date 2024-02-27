@@ -37,7 +37,7 @@ abstract contract BasePosition is IPosition {
     //////////////////////////////////////////////////////////////*/
 
     modifier onlyPositionManager() {
-        if (msg.sender != positionManager) revert Errors.PositionManagerOnly();
+        if (msg.sender != positionManager) revert Errors.OnlyPositionManager();
         _;
     }
 
@@ -66,7 +66,7 @@ abstract contract BasePosition is IPosition {
     // any target and calldata validation must be implementeed in the position manager
     function exec(address target, bytes calldata data) external onlyPositionManager {
         (bool success,) = target.call(data);
-        if (!success) revert Errors.ExecCallFailed();
+        if (!success) revert Errors.ExecFailed();
     }
 
     /*//////////////////////////////////////////////////////////////

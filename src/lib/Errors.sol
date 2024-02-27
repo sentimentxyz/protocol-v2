@@ -15,4 +15,5 @@ library Errors {
     error PositionManagerOnly();
     error HealthCheckImplNotFound();
     error UnknownContract();
+    error ExecCallFailed();
 }

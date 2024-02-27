@@ -201,3 +201,9 @@ contract PositionManagerTest is BaseTest {
         return address(0);
     }
 }
+
+contract AllowedContractMock {
+    function callMe() public pure returns (bool) {
+        return true;
+    }
+}

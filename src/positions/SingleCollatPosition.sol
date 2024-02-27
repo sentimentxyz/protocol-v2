@@ -75,7 +75,6 @@ contract SingleCollatPosition is BasePosition {
     // should be followed by Pool.borrow() to actually transfer assets
     // must implement any position-specific borrow validation
     function borrow(address pool, uint256) external override onlyPositionManager {
-        // TODO check if pool supports position asset as collateral
         debtPools.insert(pool);
     }
 

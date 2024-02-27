@@ -197,7 +197,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     function _process(address position, Action calldata action) internal {
         if (action.op == Operation.NewPosition) {
-            deployPosition(position, action.data);
+            newPosition(position, action.data);
             return;
         }
 
@@ -226,8 +226,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @dev deterministically deploy a new beacon proxy representin a position
     /// @dev the target field in the action is the new owner of the position
-    // TODO rename to newPosition
-    function deployPosition(address position, bytes calldata data) internal whenNotPaused {
+    function newPosition(address predictedAddress, bytes calldata data) internal whenNotPaused {
         // positionType -> position type of new position to be deployed
         // owner -> owner to create the position on behalf of
         // salt -> create2 salt for position
@@ -237,15 +236,15 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         if (beaconFor[positionType] == address(0)) revert Errors.NoPositionBeacon();
 
         // create2 a new position as a beacon proxy
-        address newPosition = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));
+        address position = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));
 
         // update position owner
-        ownerOf[newPosition] = owner;
+        ownerOf[position] = owner;
 
         // owner is authzd by default
-        isAuth[newPosition][owner] = true;
+        isAuth[position][owner] = true;
 
-        if (newPosition != position) revert Errors.PositionAddressMismatch();
+        if (position != predictedAddress) revert Errors.PositionAddressMismatch();
 
         emit PositionDeployed(position, msg.sender, owner);
     }

@@ -197,7 +197,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     /// @return borrowShares the amount of shares minted
     function borrow(address position, uint256 amt) external whenNotPaused returns (uint256 borrowShares) {
         // revert if the caller is not the position manager
-        if (msg.sender != positionManager) revert Errors.PositionManagerOnly();
+        if (msg.sender != positionManager) revert Errors.OnlyPositionManager();
 
         // update state to accrue interest since the last time ping() was called
         ping();
@@ -206,7 +206,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         borrowShares = convertAssetToBorrowShares(amt);
 
         // revert if borrow amt is too small
-        if (borrowShares == 0) revert Errors.ZeroShares();
+        if (borrowShares == 0) revert Errors.ZeroSharesBorrow();
 
         // update total pool debt, denominated in notional asset units
         totalBorrows += amt;
@@ -243,7 +243,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // the call to Pool.repay() is not frontrun allowing debt repayment for another position
 
         // revert if the caller is not the position manager
-        if (msg.sender != positionManager) revert Errors.PositionManagerOnly();
+        if (msg.sender != positionManager) revert Errors.OnlyPositionManager();
 
         // update state to accrue interest since the last time ping() was called
         ping();
@@ -252,7 +252,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         uint256 borrowShares = convertAssetToBorrowShares(amt);
 
         // revert if repaid amt is too small
-        if (borrowShares == 0) revert Errors.ZeroShares();
+        if (borrowShares == 0) revert Errors.ZeroSharesRepay();
 
         // update total pool debt, denominated in notional asset units
         totalBorrows -= amt;

@@ -51,11 +51,11 @@ contract PositionManagerTest is BaseTest {
         // we shouldnt be able to call this function yet
         PositionManager _manager = deploy.positionManager();
         vm.expectRevert();
-        _manager.process(position, actions);
+        _manager.processBatch(position, actions);
 
         // toggling it should allow us to call them
         _manager.toggleKnownFunc(nonAuthedTarget, bytes4(callData));
-        _manager.process(position, actions);
+        _manager.processBatch(position, actions);
     }
 
     function testCantApproveNonAuthorizedAddress() public {
@@ -74,11 +74,11 @@ contract PositionManagerTest is BaseTest {
         // we shouldnt be able to call this function yet
         PositionManager _manager = deploy.positionManager();
         vm.expectRevert();
-        _manager.process(position, actions);
+        _manager.processBatch(position, actions);
 
         // toggling it should allow us to call them
         _manager.toggleKnownContract(address(mockToken));
-        _manager.process(position, actions);
+        _manager.processBatch(position, actions);
     }
 
     function testAuthPositionAllowsCaller() public {
@@ -94,12 +94,12 @@ contract PositionManagerTest is BaseTest {
         PositionManager _manager = deploy.positionManager();
 
         vm.expectRevert();
-        _manager.process(position, depositActionFromThis(address(mockToken), 100));
+        _manager.processBatch(position, depositActionFromThis(address(mockToken), 100));
 
         vm.prank(owner);
         _manager.toggleAuth(address(this), position);
 
-        _manager.process(position, depositActionFromThis(address(mockToken), 100));
+        _manager.processBatch(position, depositActionFromThis(address(mockToken), 100));
     }
 
     function testNonAuthCantCallPositionProcess() public {
@@ -115,7 +115,7 @@ contract PositionManagerTest is BaseTest {
         PositionManager _manager = deploy.positionManager();
 
         vm.expectRevert(Errors.Unauthorized.selector);
-        _manager.process(position, depositActionFromThis(address(mockToken), 100));
+        _manager.processBatch(position, depositActionFromThis(address(mockToken), 100));
     }
 
     function testCanCreatePositionType1() public {
@@ -172,7 +172,7 @@ contract PositionManagerTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        deploy.positionManager().process(predicted, actions);
+        deploy.positionManager().processBatch(predicted, actions);
 
         return predicted;
     }

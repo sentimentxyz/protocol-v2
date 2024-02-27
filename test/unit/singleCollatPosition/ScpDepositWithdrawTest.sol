@@ -40,7 +40,7 @@ contract ScpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.allowance(address(position), spender), amt);
     }
 
@@ -54,7 +54,7 @@ contract ScpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(this)), 0);
         assertEq(erc201.balanceOf(address(position)), amt);
     }
@@ -70,14 +70,14 @@ contract ScpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(position)), amt / 2);
 
         data = abi.encode(address(this), address(erc201), amt - (amt / 2));
         action = Action({op: Operation.Deposit, data: data});
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(position)), amt);
     }
 
@@ -90,7 +90,7 @@ contract ScpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(this)), amt);
         assertEq(erc201.balanceOf(address(position)), 0);
     }
@@ -105,14 +105,14 @@ contract ScpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(this)), amt / 2);
 
         data = abi.encode(address(this), address(erc201), amt - (amt / 2));
         action = Action({op: Operation.Transfer, data: data});
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(this)), amt);
     }
 
@@ -126,7 +126,7 @@ contract ScpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(positionAddress, actions);
+        positionManager.processBatch(positionAddress, actions);
 
         return positionAddress;
     }

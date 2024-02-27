@@ -38,7 +38,7 @@ contract SdpAssetTest is BaseTest {
         actions[0] = action1;
         actions[1] = action2;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         address[] memory assets = position.getAssets();
         assertEq(assets.length, 1);
         assertEq(assets[0], address(erc201));
@@ -56,7 +56,7 @@ contract SdpAssetTest is BaseTest {
         actions[0] = action1;
         actions[1] = action2;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         address[] memory assets = position.getAssets();
         assertEq(assets.length, 1);
         assertEq(assets[0], address(erc201));
@@ -65,7 +65,7 @@ contract SdpAssetTest is BaseTest {
         action1 = Action({op: Operation.Deposit, data: data});
         actions[0] = action1;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(position)), amt);
 
         assets = position.getAssets();
@@ -83,7 +83,7 @@ contract SdpAssetTest is BaseTest {
         actions[0] = action1;
         actions[1] = action2;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         address[] memory assets = position.getAssets();
         assertEq(assets.length, 0);
     }
@@ -93,7 +93,7 @@ contract SdpAssetTest is BaseTest {
         Action memory action = Action({op: Operation.RemoveAsset, data: abi.encode(address(erc201))});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         address[] memory assets = position.getAssets();
         assertEq(assets.length, 0);
     }
@@ -108,7 +108,7 @@ contract SdpAssetTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(positionAddress, actions);
+        positionManager.processBatch(positionAddress, actions);
 
         return positionAddress;
     }

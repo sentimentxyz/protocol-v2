@@ -104,7 +104,7 @@ contract SdpBorrowTest is BaseTest {
         actions[0] = action1;
         actions[1] = action2;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
     }
 
     function _borrow(uint256 amt) internal {
@@ -119,7 +119,7 @@ contract SdpBorrowTest is BaseTest {
         actions[0] = action;
         actions[1] = action2;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
     }
 
     function _deploySingleDebtPosition() internal returns (address) {
@@ -132,7 +132,7 @@ contract SdpBorrowTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(positionAddress, actions);
+        positionManager.processBatch(positionAddress, actions);
 
         return positionAddress;
     }
@@ -166,6 +166,6 @@ contract SdpBorrowTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
     }
 }

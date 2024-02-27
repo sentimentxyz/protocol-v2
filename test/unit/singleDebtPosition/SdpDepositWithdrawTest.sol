@@ -43,7 +43,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.allowance(address(position), spender), amt);
     }
 
@@ -57,7 +57,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(this)), 0);
         assertEq(erc201.balanceOf(address(position)), amt);
     }
@@ -73,14 +73,14 @@ contract SdpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(position)), amt / 2);
 
         data = abi.encode(address(this), address(erc201), amt - (amt / 2));
         action = Action({op: Operation.Deposit, data: data});
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(position)), amt);
     }
 
@@ -104,7 +104,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         actions[0] = action1;
         actions[1] = action2;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
 
         assertEq(erc201.balanceOf(address(position)), amt1);
         assertEq(erc202.balanceOf(address(position)), amt2);
@@ -130,7 +130,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         actions[0] = action1;
         actions[1] = action2;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
 
         assertEq(erc201.balanceOf(address(position)), amt1 / 2);
         assertEq(erc202.balanceOf(address(position)), amt2 / 2);
@@ -145,7 +145,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         actions[0] = action2;
         actions[1] = action1;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(position)), amt1);
         assertEq(erc202.balanceOf(address(position)), amt2);
     }
@@ -159,7 +159,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(this)), amt);
         assertEq(erc201.balanceOf(address(position)), 0);
     }
@@ -174,14 +174,14 @@ contract SdpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(this)), amt / 2);
 
         data = abi.encode(address(this), address(erc201), amt - (amt / 2));
         action = Action({op: Operation.Transfer, data: data});
         actions[0] = action;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(this)), amt);
     }
 
@@ -202,7 +202,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         actions[0] = action1;
         actions[1] = action2;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
 
         assertEq(erc201.balanceOf(address(this)), amt1);
         assertEq(erc202.balanceOf(address(this)), amt2);
@@ -225,7 +225,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         actions[0] = action1;
         actions[1] = action2;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
 
         assertEq(erc201.balanceOf(address(this)), amt1 / 2);
         assertEq(erc202.balanceOf(address(this)), amt2 / 2);
@@ -240,7 +240,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         actions[0] = action2;
         actions[1] = action1;
 
-        positionManager.process(address(position), actions);
+        positionManager.processBatch(address(position), actions);
 
         assertEq(erc201.balanceOf(address(this)), amt1);
         assertEq(erc202.balanceOf(address(this)), amt2);
@@ -256,7 +256,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        positionManager.process(positionAddress, actions);
+        positionManager.processBatch(positionAddress, actions);
 
         return positionAddress;
     }

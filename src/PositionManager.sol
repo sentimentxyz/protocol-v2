@@ -173,103 +173,20 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
                          Position Interaction
     //////////////////////////////////////////////////////////////*/
 
+    function process(address position, Action calldata action) external nonReentrant {
+        _process(position, action);
+        if (!riskEngine.isPositionHealthy(position)) revert Errors.HealthCheckFailed();
+    }
+
     /// @notice procces a batch of actions on a given position
     /// @dev only one position can be operated on in one txn, including creation
     /// @param position the position to process the actions on
     /// @param actions the list of actions to process
-    function process(address position, Action[] calldata actions) external nonReentrant {
-        // init counter for the loop
-        uint256 i;
-
-        //
-        // New Position: create2 a new position with a given type
-        // new positions are deployed as beacon proxies
-        // anyone can create a new position
-        // if a new position is to be created, it must be the first action
-        if (actions[i].op == Operation.NewPosition) {
-            deployPosition(position, actions[i].data);
-            ++i;
-        }
-
-        // total number of actions to be processed
-        uint256 len = actions.length;
-
-        // the caller should be authzd to call anything other than NewPosition
-        // this check will fail if msg.sender creates a position on behalf of someone else
-        // and then tries to operate on it, because deployPosition() only authz the position owner
-        if (len > i && !isAuth[position][msg.sender]) revert Errors.Unauthorized();
-
+    function processBatch(address position, Action[] calldata actions) external nonReentrant {
         // loop over actions and process them sequentially based on operation
-        for (; i < len; ++i) {
-            //
-            // exec: execute arbitrary calldata on a position
-            // the target contract and function must be recognized via funcUniverse
-            //
-            if (actions[i].op == Operation.Exec) {
-                exec(position, actions[i].data);
-            }
-            //
-            // transfer: transfer assets from the position to a external address
-            else if (actions[i].op == Operation.Transfer) {
-                transfer(position, actions[i].data);
-            }
-            //
-            // deposit: deposit collateral assets to a given position
-            // while assets can directly be transferred to the position this does
-            //
-            else if (actions[i].op == Operation.Deposit) {
-                deposit(position, actions[i].data);
-            }
-            //
-            // approve: allow a spender to transfer assets from a position
-            // the spender address must be recognized via contractUniverse
-            // behaves as a wrapper over ERC20 approve for the position
-            //
-            else if (actions[i].op == Operation.Approve) {
-                approve(position, actions[i].data);
-            }
-            //
-            // repay: decrease position debt
-            // transfers debt assets from the position back to the given pool
-            // and decreases position debt
-            //
-            else if (actions[i].op == Operation.Repay) {
-                repay(position, actions[i].data);
-            }
-            //
-            // borrow: increase position debt
-            // transfers debt assets from the given pool to the position
-            // and increases position debt
-            //
-            else if (actions[i].op == Operation.Borrow) {
-                borrow(position, actions[i].data);
-            }
-            //
-            // addAsset: upsert collateral asset to position storage
-            // signals position to register new collateral with sanity checks
-            // each position type should handle this call differently to account for their structure
-            //
-            else if (actions[i].op == Operation.AddAsset) {
-                addAsset(position, actions[i].data);
-            }
-            //
-            // removeAsset: remove collateral asset from position storage
-            // signals position to deregister a given collateral with sanity checks
-            // each position type should handle this call differently to account for their structure
-            //
-            else if (actions[i].op == Operation.RemoveAsset) {
-                removeAsset(position, actions[i].data);
-            }
-            //
-            // fallback
-            // revert if none of the conditions above match because the operation is unrecognized
-            //
-            else {
-                // fallback revert
-                revert Errors.InvalidOperation();
-            }
+        for (uint256 i; i < actions.length; ++i) {
+            _process(position, actions[i]);
         }
-
         // after all the actions are processed, the position should be within risk thresholds
         if (!riskEngine.isPositionHealthy(position)) revert Errors.HealthCheckFailed();
     }
@@ -277,6 +194,35 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /*//////////////////////////////////////////////////////////////
                           Internal Functions
     //////////////////////////////////////////////////////////////*/
+
+    function _process(address position, Action calldata action) internal {
+        if (action.op == Operation.NewPosition) {
+            deployPosition(position, action.data);
+            return;
+        }
+
+        if (!isAuth[position][msg.sender]) revert Errors.Unauthorized();
+
+        if (action.op == Operation.Exec) {
+            exec(position, action.data);
+        } else if (action.op == Operation.Transfer) {
+            transfer(position, action.data);
+        } else if (action.op == Operation.Deposit) {
+            deposit(position, action.data);
+        } else if (action.op == Operation.Approve) {
+            approve(position, action.data);
+        } else if (action.op == Operation.Repay) {
+            repay(position, action.data);
+        } else if (action.op == Operation.Borrow) {
+            borrow(position, action.data);
+        } else if (action.op == Operation.AddAsset) {
+            addAsset(position, action.data);
+        } else if (action.op == Operation.RemoveAsset) {
+            removeAsset(position, action.data);
+        } else {
+            revert Errors.InvalidOperation();
+        }
+    }
 
     /// @dev deterministically deploy a new beacon proxy representin a position
     /// @dev the target field in the action is the new owner of the position

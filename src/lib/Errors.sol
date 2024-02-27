@@ -53,7 +53,7 @@ library Errors {
     error RepaidTooMuchDebt();
 
     // TODO remove
-    error InvalidLiqudation();
+    error InvalidLiquidation();
 
     // [PositionManager.newPosition] missing upgradeable beacon config for given position type
     error NoPositionBeacon();
@@ -75,4 +75,10 @@ library Errors {
 
     // [PositionManager.liquidate] attempt to liquidate healthy position
     error LiquidateHealthyPosition();
+
+    // [PositionManager._process] caller is not authorized to operate on the given position
+    error UnauthorizedAction();
+
+    // [RiskEngine.setLtv] only pool owners can call this function
+    error onlyPoolOwner();
 }

@@ -114,7 +114,7 @@ contract PositionManagerTest is BaseTest {
 
         PositionManager _manager = deploy.positionManager();
 
-        vm.expectRevert(Errors.Unauthorized.selector);
+        vm.expectRevert(Errors.UnauthorizedAction.selector);
         _manager.processBatch(position, depositActionFromThis(address(mockToken), 100));
     }
 

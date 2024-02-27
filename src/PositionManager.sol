@@ -201,7 +201,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             return;
         }
 
-        if (!isAuth[position][msg.sender]) revert Errors.Unauthorized();
+        if (!isAuth[position][msg.sender]) revert Errors.UnauthorizedAction();
 
         if (action.op == Operation.Exec) {
             exec(position, action.data);
@@ -234,7 +234,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         (address owner, uint256 positionType, bytes32 salt) = abi.decode(data, (address, uint256, bytes32));
 
         // revert if given position type doesn't have a register beacon
-        if (beaconFor[positionType] == address(0)) revert Errors.InvalidPositionType();
+        if (beaconFor[positionType] == address(0)) revert Errors.NoPositionBeacon();
 
         // create2 a new position as a beacon proxy
         address newPosition = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));

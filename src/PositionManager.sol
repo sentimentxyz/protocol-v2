@@ -74,10 +74,6 @@ struct AssetData {
     uint256 amt;
 }
 
-/*//////////////////////////////////////////////////////////////
-                        Position Manager
-//////////////////////////////////////////////////////////////*/
-
 // defines various operation types that can be applied to a position
 // every operation except NewPosition requires that the caller must be an authz caller or owner
 enum Operation {
@@ -99,11 +95,13 @@ enum Operation {
 struct Action {
     // operation type
     Operation op;
-    // target address, interpreted differently across operations types
-    address target;
     // dynamic bytes data, interepreted differently across operation types
     bytes data;
 }
+
+/*//////////////////////////////////////////////////////////////
+                        Position Manager
+//////////////////////////////////////////////////////////////*/
 
 contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     using Math for uint256;
@@ -171,116 +169,24 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         isAuth[position][user] = !isAuth[position][user];
     }
 
-    function predictAddress(uint256 positionType, bytes32 salt) external view returns (address) {
-        bytes memory creationCode =
-            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(beaconFor[positionType], ""));
-
-        return address(
-            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(creationCode)))))
-        );
-    }
-
     /*//////////////////////////////////////////////////////////////
                          Position Interaction
     //////////////////////////////////////////////////////////////*/
+
+    function process(address position, Action calldata action) external nonReentrant {
+        _process(position, action);
+        if (!riskEngine.isPositionHealthy(position)) revert Errors.HealthCheckFailed();
+    }
 
     /// @notice procces a batch of actions on a given position
     /// @dev only one position can be operated on in one txn, including creation
     /// @param position the position to process the actions on
     /// @param actions the list of actions to process
-    function process(address position, Action[] calldata actions) external nonReentrant {
-        // init counter for the loop
-        uint256 i;
-
-        //
-        // New Position: create2 a new position with a given type
-        // new positions are deployed as beacon proxies
-        // anyone can create a new position
-        // if a new position is to be created, it must be the first action
-        if (actions[i].op == Operation.NewPosition) {
-            deployPosition(position, actions[i]);
-            ++i;
-        }
-
-        // total number of actions to be processed
-        uint256 len = actions.length;
-
-        // the caller should be authzd to call anything other than NewPosition
-        // this check will fail if msg.sender creates a position on behalf of someone else
-        // and then tries to operate on it, because deployPosition() only authz the position owner
-        if (len > i && !isAuth[position][msg.sender]) revert Errors.Unauthorized();
-
+    function processBatch(address position, Action[] calldata actions) external nonReentrant {
         // loop over actions and process them sequentially based on operation
-        for (; i < len; ++i) {
-            //
-            // exec: execute arbitrary calldata on a position
-            // the target contract and function must be recognized via funcUniverse
-            //
-            if (actions[i].op == Operation.Exec) {
-                exec(position, actions[i]);
-            }
-            //
-            // transfer: transfer assets from the position to a external address
-            else if (actions[i].op == Operation.Transfer) {
-                transfer(position, actions[i]);
-            }
-            //
-            // deposit: deposit collateral assets to a given position
-            // while assets can directly be transferred to the position this does
-            //
-            else if (actions[i].op == Operation.Deposit) {
-                deposit(position, actions[i]);
-            }
-            //
-            // approve: allow a spender to transfer assets from a position
-            // the spender address must be recognized via contractUniverse
-            // behaves as a wrapper over ERC20 approve for the position
-            //
-            else if (actions[i].op == Operation.Approve) {
-                approve(position, actions[i]);
-            }
-            //
-            // repay: decrease position debt
-            // transfers debt assets from the position back to the given pool
-            // and decreases position debt
-            //
-            else if (actions[i].op == Operation.Repay) {
-                repay(position, actions[i]);
-            }
-            //
-            // borrow: increase position debt
-            // transfers debt assets from the given pool to the position
-            // and increases position debt
-            //
-            else if (actions[i].op == Operation.Borrow) {
-                borrow(position, actions[i]);
-            }
-            //
-            // addAsset: upsert collateral asset to position storage
-            // signals position to register new collateral with sanity checks
-            // each position type should handle this call differently to account for their structure
-            //
-            else if (actions[i].op == Operation.AddAsset) {
-                addAsset(position, actions[i].target);
-            }
-            //
-            // removeAsset: remove collateral asset from position storage
-            // signals position to deregister a given collateral with sanity checks
-            // each position type should handle this call differently to account for their structure
-            //
-            else if (actions[i].op == Operation.RemoveAsset) {
-                removeAsset(position, actions[i].target);
-            }
-            //
-            // fallback
-            // revert if none of the conditions above match because the operation is unrecognized
-            //
-            else {
-                // fallback revert
-                revert Errors.InvalidOperation();
-            }
+        for (uint256 i; i < actions.length; ++i) {
+            _process(position, actions[i]);
         }
-
         // after all the actions are processed, the position should be within risk thresholds
         if (!riskEngine.isPositionHealthy(position)) revert Errors.HealthCheckFailed();
     }
@@ -289,10 +195,42 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
                           Internal Functions
     //////////////////////////////////////////////////////////////*/
 
+    function _process(address position, Action calldata action) internal {
+        if (action.op == Operation.NewPosition) {
+            deployPosition(position, action.data);
+            return;
+        }
+
+        if (!isAuth[position][msg.sender]) revert Errors.Unauthorized();
+
+        if (action.op == Operation.Exec) {
+            exec(position, action.data);
+        } else if (action.op == Operation.Transfer) {
+            transfer(position, action.data);
+        } else if (action.op == Operation.Deposit) {
+            deposit(position, action.data);
+        } else if (action.op == Operation.Approve) {
+            approve(position, action.data);
+        } else if (action.op == Operation.Repay) {
+            repay(position, action.data);
+        } else if (action.op == Operation.Borrow) {
+            borrow(position, action.data);
+        } else if (action.op == Operation.AddAsset) {
+            addAsset(position, action.data);
+        } else if (action.op == Operation.RemoveAsset) {
+            removeAsset(position, action.data);
+        } else {
+            revert Errors.InvalidOperation();
+        }
+    }
+
     /// @dev deterministically deploy a new beacon proxy representin a position
     /// @dev the target field in the action is the new owner of the position
-    function deployPosition(address position, Action calldata action) internal whenNotPaused {
-        (uint256 positionType, bytes32 salt) = abi.decode(action.data, (uint256, bytes32));
+    function deployPosition(address position, bytes calldata data) internal whenNotPaused {
+        // positionType -> position type of new position to be deployed
+        // owner -> owner to create the position on behalf of
+        // salt -> create2 salt for position
+        (address owner, uint256 positionType, bytes32 salt) = abi.decode(data, (address, uint256, bytes32));
 
         // revert if given position type doesn't have a register beacon
         if (beaconFor[positionType] == address(0)) revert Errors.InvalidPositionType();
@@ -301,105 +239,116 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address newPosition = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));
 
         // update position owner
-        ownerOf[newPosition] = action.target;
+        ownerOf[newPosition] = owner;
 
         // owner is authzd by default
-        isAuth[newPosition][action.target] = true;
+        isAuth[newPosition][owner] = true;
 
         if (newPosition != position) revert Errors.InvalidOperation();
 
-        emit PositionDeployed(position, msg.sender, action.target);
+        emit PositionDeployed(position, msg.sender, owner);
     }
 
-    function exec(address position, Action calldata action) internal {
-        // target -> contract address to be called by the position
-        // data -> abi-encoded calldata to be passed
-        if (!isKnownFunc[action.target][bytes4(action.data[:4])]) revert Errors.InvalidOperation();
-        IPosition(position).exec(action.target, action.data);
+    function exec(address position, bytes calldata data) internal {
+        // exec data is encodePacked (address, bytes)
+        // target -> first 20 bytes, contract address to be called by the position
+        // callData -> rest of the data, calldata to be executed on target
+        address target = address(bytes20(data[:20]));
+        if (!isKnownFunc[target][bytes4(data[20:24])]) revert Errors.InvalidOperation();
+        IPosition(position).exec(target, data[20:]);
 
-        emit Exec(position, msg.sender, action.target, bytes4(action.data[:4]));
+        emit Exec(position, msg.sender, target, bytes4(data[20:24]));
     }
 
-    function transfer(address position, Action calldata action) internal {
-        // target -> address to transfer assets to
-        // data -> asset to be transferred and amount
-        (address asset, uint256 amt) = abi.decode(action.data, (address, uint256));
-        IPosition(position).transfer(action.target, asset, amt);
+    function transfer(address position, bytes calldata data) internal {
+        // recipient -> address that will receive the transferred tokens
+        // asset -> address of token to be transferred
+        // amt -> amount of asset to be transferred
+        (address recipient, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
+        IPosition(position).transfer(recipient, asset, amt);
 
-        emit Transfer(position, msg.sender, action.target, asset, amt);
+        emit Transfer(position, msg.sender, recipient, asset, amt);
     }
 
-    function deposit(address position, Action calldata action) internal {
-        // target -> depositor address
-        // data -> asset to be transferred and amount
-        (address asset, uint256 amt) = abi.decode(action.data, (address, uint256));
-        IERC20(asset).safeTransferFrom(action.target, position, amt);
+    function deposit(address position, bytes calldata data) internal {
+        // depositor -> address to transfer the tokens from, must have approval
+        // asset -> address of token to be deposited
+        // amt -> amount of asset to be deposited
+        (address depositor, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
+        IERC20(asset).safeTransferFrom(depositor, position, amt);
 
-        emit Deposit(position, msg.sender, action.target, asset, amt);
+        emit Deposit(position, msg.sender, depositor, asset, amt);
     }
 
-    function approve(address position, Action calldata action) internal {
-        // target -> spender
-        // data -> asset and amount to be approved
-        if (!isKnownContract[action.target]) revert Errors.InvalidOperation();
-        (address asset, uint256 amt) = abi.decode(action.data, (address, uint256));
-        IPosition(position).approve(asset, action.target, amt);
+    function approve(address position, bytes calldata data) internal {
+        // spender -> address to be approved
+        // asset -> address of token to be approves
+        // amt -> amount of asset to be approved
+        (address spender, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
+        if (!isKnownContract[asset]) revert Errors.UnknownContract();
+        IPosition(position).approve(asset, spender, amt);
 
-        emit Approve(position, msg.sender, action.target, asset, amt);
+        emit Approve(position, msg.sender, spender, asset, amt);
     }
 
     /// @dev to repay the entire debt set _amt to uint.max
-    function repay(address position, Action calldata action) internal {
-        // target -> pool to be repaid
-        // data -> notional amount to be repaid
+    function repay(address position, bytes calldata data) internal {
+        // pool -> address of the pool that recieves the repaid debt
+        // amt -> notional amount to be repaid
 
-        uint256 _amt = abi.decode(action.data, (uint256));
+        (address pool, uint256 _amt) = abi.decode(data, (address, uint256));
         // if the passed amt is type(uint).max assume repayment of the entire debt
-        uint256 amt = (_amt == type(uint256).max) ? Pool(action.target).getBorrowsOf(position) : _amt;
+        uint256 amt = (_amt == type(uint256).max) ? Pool(pool).getBorrowsOf(position) : _amt;
 
         // transfer assets to be repaid from the position to the given pool
         // signals repayment to the position without making any changes in the pool
         // since every position is structured differently
         // we assume that any checks needed to validate repayment are implemented in the position
-        IPosition(position).repay(Pool(action.target).asset(), amt);
+        IPosition(position).repay(pool, amt);
 
         // trigger pool repayment which assumes successful transfer of repaid assets
-        Pool(action.target).repay(position, amt);
+        Pool(pool).repay(position, amt);
 
-        emit Repay(position, msg.sender, action.target, amt);
+        emit Repay(position, msg.sender, pool, amt);
     }
 
-    function borrow(address position, Action calldata action) internal whenNotPaused {
-        // target -> pool to borrow from
+    function borrow(address position, bytes calldata data) internal whenNotPaused {
+        // decode data
+        // pool -> pool to borrow from
         // amt -> notional amount to be borrowed
+        (address pool, uint256 amt) = abi.decode(data, (address, uint256));
 
-        uint256 amt = abi.decode(action.data, (uint256));
         // revert if the given pool was not deployed by the protocol pool factory
-        if (poolFactory.managerFor(action.target) == address(0)) revert Errors.InvalidPool();
+        if (poolFactory.managerFor(pool) == address(0)) revert Errors.InvalidPool();
 
         // signals a borrow operation without any actual transfer of borrowed assets
         // since every position type is structured differently
         // we assume that the position implements any checks needed to validate the borrow
-        IPosition(position).borrow(action.target, amt);
+        IPosition(position).borrow(pool, amt);
 
         // transfer borrowed assets from given pool to position
         // trigger pool borrow and increase debt owed by the position
-        Pool(action.target).borrow(position, amt);
+        Pool(pool).borrow(position, amt);
 
-        emit Borrow(position, msg.sender, action.target, amt);
+        emit Borrow(position, msg.sender, pool, amt);
     }
 
-    function addAsset(address position, address asset) internal whenNotPaused {
-        // target -> asset to be registered as collateral
-        // data is ignored
+    function addAsset(address position, bytes calldata data) internal whenNotPaused {
+        // asset -> address of asset to be registered as collateral
+        address asset = abi.decode(data, (address));
+
+        // register asset as collateral
+        // any position-specific validation must be done within the position contract
         IPosition(position).addAsset(asset);
 
         emit AddAsset(position, msg.sender, asset);
     }
 
-    function removeAsset(address position, address asset) internal whenNotPaused {
-        // target -> asset to be deregistered as collateral
-        // data is ignored
+    function removeAsset(address position, bytes calldata data) internal whenNotPaused {
+        // asset -> address of asset to be deregistered as collateral
+        address asset = abi.decode(data, (address));
+
+        // deregister asset as collateral
         IPosition(position).removeAsset(asset);
 
         emit RemoveAsset(position, msg.sender, asset);
@@ -477,7 +426,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @notice toggle contract inclusion in the contract universe
     /// @dev only callable by the position manager owner
-    function toggleContractUniverseInclusion(address target) external onlyOwner {
+    function toggleKnownContract(address target) external onlyOwner {
         isKnownContract[target] = !isKnownContract[target];
 
         emit KnownContractAdded(target, isKnownContract[target]);
@@ -485,7 +434,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @notice toggle function inclusion in the function universe
     /// @dev only callable by the position manager owner
-    function toggleFuncUniverseInclusion(address target, bytes4 method) external onlyOwner {
+    function toggleKnownFunc(address target, bytes4 method) external onlyOwner {
         isKnownFunc[target][method] = !isKnownFunc[target][method];
 
         emit KnownFunctionAdded(target, method, isKnownFunc[target][method]);

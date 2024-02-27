@@ -14,5 +14,6 @@ library Errors {
     error ZeroShares();
     error PositionManagerOnly();
     error HealthCheckImplNotFound();
+    error UnknownContract();
     error ExecCallFailed();
 }

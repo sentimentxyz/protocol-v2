@@ -87,7 +87,7 @@ contract SingleDebtPosition is BasePosition {
         if (Pool(pool).getBorrowsOf(address(this)) == amt) {
             debtPool = address(0);
         }
-        IERC20(Pool(debtPool).asset()).safeTransfer(address(pool), amt);
+        IERC20(Pool(pool).asset()).safeTransfer(address(pool), amt);
     }
 
     // register a new asset to be used collateral in the position

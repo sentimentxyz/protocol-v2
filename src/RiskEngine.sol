@@ -63,6 +63,9 @@ contract RiskEngine is OwnableUpgradeable {
 
     function initialize() public initializer {
         OwnableUpgradeable.__Ownable_init(msg.sender);
+        // TODO pass as params
+        minLtv = type(uint256).min;
+        maxLtv = type(uint256).max;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -101,7 +104,7 @@ contract RiskEngine is OwnableUpgradeable {
     function setLtv(address pool, address asset, uint256 ltv) external {
         // only pool owners are allowed to set ltv
         if (msg.sender != Pool(pool).owner()) revert Errors.Unauthorized();
-        if (ltv < minLtv || ltv > maxLtv) revert Errors.Unauthorized(); // TODO custom error
+        if (ltv < minLtv || ltv > maxLtv || ltv == 0) revert Errors.Unauthorized(); // TODO custom error
 
         // update asset ltv for the given pool
         ltvFor[pool][asset] = ltv;

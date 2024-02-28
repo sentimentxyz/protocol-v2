@@ -8,7 +8,6 @@ import {PoolFactory} from "src/PoolFactory.sol";
 import {Pool} from "src/Pool.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 import {PositionManager} from "src/PositionManager.sol";
-import {OWNER} from "./Constants.sol";
 
 // position impls
 import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
@@ -47,12 +46,9 @@ contract Deploy is Script {
     SuperPoolLens public superPoolLens;
     PortfolioLens public portfolioLens;
 
-    /// @notice uses values from the constants file in src/
     function run() public {
-        run(OWNER);
-    }
+        address owner = vm.envAddress("OWNER");
 
-    function run(address owner) public {
         // set up positon manager and proxy
         positionManagerImpl = new PositionManager();
         TransparentUpgradeableProxy proxy1 = new TransparentUpgradeableProxy(address(positionManagerImpl), owner, "");

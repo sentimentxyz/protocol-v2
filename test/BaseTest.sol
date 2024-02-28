@@ -9,14 +9,14 @@ import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 import {Deploy} from "script/Deploy.s.sol";
 
 contract BaseTest is Test {
-    Deploy public deploy;
-
     uint256 constant BIG_NUMBER = type(uint144).max;
 
-    function setUp() public virtual {
-        deploy = new Deploy();
+    Deploy public deploy;
 
-        deploy.run(address(this));
+    function setUp() public virtual {
+        vm.setEnv("OWNER", vm.toString(address(this)));
+        deploy = new Deploy();
+        deploy.run();
     }
 }
 

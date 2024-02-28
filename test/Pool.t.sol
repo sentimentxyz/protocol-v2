@@ -28,7 +28,7 @@ contract PoolTest is BaseTest {
     }
 
     function testDepositsWork(uint256 amount) public {
-        vm.assume(amount < BIG_NUMBER);
+        vm.assume(amount < MAX_NUM);
         mockToken.mint(address(this), amount);
         mockToken.approve(address(pool), amount);
         pool.deposit(amount, address(this));
@@ -36,7 +36,7 @@ contract PoolTest is BaseTest {
     }
 
     function testWithdrawsWork(uint256 amount) public {
-        vm.assume(amount < BIG_NUMBER);
+        vm.assume(amount < MAX_NUM);
         mockToken.mint(address(this), amount);
         mockToken.approve(address(pool), amount);
 
@@ -50,7 +50,7 @@ contract PoolTest is BaseTest {
     }
 
     function testRedeemsWork(uint256 amount) public {
-        vm.assume(amount < BIG_NUMBER);
+        vm.assume(amount < MAX_NUM);
         mockToken.mint(address(this), amount);
         mockToken.approve(address(pool), amount);
 
@@ -168,7 +168,7 @@ contract PoolTest is BaseTest {
     function testExpectedBorrowSharesMinted(uint256 debt) public {
         // play nicely with the test setup / rounding
         vm.assume(debt % 4 == 0);
-        vm.assume(debt < BIG_NUMBER);
+        vm.assume(debt < MAX_NUM);
         vm.assume(debt > 0);
 
         /// On the first mint we should have 1:1 shares
@@ -196,7 +196,7 @@ contract PoolTest is BaseTest {
 
     function testExpectedBorrowSharesBurned(uint256 debt) public {
         vm.assume(debt % 2 == 0);
-        vm.assume(debt < BIG_NUMBER);
+        vm.assume(debt < MAX_NUM);
         vm.assume(debt > 0);
 
         /// On the first mint we should have 1:1 shares

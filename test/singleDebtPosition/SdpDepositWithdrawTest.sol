@@ -35,7 +35,7 @@ contract SdpDepositWithdrawTest is BaseTest {
     }
 
     function testApproveTokens(address spender, uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
 
         bytes memory data = abi.encode(spender, address(erc201), amt);
         Action memory action = Action({op: Operation.Approve, data: data});
@@ -47,7 +47,7 @@ contract SdpDepositWithdrawTest is BaseTest {
     }
 
     function testSingleAssetSingleDeposit(uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
 
@@ -62,7 +62,7 @@ contract SdpDepositWithdrawTest is BaseTest {
     }
 
     function testSingleAssetMultipleDeposit(uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
 
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
@@ -84,8 +84,8 @@ contract SdpDepositWithdrawTest is BaseTest {
     }
 
     function testMultipleAssetSingleDeposit(uint256 amt1, uint256 amt2) public {
-        vm.assume(amt1 < BIG_NUMBER);
-        vm.assume(amt2 < BIG_NUMBER);
+        vm.assume(amt1 < MAX_NUM);
+        vm.assume(amt2 < MAX_NUM);
 
         erc201.mint(address(this), amt1);
         erc201.approve(address(positionManager), type(uint256).max);
@@ -110,8 +110,8 @@ contract SdpDepositWithdrawTest is BaseTest {
     }
 
     function testMultipleAssetMultipleDeposit(uint256 amt1, uint256 amt2) public {
-        vm.assume(amt1 < BIG_NUMBER);
-        vm.assume(amt2 < BIG_NUMBER);
+        vm.assume(amt1 < MAX_NUM);
+        vm.assume(amt2 < MAX_NUM);
 
         erc201.mint(address(this), amt1);
         erc201.approve(address(positionManager), type(uint256).max);
@@ -150,7 +150,7 @@ contract SdpDepositWithdrawTest is BaseTest {
     }
 
     function testSingleAssetSingleWithdraw(uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
         erc201.mint(address(position), amt);
 
         bytes memory data = abi.encode(address(this), erc201, amt);
@@ -164,7 +164,7 @@ contract SdpDepositWithdrawTest is BaseTest {
     }
 
     function testSingleAssetMultipleWithdraw(uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
 
         erc201.mint(address(position), amt);
 
@@ -185,8 +185,8 @@ contract SdpDepositWithdrawTest is BaseTest {
     }
 
     function testMultipleAssetSingleWithdraw(uint256 amt1, uint256 amt2) public {
-        vm.assume(amt1 < BIG_NUMBER);
-        vm.assume(amt2 < BIG_NUMBER);
+        vm.assume(amt1 < MAX_NUM);
+        vm.assume(amt2 < MAX_NUM);
 
         erc201.mint(address(position), amt1);
         erc202.mint(address(position), amt2);
@@ -208,8 +208,8 @@ contract SdpDepositWithdrawTest is BaseTest {
     }
 
     function testMultipleAssetMultipleWithdraw(uint256 amt1, uint256 amt2) public {
-        vm.assume(amt1 < BIG_NUMBER);
-        vm.assume(amt2 < BIG_NUMBER);
+        vm.assume(amt1 < MAX_NUM);
+        vm.assume(amt2 < MAX_NUM);
 
         erc201.mint(address(position), amt1);
         erc202.mint(address(position), amt2);

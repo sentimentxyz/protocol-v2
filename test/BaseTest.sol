@@ -9,7 +9,7 @@ import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 import {Deploy} from "script/Deploy.s.sol";
 
 contract BaseTest is Test {
-    uint256 constant BIG_NUMBER = type(uint144).max;
+    uint256 constant MAX_NUM = type(uint144).max;
 
     Deploy public deploy;
 

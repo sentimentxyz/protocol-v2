@@ -141,7 +141,7 @@ contract SuperPoolTest is BaseTest {
     }
 
     function testDepositsWork(uint256 amount) public {
-        vm.assume(amount < BIG_NUMBER);
+        vm.assume(amount < MAX_NUM);
 
         _setPoolCap(_deployMockPool(), type(uint256).max);
 
@@ -152,7 +152,7 @@ contract SuperPoolTest is BaseTest {
     }
 
     function testWithdrawsWork(uint256 amount) public {
-        vm.assume(amount < BIG_NUMBER);
+        vm.assume(amount < MAX_NUM);
 
         // set the pool cap to the max
         _setPoolCap(_deployMockPool(), type(uint256).max);
@@ -171,7 +171,7 @@ contract SuperPoolTest is BaseTest {
     }
 
     function testRedeemsWork(uint256 amount) public {
-        vm.assume(amount < BIG_NUMBER);
+        vm.assume(amount < MAX_NUM);
         vm.assume(amount > 10);
 
         // setup pool

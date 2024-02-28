@@ -8,8 +8,8 @@ pragma solidity ^0.8.24;
 // types
 import {Pool} from "../Pool.sol";
 import {PositionManager} from "../PositionManager.sol";
-import {IPosition} from "src/interfaces/IPosition.sol";
-import {IRateModel} from "src/interfaces/IRateModel.sol";
+import {IPosition} from "src/interface/IPosition.sol";
+import {IRateModel} from "src/interface/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // contracts
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";

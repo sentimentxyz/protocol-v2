@@ -46,13 +46,13 @@ library Errors {
     error HealthCheckFailed();
 
     // [RiskEngine.isPositionHealthy | RiskEngine.isValidLiquidation]
-    // missing health check implementation config for the given position type
-    error NoHealthCheckImpl();
+    // missing risk module config for the given position type
+    error MissingRiskModule();
 
-    // [IHealthCheck.isValidLiquidation] liquidation violates close factor by repaying too much debt
+    // [IRiskModule.isValidLiquidation] liquidation violates close factor by repaying too much debt
     error RepaidTooMuchDebt();
 
-    // [PositionManager.liquidate] invalid liquidation params caused IHealthCheck.isValidLiquidation
+    // [PositionManager.liquidate] invalid liquidation params caused IRiskModuke.isValidLiquidation
     // to return false
     error InvalidLiquidation();
 
@@ -71,7 +71,7 @@ library Errors {
     // attempt to set ltv beyond protocol limits set in the risk engine
     error OutsideGlobalLtvLimits();
 
-    // [IHealthCheck.isValidLiquidation] collateral seized is more than max liquidation discount
+    // [IRiskModule.isValidLiquidation] collateral seized is more than max liquidation discount
     error SeizedTooMuchCollateral();
 
     // [PositionManager.liquidate] attempt to liquidate healthy position

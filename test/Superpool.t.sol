@@ -510,7 +510,7 @@ contract SuperPoolTest is BaseTest {
     }
 
     function testPoolDepositOnlyOwner(address notOwner) public {
-        vm.assume(notOwner != address(this));
+        vm.assume(notOwner != address(this) && notOwner != address(mockToken));
 
         address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
 

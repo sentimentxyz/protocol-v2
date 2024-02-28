@@ -6,7 +6,7 @@ pragma solidity ^0.8.24;
 //////////////////////////////////////////////////////////////*/
 
 // types
-import {IPosition} from "../interfaces/IPosition.sol";
+import {IPosition} from "../interface/IPosition.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
 import {Errors} from "src/lib/Errors.sol";

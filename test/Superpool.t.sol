@@ -22,6 +22,7 @@ contract SuperPoolTest is BaseTest {
         superPool = new SuperPool();
         superPool = SuperPool(address(TestUtils.makeProxy(address(superPool), address(this))));
         superPool.initialize(address(mockToken), "SuperPool", "SP");
+        superPool.setTotalPoolCap(type(uint256).max);
     }
 
     function testWithdrawFailIfNoFunds() public {
@@ -65,18 +66,15 @@ contract SuperPoolTest is BaseTest {
         // set the default pool cap
         address pool1 = _setDefaultPoolCap();
         assertEq(superPool.poolCap(pool1), 100);
-        assertEq(superPool.totalPoolCap(), 100);
 
         // set the default pool cap for another pool
         address pool2 = _setDefaultPoolCap();
         assertEq(superPool.poolCap(pool2), 101);
-        assertEq(superPool.totalPoolCap(), 201);
 
         // zero out the first pool
         _setPoolCap(pool1, 0);
 
         assertEq(superPool.poolCap(pool1), 0);
-        assertEq(superPool.totalPoolCap(), 101);
     }
 
     function testIncreasePoolCap() public {
@@ -85,19 +83,16 @@ contract SuperPoolTest is BaseTest {
 
         // chheck the original pool cap
         assertEq(superPool.poolCap(pool), 100);
-        assertEq(superPool.totalPoolCap(), 100);
 
         // set it to 200
         superPool.setPoolCap(pool, 200);
 
         assertEq(superPool.poolCap(pool), 200);
-        assertEq(superPool.totalPoolCap(), 200);
 
         // set it to 300
         superPool.setPoolCap(pool, 300);
 
         assertEq(superPool.poolCap(pool), 300);
-        assertEq(superPool.totalPoolCap(), 300);
     }
 
     function testMultipleDepositersCanWithdrawFully() public {
@@ -471,6 +466,7 @@ contract SuperPoolTest is BaseTest {
     function testCantMintMoreThanCap() public {
         address pool = _deployMockPool();
         _setPoolCap(pool, 100);
+        superPool.setTotalPoolCap(100);
 
         mockToken.mint(address(this), 101);
         mockToken.approve(address(superPool), 101);
@@ -485,6 +481,7 @@ contract SuperPoolTest is BaseTest {
     function testCantDepositMoreThanCap() public {
         address pool = _deployMockPool();
         _setPoolCap(pool, 100);
+        superPool.setTotalPoolCap(100);
 
         mockToken.mint(address(this), 101);
         mockToken.approve(address(superPool), 101);

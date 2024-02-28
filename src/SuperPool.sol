@@ -279,9 +279,6 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
             return;
         }
 
-        // update aggregate pool cap across superpool
-        totalPoolCap = totalPoolCap - poolCaps.get(pool) + assets;
-
         // update pool cap in storage mapping
         poolCaps.set(pool, assets);
 
@@ -298,5 +295,9 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param _protocolFee the fee to set scaled by 1e18
     function setProtocolFee(uint256 _protocolFee) external onlyOwner {
         protocolFee = _protocolFee;
+    }
+
+    function setTotalPoolCap(uint256 _totalPoolCap) external onlyOwner {
+        totalPoolCap = _totalPoolCap;
     }
 }

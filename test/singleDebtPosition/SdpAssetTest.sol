@@ -17,8 +17,8 @@ contract SdpAssetTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
-        portfolioLens = deploy.portfolioLens();
-        positionManager = deploy.positionManager();
+        portfolioLens = PortfolioLens(deploy.portfolioLens());
+        positionManager = PositionManager(deploy.positionManager());
         position = SingleDebtPosition(_deploySingleDebtPosition());
 
         erc201 = new MintableToken();
@@ -27,7 +27,7 @@ contract SdpAssetTest is BaseTest {
     }
 
     function testAddAsset(uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
 
@@ -45,7 +45,7 @@ contract SdpAssetTest is BaseTest {
     }
 
     function testAddAssetTwice(uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
 

@@ -52,7 +52,7 @@ contract PoolFactory is Ownable, Pausable {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address _poolImplementation) Ownable(msg.sender) {
+    constructor(address owner, address _poolImplementation) Ownable(owner) {
         poolImplementation = _poolImplementation;
     }
 

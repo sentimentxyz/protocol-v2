@@ -15,8 +15,8 @@ contract ScpDepositWithdrawTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
-        portfolioLens = deploy.portfolioLens();
-        positionManager = deploy.positionManager();
+        portfolioLens = PortfolioLens(deploy.portfolioLens());
+        positionManager = PositionManager(deploy.positionManager());
         position = SingleAssetPosition(_deployPosition());
 
         erc201 = new MintableToken();
@@ -33,7 +33,7 @@ contract ScpDepositWithdrawTest is BaseTest {
     }
 
     function testApproveTokens(address spender, uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
 
         bytes memory data = abi.encode(spender, address(erc201), amt);
         Action memory action = Action({op: Operation.Approve, data: data});
@@ -45,7 +45,7 @@ contract ScpDepositWithdrawTest is BaseTest {
     }
 
     function testSingleAssetSingleDeposit(uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
 
@@ -60,7 +60,7 @@ contract ScpDepositWithdrawTest is BaseTest {
     }
 
     function testSingleAssetMultipleDeposit(uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
 
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
@@ -82,7 +82,7 @@ contract ScpDepositWithdrawTest is BaseTest {
     }
 
     function testSingleAssetSingleWithdraw(uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
         erc201.mint(address(position), amt);
 
         bytes memory data = abi.encode(address(this), erc201, amt);
@@ -96,7 +96,7 @@ contract ScpDepositWithdrawTest is BaseTest {
     }
 
     function testSingleAssetMultipleWithdraw(uint256 amt) public {
-        vm.assume(amt < BIG_NUMBER);
+        vm.assume(amt < MAX_NUM);
 
         erc201.mint(address(position), amt);
 

@@ -17,8 +17,8 @@ contract ScpAssetTest is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        portfolioLens = deploy.portfolioLens();
-        positionManager = deploy.positionManager();
+        portfolioLens = PortfolioLens(deploy.portfolioLens());
+        positionManager = PositionManager(deploy.positionManager());
         position = SingleAssetPosition(_deployPosition());
 
         erc201 = new MintableToken();

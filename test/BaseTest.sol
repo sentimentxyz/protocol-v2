@@ -15,6 +15,8 @@ contract BaseTest is Test {
 
     function setUp() public virtual {
         vm.setEnv("OWNER", vm.toString(address(this)));
+        vm.setEnv("MIN_LTV", vm.toString(uint256(0)));
+        vm.setEnv("MAX_LTV", vm.toString(type(uint256).max));
         deploy = new Deploy();
         deploy.run();
     }

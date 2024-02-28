@@ -24,11 +24,11 @@ contract ScpBorrowTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
-        poolFactory = deploy.poolFactory();
-        portfolioLens = deploy.portfolioLens();
-        positionManager = deploy.positionManager();
+        poolFactory = PoolFactory(deploy.poolFactory());
+        portfolioLens = PortfolioLens(deploy.portfolioLens());
+        positionManager = PositionManager(deploy.positionManager());
         position = SingleAssetPosition(_deployPosition());
-        riskEngine = deploy.riskEngine();
+        riskEngine = RiskEngine(deploy.riskEngine());
         erc20Collat = new MintableToken();
 
         _deployPool();

@@ -7,7 +7,7 @@ import {SuperPool} from "src/SuperPool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {TestUtils} from "test/Utils.sol";
-import {BaseTest, MintableToken} from "test/unit/BaseTest.sol";
+import {BaseTest, MintableToken} from "./BaseTest.sol";
 import {FixedRateModel} from "src/irm/FixedRateModel.sol";
 import {Pool} from "src/Pool.sol";
 

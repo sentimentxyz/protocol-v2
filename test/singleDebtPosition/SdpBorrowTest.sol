@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Pool} from "src/Pool.sol";
-import {TestUtils} from "../../Utils.sol";
+import {TestUtils} from "../Utils.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 import {BaseTest, MintableToken} from "../BaseTest.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";

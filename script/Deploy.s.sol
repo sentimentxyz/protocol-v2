@@ -18,21 +18,33 @@ import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/Upgradeabl
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract Deploy is Script {
-    address public poolImpl;
-    address public riskEngine;
-    address public poolFactory;
-    address public superPoolLens;
-    address public portfolioLens;
-    address public riskEngineImpl;
+    // position manager
     address public positionManager;
     address public positionManagerImpl;
-    address public singleDebtRiskModule;
+
+    // pool factory
+    address public poolImpl;
+    address public poolFactory;
+
+    // risk engine
+    address public riskEngine;
+    address public riskEngineImpl;
+
+    // single asset position
     address public singleAssetRiskModule;
-    address public singleDebtPositionImpl;
     address public singleAssetPositionImpl;
-    address public singleDebtPositionBeacon;
     address public singleAssetPositionBeacon;
 
+    // single debt position
+    address public singleDebtRiskModule;
+    address public singleDebtPositionImpl;
+    address public singleDebtPositionBeacon;
+
+    // lens
+    address public superPoolLens;
+    address public portfolioLens;
+
+    // config variables
     address owner;
     uint256 liquidationFee;
     uint256 minLtv;

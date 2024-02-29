@@ -18,12 +18,9 @@ contract PoolTest is BaseTest {
         // set ourselves as the pos manager so we can mint/burn at will
         pool = new Pool(address(this));
         pool = Pool(payable(address(TestUtils.makeProxy(address(pool), address(this)))));
-        pool.initialize(address(mockToken), "test", "test");
-
         rateModel = new FixedRateModel(1e18);
 
-        pool.setRateModel(address(rateModel));
-        pool.setPoolCap(type(uint256).max);
+        pool.initialize(address(mockToken), address(rateModel), type(uint256).max, uint256(0), "test", "test");
         super.setUp();
     }
 

@@ -87,11 +87,21 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         _disableInitializers();
     }
 
-    function initialize(address _asset, string memory _name, string memory _symbol) public initializer {
+    function initialize(
+        address _asset,
+        address _rateModel,
+        uint256 _poolCap,
+        uint256 _originationFee,
+        string memory _name,
+        string memory _symbol
+    ) public initializer {
         OwnableUpgradeable.__Ownable_init(msg.sender);
         PausableUpgradeable.__Pausable_init();
         ERC20Upgradeable.__ERC20_init(_name, _symbol);
         ERC4626Upgradeable.__ERC4626_init(IERC20(_asset));
+        rateModel = IRateModel(_rateModel);
+        poolCap = _poolCap;
+        originationFee = _originationFee;
     }
 
     /*//////////////////////////////////////////////////////////////

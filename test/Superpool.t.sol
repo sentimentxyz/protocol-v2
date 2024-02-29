@@ -21,8 +21,7 @@ contract SuperPoolTest is BaseTest {
         mockToken = new MintableToken();
         superPool = new SuperPool();
         superPool = SuperPool(address(TestUtils.makeProxy(address(superPool), address(this))));
-        superPool.initialize(address(mockToken), "SuperPool", "SP");
-        superPool.setTotalPoolCap(type(uint256).max);
+        superPool.initialize(address(mockToken), type(uint256).max, uint256(0), address(0), "SuperPool", "SP");
     }
 
     function testWithdrawFailIfNoFunds() public {
@@ -189,9 +188,8 @@ contract SuperPoolTest is BaseTest {
         uint256 depositAmount = 10e18;
 
         // deploy pool and set rate model
-        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
         address rateModel = address(new FixedRateModel(1e18));
-        Pool(pool).setRateModel(rateModel);
+        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken), rateModel));
 
         // mint and deposit tokens
         mockToken.mint(address(this), depositAmount);
@@ -213,9 +211,8 @@ contract SuperPoolTest is BaseTest {
         uint256 depositAmount = 10e18;
 
         // deploy pool and set rate model
-        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
         address rateModel = address(new FixedRateModel(1e18));
-        Pool(pool).setRateModel(rateModel);
+        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken), rateModel));
 
         // mint and deposit tokens
         mockToken.mint(address(this), depositAmount);
@@ -239,14 +236,11 @@ contract SuperPoolTest is BaseTest {
         uint256 depositAmount = 10e18;
         uint256 poolDepositAmount = depositAmount / 2;
 
-        // deploy two pools
-        Pool poolA = TestUtils.deployPool(address(this), address(this), address(mockToken));
-        Pool poolB = TestUtils.deployPool(address(this), address(this), address(mockToken));
-
         FixedRateModel rateModel = new FixedRateModel(1e18);
 
-        poolA.setRateModel(address(rateModel));
-        poolB.setRateModel(address(rateModel));
+        // deploy two pools
+        Pool poolA = TestUtils.deployPool(address(this), address(this), address(mockToken), address(rateModel));
+        Pool poolB = TestUtils.deployPool(address(this), address(this), address(mockToken), address(rateModel));
 
         // set the pool caps for each pool
         _setPoolCap(address(poolA), depositAmount);
@@ -294,9 +288,8 @@ contract SuperPoolTest is BaseTest {
         assertGt(totalDepositAmount, poolDepositAmount);
 
         // set up the pool + cap
-        Pool poolA = TestUtils.deployPool(address(this), address(this), address(mockToken));
         FixedRateModel rateModel = new FixedRateModel(1e18);
-        poolA.setRateModel(address(rateModel));
+        Pool poolA = TestUtils.deployPool(address(this), address(this), address(mockToken), address(rateModel));
         _setPoolCap(address(poolA), totalDepositAmount);
 
         // depoist tokens into pool
@@ -320,9 +313,9 @@ contract SuperPoolTest is BaseTest {
         uint256 depositAmount = 10e18;
         uint256 borrowAmount = 5e18;
 
-        // setup pool
-        Pool pool = TestUtils.deployPool(address(this), address(this), address(mockToken));
         FixedRateModel rateModel = new FixedRateModel(1e18);
+        // setup pool
+        Pool pool = TestUtils.deployPool(address(this), address(this), address(mockToken), address(rateModel));
         pool.setRateModel(address(rateModel));
         _setPoolCap(address(pool), depositAmount);
 
@@ -496,7 +489,7 @@ contract SuperPoolTest is BaseTest {
     function testSetPoolCapOnlyOwner(address notOwner) public {
         vm.assume(notOwner != address(this));
 
-        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
+        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken), address(0)));
 
         vm.startPrank(notOwner);
 
@@ -509,7 +502,7 @@ contract SuperPoolTest is BaseTest {
     function testPoolDepositOnlyOwner(address notOwner) public {
         vm.assume(notOwner != address(this) && notOwner != address(mockToken));
 
-        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
+        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken), address(0)));
 
         vm.startPrank(notOwner);
 
@@ -522,7 +515,7 @@ contract SuperPoolTest is BaseTest {
     function testPoolWithdrawOnlyOwner(address notOwner) public {
         vm.assume(notOwner != address(this));
 
-        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken)));
+        address pool = address(TestUtils.deployPool(address(this), address(this), address(mockToken), address(0)));
 
         vm.startPrank(notOwner);
 
@@ -535,7 +528,7 @@ contract SuperPoolTest is BaseTest {
     function testSetAllocatorOnlyOwner(address notOwner) public {
         vm.assume(notOwner != address(this));
 
-        TestUtils.deployPool(address(this), address(this), address(mockToken));
+        TestUtils.deployPool(address(this), address(this), address(mockToken), address(0));
 
         vm.startPrank(notOwner);
 

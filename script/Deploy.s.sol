@@ -46,14 +46,20 @@ contract Deploy is Script {
 
     // config variables
     address owner;
-    uint256 liquidationFee;
     uint256 minLtv;
     uint256 maxLtv;
+
+    uint256 liqFee;
+    uint256 closeFactor;
+    uint256 liqDiscount;
 
     function run() public {
         owner = vm.envAddress("OWNER");
         minLtv = vm.envUint("MIN_LTV");
         maxLtv = vm.envUint("MAX_LTV");
+        liqFee = vm.envUint("LIQ_FEE");
+        closeFactor = vm.envUint("CLOSE_FACTOR");
+        liqDiscount = vm.envUint("LIQ_DISCOUNT");
 
         positionManagerImpl = address(new PositionManager());
         positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, owner, new bytes(0)));
@@ -76,11 +82,11 @@ contract Deploy is Script {
         superPoolLens = address(new SuperPoolLens());
         portfolioLens = address(new PortfolioLens(positionManager));
 
-        RiskEngine(riskEngine).initialize(minLtv, maxLtv);
+        RiskEngine(riskEngine).initialize(minLtv, maxLtv, closeFactor, liqDiscount);
         RiskEngine(riskEngine).setRiskModule(IPosition(singleDebtPositionImpl).TYPE(), singleDebtRiskModule);
         RiskEngine(riskEngine).setRiskModule(IPosition(singleAssetPositionImpl).TYPE(), singleAssetRiskModule);
 
-        PositionManager(positionManager).initialize(poolFactory, riskEngine, liquidationFee);
+        PositionManager(positionManager).initialize(poolFactory, riskEngine, liqFee);
         PositionManager(positionManager).setBeacon(IPosition(singleDebtPositionImpl).TYPE(), singleDebtPositionBeacon);
         PositionManager(positionManager).setBeacon(IPosition(singleAssetPositionImpl).TYPE(), singleAssetPositionBeacon);
 

@@ -68,16 +68,9 @@ contract PoolFactory is Ownable, Pausable {
         Pool pool = Pool(Clones.clone(poolImplementation));
 
         // init erc4626 params for the pool
-        pool.initialize(params.asset, params.name, params.symbol);
-
-        // set interest rate model used by the pool
-        pool.setRateModel(params.rateModel);
-
-        // set pool cap
-        pool.setPoolCap(params.poolCap);
-
-        // set origination fee for the pool
-        pool.setOriginationFee(params.originationFee);
+        pool.initialize(
+            params.asset, params.rateModel, params.poolCap, params.originationFee, params.name, params.symbol
+        );
 
         // transfer pool owner to pool manager - msg.sender
         pool.transferOwnership(msg.sender);

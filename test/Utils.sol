@@ -10,10 +10,13 @@ library TestUtils {
         return proxy;
     }
 
-    function deployPool(address positionManager, address owner, address asset) internal returns (Pool) {
+    function deployPool(address positionManager, address owner, address asset, address rateModel)
+        internal
+        returns (Pool)
+    {
         Pool pool = new Pool(positionManager);
         pool = Pool(address(makeProxy(address(pool), owner)));
-        pool.initialize(asset, "test", "test");
+        pool.initialize(asset, rateModel, type(uint256).max, uint256(0), "test", "test");
         pool.setPoolCap(type(uint256).max);
         return pool;
     }

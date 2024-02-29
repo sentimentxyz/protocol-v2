@@ -18,7 +18,7 @@ contract ChainlinkUsdOracle is Ownable {
     // asset/eth price feed
     mapping(address asset => address feed) public priceFeedFor;
 
-    constructor(address ethUsdFeed) Ownable(msg.sender) {
+    constructor(address owner, address ethUsdFeed) Ownable(owner) {
         ETH_USD_FEED = IAggegregatorV3(ethUsdFeed);
     }
 

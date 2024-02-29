@@ -16,7 +16,7 @@ contract ChainlinkEthOracle is Ownable {
     // asset/eth price feed
     mapping(address asset => address feed) public priceFeedFor;
 
-    constructor() Ownable(msg.sender) {}
+    constructor(address owner) Ownable(owner) {}
 
     function getValueInEth(address asset, uint256 amt) external view returns (uint256) {
         (, int256 price,,,) = IAggegregatorV3(priceFeedFor[asset]).latestRoundData();

@@ -17,6 +17,15 @@ import {SingleAssetRiskModule} from "src/risk/SingleAssetRiskModule.sol";
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
+struct DeployParams {
+    address owner;
+    uint256 minLtv;
+    uint256 maxLtv;
+    uint256 liqFee;
+    uint256 closeFactor;
+    uint256 liqDiscount;
+}
+
 contract Deploy is Script {
     // position manager
     address public positionManager;
@@ -44,31 +53,15 @@ contract Deploy is Script {
     address public superPoolLens;
     address public portfolioLens;
 
-    // config variables
-    address owner;
-    uint256 minLtv;
-    uint256 maxLtv;
-
-    uint256 liqFee;
-    uint256 closeFactor;
-    uint256 liqDiscount;
-
-    function run() public {
-        owner = vm.envAddress("OWNER");
-        minLtv = vm.envUint("MIN_LTV");
-        maxLtv = vm.envUint("MAX_LTV");
-        liqFee = vm.envUint("LIQ_FEE");
-        closeFactor = vm.envUint("CLOSE_FACTOR");
-        liqDiscount = vm.envUint("LIQ_DISCOUNT");
-
+    function run(DeployParams memory params) public {
         positionManagerImpl = address(new PositionManager());
-        positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, owner, new bytes(0)));
+        positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0)));
 
         poolImpl = address(new Pool(positionManager));
-        poolFactory = address(new PoolFactory(owner, poolImpl));
+        poolFactory = address(new PoolFactory(params.owner, poolImpl));
 
         riskEngineImpl = address(new RiskEngine());
-        riskEngine = address(new TransparentUpgradeableProxy(riskEngineImpl, owner, new bytes(0)));
+        riskEngine = address(new TransparentUpgradeableProxy(riskEngineImpl, params.owner, new bytes(0)));
 
         singleDebtRiskModule = address(new SingleDebtRiskModule(riskEngine));
         singleAssetRiskModule = address(new SingleAssetRiskModule(riskEngine));
@@ -76,21 +69,21 @@ contract Deploy is Script {
         singleDebtPositionImpl = address(new SingleDebtPosition(positionManager));
         singleAssetPositionImpl = address(new SingleAssetPosition(positionManager));
 
-        singleDebtPositionBeacon = address(new UpgradeableBeacon(singleDebtPositionImpl, owner));
-        singleAssetPositionBeacon = address(new UpgradeableBeacon(singleAssetPositionImpl, owner));
+        singleDebtPositionBeacon = address(new UpgradeableBeacon(singleDebtPositionImpl, params.owner));
+        singleAssetPositionBeacon = address(new UpgradeableBeacon(singleAssetPositionImpl, params.owner));
 
         superPoolLens = address(new SuperPoolLens());
         portfolioLens = address(new PortfolioLens(positionManager));
 
-        RiskEngine(riskEngine).initialize(minLtv, maxLtv, closeFactor, liqDiscount);
+        RiskEngine(riskEngine).initialize(params.minLtv, params.maxLtv, params.closeFactor, params.liqDiscount);
         RiskEngine(riskEngine).setRiskModule(IPosition(singleDebtPositionImpl).TYPE(), singleDebtRiskModule);
         RiskEngine(riskEngine).setRiskModule(IPosition(singleAssetPositionImpl).TYPE(), singleAssetRiskModule);
 
-        PositionManager(positionManager).initialize(poolFactory, riskEngine, liqFee);
+        PositionManager(positionManager).initialize(poolFactory, riskEngine, params.liqFee);
         PositionManager(positionManager).setBeacon(IPosition(singleDebtPositionImpl).TYPE(), singleDebtPositionBeacon);
         PositionManager(positionManager).setBeacon(IPosition(singleAssetPositionImpl).TYPE(), singleAssetPositionBeacon);
 
-        RiskEngine(riskEngine).transferOwnership(owner);
-        PositionManager(positionManager).transferOwnership(owner);
+        RiskEngine(riskEngine).transferOwnership(params.owner);
+        PositionManager(positionManager).transferOwnership(params.owner);
     }
 }

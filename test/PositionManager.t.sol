@@ -50,7 +50,7 @@ contract PositionManagerTest is BaseTest {
         actions[0] = action;
 
         // we shouldnt be able to call this function yet
-        PositionManager _manager = PositionManager(deploy.positionManager());
+        PositionManager _manager = PositionManager(protocol.positionManager());
         vm.expectRevert();
         _manager.processBatch(position, actions);
 
@@ -73,7 +73,7 @@ contract PositionManagerTest is BaseTest {
         actions[0] = action;
 
         // we shouldnt be able to call this function yet
-        PositionManager _manager = PositionManager(deploy.positionManager());
+        PositionManager _manager = PositionManager(protocol.positionManager());
         vm.expectRevert();
         _manager.processBatch(position, actions);
 
@@ -90,9 +90,9 @@ contract PositionManagerTest is BaseTest {
         address position = _deployPosition(typee, salt, owner);
 
         mockToken.mint(address(this), 100);
-        mockToken.approve(address(deploy.positionManager()), 100);
+        mockToken.approve(address(protocol.positionManager()), 100);
 
-        PositionManager _manager = PositionManager(deploy.positionManager());
+        PositionManager _manager = PositionManager(protocol.positionManager());
 
         vm.expectRevert();
         _manager.processBatch(position, depositActionFromThis(address(mockToken), 100));
@@ -111,9 +111,9 @@ contract PositionManagerTest is BaseTest {
         address position = _deployPosition(typee, salt, owner);
 
         mockToken.mint(address(this), 100);
-        mockToken.approve(address(deploy.positionManager()), 100);
+        mockToken.approve(address(protocol.positionManager()), 100);
 
-        PositionManager _manager = PositionManager(deploy.positionManager());
+        PositionManager _manager = PositionManager(protocol.positionManager());
 
         vm.expectRevert(Errors.UnauthorizedAction.selector);
         _manager.processBatch(position, depositActionFromThis(address(mockToken), 100));
@@ -142,8 +142,8 @@ contract PositionManagerTest is BaseTest {
         assertEq(position, predicted);
 
         // check were the owner and authed
-        assertEq(PositionManager(deploy.positionManager()).ownerOf(position), address(this));
-        assertEq(PositionManager(deploy.positionManager()).isAuth(position, address(this)), true);
+        assertEq(PositionManager(protocol.positionManager()).ownerOf(position), address(this));
+        assertEq(PositionManager(protocol.positionManager()).isAuth(position, address(this)), true);
         assertEq(IPosition(position).TYPE(), typee);
     }
 
@@ -173,13 +173,13 @@ contract PositionManagerTest is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        PositionManager(deploy.positionManager()).processBatch(predicted, actions);
+        PositionManager(protocol.positionManager()).processBatch(predicted, actions);
 
         return predicted;
     }
 
     function predictAddress(uint256 typee, bytes32 salt) internal view returns (address) {
-        return PortfolioLens(deploy.portfolioLens()).predictAddress(typee, salt);
+        return PortfolioLens(protocol.portfolioLens()).predictAddress(typee, salt);
     }
 
     function depositActionFromThis(address token, uint256 amt) internal view returns (Action[] memory) {

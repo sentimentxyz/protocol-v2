@@ -25,11 +25,11 @@ contract SdpBorrowTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
-        poolFactory = PoolFactory(deploy.poolFactory());
-        portfolioLens = PortfolioLens(deploy.portfolioLens());
-        positionManager = PositionManager(deploy.positionManager());
+        poolFactory = PoolFactory(protocol.poolFactory());
+        portfolioLens = PortfolioLens(protocol.portfolioLens());
+        positionManager = PositionManager(protocol.positionManager());
         position = SingleDebtPosition(_deploySingleDebtPosition());
-        riskEngine = RiskEngine(deploy.riskEngine());
+        riskEngine = RiskEngine(protocol.riskEngine());
         erc20Collat = new MintableToken();
         erc20Borrow = new MintableToken();
 

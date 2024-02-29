@@ -18,12 +18,12 @@ import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/Upgradeabl
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 struct DeployParams {
-    uint256 closeFactor;
-    uint256 liqDiscount;
-    uint256 liqFee;
-    uint256 maxLtv;
-    uint256 minLtv;
     address owner;
+    uint256 minLtv;
+    uint256 maxLtv;
+    uint256 liqFee;
+    uint256 liqDiscount;
+    uint256 closeFactor;
 }
 
 contract Deploy is Script {
@@ -94,21 +94,16 @@ contract Deploy is Script {
         vm.stopBroadcast();
     }
 
-    function getDeployParams() internal view returns (DeployParams memory) {
+    function getDeployParams() internal view returns (DeployParams memory params) {
         string memory path =
             string.concat(vm.projectRoot(), "/script/config/", vm.toString(block.chainid), "/deploy.json");
         string memory config = vm.readFile(path);
 
-        DeployParams memory params;
-        params.owner = vm.parseJsonAddress(config, "$.owner");
-
         params.minLtv = vm.parseJsonUint(config, "$.minLtv");
         params.maxLtv = vm.parseJsonUint(config, "$.maxLtv");
-
         params.liqFee = vm.parseJsonUint(config, "$.liqFee");
+        params.owner = vm.parseJsonAddress(config, "$.owner");
         params.liqDiscount = vm.parseJsonUint(config, "$.liqDiscount");
         params.closeFactor = vm.parseJsonUint(config, "$.closeFactor");
-
-        return params;
     }
 }

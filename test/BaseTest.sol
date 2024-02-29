@@ -17,6 +17,9 @@ contract BaseTest is Test {
         vm.setEnv("OWNER", vm.toString(address(this)));
         vm.setEnv("MIN_LTV", vm.toString(uint256(0)));
         vm.setEnv("MAX_LTV", vm.toString(type(uint256).max));
+        vm.setEnv("LIQ_FEE", vm.toString(uint256(0)));
+        vm.setEnv("CLOSE_FACTOR", vm.toString(uint256(5e17)));
+        vm.setEnv("LIQ_DISCOUNT", vm.toString(uint256(2e17)));
         deploy = new Deploy();
         deploy.run();
     }

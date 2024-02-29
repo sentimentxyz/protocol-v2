@@ -11,7 +11,7 @@ import {Deploy, DeployParams} from "script/Deploy.s.sol";
 contract BaseTest is Test {
     uint256 constant MAX_NUM = type(uint144).max;
 
-    Deploy public deploy;
+    Deploy public protocol;
 
     function setUp() public virtual {
         DeployParams memory params = DeployParams({
@@ -22,8 +22,8 @@ contract BaseTest is Test {
             closeFactor: 5e17,
             liqDiscount: 2e17
         });
-        deploy = new Deploy();
-        deploy.run(params);
+        protocol = new Deploy();
+        protocol.deploy(params);
     }
 }
 

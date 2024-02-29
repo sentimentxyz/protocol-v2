@@ -54,14 +54,11 @@ contract Deploy is Script {
     address public portfolioLens;
 
     function run() public {
-        string memory path =
-            string.concat(vm.projectRoot(), "/script/config/", vm.toString(block.chainid), "/deploy.json");
-        string memory config = vm.readFile(path);
-        DeployParams memory params = abi.decode(vm.parseJson(config), (DeployParams));
-        run(params);
+        DeployParams memory params = getDeployParams();
+        deploy(params);
     }
 
-    function run(DeployParams memory params) public {
+    function deploy(DeployParams memory params) public {
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         positionManagerImpl = address(new PositionManager());
         positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0)));
@@ -95,5 +92,23 @@ contract Deploy is Script {
         RiskEngine(riskEngine).transferOwnership(params.owner);
         PositionManager(positionManager).transferOwnership(params.owner);
         vm.stopBroadcast();
+    }
+
+    function getDeployParams() internal view returns (DeployParams memory) {
+        string memory path =
+            string.concat(vm.projectRoot(), "/script/config/", vm.toString(block.chainid), "/deploy.json");
+        string memory config = vm.readFile(path);
+
+        DeployParams memory params;
+        params.owner = vm.parseJsonAddress(config, "$.owner");
+
+        params.minLtv = vm.parseJsonUint(config, "$.minLtv");
+        params.maxLtv = vm.parseJsonUint(config, "$.maxLtv");
+
+        params.liqFee = vm.parseJsonUint(config, "$.liqFee");
+        params.liqDiscount = vm.parseJsonUint(config, "$.liqDiscount");
+        params.closeFactor = vm.parseJsonUint(config, "$.closeFactor");
+
+        return params;
     }
 }

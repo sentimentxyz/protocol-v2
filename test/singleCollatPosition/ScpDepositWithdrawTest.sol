@@ -15,8 +15,8 @@ contract ScpDepositWithdrawTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
-        portfolioLens = PortfolioLens(deploy.portfolioLens());
-        positionManager = PositionManager(deploy.positionManager());
+        portfolioLens = PortfolioLens(protocol.portfolioLens());
+        positionManager = PositionManager(protocol.positionManager());
         position = SingleAssetPosition(_deployPosition());
 
         erc201 = new MintableToken();

@@ -16,8 +16,8 @@ contract SdpDepositWithdrawTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
-        portfolioLens = PortfolioLens(deploy.portfolioLens());
-        positionManager = PositionManager(deploy.positionManager());
+        portfolioLens = PortfolioLens(protocol.portfolioLens());
+        positionManager = PositionManager(protocol.positionManager());
         position = SingleDebtPosition(_deploySingleDebtPosition());
 
         erc201 = new MintableToken();

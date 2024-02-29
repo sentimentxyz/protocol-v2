@@ -2,8 +2,6 @@
 pragma solidity ^0.8.24;
 
 import {Pool} from "src/Pool.sol";
-import {console2} from "forge-std/console2.sol";
-import {Script} from "forge-std/Script.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 import {PoolFactory} from "src/PoolFactory.sol";
 import {IPosition} from "src/interface/IPosition.sol";
@@ -14,16 +12,18 @@ import {SingleDebtPosition} from "src/position/SingleDebtPosition.sol";
 import {SingleDebtRiskModule} from "src/risk/SingleDebtRiskModule.sol";
 import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
 import {SingleAssetRiskModule} from "src/risk/SingleAssetRiskModule.sol";
+
+import {Script} from "forge-std/Script.sol";
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 struct DeployParams {
-    address owner;
-    uint256 minLtv;
-    uint256 maxLtv;
-    uint256 liqFee;
     uint256 closeFactor;
     uint256 liqDiscount;
+    uint256 liqFee;
+    uint256 maxLtv;
+    uint256 minLtv;
+    address owner;
 }
 
 contract Deploy is Script {
@@ -53,7 +53,16 @@ contract Deploy is Script {
     address public superPoolLens;
     address public portfolioLens;
 
+    function run() public {
+        string memory path =
+            string.concat(vm.projectRoot(), "/script/config/", vm.toString(block.chainid), "/deploy.json");
+        string memory config = vm.readFile(path);
+        DeployParams memory params = abi.decode(vm.parseJson(config), (DeployParams));
+        run(params);
+    }
+
     function run(DeployParams memory params) public {
+        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         positionManagerImpl = address(new PositionManager());
         positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0)));
 
@@ -85,5 +94,6 @@ contract Deploy is Script {
 
         RiskEngine(riskEngine).transferOwnership(params.owner);
         PositionManager(positionManager).transferOwnership(params.owner);
+        vm.stopBroadcast();
     }
 }

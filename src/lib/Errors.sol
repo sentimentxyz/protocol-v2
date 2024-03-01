@@ -85,4 +85,7 @@ library Errors {
 
     // [SuperPool._withdrawWithPath] given path does not have sufficient funds to fullfill withdrawal
     error InsufficientWithdrawPath();
+
+    // [RiskEngine.setLtv] no oracle set for given pool-asset pair. oracles must be set before ltv
+    error NoOracleFound();
 }

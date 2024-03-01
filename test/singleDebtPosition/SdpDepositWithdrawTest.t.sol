@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {BaseTest, MintableToken} from "../BaseTest.sol";
+import {BaseTest, MintableToken} from "../BaseTest.t.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {SingleDebtPosition} from "src/position/SingleDebtPosition.sol";
 import {PositionManager, Operation, Action} from "src/PositionManager.sol";

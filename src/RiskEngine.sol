@@ -114,7 +114,12 @@ contract RiskEngine is OwnableUpgradeable {
     function setLtv(address pool, address asset, uint256 ltv) external {
         // only pool owners are allowed to set ltv
         if (msg.sender != Pool(pool).owner()) revert Errors.onlyPoolOwner();
-        if (ltv < minLtv || ltv > maxLtv || ltv == 0) revert Errors.OutsideGlobalLtvLimits();
+
+        // set oracle before ltv so risk modules don't have to explicitly check if an oracle exists
+        if (oracleFor[pool][asset] == address(0)) revert Errors.NoOracleFound();
+
+        // ensure new ltv is witihin global limits or zero
+        if ((ltv != 0 && ltv < minLtv) || ltv > maxLtv) revert Errors.OutsideGlobalLtvLimits();
 
         // update asset ltv for the given pool
         ltvFor[pool][asset] = ltv;

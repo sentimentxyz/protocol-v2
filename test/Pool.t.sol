@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {BaseTest, MintableToken} from "./BaseTest.sol";
+import {BaseTest, MintableToken} from "./BaseTest.t.sol";
 import {Pool} from "src/Pool.sol";
 import {IRateModel} from "src/interface/IRateModel.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
-import {TestUtils} from "test/Utils.sol";
+import {TestUtils} from "test/TestUtils.sol";
 import {FixedRateModel} from "src/irm/FixedRateModel.sol";
 
 contract PoolTest is BaseTest {

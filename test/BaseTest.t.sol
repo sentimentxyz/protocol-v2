@@ -14,11 +14,8 @@ contract BaseTest is Test {
     Deploy public protocol;
 
     function setUp() public virtual {
-        vm.setEnv("CONFIG", "localTest");
-
-        string memory path = string.concat(
-            vm.projectRoot(), "/script/config/", vm.toString(block.chainid), "/", vm.envString("CONFIG"), ".json"
-        );
+        string memory path =
+            string.concat(vm.projectRoot(), "/script/config/", vm.toString(block.chainid), "/config.json");
 
         if (vm.parseJsonAddress(vm.readFile(path), "$.Deploy.owner") != address(this)) {
             vm.writeJson(vm.toString(address(this)), path, "$.Deploy.owner");

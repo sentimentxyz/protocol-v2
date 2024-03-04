@@ -1,35 +1,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Script} from "forge-std/Script.sol";
+import {BaseScript} from "../BaseScript.s.sol";
 import {PoolFactory, PoolDeployParams} from "src/PoolFactory.sol";
 
-contract DeployPool is Script {
-    function run() public {
-        PoolDeployParams memory params = getPoolDeployParams();
-        deploy(params);
-    }
+contract DeployPool is BaseScript {
+    PoolFactory poolFactory;
+    PoolDeployParams params;
 
-    function deploy(PoolDeployParams memory params) public {
-        PoolFactory poolFactory = PoolFactory(vm.parseJsonAddress(getConfig(), "$.poolFactory"));
+    function run() public {
+        getParams();
+
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         poolFactory.deployPool(params);
     }
 
-    function getPoolDeployParams() internal view returns (PoolDeployParams memory params) {
+    function getParams() internal {
         string memory config = getConfig();
 
-        params.name = vm.parseJsonString(config, "$.name");
-        params.asset = vm.parseJsonAddress(config, "$.asset");
-        params.symbol = vm.parseJsonString(config, "$.symbol");
-        params.poolCap = vm.parseJsonUint(config, "$.poolCap");
-        params.rateModel = vm.parseJsonAddress(config, "$.rateModel");
-        params.originationFee = vm.parseJsonUint(config, "$.originationFee");
-    }
+        poolFactory = PoolFactory(vm.parseJsonAddress(config, "$.DeployPool.poolFactory"));
 
-    function getConfig() internal view returns (string memory config) {
-        string memory path =
-            string.concat(vm.projectRoot(), "/script/config/", vm.toString(block.chainid), "/pool.json");
-        config = vm.readFile(path);
+        params.name = vm.parseJsonString(config, "$.DeployPool.name");
+        params.asset = vm.parseJsonAddress(config, "$.DeployPool.asset");
+        params.symbol = vm.parseJsonString(config, "$.DeployPool.symbol");
+        params.poolCap = vm.parseJsonUint(config, "$.DeployPool.poolCap");
+        params.rateModel = vm.parseJsonAddress(config, "$.DeployPool.rateModel");
+        params.originationFee = vm.parseJsonUint(config, "$.DeployPool.originationFee");
     }
 }

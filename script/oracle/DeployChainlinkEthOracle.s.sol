@@ -1,15 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Script.sol";
+import "../BaseScript.s.sol";
 import {ChainlinkEthOracle} from "src/oracle/ChainlinkEthOracle.sol";
 
-contract DeployChainlinkEthOracle is Script {
+contract DeployChainlinkEthOracle is BaseScript {
+    address owner;
     ChainlinkEthOracle oracle;
 
     function run() public {
-        address owner = vm.envAddress("OWNER");
+        getParams();
+
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         oracle = new ChainlinkEthOracle(owner);
+    }
+
+    function getParams() internal {
+        string memory config = getConfig();
+
+        owner = vm.parseJsonAddress(config, "$.DeployChainLinkEthOracle.owner");
+        oracle = ChainlinkEthOracle(vm.parseJsonAddress(config, "$.DeployChainLinkEthOracle.oracle"));
     }
 }

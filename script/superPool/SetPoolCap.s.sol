@@ -1,17 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Script.sol";
 import {SuperPool} from "src/SuperPool.sol";
+import {BaseScript} from "../BaseScript.s.sol";
 
-contract SetPoolCap is Script {
+contract SetPoolCap is BaseScript {
+    address pool;
+    uint256 poolCap;
+    SuperPool superPool;
+
     function run() public {
-        SuperPool superPool = SuperPool(vm.envAddress("SET_POOL_CAP_SUPERPOOL"));
-
-        address pool = vm.envAddress("SET_POOL_CAP_POOL");
-        uint256 poolCap = vm.envUint("SET_POOL_CAP_POOLCAP");
+        getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         superPool.setPoolCap(pool, poolCap);
+    }
+
+    function getParams() internal {
+        string memory config = getConfig();
+
+        pool = vm.parseJsonAddress(config, "$.SetPoolCap.pool");
+        poolCap = vm.parseJsonUint(config, "$.SetPoolCap.poolCap");
+        superPool = SuperPool(vm.parseJsonAddress(config, "$.SetPoolCap.superPool"));
     }
 }

@@ -1,17 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Script.sol";
+import "../BaseScript.s.sol";
 import {LinearRateModel} from "src/irm/LinearRateModel.sol";
 
-contract DeployLinearRateModel is Script {
+contract DeployLinearRateModel is BaseScript {
+    uint256 minRate;
+    uint256 maxRate;
     LinearRateModel rateModel;
 
     function run() public {
-        uint256 minRate = vm.envUint("MIN_RATE");
-        uint256 maxRate = vm.envUint("MAX_RATE");
+        getParams();
         require(maxRate > minRate, "MAX <= MIN");
+
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         rateModel = new LinearRateModel(minRate, maxRate);
+    }
+
+    function getParams() internal {
+        string memory config = getConfig();
+
+        minRate = vm.parseJsonUint(config, "$.DeployLinearRateModel.minRate");
+        maxRate = vm.parseJsonUint(config, "$.DeployLinearRateModel.maxRate");
     }
 }

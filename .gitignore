@@ -17,3 +17,6 @@ docs/
 # coverage reports
 coverage/
 lcov.info
+
+# script logs
+/script/log

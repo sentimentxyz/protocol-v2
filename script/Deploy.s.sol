@@ -13,7 +13,7 @@ import {SingleDebtRiskModule} from "src/risk/SingleDebtRiskModule.sol";
 import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
 import {SingleAssetRiskModule} from "src/risk/SingleAssetRiskModule.sol";
 
-import {Script} from "forge-std/Script.sol";
+import {BaseScript} from "./BaseScript.s.sol";
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
@@ -26,7 +26,7 @@ struct DeployParams {
     uint256 closeFactor;
 }
 
-contract Deploy is Script {
+contract Deploy is BaseScript {
     // position manager
     address public positionManager;
     address public positionManagerImpl;
@@ -53,12 +53,11 @@ contract Deploy is Script {
     address public superPoolLens;
     address public portfolioLens;
 
-    function run() public {
-        DeployParams memory params = getDeployParams();
-        deploy(params);
-    }
+    DeployParams params;
 
-    function deploy(DeployParams memory params) public {
+    function run() public {
+        getParams();
+
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         positionManagerImpl = address(new PositionManager());
         positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0)));
@@ -94,16 +93,14 @@ contract Deploy is Script {
         vm.stopBroadcast();
     }
 
-    function getDeployParams() internal view returns (DeployParams memory params) {
-        string memory path =
-            string.concat(vm.projectRoot(), "/script/config/", vm.toString(block.chainid), "/deploy.json");
-        string memory config = vm.readFile(path);
+    function getParams() internal {
+        string memory config = getConfig();
 
-        params.minLtv = vm.parseJsonUint(config, "$.minLtv");
-        params.maxLtv = vm.parseJsonUint(config, "$.maxLtv");
-        params.liqFee = vm.parseJsonUint(config, "$.liqFee");
-        params.owner = vm.parseJsonAddress(config, "$.owner");
-        params.liqDiscount = vm.parseJsonUint(config, "$.liqDiscount");
-        params.closeFactor = vm.parseJsonUint(config, "$.closeFactor");
+        params.minLtv = vm.parseJsonUint(config, "$.Deploy.minLtv");
+        params.maxLtv = vm.parseJsonUint(config, "$.Deploy.maxLtv");
+        params.liqFee = vm.parseJsonUint(config, "$.Deploy.liqFee");
+        params.owner = vm.parseJsonAddress(config, "$.Deploy.owner");
+        params.liqDiscount = vm.parseJsonUint(config, "$.Deploy.liqDiscount");
+        params.closeFactor = vm.parseJsonUint(config, "$.Deploy.closeFactor");
     }
 }

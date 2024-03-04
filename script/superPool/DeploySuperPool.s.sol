@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Script} from "forge-std/Script.sol";
+import {BaseScript} from "../BaseScript.s.sol";
 import {SuperPool} from "src/SuperPool.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
-struct SuperPoolDeployParams {
+contract DeploySuperPool is BaseScript {
     string name;
     string symbol;
     address asset;
@@ -13,38 +13,28 @@ struct SuperPoolDeployParams {
     address allocator;
     uint256 protocolFee;
     uint256 totalPoolCap;
-}
 
-contract DeploySuperPool is Script {
     address superPool;
     address superPoolImpl;
 
     function run() public {
-        SuperPoolDeployParams memory params = getSuperPoolDeployParams();
-        deploy(params);
-    }
-
-    function deploy(SuperPoolDeployParams memory params) public {
+        getParams();
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         superPoolImpl = address(new SuperPool());
-        superPool = address(new TransparentUpgradeableProxy(superPoolImpl, params.owner, new bytes(0)));
-        SuperPool(superPool).initialize(
-            params.asset, params.totalPoolCap, params.protocolFee, params.allocator, params.name, params.symbol
-        );
+        superPool = address(new TransparentUpgradeableProxy(superPoolImpl, owner, new bytes(0)));
+        SuperPool(superPool).initialize(asset, totalPoolCap, protocolFee, allocator, name, symbol);
         vm.stopBroadcast();
     }
 
-    function getSuperPoolDeployParams() internal view returns (SuperPoolDeployParams memory params) {
-        string memory path =
-            string.concat(vm.projectRoot(), "/script/config/", vm.toString(block.chainid), "/superPool.json");
-        string memory config = vm.readFile(path);
+    function getParams() internal {
+        string memory config = getConfig();
 
-        params.name = vm.parseJsonString(config, "$.name");
-        params.asset = vm.parseJsonAddress(config, "$.asset");
-        params.owner = vm.parseJsonAddress(config, "$.owner");
-        params.symbol = vm.parseJsonString(config, "$.symbol");
-        params.allocator = vm.parseJsonAddress(config, "$.allocator");
-        params.protocolFee = vm.parseJsonUint(config, "$.protocolFee");
-        params.totalPoolCap = vm.parseJsonUint(config, "$.totalPoolCap");
+        name = vm.parseJsonString(config, "$.DeploySuperPool.name");
+        asset = vm.parseJsonAddress(config, "$.DeploySuperPool.asset");
+        owner = vm.parseJsonAddress(config, "$.DeploySuperPool.owner");
+        symbol = vm.parseJsonString(config, "$.DeploySuperPool.symbol");
+        allocator = vm.parseJsonAddress(config, "$.DeploySuperPool.allocator");
+        protocolFee = vm.parseJsonUint(config, "$.DeploySuperPool.protocolFee");
+        totalPoolCap = vm.parseJsonUint(config, "$.DeploySuperPool.totalPoolCap");
     }
 }

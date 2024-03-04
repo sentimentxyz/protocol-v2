@@ -1,18 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Script.sol";
+import "../BaseScript.s.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 
-contract SetOracle is Script {
-    function run() public {
-        RiskEngine riskEngine = RiskEngine(vm.envAddress("RISK_ENGINE"));
+contract SetOracle is BaseScript {
+    address pool;
+    address asset;
+    address oracle;
 
-        address pool = vm.envAddress("SET_ORACLE_POOL");
-        address asset = vm.envAddress("SET_ORACLE_ASSET");
-        address oracle = vm.envAddress("SET_ORACLE_ORACLE");
+    RiskEngine riskEngine;
+
+    function run() public {
+        getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         riskEngine.setOracle(pool, asset, oracle);
+    }
+
+    function getParams() internal {
+        string memory config = getConfig();
+
+        pool = vm.parseJsonAddress(config, "$.SetOracle.pool");
+        asset = vm.parseJsonAddress(config, "$.SetOracle.asset");
+        oracle = vm.parseJsonAddress(config, "$.SetOracle.oracle");
+        riskEngine = RiskEngine(vm.parseJsonAddress(config, "$.SetOracle.riskEngine"));
     }
 }

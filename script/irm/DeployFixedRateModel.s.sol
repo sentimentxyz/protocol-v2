@@ -1,15 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Script.sol";
+import "../BaseScript.s.sol";
 import {FixedRateModel} from "src/irm/FixedRateModel.sol";
 
-contract DeployFixedRateModel is Script {
+contract DeployFixedRateModel is BaseScript {
+    uint256 rate;
     FixedRateModel rateModel;
 
     function run() public {
-        uint256 fixedRate = vm.envUint("FIXED_RATE");
+        getParams();
+
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        rateModel = new FixedRateModel(fixedRate);
+        rateModel = new FixedRateModel(rate);
+    }
+
+    function getParams() internal {
+        string memory config = getConfig();
+
+        rate = vm.parseJsonUint(config, "$.DeployFixedRateModel.rate");
+        rateModel = FixedRateModel(vm.parseJsonAddress(config, "$.DeployFixedRateModel.rateModel"));
     }
 }

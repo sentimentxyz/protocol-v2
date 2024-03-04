@@ -21,6 +21,5 @@ contract DeployChainlinkUsdOracle is BaseScript {
 
         owner = vm.parseJsonAddress(config, "$.DeployChainlinkUsdOracle.owner");
         ethUsdFeed = vm.parseJsonAddress(config, "$.DeployChainlinkUsdOracle.ethUsdFeed");
-        oracle = ChainlinkUsdOracle(vm.parseJsonAddress(config, "$.DeployChainlinkUsdOracle.oracle"));
     }
 }

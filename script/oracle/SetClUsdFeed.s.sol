@@ -20,7 +20,7 @@ contract SetClUsdFeed is BaseScript {
         string memory config = getConfig();
 
         feed = vm.parseJsonAddress(config, "$.SetClUsdFeed.feed");
-        asset = vm.parseJsonAddress(config, "$.SetClUsdFeed.feed");
-        oracle = ChainlinkUsdOracle(vm.parseJsonAddress(config, "$.SetClUsdFeed.feed"));
+        asset = vm.parseJsonAddress(config, "$.SetClUsdFeed.asset");
+        oracle = ChainlinkUsdOracle(vm.parseJsonAddress(config, "$.SetClUsdFeed.oracle"));
     }
 }

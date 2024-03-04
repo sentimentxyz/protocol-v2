@@ -9,6 +9,8 @@ contract DeployChainlinkEthOracle is BaseScript {
     ChainlinkEthOracle oracle;
 
     function run() public {
+        getParams();
+
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         oracle = new ChainlinkEthOracle(owner);
     }

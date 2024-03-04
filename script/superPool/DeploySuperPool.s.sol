@@ -19,6 +19,7 @@ contract DeploySuperPool is BaseScript {
 
     function run() public {
         getParams();
+
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         superPoolImpl = address(new SuperPool());
         superPool = address(new TransparentUpgradeableProxy(superPoolImpl, owner, new bytes(0)));

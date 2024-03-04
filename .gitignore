@@ -19,4 +19,4 @@ coverage/
 lcov.info
 
 # script logs
-/script/logs
+/script/log

@@ -10,4 +10,8 @@ contract BaseScript is Script {
         );
         return vm.readFile(path);
     }
+
+    function getLogPathBase() public view returns (string memory) {
+        return string.concat(vm.projectRoot(), "/script/log/", vm.toString(block.chainid), "/");
+    }
 }

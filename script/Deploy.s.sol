@@ -91,6 +91,8 @@ contract Deploy is BaseScript {
         RiskEngine(riskEngine).transferOwnership(params.owner);
         PositionManager(positionManager).transferOwnership(params.owner);
         vm.stopBroadcast();
+
+        if (block.chainid != 31337) generateLogs();
     }
 
     function getParams() internal {
@@ -102,5 +104,32 @@ contract Deploy is BaseScript {
         params.owner = vm.parseJsonAddress(config, "$.Deploy.owner");
         params.liqDiscount = vm.parseJsonUint(config, "$.Deploy.liqDiscount");
         params.closeFactor = vm.parseJsonUint(config, "$.Deploy.closeFactor");
+    }
+
+    function generateLogs() internal {
+        string memory obj = "Deploy";
+
+        vm.serializeAddress(obj, "positionManager", positionManager);
+        vm.serializeAddress(obj, "positionManagerImpl", positionManagerImpl);
+
+        vm.serializeAddress(obj, "poolImpl", poolImpl);
+        vm.serializeAddress(obj, "poolFactory", poolFactory);
+
+        vm.serializeAddress(obj, "riskEngine", riskEngine);
+        vm.serializeAddress(obj, "riskEngineImpl", riskEngineImpl);
+
+        vm.serializeAddress(obj, "singleAssetRiskModule", singleAssetRiskModule);
+        vm.serializeAddress(obj, "singleAssetPositionImpl", singleAssetPositionImpl);
+        vm.serializeAddress(obj, "singleAssetPositionBeacon", singleAssetPositionBeacon);
+
+        vm.serializeAddress(obj, "singleDebtRiskModule", singleDebtRiskModule);
+        vm.serializeAddress(obj, "singleDebtPositionImpl", singleDebtPositionImpl);
+        vm.serializeAddress(obj, "singleDebtPositionBeacon", singleDebtPositionBeacon);
+
+        vm.serializeAddress(obj, "superPoolLens", superPoolLens);
+        vm.serializeAddress(obj, "portfolioLens", portfolioLens);
+
+        string memory path = string.concat(getLogPathBase(), "Deploy-", vm.toString(block.timestamp), ".json");
+        vm.writeJson(obj, path);
     }
 }

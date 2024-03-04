@@ -12,6 +12,6 @@ contract BaseScript is Script {
     }
 
     function getLogPathBase() public view returns (string memory) {
-        return string.concat(vm.projectRoot(), "/script/log/", vm.toString(block.chainid), "/");
+        return string.concat(vm.projectRoot(), "/script/log/");
     }
 }

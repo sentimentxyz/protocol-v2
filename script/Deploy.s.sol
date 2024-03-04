@@ -129,7 +129,10 @@ contract Deploy is BaseScript {
         vm.serializeAddress(obj, "superPoolLens", superPoolLens);
         vm.serializeAddress(obj, "portfolioLens", portfolioLens);
 
-        string memory path = string.concat(getLogPathBase(), "Deploy-", vm.toString(block.timestamp), ".json");
-        vm.writeJson(obj, path);
+        vm.serializeUint(obj, "chainId", block.chainid);
+        string memory json = vm.serializeUint(obj, "timestamp", vm.getBlockTimestamp());
+
+        string memory path = string.concat(getLogPathBase(), "Deploy-", vm.toString(vm.getBlockTimestamp()), ".json");
+        vm.writeJson(json, path);
     }
 }

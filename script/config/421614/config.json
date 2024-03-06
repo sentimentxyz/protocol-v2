@@ -65,5 +65,8 @@
     "SetPoolIrm": {
         "pool": "0xc69960fFB5483c1f79101b1c06A8BE44314516Db",
         "rateModel": "0xB8b058e5b0d3fCB93BFbDD7507851aDC858272d3"
+    },
+    "DeployLens": {
+        "positionManager": "0xC0F3955F02885D7d9EB03140A3534a205D74Ba10"
     }
 }

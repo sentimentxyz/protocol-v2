@@ -42,8 +42,10 @@ contract LinearRateModel is IRateModel {
     //////////////////////////////////////////////////////////////*/
 
     function getInterestRate(uint256 borrows, uint256 idleAmt) public view returns (uint256) {
+        uint256 totalAssets = borrows + idleAmt;
+
         // util = borrows / (borrows + idleAmt)
-        uint256 util = borrows.mulDiv(1e18, borrows + idleAmt, Math.Rounding.Ceil);
+        uint256 util = (totalAssets == 0) ? 0 : borrows.mulDiv(1e18, totalAssets, Math.Rounding.Ceil);
 
         // interest rate = MIN_RATE + util * (MAX_RATE - MIN_RATE)
         return MIN_RATE + util.mulDiv(RATE_DIFF, 1e18, Math.Rounding.Ceil);

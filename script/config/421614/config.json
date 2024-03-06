@@ -24,8 +24,8 @@
         "oracle": "0x0B2bA0A1E2aC4deC4bAc992A0097597a4f002eF4"
     },
     "DeployLinearRateModel": {
-        "minRate": "80000000000000000",
-        "maxRate": "400000000000000000"
+        "minRate": "40000000000000000",
+        "maxRate": "200000000000000000"
     },
     "DeployPool": {
         "symbol": "USDC-1",
@@ -61,5 +61,9 @@
         "pool": "0xc69960fFB5483c1f79101b1c06A8BE44314516Db",
         "superPool": "0x709aDd913D18D635c1e5aaEcEc1c37b1eE5F342E",
         "poolCap": 115792089237316195423570985008687907853269984665640564039457584007913129639935
+    },
+    "SetPoolIrm": {
+        "pool": "0xc69960fFB5483c1f79101b1c06A8BE44314516Db",
+        "rateModel": "0xB8b058e5b0d3fCB93BFbDD7507851aDC858272d3"
     }
 }

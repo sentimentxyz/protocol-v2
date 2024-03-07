@@ -150,6 +150,8 @@ contract SuperPoolLens {
         address asset = superPool.asset();
         uint256 totalAssets = superPool.totalAssets();
 
+        if (totalAssets == 0) return 0;
+
         uint256 weightedAssets;
         address[] memory pools = superPool.pools();
         for (uint256 i; i < pools.length; ++i) {

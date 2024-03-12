@@ -9,6 +9,6 @@ contract DeploySuperPool is BaseScript {
 
     function run() public {
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        superPoolFactory = new SuperPoolFactory();
+        superPoolFactory = address(new SuperPoolFactory());
     }
 }

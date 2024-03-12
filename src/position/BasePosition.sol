@@ -21,6 +21,9 @@ abstract contract BasePosition is IPosition {
                                Storage
     //////////////////////////////////////////////////////////////*/
 
+    uint256 public constant MAX_ASSET_LIMIT = 5;
+    uint256 public constant MAX_DEBT_POOL_LIMIT = 5;
+
     // position manager associated with this position
     address public immutable positionManager;
 

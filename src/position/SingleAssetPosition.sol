@@ -77,6 +77,7 @@ contract SingleAssetPosition is BasePosition {
     // should be followed by Pool.borrow() to actually transfer assets
     // must implement any position-specific borrow validation
     function borrow(address pool, uint256) external override onlyPositionManager {
+        if (debtPools.length() == MAX_DEBT_POOL_LIMIT) revert Errors.MaxDebtPoolLimit();
         debtPools.insert(pool);
     }
 

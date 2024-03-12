@@ -13,6 +13,8 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract ChainlinkEthOracle is Ownable {
     using Math for uint256;
 
+    event FeedSet(address indexed asset, address feed);
+
     // asset/eth price feed
     mapping(address asset => address feed) public priceFeedFor;
 
@@ -27,5 +29,7 @@ contract ChainlinkEthOracle is Ownable {
     function setFeed(address asset, address feed) external onlyOwner {
         assert(IAggegregatorV3(feed).decimals() == 18);
         priceFeedFor[asset] = feed;
+
+        emit FeedSet(asset, feed);
     }
 }

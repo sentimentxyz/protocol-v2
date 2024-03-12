@@ -88,4 +88,10 @@ library Errors {
 
     // [RiskEngine.setLtv] no oracle set for given pool-asset pair. oracles must be set before ltv
     error NoOracleFound();
+
+    // [SingleAssetPosition.sol] exceeded max number of debt pools allowed for one position
+    error MaxDebtPoolLimit();
+
+    // [SingleDebtPosition.sol] exceeded max number of assets allowed for one position
+    error MaxAssetLimit();
 }

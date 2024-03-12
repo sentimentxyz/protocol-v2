@@ -96,6 +96,7 @@ contract SingleDebtPosition is BasePosition {
     // must no-op if asset is already being used as collateral
     // must implement any position specifc validation
     function addAsset(address asset) external override onlyPositionManager {
+        if (assets.length() == MAX_ASSET_LIMIT) revert Errors.MaxAssetLimit();
         assets.insert(asset);
     }
 

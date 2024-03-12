@@ -54,6 +54,18 @@ contract RiskEngine is OwnableUpgradeable {
     mapping(address pool => mapping(address asset => address oracle)) public oracleFor;
 
     /*//////////////////////////////////////////////////////////////
+                                Events
+    //////////////////////////////////////////////////////////////*/
+
+    event CloseFactorSet(uint256 closeFactor);
+    event LtvBoundsSet(uint256 minLtv, uint256 maxLtv);
+    event LiquidationDiscountSet(uint256 liqudiationDiscount);
+    event OracleStatusSet(address indexed oracle, bool isKnown);
+    event RiskModuleSet(uint256 indexed positionType, address riskModule);
+    event LtvSet(address indexed pool, address indexed asset, uint256 ltv);
+    event OracleSet(address indexed pool, address indexed asset, address oracle);
+
+    /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
@@ -123,6 +135,8 @@ contract RiskEngine is OwnableUpgradeable {
 
         // update asset ltv for the given pool
         ltvFor[pool][asset] = ltv;
+
+        emit LtvSet(pool, asset, ltv);
     }
 
     /// @notice set the oracle for a given asset in a pool
@@ -136,6 +150,8 @@ contract RiskEngine is OwnableUpgradeable {
 
         // update asset oracle for pool
         oracleFor[pool][asset] = oracle;
+
+        emit OracleSet(pool, asset, oracle);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -144,15 +160,21 @@ contract RiskEngine is OwnableUpgradeable {
 
     function setCloseFactor(uint256 _closeFactor) external onlyOwner {
         closeFactor = _closeFactor;
+
+        emit CloseFactorSet(_closeFactor);
     }
 
     function setLiquidationDiscount(uint256 _liquidationDiscount) external onlyOwner {
         liqudiationDiscount = _liquidationDiscount;
+
+        emit LiquidationDiscountSet(_liquidationDiscount);
     }
 
     function setLtvBounds(uint256 _minLtv, uint256 _maxLtv) external onlyOwner {
         minLtv = _minLtv;
         maxLtv = _maxLtv;
+
+        emit LtvBoundsSet(_minLtv, _maxLtv);
     }
 
     /// @notice set the health check implementation for a given position type
@@ -161,6 +183,8 @@ contract RiskEngine is OwnableUpgradeable {
     /// @param riskModule the address of the risk module implementation
     function setRiskModule(uint256 positionType, address riskModule) external onlyOwner {
         riskModuleFor[positionType] = riskModule;
+
+        emit RiskModuleSet(positionType, riskModule);
     }
 
     /// @notice toggle whether a given oracle is recognized by the protocol
@@ -168,5 +192,7 @@ contract RiskEngine is OwnableUpgradeable {
     /// @param oracle the address of the oracle who status to negate
     function toggleOracleStatus(address oracle) external onlyOwner {
         isKnownOracle[oracle] = !isKnownOracle[oracle];
+
+        emit OracleStatusSet(oracle, isKnownOracle[oracle]);
     }
 }

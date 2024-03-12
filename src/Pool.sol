@@ -35,6 +35,12 @@ event Repay(address indexed position, address indexed asset, uint256 amount);
 /// @param amount amount of funds borrowed, in debt asset units
 event Borrow(address indexed position, address indexed asset, uint256 amount);
 
+event PoolCapSet(uint256 poolCap);
+
+event RateModelSet(address rateModel);
+
+event OriginationFeeSet(uint256 originationFee);
+
 /*//////////////////////////////////////////////////////////////
                             Pool
 //////////////////////////////////////////////////////////////*/
@@ -306,15 +312,21 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     /// @notice callable only by the pool manager who is also the pool contract clone owner
     function setRateModel(address _rateModel) external onlyOwner {
         rateModel = IRateModel(_rateModel);
+
+        emit RateModelSet(_rateModel);
     }
 
     /// @notice set the origination fee for the pool
     /// @notice callable only by the pool manager who is also the pool contract clone owner
     function setOriginationFee(uint256 _originationFee) external onlyOwner {
         originationFee = _originationFee;
+
+        emit OriginationFeeSet(_originationFee);
     }
 
     function setPoolCap(uint256 _poolCap) external onlyOwner {
         poolCap = _poolCap;
+
+        emit PoolCapSet(_poolCap);
     }
 }

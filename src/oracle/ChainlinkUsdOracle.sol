@@ -15,6 +15,8 @@ contract ChainlinkUsdOracle is Ownable {
 
     IAggegregatorV3 public immutable ETH_USD_FEED;
 
+    event FeedSet(address indexed asset, address feed);
+
     // asset/eth price feed
     mapping(address asset => address feed) public priceFeedFor;
 
@@ -37,5 +39,7 @@ contract ChainlinkUsdOracle is Ownable {
     function setFeed(address asset, address feed) external onlyOwner {
         assert(IAggegregatorV3(feed).decimals() == 8);
         priceFeedFor[asset] = feed;
+
+        emit FeedSet(asset, feed);
     }
 }

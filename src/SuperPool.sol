@@ -48,6 +48,9 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                                 Events
     //////////////////////////////////////////////////////////////*/
 
+    event AllocatorSet(address allocator);
+    event ProtocolFeeSet(uint256 protocolFee);
+    event TotalPoolCapSet(uint256 totalPoolCap);
     event PoolCapSet(address indexed pool, uint256 amt);
     event PoolDeposit(address indexed pool, uint256 assets);
     event PoolWithdraw(address indexed pool, uint256 assets);
@@ -300,15 +303,21 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param _allocator the address to set the allocator to
     function setAllocator(address _allocator) external onlyOwner {
         allocator = _allocator;
+
+        emit AllocatorSet(_allocator);
     }
 
     /// @notice set the protocol fee
     /// @param _protocolFee the fee to set scaled by 1e18
     function setProtocolFee(uint256 _protocolFee) external onlyOwner {
         protocolFee = _protocolFee;
+
+        emit ProtocolFeeSet(_protocolFee);
     }
 
     function setTotalPoolCap(uint256 _totalPoolCap) external onlyOwner {
         totalPoolCap = _totalPoolCap;
+
+        emit TotalPoolCapSet(_totalPoolCap);
     }
 }

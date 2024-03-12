@@ -25,11 +25,19 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
                             Events
 //////////////////////////////////////////////////////////////*/
 
-event KnownContractAdded(address indexed target, bool isAllowed);
+event RiskEngineSet(address riskEngine);
 
-event KnownFunctionAdded(address indexed target, bytes4 indexed method, bool isAllowed);
+event PoolFactorySet(address poolFactory);
+
+event LiquidationFeeSet(uint256 liquidationFee);
+
+event ContractSet(address indexed target, bool isAllowed);
+
+event BeaconSet(uint256 indexed positionType, address beacon);
 
 event AddAsset(address indexed position, address indexed caller, address asset);
+
+event FunctionSet(address indexed target, bytes4 indexed method, bool isAllowed);
 
 event RemoveAsset(address indexed position, address indexed caller, address asset);
 
@@ -406,24 +414,32 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @dev only callable by the position manager owner
     function setBeacon(uint256 positionType, address beacon) external onlyOwner {
         beaconFor[positionType] = beacon;
+
+        emit BeaconSet(positionType, beacon);
     }
 
     /// @notice update the risk engine address
     /// @dev only callable by the position manager owner
     function setRiskEngine(address _riskEngine) external onlyOwner {
         riskEngine = RiskEngine(_riskEngine);
+
+        emit RiskEngineSet(_riskEngine);
     }
 
     /// @notice update the pool factory address
     /// @dev only callable by the position manager owner
     function setPoolFactory(address _poolFactory) external onlyOwner {
         poolFactory = PoolFactory(_poolFactory);
+
+        emit PoolFactorySet(_poolFactory);
     }
 
     /// @notice update the protocol liqudiation fee
     /// @dev only callable by the position manager owner
     function setLiquidationFee(uint256 _liquidationFee) external onlyOwner {
         liquidationFee = _liquidationFee;
+
+        emit LiquidationFeeSet(_liquidationFee);
     }
 
     /// @notice toggle contract inclusion in the contract universe
@@ -431,7 +447,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     function toggleKnownContract(address target) external onlyOwner {
         isKnownContract[target] = !isKnownContract[target];
 
-        emit KnownContractAdded(target, isKnownContract[target]);
+        emit ContractSet(target, isKnownContract[target]);
     }
 
     /// @notice toggle function inclusion in the function universe
@@ -439,6 +455,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     function toggleKnownFunc(address target, bytes4 method) external onlyOwner {
         isKnownFunc[target][method] = !isKnownFunc[target][method];
 
-        emit KnownFunctionAdded(target, method, isKnownFunc[target][method]);
+        emit FunctionSet(target, method, isKnownFunc[target][method]);
     }
 }

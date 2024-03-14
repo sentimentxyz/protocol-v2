@@ -96,5 +96,6 @@ library Errors {
     error MaxAssetLimit();
 
     // [PositionManager.liquidate] DebtData.asset does not correspond to DebtData.pool
+    // [SingleDebtRiskModule.isValidLiquidation] debt[] must be singleton for single debt positions
     error InvalidDebtData();
 }

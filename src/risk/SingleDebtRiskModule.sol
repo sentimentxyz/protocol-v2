@@ -67,6 +67,9 @@ contract SingleDebtRiskModule is IRiskModule {
         AssetData[] calldata collat,
         uint256 liquidationDiscount
     ) external view returns (bool) {
+        // assert that debt[] is a singleton array
+        if (debt.length != 1) revert Errors.InvalidDebtData();
+
         // compute the amount of debt repaid in wei. since there is only one debt pool, debt[]
         // need not have more than one element. we ignore everything other than the first element.
         uint256 debtInWei = getDebtValue(debt[0].pool, debt[0].asset, debt[0].amt);

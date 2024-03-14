@@ -381,6 +381,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator
         for (uint256 i; i < debt.length; ++i) {
+            // verify that the asset being repaid is actually the pool asset
+            if (debt[i].asset != Pool(debt[i].pool).asset()) revert Errors.InvalidDebtData();
+
             // transfer debt asset from the liquidator to the pool
             IERC20(debt[i].asset).transferFrom(msg.sender, debt[i].pool, debt[i].amt);
 

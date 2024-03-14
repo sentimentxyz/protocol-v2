@@ -94,4 +94,7 @@ library Errors {
 
     // [SingleDebtPosition.sol] exceeded max number of assets allowed for one position
     error MaxAssetLimit();
+
+    // [PositionManager.liquidate] DebtData.asset does not correspond to DebtData.pool
+    error InvalidDebtData();
 }

@@ -141,7 +141,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
 
     /// @inheritdoc ERC4626Upgradeable
     function maxDeposit(address) public view override returns (uint256) {
-        return poolCap - totalAssets();
+        uint256 assets = totalAssets();
+        return poolCap > assets ? poolCap - assets : 0;
     }
 
     /// @inheritdoc ERC4626Upgradeable

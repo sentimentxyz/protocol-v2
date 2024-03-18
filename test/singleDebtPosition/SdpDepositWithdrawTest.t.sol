@@ -51,7 +51,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
 
-        bytes memory data = abi.encode(address(this), erc201, amt);
+        bytes memory data = abi.encode(erc201, amt);
         Action memory action = Action({op: Operation.Deposit, data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -67,7 +67,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
 
-        bytes memory data = abi.encode(address(this), address(erc201), amt / 2);
+        bytes memory data = abi.encode(address(erc201), amt / 2);
         Action memory action = Action({op: Operation.Deposit, data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -75,7 +75,7 @@ contract SdpDepositWithdrawTest is BaseTest {
         positionManager.processBatch(address(position), actions);
         assertEq(erc201.balanceOf(address(position)), amt / 2);
 
-        data = abi.encode(address(this), address(erc201), amt - (amt / 2));
+        data = abi.encode(address(erc201), amt - (amt / 2));
         action = Action({op: Operation.Deposit, data: data});
         actions[0] = action;
 
@@ -93,10 +93,10 @@ contract SdpDepositWithdrawTest is BaseTest {
         erc202.mint(address(this), amt2);
         erc202.approve(address(positionManager), type(uint256).max);
 
-        bytes memory data1 = abi.encode(address(this), erc201, amt1);
+        bytes memory data1 = abi.encode(erc201, amt1);
         Action memory action1 = Action({op: Operation.Deposit, data: data1});
 
-        bytes memory data2 = abi.encode(address(this), erc202, amt2);
+        bytes memory data2 = abi.encode(erc202, amt2);
         Action memory action2 = Action({op: Operation.Deposit, data: data2});
 
         Action[] memory actions = new Action[](2);
@@ -119,10 +119,10 @@ contract SdpDepositWithdrawTest is BaseTest {
         erc202.mint(address(this), amt2);
         erc202.approve(address(positionManager), type(uint256).max);
 
-        bytes memory data1 = abi.encode(address(this), erc201, amt1 / 2);
+        bytes memory data1 = abi.encode(erc201, amt1 / 2);
         Action memory action1 = Action({op: Operation.Deposit, data: data1});
 
-        bytes memory data2 = abi.encode(address(this), erc202, amt2 / 2);
+        bytes memory data2 = abi.encode(erc202, amt2 / 2);
         Action memory action2 = Action({op: Operation.Deposit, data: data2});
 
         Action[] memory actions = new Action[](2);
@@ -134,10 +134,10 @@ contract SdpDepositWithdrawTest is BaseTest {
         assertEq(erc201.balanceOf(address(position)), amt1 / 2);
         assertEq(erc202.balanceOf(address(position)), amt2 / 2);
 
-        data1 = abi.encode(address(this), erc201, amt1 - (amt1 / 2));
+        data1 = abi.encode(erc201, amt1 - (amt1 / 2));
         action1 = Action({op: Operation.Deposit, data: data1});
 
-        data2 = abi.encode(address(this), erc202, amt2 - (amt2 / 2));
+        data2 = abi.encode(erc202, amt2 - (amt2 / 2));
         action2 = Action({op: Operation.Deposit, data: data2});
 
         // swap order of actions, shouldn't matter

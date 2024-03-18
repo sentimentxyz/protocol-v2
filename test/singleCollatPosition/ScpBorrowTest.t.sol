@@ -91,7 +91,7 @@ contract ScpBorrowTest is BaseTest {
         erc20Collat.mint(address(this), amt);
         erc20Collat.approve(address(positionManager), type(uint256).max);
 
-        bytes memory data = abi.encode(address(this), address(erc20Collat), amt);
+        bytes memory data = abi.encode(address(erc20Collat), amt);
         Action memory action1 = Action({op: Operation.Deposit, data: data});
         Action memory action2 = Action({op: Operation.AddAsset, data: abi.encode(address(erc20Collat))});
         Action[] memory actions = new Action[](2);

@@ -13,6 +13,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Errors} from "src/lib/Errors.sol";
 import {IterableMap} from "src/lib/IterableMap.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 //contracts
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -159,17 +160,30 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param receiver the address to send the assets to
     /// @param owner the owner of the shares were burning from
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
-        // compute fee amount for given assets
+        // user must not withdraw more than his balance
+        uint256 maxAssets = maxWithdraw(owner);
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
+        }
+
+        // amount of shares for given assets
+        uint256 shares = ERC4626Upgradeable.previewWithdraw(assets);
+
+        // burn shares equivalent to assets from owner's balance
+        ERC20Upgradeable._burn(owner, shares);
+
+        // fee for given asset withdrawal
         uint256 fee = protocolFee.mulDiv(assets, 1e18);
 
-        // erc4626 return val for fee withdrawal
-        uint256 feeShares = ERC4626Upgradeable.withdraw(fee, OwnableUpgradeable.owner(), owner);
+        // transfer fee to superpool owner
+        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), OwnableUpgradeable.owner(), fee);
 
-        // erc4626 return val for receiver shares withdrawal
-        uint256 recieverShares = ERC4626Upgradeable.withdraw(assets - fee, receiver, owner);
+        // transfer assets after fee deduction to given receiver
+        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), receiver, assets - fee);
 
-        // final return value must comply with erc4626 spec
-        return feeShares + recieverShares;
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+
+        return shares;
     }
 
     /// @notice redeem shares for assets from the superpool

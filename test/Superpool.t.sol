@@ -554,6 +554,47 @@ contract SuperPoolTest is BaseTest {
     function _deployMockPool() public returns (address) {
         return address(new MockPool(address(mockToken)));
     }
+
+    function testZach_WithdrawAllCanFail() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 1e18);
+        superPool.setProtocolFee(0.75e18);
+
+        // deposit into the superpool
+        uint256 deposit = 51;
+        mockToken.mint(address(this), deposit);
+        mockToken.approve(address(superPool), deposit);
+        superPool.deposit(deposit, address(this));
+
+        // simulate interest earned
+        uint256 interestAccrued = 50;
+        mockToken.mint(address(superPool), interestAccrued);
+
+        // withdraw max will fail due to rounding
+        uint256 maxWithdrawal = superPool.maxWithdraw(address(this));
+        superPool.withdraw(maxWithdrawal, address(this), address(this));
+    }
+
+    function testZachFuzz_WithdrawAllSucceeds(uint256 deposit, uint256 interestAccrued, uint256 fee) public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 1e18);
+        fee = bound(fee, 0, 1e18);
+        superPool.setProtocolFee(fee);
+
+        // deposit into the superpool
+        deposit = bound(deposit, 0, 10e18);
+        mockToken.mint(address(this), deposit);
+        mockToken.approve(address(superPool), deposit);
+        superPool.deposit(deposit, address(this));
+
+        // simulate interest earned
+        interestAccrued = bound(interestAccrued, 0, 1e18);
+        mockToken.mint(address(superPool), interestAccrued);
+
+        // withdraw max succeeds even with rounding
+        uint256 maxWithdrawal = superPool.maxWithdraw(address(this));
+        superPool.withdraw(maxWithdrawal, address(this), address(this));
+    }
 }
 
 contract MockPool {

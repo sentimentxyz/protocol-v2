@@ -183,6 +183,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
+        // return value as per erc4626 spec
         return shares;
     }
 
@@ -192,17 +193,31 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param receiver the address to send the assets to
     /// @param owner the owner of the shares were burning from
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
-        // compute fee amount for given shares
-        uint256 fee = protocolFee.mulDiv(shares, 1e18);
+        // user must not redeem more than his balance
+        uint256 maxShares = maxRedeem(owner);
+        if (shares > maxShares) {
+            revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
+        }
 
-        // erc4626 return val for fee redemption
-        uint256 feeAssets = ERC4626Upgradeable.redeem(fee, OwnableUpgradeable.owner(), owner);
+        // amount of asset for given shares
+        uint256 assets = previewRedeem(shares);
 
-        // erc4626 return val for receiver asset redemption
-        uint256 receiverAssets = ERC4626Upgradeable.redeem(shares - fee, receiver, owner);
+        // burn shares for owner to process redemption
+        ERC20Upgradeable._burn(owner, shares);
 
-        // final return value must comply with erc4626 spec
-        return feeAssets + receiverAssets;
+        // fee amount for given shares
+        uint256 fee = protocolFee.mulDiv(assets, 1e18);
+
+        // transfer fee to superpool owner
+        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), OwnableUpgradeable.owner(), fee);
+
+        // transfer assets after fee deduction to given receiver
+        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), receiver, assets - fee);
+
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+
+        // return value as per erc4626 spec
+        return assets;
     }
 
     /*//////////////////////////////////////////////////////////////

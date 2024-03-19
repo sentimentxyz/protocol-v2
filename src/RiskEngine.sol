@@ -39,7 +39,8 @@ contract RiskEngine is OwnableUpgradeable {
 
     // pool managers are free to choose their own oracle, but it must be recognized by the protocol
     /// @notice check if an oracle is recognized by the protocol
-    mapping(address oracle => bool isKnown) public isKnownOracle;
+    // map oracle to its corresponding asset, any value other than address(0) == true
+    mapping(address oracle => mapping(address asset => bool isKnown)) public isKnownOracle;
 
     // each position type implements its own health check
     /// @notice fetch the health check implementations for each position type
@@ -143,7 +144,7 @@ contract RiskEngine is OwnableUpgradeable {
     /// @dev only pool owners can set the oracle for their pools
     function setOracle(address pool, address asset, address oracle) external {
         // revert if the oracle is not recognized by the protocol
-        if (!isKnownOracle[oracle]) revert Errors.UnknownOracle();
+        if (!isKnownOracle[oracle][asset]) revert Errors.UnknownOracle();
 
         // only pool owners are allowed to set oracles
         if (msg.sender != Pool(pool).owner()) revert Errors.onlyPoolOwner();
@@ -187,12 +188,13 @@ contract RiskEngine is OwnableUpgradeable {
         emit RiskModuleSet(positionType, riskModule);
     }
 
-    /// @notice toggle whether a given oracle is recognized by the protocol
+    /// @notice toggle whether a given oracle-asset pair is recognized by the protocol
     /// @dev only callable by RiskEngine owner
-    /// @param oracle the address of the oracle who status to negate
-    function toggleOracleStatus(address oracle) external onlyOwner {
-        isKnownOracle[oracle] = !isKnownOracle[oracle];
+    /// @param oracle oracle address
+    /// @param asset token address for the given oracle
+    function toggleOracleStatus(address oracle, address asset) external onlyOwner {
+        isKnownOracle[oracle][asset] = !isKnownOracle[oracle][asset];
 
-        emit OracleStatusSet(oracle, isKnownOracle[oracle]);
+        emit OracleStatusSet(oracle, isKnownOracle[oracle][asset]);
     }
 }

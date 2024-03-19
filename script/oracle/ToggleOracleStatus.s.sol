@@ -5,6 +5,7 @@ import "../BaseScript.s.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 
 contract ToggleOracleStatus is BaseScript {
+    address asset;
     address oracle;
     RiskEngine riskEngine;
 
@@ -12,12 +13,13 @@ contract ToggleOracleStatus is BaseScript {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        riskEngine.toggleOracleStatus(oracle);
+        riskEngine.toggleOracleStatus(oracle, asset);
     }
 
     function getParams() internal {
         string memory config = getConfig();
 
+        asset = vm.parseJsonAddress(config, "$.ToggleOracleStatus.asset");
         oracle = vm.parseJsonAddress(config, "$.ToggleOracleStatus.oracle");
         riskEngine = RiskEngine(vm.parseJsonAddress(config, "$.ToggleOracleStatus.riskEngine"));
     }

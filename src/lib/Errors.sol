@@ -14,7 +14,7 @@ library Errors {
     // [PositionManager.toggleAuth] only position owners can call this method
     error OnlyPositionOwner();
 
-    // [RiskEngine.setOracle] oracle not recognized by the risk engine
+    // [RiskEngine.setOracle] oracle-asset pair not recognized by the risk engine
     error UnknownOracle();
 
     // [BasePosition.exec] exec call failed and returned false

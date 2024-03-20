@@ -179,7 +179,8 @@ contract PositionManagerTest is BaseTest {
     }
 
     function predictAddress(uint256 typee, bytes32 salt) internal view returns (address) {
-        return PortfolioLens(protocol.portfolioLens()).predictAddress(typee, salt);
+        (address predicted,) = PortfolioLens(protocol.portfolioLens()).predictAddress(typee, salt);
+        return predicted;
     }
 
     function depositActionFromThis(address token, uint256 amt) internal view returns (Action[] memory) {

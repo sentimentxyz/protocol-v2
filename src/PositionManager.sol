@@ -277,6 +277,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // asset -> address of token to be transferred
         // amt -> amount of asset to be transferred
         (address recipient, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
+        if (!isKnownContract[asset]) revert Errors.UnknownContract();
         IPosition(position).transfer(recipient, asset, amt);
 
         emit Transfer(position, msg.sender, recipient, asset, amt);

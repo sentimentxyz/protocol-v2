@@ -166,7 +166,7 @@ contract PositionManagerTest is BaseTest {
     function _deployPool(address token) internal {}
 
     function _deployPosition(uint256 typee, bytes32 salt, address owner) internal returns (address) {
-        address predicted = predictAddress(typee, salt);
+        address predicted = predictAddress(owner, typee, salt);
 
         Action memory action = Action({op: Operation.NewPosition, data: abi.encode(owner, typee, salt)});
 
@@ -178,8 +178,8 @@ contract PositionManagerTest is BaseTest {
         return predicted;
     }
 
-    function predictAddress(uint256 typee, bytes32 salt) internal view returns (address) {
-        return PortfolioLens(protocol.portfolioLens()).predictAddress(typee, salt);
+    function predictAddress(address owner, uint256 typee, bytes32 salt) internal view returns (address) {
+        return PortfolioLens(protocol.portfolioLens()).predictAddress(owner, typee, salt);
     }
 
     function depositActionFromThis(address token, uint256 amt) internal view returns (Action[] memory) {

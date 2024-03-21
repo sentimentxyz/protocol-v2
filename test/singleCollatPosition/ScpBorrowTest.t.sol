@@ -129,7 +129,7 @@ contract ScpBorrowTest is BaseTest {
         uint256 POSITION_TYPE = 0x2;
         bytes32 salt = "SingleAssetPosition";
         bytes memory data = abi.encode(address(this), POSITION_TYPE, salt);
-        address positionAddress = portfolioLens.predictAddress(POSITION_TYPE, salt);
+        address positionAddress = portfolioLens.predictAddress(address(this), POSITION_TYPE, salt);
 
         Action memory action = Action({op: Operation.NewPosition, data: data});
         Action[] memory actions = new Action[](1);

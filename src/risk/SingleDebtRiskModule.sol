@@ -70,9 +70,6 @@ contract SingleDebtRiskModule is IRiskModule {
         // compute the amount of debt repaid in wei. since there is only one debt pool, debt[]
         // need not have more than one element. we ignore everything other than the first element.
         uint256 debtInWei = getDebtValue(debt[0].pool, debt[0].asset, debt[0].amt);
-        uint256 totalDebtInWei = getDebtValue(debt[0].pool, debt[0].asset, Pool(debt[0].pool).getBorrowsOf(position));
-
-        if (debtInWei > totalDebtInWei.mulDiv(riskEngine.closeFactor(), 1e18)) revert Errors.RepaidTooMuchDebt();
 
         // fetch the debt pool. since single debt positions can only have one debt pool, only read
         // the first element of the array and ignore the rest

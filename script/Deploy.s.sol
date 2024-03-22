@@ -23,7 +23,6 @@ struct DeployParams {
     uint256 maxLtv;
     uint256 liqFee;
     uint256 liqDiscount;
-    uint256 closeFactor;
 }
 
 contract Deploy is BaseScript {
@@ -80,7 +79,7 @@ contract Deploy is BaseScript {
         superPoolLens = address(new SuperPoolLens());
         portfolioLens = address(new PortfolioLens(positionManager));
 
-        RiskEngine(riskEngine).initialize(params.minLtv, params.maxLtv, params.closeFactor, params.liqDiscount);
+        RiskEngine(riskEngine).initialize(params.minLtv, params.maxLtv, params.liqDiscount);
         RiskEngine(riskEngine).setRiskModule(IPosition(singleDebtPositionImpl).TYPE(), singleDebtRiskModule);
         RiskEngine(riskEngine).setRiskModule(IPosition(singleAssetPositionImpl).TYPE(), singleAssetRiskModule);
 
@@ -103,7 +102,6 @@ contract Deploy is BaseScript {
         params.liqFee = vm.parseJsonUint(config, "$.Deploy.liqFee");
         params.owner = vm.parseJsonAddress(config, "$.Deploy.owner");
         params.liqDiscount = vm.parseJsonUint(config, "$.Deploy.liqDiscount");
-        params.closeFactor = vm.parseJsonUint(config, "$.Deploy.closeFactor");
     }
 
     function generateLogs() internal {

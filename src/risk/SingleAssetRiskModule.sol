@@ -72,10 +72,6 @@ contract SingleAssetRiskModule is IRiskModule {
             debtRepaidInEth += getDebtValue(debt[0].pool, debt[i].asset, debt[i].amt);
         }
 
-        if (debtRepaidInEth > getTotalDebtValue(position).mulDiv(riskEngine.closeFactor(), 1e18)) {
-            revert Errors.RepaidTooMuchDebt();
-        }
-
         uint256 assetsSeizedInEth;
         for (uint256 i; i < collat.length; ++i) {
             assetsSeizedInEth += getAssetValue(position, collat[i].asset, collat[i].amt);

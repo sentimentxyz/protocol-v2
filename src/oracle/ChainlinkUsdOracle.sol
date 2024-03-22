@@ -6,6 +6,7 @@ import {IOracle} from "../interface/IOracle.sol";
 import {IAggegregatorV3} from "../interface/IAggregatorV3.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 // libraries
+import {Errors} from "../lib/Errors.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 // contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -13,18 +14,25 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract ChainlinkUsdOracle is Ownable {
     using Math for uint256;
 
-    IAggegregatorV3 public immutable ETH_USD_FEED;
+    // sequencer grace period
+    uint256 public constant SEQ_GRACE_PERIOD = 3600; // 60 * 60 secs -> 1 hour
+
+    IAggegregatorV3 public immutable ARB_SEQ_FEED; // Arbitrum sequencer feed
+    IAggegregatorV3 public immutable ETH_USD_FEED; // ETH/USD price feed
 
     event FeedSet(address indexed asset, address feed);
 
     // asset/eth price feed
     mapping(address asset => address feed) public priceFeedFor;
 
-    constructor(address owner, address ethUsdFeed) Ownable(owner) {
+    constructor(address owner, address arbSeqFeed, address ethUsdFeed) Ownable(owner) {
+        ARB_SEQ_FEED = IAggegregatorV3(arbSeqFeed);
         ETH_USD_FEED = IAggegregatorV3(ethUsdFeed);
     }
 
     function getValueInEth(address asset, uint256 amt) external view returns (uint256) {
+        _checkSequencerFeed();
+
         (, int256 assetUsdPrice,,,) = IAggegregatorV3(priceFeedFor[asset]).latestRoundData();
         (, int256 ethUsdPrice,,,) = ETH_USD_FEED.latestRoundData();
 
@@ -41,5 +49,19 @@ contract ChainlinkUsdOracle is Ownable {
         priceFeedFor[asset] = feed;
 
         emit FeedSet(asset, feed);
+    }
+
+    function _checkSequencerFeed() private view {
+        (, int256 answer, uint256 startedAt,,) = ARB_SEQ_FEED.latestRoundData();
+
+        // Answer == 0: Sequencer is up
+        // Answer == 1: Sequencer is down
+        if (answer != 0) {
+            revert Errors.SequencerDown();
+        }
+
+        if (block.timestamp - startedAt <= SEQ_GRACE_PERIOD) {
+            revert Errors.GracePeriodNotOver();
+        }
     }
 }

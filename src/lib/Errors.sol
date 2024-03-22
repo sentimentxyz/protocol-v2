@@ -94,4 +94,12 @@ library Errors {
 
     // [SingleDebtPosition.sol] exceeded max number of assets allowed for one position
     error MaxAssetLimit();
+
+    // [ChainlinkUsdOracle.sol] arbitrum sequencer is down
+    // [ChainlinkEthOracle.sol] arbitrum sequencer is down
+    error SequencerDown();
+
+    // [ChainlinkUsdOracle.sol] sequencer is back but the grace period is not over yet
+    // [ChainlinkEthOracle.sol] sequencer is back but the grace period is not over yet
+    error GracePeriodNotOver();
 }

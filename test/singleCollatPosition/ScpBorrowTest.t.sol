@@ -155,6 +155,6 @@ contract ScpBorrowTest is BaseTest {
         FixedPriceOracle collatTokenOracle = new FixedPriceOracle(1e18); // 1 collat token = 1 eth
         riskEngine.toggleOracleStatus(address(collatTokenOracle));
         riskEngine.setOracle(address(pool), address(erc20Collat), address(collatTokenOracle));
-        riskEngine.setLtv(address(pool), address(erc20Collat), 4e18); // 400% ltv
+        riskEngine.setLtv(address(pool), address(erc20Collat), 8e17); // max lev = 5x
     }
 }

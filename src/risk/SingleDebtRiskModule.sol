@@ -58,7 +58,7 @@ contract SingleDebtRiskModule is IRiskModule {
         // the position is healthy if the value of the assets in the position is more than the
         // minimum collateral required to meet the ltv requirements of debts from all pools
         // this reverts if borrows > balance, which is intended to never allow that
-        return totalAssetsInEth - totalDebtInEth >= minReqAssetsInEth;
+        return totalAssetsInEth >= minReqAssetsInEth;
     }
 
     function isValidLiquidation(

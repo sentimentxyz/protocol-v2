@@ -57,7 +57,7 @@ contract SingleAssetRiskModule is IRiskModule {
         (uint256 totalAssetsInEth, uint256 totalDebtInEth, uint256 minReqAssetsInEth) = getRiskData(position);
         // the position is healthy if the value of the assets in the position is more than the
         // minimum balance required to meet the ltv requirements of debts from all pools
-        return totalAssetsInEth - totalDebtInEth >= minReqAssetsInEth;
+        return totalAssetsInEth >= minReqAssetsInEth;
     }
 
     function isValidLiquidation(

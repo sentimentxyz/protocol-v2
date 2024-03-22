@@ -161,8 +161,14 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // update state to accrue interest since the last time ping() was called
         ping();
 
+        // deposit assets to pool
+        uint256 shares = ERC4626Upgradeable.deposit(assets, receiver);
+
+        // ensure more than zero shares were minted to mitigate donation attacks
+        if (shares == 0) revert Errors.ZeroSharesDeposit();
+
         // inherited erc4626 call
-        return ERC4626Upgradeable.deposit(assets, receiver);
+        return shares;
     }
 
     /// @inheritdoc ERC4626Upgradeable

@@ -126,7 +126,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     function getBorrowsOf(address position) public view returns (uint256) {
         // fetch borrow shares owed by given position
         // convert borrow shares to notional asset units
-        return convertBorrowSharesToAsset(borrowSharesOf[position]);
+        // [ROUND] round up to ensure debt isn't understated, in favor of the protocol
+        return convertBorrowSharesToAsset(borrowSharesOf[position], Math.Rounding.Ceil);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -219,7 +220,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         ping();
 
         // compute borrow shares equivalant for notional borrow amt
-        borrowShares = convertAssetToBorrowShares(amt);
+        // [ROUND] mint fewer shares, in favor of the protocol
+        borrowShares = convertAssetToBorrowShares(amt, Math.Rounding.Floor);
 
         // revert if borrow amt is too small
         if (borrowShares == 0) revert Errors.ZeroSharesBorrow();
@@ -266,7 +268,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         ping();
 
         // compute borrow shares equivalent to notional asset amt
-        uint256 borrowShares = convertAssetToBorrowShares(amt);
+        // [ROUND] burn fewer borrow shares, in favor of the protocol
+        uint256 borrowShares = convertAssetToBorrowShares(amt, Math.Rounding.Floor);
 
         // revert if repaid amt is too small
         if (borrowShares == 0) revert Errors.ZeroSharesRepay();
@@ -290,19 +293,19 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     /// @notice convert notional asset amount to borrow shares
     /// @param amt the amount of assets to convert to borrow shares
     /// @return the amount of shares
-    function convertAssetToBorrowShares(uint256 amt) internal view returns (uint256) {
+    function convertAssetToBorrowShares(uint256 amt, Math.Rounding rounding) internal view returns (uint256) {
         // borrow shares = amt * totalBorrowShares / currentTotalBorrows
         // handle edge case for when borrows are zero by minting shares in 1:1 amt
-        return totalBorrowShares == 0 ? amt : amt.mulDiv(totalBorrowShares, getTotalBorrows(), Math.Rounding.Ceil);
+        return totalBorrowShares == 0 ? amt : amt.mulDiv(totalBorrowShares, getTotalBorrows(), rounding);
     }
 
     /// @notice convert borrow shares to notional asset amount
     /// @param amt the amount of shares to convert to assets
     /// @return the amount of assets
-    function convertBorrowSharesToAsset(uint256 amt) internal view returns (uint256) {
+    function convertBorrowSharesToAsset(uint256 amt, Math.Rounding rounding) internal view returns (uint256) {
         // notional asset amount = borrowSharesAmt * currenTotalBorrows / totalBorrowShares
         // handle edge case for when borrows are zero by minting shares in 1:1 amt
-        return totalBorrowShares == 0 ? amt : amt.mulDiv(getTotalBorrows(), totalBorrowShares, Math.Rounding.Floor);
+        return totalBorrowShares == 0 ? amt : amt.mulDiv(getTotalBorrows(), totalBorrowShares, rounding);
     }
 
     /*//////////////////////////////////////////////////////////////

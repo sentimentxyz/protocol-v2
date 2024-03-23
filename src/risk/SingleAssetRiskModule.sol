@@ -54,7 +54,7 @@ contract SingleAssetRiskModule is IRiskModule {
         // short circuit happy path with zero debt
         if (IPosition(position).getDebtPools().length == 0) return true;
 
-        (uint256 totalAssetsInEth, uint256 totalDebtInEth, uint256 minReqAssetsInEth) = getRiskData(position);
+        (uint256 totalAssetsInEth,, uint256 minReqAssetsInEth) = getRiskData(position);
         // the position is healthy if the value of the assets in the position is more than the
         // minimum balance required to meet the ltv requirements of debts from all pools
         return totalAssetsInEth >= minReqAssetsInEth;

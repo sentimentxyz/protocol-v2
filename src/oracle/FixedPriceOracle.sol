@@ -18,6 +18,7 @@ contract FixedPriceOracle {
 
     function getValueInEth(address asset, uint256 amt) external view returns (uint256) {
         // value = amt * price % asset.decimals()
+        // [ROUND] price is rounded down. this is used for both debt and asset math, no effect
         return amt.mulDiv(PRICE, (10 ** IERC20Metadata(asset).decimals()));
     }
 }

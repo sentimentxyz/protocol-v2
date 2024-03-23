@@ -234,6 +234,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         borrowSharesOf[position] += borrowShares;
 
         // compute origination fee amt
+        // [ROUND] origination fee is rounded down, in favor of the borrower
         uint256 fee = amt.mulDiv(originationFee, 1e18, Math.Rounding.Floor);
 
         // send origination fee to owner

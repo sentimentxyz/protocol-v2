@@ -160,6 +160,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param owner the owner of the shares were burning from
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
         // compute fee amount for given assets
+        // [ROUND] protocol fee is rounded down, in favor of the user
         uint256 fee = protocolFee.mulDiv(assets, 1e18);
 
         // erc4626 return val for fee withdrawal
@@ -179,6 +180,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param owner the owner of the shares were burning from
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
         // compute fee amount for given shares
+        // [ROUND] protocol fee is rounded down, in favor of the user
         uint256 fee = protocolFee.mulDiv(shares, 1e18);
 
         // erc4626 return val for fee redemption

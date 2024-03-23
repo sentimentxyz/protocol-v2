@@ -72,7 +72,8 @@ contract SingleAssetRiskModule is IRiskModule {
             debtRepaidInEth += getDebtValue(debt[0].pool, debt[i].asset, debt[i].amt);
         }
 
-        if (debtRepaidInEth > getTotalDebtValue(position).mulDiv(riskEngine.closeFactor(), 1e18)) {
+        // [ROUND] max debt value to be repaid is rounded up, in favor of the protocol
+        if (debtRepaidInEth > getTotalDebtValue(position).mulDiv(riskEngine.closeFactor(), 1e18, Math.Rounding.Ceil)) {
             revert Errors.RepaidTooMuchDebt();
         }
 
@@ -81,6 +82,7 @@ contract SingleAssetRiskModule is IRiskModule {
             assetsSeizedInEth += getAssetValue(position, collat[i].asset, collat[i].amt);
         }
 
+        // [ROUND] liquidation discount is rounded down, in favor of the protocol
         if (assetsSeizedInEth > debtRepaidInEth.mulDiv((1e18 + liquidationDiscount), 1e18)) {
             revert Errors.SeizedTooMuchCollateral();
         }
@@ -116,12 +118,15 @@ contract SingleAssetRiskModule is IRiskModule {
             totalDebt += debt;
             debtInfo[i] = debt;
         }
+
+        // [ROUND] debt weights are rounded down, so that SUM(debtInfo[i]) < totalDebt
         for (uint256 i; i < debtPools.length; ++i) {
             debtInfo[i] = debtInfo[i].mulDiv(1e18, totalDebt);
         }
 
         uint256 assetValue;
         for (uint256 i; i < debtPools.length; ++i) {
+            // [ROUND] asset values are rounded down, in favor of the protocol
             assetValue +=
                 IOracle(riskEngine.oracleFor(debtPools[i], asset)).getValueInEth(asset, amt).mulDiv(debtInfo[i], 1e18);
         }
@@ -168,6 +173,7 @@ contract SingleAssetRiskModule is IRiskModule {
             // min balance required in eth to meet risk threshold, scaled by 18 decimals
             // the ltv of the collateral asset is pool-specifc and is configured by th pool manager
             // min collateralAsset amt to back debt = debt owed / ltv for collateralAsset
+            // [ROUND] minimum assets required is rounded up, in favor of the protocol
             minReqAssetsInEth +=
                 debtInWei.mulDiv(1e18, riskEngine.ltvFor(debtPools[i], positionAsset), Math.Rounding.Ceil);
 
@@ -180,7 +186,8 @@ contract SingleAssetRiskModule is IRiskModule {
         for (uint256 i; i < debtPools.length; ++i) {
             // debtInfo[i] stores the fraction of total debt owed to debtPools[i], with 18 decimals
             // fraction = debt owed to pool[i] / total debt
-            debtInfo[i] = debtInfo[i].mulDiv(1e18, totalDebtInEth, Math.Rounding.Ceil);
+            // [ROUND] debt weights are rounded down, so that SUM(debtInfo[i]) < 1
+            debtInfo[i] = debtInfo[i].mulDiv(1e18, totalDebtInEth);
         }
 
         // total position balance, in terms of the collateral asset
@@ -200,6 +207,7 @@ contract SingleAssetRiskModule is IRiskModule {
             // total notional collateral is denominated in terms of the collateral asset of the position
             // the value of collateral is fetched using the given pool's oracle for collateralAsset
             // this oracle is set by the pool manager and can be different for different pools
+            // [ROUND] total balance is scaled down, in favor of the protocol
             totalBalanceInWei += IOracle(riskEngine.oracleFor(debtPools[i], positionAsset)).getValueInEth(
                 positionAsset, notionalBalance
             ).mulDiv(debtInfo[i], 1e18);

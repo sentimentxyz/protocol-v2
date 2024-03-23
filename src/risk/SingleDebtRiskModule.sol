@@ -72,7 +72,10 @@ contract SingleDebtRiskModule is IRiskModule {
         uint256 debtInWei = getDebtValue(debt[0].pool, debt[0].asset, debt[0].amt);
         uint256 totalDebtInWei = getDebtValue(debt[0].pool, debt[0].asset, Pool(debt[0].pool).getBorrowsOf(position));
 
-        if (debtInWei > totalDebtInWei.mulDiv(riskEngine.closeFactor(), 1e18)) revert Errors.RepaidTooMuchDebt();
+        // [ROUND] max debt value to be repaid is rounded up, in favor of the protocol
+        if (debtInWei > totalDebtInWei.mulDiv(riskEngine.closeFactor(), 1e18, Math.Rounding.Ceil)) {
+            revert Errors.RepaidTooMuchDebt();
+        }
 
         // fetch the debt pool. since single debt positions can only have one debt pool, only read
         // the first element of the array and ignore the rest
@@ -84,6 +87,7 @@ contract SingleDebtRiskModule is IRiskModule {
             collatInWei += getAssetValue(pool, collat[i].asset, collat[i].amt);
         }
 
+        // [ROUND] liquidation discount is rounded down, in favor of the protocol
         if (collatInWei > debtInWei.mulDiv((1e18 + liquidationDiscount), 1e18)) revert Errors.SeizedTooMuchCollateral();
 
         return true;
@@ -153,6 +157,7 @@ contract SingleDebtRiskModule is IRiskModule {
         // loop over assets to compute fraction of total balance held in each asset
         for (uint256 i; i < assets.length; ++i) {
             // assetData[i] stores fraction of total account balance held in asset[i]
+            // [ROUND] asset weights are rounded down so that SUM(assetData[i]) < 1
             assetData[i] = assetData[i].mulDiv(1e18, totalAssetsInEth, Math.Rounding.Floor);
         }
 
@@ -176,6 +181,7 @@ contract SingleDebtRiskModule is IRiskModule {
             // total borrows are denominated in eth, scaled by 18 decimals
             // asset[i].weight is the fraction of total account balance held in asset[i]
             // asset[i].ltv is the ltv for asset[i] according to the only debt pool for the position
+            // [ROUND] minimum assets required is rounded up, in favor of the protocol
             minReqAssetsInEth +=
                 totalDebtInEth.mulDiv(assetData[i], riskEngine.ltvFor(pool, assets[i]), Math.Rounding.Ceil);
         }

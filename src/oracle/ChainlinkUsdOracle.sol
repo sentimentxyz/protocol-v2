@@ -29,6 +29,8 @@ contract ChainlinkUsdOracle is Ownable {
         (, int256 ethUsdPrice,,,) = ETH_USD_FEED.latestRoundData();
 
         uint256 decimals = IERC20Metadata(asset).decimals();
+
+        // [ROUND] price is rounded down. this is used for both debt and asset math, no effect
         if (decimals <= 18) {
             return (amt * 10 ** (18 - decimals)).mulDiv(uint256(assetUsdPrice), uint256(ethUsdPrice));
         } else {

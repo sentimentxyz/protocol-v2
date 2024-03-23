@@ -108,11 +108,14 @@ contract SuperPoolLens {
             deposits[i] = getSuperPoolDepositData(user, superPools[i]);
 
             totalDeposits += deposits[i].amount;
+
+            // [ROUND] deposit weights are rounded down, in favor of the user
             weightedDeposit += (deposits[i].amount).mulDiv(deposits[i].interestRate, 1e18);
         }
         return UserDepositData({
             deposits: deposits,
             totalDeposits: totalDeposits,
+            // [ROUND] interestRate is rounded down, in favor of the user
             interestRate: weightedDeposit.mulDiv(1e18, totalDeposits)
         });
     }
@@ -156,9 +159,11 @@ contract SuperPoolLens {
         address[] memory pools = superPool.pools();
         for (uint256 i; i < pools.length; ++i) {
             uint256 assets = IERC4626(pools[i]).previewRedeem(IERC20(asset).balanceOf(_superPool));
+            // [ROUND] pool deposit weights are rounded down, in favor of the user
             weightedAssets += assets.mulDiv(getPoolInterestRate(pools[i]), 1e18);
         }
 
+        // [ROUND] weighted superpool interest rate is rounded down, in favor of the user
         return weightedAssets.mulDiv(1e18, totalAssets);
     }
 }

@@ -23,6 +23,7 @@ contract ChainlinkEthOracle is Ownable {
     function getValueInEth(address asset, uint256 amt) external view returns (uint256) {
         (, int256 price,,,) = IAggegregatorV3(priceFeedFor[asset]).latestRoundData();
 
+        // [ROUND] price is rounded down. this is used for both debt and asset math, no effect
         return amt.mulDiv(uint256(price), (10 ** IERC20Metadata(asset).decimals()));
     }
 

@@ -94,20 +94,28 @@ contract SingleDebtRiskModule is IRiskModule {
     //////////////////////////////////////////////////////////////*/
 
     function getDebtValue(address pool, address asset, uint256 amt) public view returns (uint256) {
+        address oracle = riskEngine.oracleFor(pool, asset);
+        if (oracle == address(0)) revert Errors.NoOracleFound();
         return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt);
     }
 
-    function getTotalDebtValue(address position) external view returns (uint256) {
-        address pool = IPosition(position).getDebtPools()[0];
+    function getTotalDebtValue(address position) public view returns (uint256) {
+        address pool = _fetchDebtPoolOrZero(position);
+        if (pool == address(0)) return 0;
         return getDebtValue(pool, Pool(pool).asset(), Pool(pool).getBorrowsOf(position));
     }
 
     function getAssetValue(address pool, address asset, uint256 amt) public view returns (uint256) {
-        return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt);
+        address oracle = riskEngine.oracleFor(pool, asset);
+        if (oracle == address(0)) revert Errors.NoOracleFound();
+        return IOracle(oracle).getValueInEth(asset, amt);
     }
 
-    function getTotalAssetValue(address position) external view returns (uint256) {
-        address pool = IPosition(position).getDebtPools()[0];
+    function getTotalAssetValue(address position) public view returns (uint256) {
+        address pool = _fetchDebtPoolOrZero(position);
+
+        if (pool == address(0)) return 0;
+
         address[] memory assets = IPosition(position).getAssets();
 
         uint256 totalAssetsInEth;
@@ -122,13 +130,15 @@ contract SingleDebtRiskModule is IRiskModule {
 
     function getRiskData(address position) public view returns (uint256, uint256, uint256) {
         assert(TYPE == IPosition(position).TYPE());
-        // fetch the debt asset
-        // since single debt positions can only have one debt asset
-        // only read the first element of the array and ignore the rest
-        address pool = IPosition(position).getDebtPools()[0];
 
-        // fetch list of assets for given position
+        // fetch list of position assets
         address[] memory assets = IPosition(position).getAssets();
+
+        // fetch the debt asset or zero if there is no debt pool
+        address pool = _fetchDebtPoolOrZero(position);
+
+        // a position with no assets or debt has zero value in assets, debt and min req assets
+        if (assets.length == 0 || pool == address(0)) return (0, 0, 0);
 
         // container array used to store additional info for each asset in the position
         uint256[] memory assetData = new uint256[](assets.length);
@@ -181,5 +191,17 @@ contract SingleDebtRiskModule is IRiskModule {
         }
 
         return (totalAssetsInEth, totalDebtInEth, minReqAssetsInEth);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            Internal View
+    //////////////////////////////////////////////////////////////*/
+
+    function _fetchDebtPoolOrZero(address position) internal view returns (address) {
+        // fetch list of pools with active borrows for the given position
+        address[] memory debtPools = IPosition(position).getDebtPools();
+
+        // return position debt pool, or zero address if there is no debt pool
+        return (debtPools.length == 0) ? address(0) : debtPools[0];
     }
 }

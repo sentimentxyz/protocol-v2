@@ -89,11 +89,13 @@ contract SingleAssetRiskModule is IRiskModule {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            Internal View
+                             Public View
     //////////////////////////////////////////////////////////////*/
 
     function getDebtValue(address pool, address asset, uint256 amt) public view returns (uint256) {
-        return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt);
+        address oracle = riskEngine.oracleFor(pool, asset);
+        if (oracle == address(0)) revert Errors.NoOracleFound();
+        return IOracle(oracle).getValueInEth(asset, amt);
     }
 
     function getTotalDebtValue(address position) public view returns (uint256) {
@@ -129,24 +131,26 @@ contract SingleAssetRiskModule is IRiskModule {
         return assetValue;
     }
 
-    function getTotalAssetValue(address position) external view returns (uint256) {
-        address[] memory assets = IPosition(position).getAssets();
-        if (assets.length == 0) return 0;
-        return getAssetValue(position, assets[0], IERC20(assets[0]).balanceOf(position));
+    function getTotalAssetValue(address position) public view returns (uint256) {
+        address asset = _fetchAssetOrZero(position);
+        if (asset == address(0)) return 0;
+        return getAssetValue(position, asset, IERC20(asset).balanceOf(position));
     }
 
     function getRiskData(address position) public view returns (uint256, uint256, uint256) {
         assert(TYPE == IPosition(position).TYPE());
+
+        // fetch collateral asset for the position using getAsset()
+        address positionAsset = _fetchAssetOrZero(position);
+
         // fetch list of pools with active borrows for the given position
         address[] memory debtPools = IPosition(position).getDebtPools();
 
+        // a position with no assets or debt, cannot be valued
+        if (positionAsset == address(0) || debtPools.length == 0) return (0, 0, 0);
+
         // container array used to store additional info for each debt pool
         uint256[] memory debtInfo = new uint256[](debtPools.length);
-
-        // fetch collateral asset for the position using getAsset()
-        // since single collateral positions can only have one collateral asset
-        // only read the first element of the array and ignore the rest
-        address positionAsset = IPosition(position).getAssets()[0];
 
         // total debt accrued by account, denominated in eth, with 18 decimals
         uint256 totalDebtInEth;
@@ -206,5 +210,15 @@ contract SingleAssetRiskModule is IRiskModule {
         }
 
         return (totalBalanceInWei, totalDebtInEth, minReqAssetsInEth);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            Internal VIew
+    //////////////////////////////////////////////////////////////*/
+
+    function _fetchAssetOrZero(address position) internal view returns (address) {
+        address[] memory assets = IPosition(position).getAssets();
+
+        return (assets.length == 0) ? address(0) : assets[0];
     }
 }

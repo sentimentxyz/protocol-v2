@@ -119,16 +119,17 @@ contract SingleAssetRiskModule is IRiskModule {
             debtInfo[i] = debt;
         }
 
-        // [ROUND] debt weights are rounded down, so that SUM(debtInfo[i]) < totalDebt
+        // [ROUND] debt weights are rounded up, to enforce a hard cap on the amount seized
         for (uint256 i; i < debtPools.length; ++i) {
-            debtInfo[i] = debtInfo[i].mulDiv(1e18, totalDebt);
+            debtInfo[i] = debtInfo[i].mulDiv(1e18, totalDebt, Math.Rounding.Ceil);
         }
 
         uint256 assetValue;
         for (uint256 i; i < debtPools.length; ++i) {
-            // [ROUND] asset values are rounded down, in favor of the protocol
-            assetValue +=
-                IOracle(riskEngine.oracleFor(debtPools[i], asset)).getValueInEth(asset, amt).mulDiv(debtInfo[i], 1e18);
+            // [ROUND] asset values are rounded up, to enforce a hard cap on the amount seized
+            assetValue += IOracle(riskEngine.oracleFor(debtPools[i], asset)).getValueInEth(asset, amt).mulDiv(
+                debtInfo[i], 1e18, Math.Rounding.Ceil
+            );
         }
 
         return assetValue;

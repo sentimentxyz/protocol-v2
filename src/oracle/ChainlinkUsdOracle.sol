@@ -21,7 +21,7 @@ contract ChainlinkUsdOracle is Ownable {
     uint256 public constant SEQ_GRACE_PERIOD = 3600; // 60 * 60 secs -> 1 hour
 
     // stale price threshold, prices older than this period are considered stale
-    // this implies that the oracle doesn't play well with CL feeds with a longer heartbeat
+    // the oracle can misreport stale prices for feeds with longer hearbeats
     uint256 public constant STALE_PRICE_THRESHOLD = 3600; // 60 * 60 secs -> 1 hour
 
     IAggegregatorV3 public immutable ARB_SEQ_FEED; // Arbitrum sequencer feed

@@ -124,8 +124,9 @@ contract SingleAssetRiskModule is IRiskModule {
 
         uint256 assetValue;
         for (uint256 i; i < debtPools.length; ++i) {
-            assetValue +=
-                IOracle(riskEngine.oracleFor(debtPools[i], asset)).getValueInEth(asset, amt).mulDiv(debtInfo[i], 1e18);
+            address oracle = riskEngine.oracleFor(debtPools[i], asset);
+            if (oracle == address(0)) revert Errors.NoOracleFound();
+            assetValue += IOracle(oracle).getValueInEth(asset, amt).mulDiv(debtInfo[i], 1e18);
         }
 
         return assetValue;
@@ -204,9 +205,9 @@ contract SingleAssetRiskModule is IRiskModule {
             // total notional collateral is denominated in terms of the collateral asset of the position
             // the value of collateral is fetched using the given pool's oracle for collateralAsset
             // this oracle is set by the pool manager and can be different for different pools
-            totalBalanceInWei += IOracle(riskEngine.oracleFor(debtPools[i], positionAsset)).getValueInEth(
-                positionAsset, notionalBalance
-            ).mulDiv(debtInfo[i], 1e18);
+            address oracle = riskEngine.oracleFor(debtPools[i], positionAsset);
+            if (oracle == address(0)) revert Errors.NoOracleFound();
+            totalBalanceInWei += IOracle(oracle).getValueInEth(positionAsset, notionalBalance).mulDiv(debtInfo[i], 1e18);
         }
 
         return (totalBalanceInWei, totalDebtInEth, minReqAssetsInEth);

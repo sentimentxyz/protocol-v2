@@ -96,7 +96,7 @@ contract SingleDebtRiskModule is IRiskModule {
     function getDebtValue(address pool, address asset, uint256 amt) public view returns (uint256) {
         address oracle = riskEngine.oracleFor(pool, asset);
         if (oracle == address(0)) revert Errors.NoOracleFound();
-        return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt);
+        return IOracle(oracle).getValueInEth(asset, amt);
     }
 
     function getTotalDebtValue(address position) public view returns (uint256) {

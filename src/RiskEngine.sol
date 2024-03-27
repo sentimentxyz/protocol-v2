@@ -61,10 +61,10 @@ contract RiskEngine is OwnableUpgradeable {
     event CloseFactorSet(uint256 closeFactor);
     event LtvBoundsSet(uint256 minLtv, uint256 maxLtv);
     event LiquidationDiscountSet(uint256 liqudiationDiscount);
-    event OracleStatusSet(address indexed oracle, bool isKnown);
     event RiskModuleSet(uint256 indexed positionType, address riskModule);
     event LtvSet(address indexed pool, address indexed asset, uint256 ltv);
     event OracleSet(address indexed pool, address indexed asset, address oracle);
+    event OracleStatusSet(address indexed oracle, address indexed asset, bool isKnown);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -195,6 +195,6 @@ contract RiskEngine is OwnableUpgradeable {
     function toggleOracleStatus(address oracle, address asset) external onlyOwner {
         isKnownOracle[oracle][asset] = !isKnownOracle[oracle][asset];
 
-        emit OracleStatusSet(oracle, isKnownOracle[oracle][asset]);
+        emit OracleStatusSet(oracle, asset, isKnownOracle[oracle][asset]);
     }
 }

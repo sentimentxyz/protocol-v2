@@ -10,6 +10,7 @@ import {TestUtils} from "test/TestUtils.sol";
 import {BaseTest, MintableToken} from "./BaseTest.t.sol";
 import {FixedRateModel} from "src/irm/FixedRateModel.sol";
 import {Pool} from "src/Pool.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract SuperPoolTest is BaseTest {
     SuperPool superPool;
@@ -594,6 +595,29 @@ contract SuperPoolTest is BaseTest {
         // withdraw max succeeds even with rounding
         uint256 maxWithdrawal = superPool.maxWithdraw(address(this));
         superPool.withdraw(maxWithdrawal, address(this), address(this));
+    }
+
+    function testZach_withdrawAllAfterFix() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        superPool.setProtocolFee(5e17);
+        superPool.transferOwnership(address(1));
+
+        mockToken.mint(address(this), 100);
+        mockToken.approve(address(superPool), 100);
+        superPool.deposit(100, address(this));
+
+        vm.prank(address(123));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector, address(123), uint256(0), uint256(100)
+            )
+        );
+        superPool.withdraw(100, address(123), address(this));
+
+        assertEq(mockToken.balanceOf(address(123)), 0);
+        assertEq(superPool.balanceOf(address(this)), 100);
     }
 }
 

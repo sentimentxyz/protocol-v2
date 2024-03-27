@@ -109,14 +109,14 @@ contract SuperPoolLens {
 
             totalDeposits += deposits[i].amount;
 
-            // [ROUND] deposit weights are rounded down, in favor of the user
-            weightedDeposit += (deposits[i].amount).mulDiv(deposits[i].interestRate, 1e18);
+            // [ROUND] deposit weights are rounded up, in favor of the user
+            weightedDeposit += (deposits[i].amount).mulDiv(deposits[i].interestRate, 1e18, Math.Rounding.Ceil);
         }
         return UserDepositData({
             deposits: deposits,
             totalDeposits: totalDeposits,
-            // [ROUND] interestRate is rounded down, in favor of the user
-            interestRate: weightedDeposit.mulDiv(1e18, totalDeposits)
+            // [ROUND] interestRate is rounded up, in favor of the user
+            interestRate: weightedDeposit.mulDiv(1e18, totalDeposits, Math.Rounding.Ceil)
         });
     }
 

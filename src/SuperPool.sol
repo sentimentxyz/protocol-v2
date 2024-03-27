@@ -174,6 +174,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
         // fee for given asset withdrawal
         uint256 fee = protocolFee.mulDiv(assets, 1e18);
+        uint256 feeShares = protocolFee.mulDiv(shares, 1e18);
 
         // transfer fee to superpool owner
         SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), OwnableUpgradeable.owner(), fee);
@@ -181,7 +182,11 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         // transfer assets after fee deduction to given receiver
         SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), receiver, assets - fee);
 
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        // event corresponding withdrawal fee
+        emit Withdraw(msg.sender, OwnableUpgradeable.owner(), owner, fee, feeShares);
+
+        // event corresponding user withdrawal
+        emit Withdraw(msg.sender, receiver, owner, assets - fee, shares - feeShares);
 
         // return value as per erc4626 spec
         return shares;

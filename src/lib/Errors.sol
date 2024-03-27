@@ -94,4 +94,8 @@ library Errors {
 
     // [SingleDebtPosition.sol] exceeded max number of assets allowed for one position
     error MaxAssetLimit();
+
+    // [SingleDebtRiskModule.sol] the final position state is invalid, insolvent or unstable state
+    // [SingleAssetRiskModule.sol] the final position state is invalid, insolvent or unstable state
+    error InvalidPositionState();
 }

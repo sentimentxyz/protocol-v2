@@ -50,9 +50,6 @@ contract SingleDebtRiskModule is IRiskModule {
 
     /// @notice check if a given position violates the risk thresholds
     function isPositionHealthy(address position) external view returns (bool) {
-        // short circuit happy path with zero debt
-        if (IPosition(position).getDebtPools().length == 0) return true;
-
         (uint256 totalAssetsInEth, uint256 totalDebtInEth, uint256 minReqAssetsInEth) = getRiskData(position);
 
         // the position is healthy if the value of the assets in the position is more than the
@@ -131,14 +128,18 @@ contract SingleDebtRiskModule is IRiskModule {
     function getRiskData(address position) public view returns (uint256, uint256, uint256) {
         assert(TYPE == IPosition(position).TYPE());
 
-        // fetch list of position assets
-        address[] memory assets = IPosition(position).getAssets();
-
         // fetch the debt asset or zero if there is no debt pool
         address pool = _fetchDebtPoolOrZero(position);
 
-        // a position with no assets or debt has zero value in assets, debt and min req assets
-        if (assets.length == 0 || pool == address(0)) return (0, 0, 0);
+        // a position with no debt has zero value in assets, debt and min req assets
+        // since there are no associated oracles that can be used to value these
+        if (pool == address(0)) return (0, 0, 0);
+
+        // fetch list of position assets
+        address[] memory assets = IPosition(position).getAssets();
+
+        // a position with non-zero debt and zero assets is considered to be in an invalid state
+        if (assets.length == 0) revert Errors.InvalidPositionState();
 
         // container array used to store additional info for each asset in the position
         uint256[] memory assetData = new uint256[](assets.length);

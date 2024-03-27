@@ -51,9 +51,6 @@ contract SingleAssetRiskModule is IRiskModule {
     //////////////////////////////////////////////////////////////*/
 
     function isPositionHealthy(address position) external view returns (bool) {
-        // short circuit happy path with zero debt
-        if (IPosition(position).getDebtPools().length == 0) return true;
-
         (uint256 totalAssetsInEth, uint256 totalDebtInEth, uint256 minReqAssetsInEth) = getRiskData(position);
         // the position is healthy if the value of the assets in the position is more than the
         // minimum balance required to meet the ltv requirements of debts from all pools
@@ -98,6 +95,7 @@ contract SingleAssetRiskModule is IRiskModule {
         return IOracle(oracle).getValueInEth(asset, amt);
     }
 
+    // no need to explicitly handle zero debt positions, this returns zero in that case
     function getTotalDebtValue(address position) public view returns (uint256) {
         address[] memory debtPools = IPosition(position).getDebtPools();
         uint256 totalDebtInEth;
@@ -108,6 +106,7 @@ contract SingleAssetRiskModule is IRiskModule {
         return totalDebtInEth;
     }
 
+    // no need to explicitly handle zero debt positions, this returns zero in that case
     function getAssetValue(address position, address asset, uint256 amt) public view returns (uint256) {
         address[] memory debtPools = IPosition(position).getDebtPools();
         uint256[] memory debtInfo = new uint256[](debtPools.length);
@@ -132,6 +131,7 @@ contract SingleAssetRiskModule is IRiskModule {
         return assetValue;
     }
 
+    // no need to explicitly handle zero debt positions, this returns zero in that case
     function getTotalAssetValue(address position) public view returns (uint256) {
         address asset = _fetchAssetOrZero(position);
         if (asset == address(0)) return 0;
@@ -141,14 +141,18 @@ contract SingleAssetRiskModule is IRiskModule {
     function getRiskData(address position) public view returns (uint256, uint256, uint256) {
         assert(TYPE == IPosition(position).TYPE());
 
-        // fetch collateral asset for the position using getAsset()
-        address positionAsset = _fetchAssetOrZero(position);
-
         // fetch list of pools with active borrows for the given position
         address[] memory debtPools = IPosition(position).getDebtPools();
 
-        // a position with no assets or debt, cannot be valued
-        if (positionAsset == address(0) || debtPools.length == 0) return (0, 0, 0);
+        // a position with no debt has zero value in assets, debt and min req assets
+        // since there are no associated oracles that can be used to value these
+        if (debtPools.length == 0) return (0, 0, 0);
+
+        // fetch collateral asset for the position using getAsset()
+        address positionAsset = _fetchAssetOrZero(position);
+
+        // a position with non-zero debt and zero assets is considered to be in an invalid state
+        if (positionAsset == address(0)) revert Errors.InvalidPositionState();
 
         // container array used to store additional info for each debt pool
         uint256[] memory debtInfo = new uint256[](debtPools.length);

@@ -160,7 +160,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param receiver the address to send the assets to
     /// @param owner the owner of the shares were burning from
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
-        // user must not withdraw more than his balance
+        // must not withdraw more than owner balance
         uint256 maxAssets = maxWithdraw(owner);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
@@ -169,29 +169,12 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         // amount of shares for given assets
         uint256 shares = ERC4626Upgradeable.previewWithdraw(assets);
 
-        // msg.sender must be approved to withdraw on behalf of the owner
-        if (owner != msg.sender) {
-            ERC20Upgradeable._spendAllowance(owner, msg.sender, shares);
-        }
+        // compute fees
+        uint256 fee = protocolFee.mulDiv(assets, 1e18); // withdrawal fee
+        uint256 feeShares = protocolFee.mulDiv(shares, 1e18); // withdrawal fee, as vault shares
 
-        // burn shares equivalent to assets from owner's balance
-        ERC20Upgradeable._burn(owner, shares);
-
-        // fee for given asset withdrawal
-        uint256 fee = protocolFee.mulDiv(assets, 1e18);
-        uint256 feeShares = protocolFee.mulDiv(shares, 1e18);
-
-        // transfer fee to superpool owner
-        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), OwnableUpgradeable.owner(), fee);
-
-        // transfer assets after fee deduction to given receiver
-        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), receiver, assets - fee);
-
-        // event corresponding withdrawal fee
-        emit Withdraw(msg.sender, OwnableUpgradeable.owner(), owner, fee, feeShares);
-
-        // event corresponding user withdrawal
-        emit Withdraw(msg.sender, receiver, owner, assets - fee, shares - feeShares);
+        // process withdrawal including fee deduction
+        _withdrawWithFee(msg.sender, receiver, owner, assets, shares, fee, feeShares);
 
         // return value as per erc4626 spec
         return shares;
@@ -203,38 +186,21 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param receiver the address to send the assets to
     /// @param owner the owner of the shares were burning from
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
-        // user must not redeem more than his balance
+        // must not redeem more than owner balance
         uint256 maxShares = maxRedeem(owner);
         if (shares > maxShares) {
             revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
         }
 
-        // msg.sender must be approved to redeem on behalf of owner
-        if (owner != msg.sender) {
-            ERC20Upgradeable._spendAllowance(owner, msg.sender, shares);
-        }
-
         // amount of asset for given shares
         uint256 assets = previewRedeem(shares);
 
-        // burn shares for owner to process redemption
-        ERC20Upgradeable._burn(owner, shares);
+        // compute fees
+        uint256 fee = protocolFee.mulDiv(assets, 1e18); // withdrawal fee
+        uint256 feeShares = protocolFee.mulDiv(shares, 1e18); // withdrawal fee, as shares
 
-        // fee amount for given shares
-        uint256 fee = protocolFee.mulDiv(assets, 1e18);
-        uint256 feeShares = protocolFee.mulDiv(shares, 1e18);
-
-        // transfer fee to superpool owner
-        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), OwnableUpgradeable.owner(), fee);
-
-        // transfer assets after fee deduction to given receiver
-        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), receiver, assets - fee);
-
-        // event corresponding withdrawal fee
-        emit Withdraw(msg.sender, receiver, owner, fee, feeShares);
-
-        // event corresponding user redemption
-        emit Withdraw(msg.sender, receiver, owner, assets - fee, shares - feeShares);
+        // process redemption including fee deduction
+        _withdrawWithFee(msg.sender, receiver, owner, assets, shares, fee, feeShares);
 
         // return value as per erc4626 spec
         return assets;
@@ -259,6 +225,37 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /*//////////////////////////////////////////////////////////////
                           Internal Functions
     //////////////////////////////////////////////////////////////*/
+
+    // replicates ERC4626Upgradeable._withdraw logic with a withdrawal fee
+    function _withdrawWithFee(
+        address caller,
+        address receiver,
+        address owner,
+        uint256 assets,
+        uint256 shares,
+        uint256 fee,
+        uint256 feeShares
+    ) internal {
+        // msg.sender must be approved to redeem on behalf of owner
+        if (owner != caller) {
+            ERC20Upgradeable._spendAllowance(owner, caller, shares);
+        }
+
+        // burn shares equivalent to assets from owner's balance
+        ERC20Upgradeable._burn(owner, shares);
+
+        // transfer fee to superpool owner
+        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), OwnableUpgradeable.owner(), fee);
+
+        // transfer assets after fee deduction to given receiver
+        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), receiver, assets - fee);
+
+        // event corresponding fee withdrawal
+        emit Withdraw(msg.sender, receiver, owner, fee, feeShares);
+
+        // event corresponding user withdrawal
+        emit Withdraw(msg.sender, receiver, owner, assets - fee, shares - feeShares);
+    }
 
     function _poolWithdraw(IERC4626 pool, uint256 assets) internal {
         // withdraw assets from pool back to superpool

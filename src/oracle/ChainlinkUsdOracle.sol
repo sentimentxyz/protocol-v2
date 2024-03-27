@@ -14,8 +14,15 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract ChainlinkUsdOracle is Ownable {
     using Math for uint256;
 
+    // internal alias for native ETH
+    address private constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     // sequencer grace period
     uint256 public constant SEQ_GRACE_PERIOD = 3600; // 60 * 60 secs -> 1 hour
+
+    // stale price threshold, prices older than this period are considered stale
+    // this implies that the oracle doesn't play well with CL feeds with a longer heartbeat
+    uint256 public constant STALE_PRICE_THRESHOLD = 3600; // 60 * 60 secs -> 1 hour
 
     IAggegregatorV3 public immutable ARB_SEQ_FEED; // Arbitrum sequencer feed
     IAggegregatorV3 public immutable ETH_USD_FEED; // ETH/USD price feed
@@ -28,13 +35,14 @@ contract ChainlinkUsdOracle is Ownable {
     constructor(address owner, address arbSeqFeed, address ethUsdFeed) Ownable(owner) {
         ARB_SEQ_FEED = IAggegregatorV3(arbSeqFeed);
         ETH_USD_FEED = IAggegregatorV3(ethUsdFeed);
+        priceFeedFor[ETH] = ethUsdFeed;
     }
 
     function getValueInEth(address asset, uint256 amt) external view returns (uint256) {
         _checkSequencerFeed();
 
-        (, int256 assetUsdPrice,,,) = IAggegregatorV3(priceFeedFor[asset]).latestRoundData();
-        (, int256 ethUsdPrice,,,) = ETH_USD_FEED.latestRoundData();
+        uint256 ethUsdPrice = _getPriceWithSanityChecks(ETH);
+        uint256 assetUsdPrice = _getPriceWithSanityChecks(asset);
 
         uint256 decimals = IERC20Metadata(asset).decimals();
         if (decimals <= 18) {
@@ -63,5 +71,14 @@ contract ChainlinkUsdOracle is Ownable {
         if (block.timestamp - startedAt <= SEQ_GRACE_PERIOD) {
             revert Errors.GracePeriodNotOver();
         }
+    }
+
+    function _getPriceWithSanityChecks(address asset) private view returns (uint256) {
+        (, int256 price,, uint256 updatedAt,) = IAggegregatorV3(priceFeedFor[asset]).latestRoundData();
+
+        if (price < 0) revert Errors.NegativePrice();
+        if (updatedAt < block.timestamp - STALE_PRICE_THRESHOLD) revert Errors.StalePrice();
+
+        return uint256(price);
     }
 }

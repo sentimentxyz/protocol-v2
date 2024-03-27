@@ -102,4 +102,12 @@ library Errors {
     // [ChainlinkUsdOracle.sol] sequencer is back but the grace period is not over yet
     // [ChainlinkEthOracle.sol] sequencer is back but the grace period is not over yet
     error GracePeriodNotOver();
+
+    // [ChainlinkUsdOracle.sol] reported price is negative
+    // [ChainlinkEthOracle.sol] reported price is negative
+    error NegativePrice();
+
+    // [ChainlinkUsdOracle.sol] last price update is older than the stale price threshold
+    // [ChainlinkEthOracle.sol] last price update is older than the stale price threshold
+    error StalePrice();
 }

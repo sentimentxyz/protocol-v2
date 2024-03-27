@@ -19,6 +19,10 @@ contract ChainlinkEthOracle is Ownable {
     // sequencer grace period
     uint256 public constant SEQ_GRACE_PERIOD = 3600; // 60 * 60 secs -> 1 hour
 
+    // stale price threshold, prices older than this period are considered stale
+    // this implies that the oracle doesn't play well with CL feeds with a longer heartbeat
+    uint256 public constant STALE_PRICE_THRESHOLD = 3600; // 60 * 60 secs -> 1 hour
+
     // Arbitrum sequencer feed
     IAggegregatorV3 public immutable ARB_SEQ_FEED;
 
@@ -32,9 +36,7 @@ contract ChainlinkEthOracle is Ownable {
     function getValueInEth(address asset, uint256 amt) external view returns (uint256) {
         _checkSequencerFeed();
 
-        (, int256 price,,,) = IAggegregatorV3(priceFeedFor[asset]).latestRoundData();
-
-        return amt.mulDiv(uint256(price), (10 ** IERC20Metadata(asset).decimals()));
+        return amt.mulDiv(_getPriceWithSanityChecks(asset), (10 ** IERC20Metadata(asset).decimals()));
     }
 
     function setFeed(address asset, address feed) external onlyOwner {
@@ -56,5 +58,14 @@ contract ChainlinkEthOracle is Ownable {
         if (block.timestamp - startedAt <= SEQ_GRACE_PERIOD) {
             revert Errors.GracePeriodNotOver();
         }
+    }
+
+    function _getPriceWithSanityChecks(address asset) private view returns (uint256) {
+        (, int256 price,, uint256 updatedAt,) = IAggegregatorV3(priceFeedFor[asset]).latestRoundData();
+
+        if (price < 0) revert Errors.NegativePrice();
+        if (updatedAt < block.timestamp - STALE_PRICE_THRESHOLD) revert Errors.StalePrice();
+
+        return uint256(price);
     }
 }

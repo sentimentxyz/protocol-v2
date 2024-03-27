@@ -169,6 +169,11 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         // amount of shares for given assets
         uint256 shares = ERC4626Upgradeable.previewWithdraw(assets);
 
+        // msg.sender must be approved to withdraw on behalf of the owner
+        if (owner != msg.sender) {
+            ERC20Upgradeable._spendAllowance(owner, msg.sender, shares);
+        }
+
         // burn shares equivalent to assets from owner's balance
         ERC20Upgradeable._burn(owner, shares);
 
@@ -202,6 +207,11 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         uint256 maxShares = maxRedeem(owner);
         if (shares > maxShares) {
             revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
+        }
+
+        // msg.sender must be approved to redeem on behalf of owner
+        if (owner != msg.sender) {
+            ERC20Upgradeable._spendAllowance(owner, msg.sender, shares);
         }
 
         // amount of asset for given shares

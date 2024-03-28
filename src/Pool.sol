@@ -220,7 +220,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         ping();
 
         // compute borrow shares equivalant for notional borrow amt
-        // [ROUND] mint fewer shares, in favor of the protocol
+        // [ROUND] round up shares minted, they capture the borrowed amount
         borrowShares = convertAssetToBorrowShares(amt, Math.Rounding.Floor);
 
         // revert if borrow amt is too small
@@ -268,7 +268,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         ping();
 
         // compute borrow shares equivalent to notional asset amt
-        // [ROUND] burn fewer borrow shares, in favor of the protocol
+        // [ROUND] burn fewer borrow shares, to ensure excess debt isn't pushed to others
         uint256 borrowShares = convertAssetToBorrowShares(amt, Math.Rounding.Floor);
 
         // revert if repaid amt is too small

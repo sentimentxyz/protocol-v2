@@ -91,6 +91,18 @@ contract SdpBorrowTest is BaseTest {
         assertEq(position.getDebtPools().length, 0);
     }
 
+    function testMaxRepay(uint256 depositAmt, uint256 borrowAmt) public {
+        vm.assume(borrowAmt > 3);
+        vm.assume(depositAmt < MAX_NUM);
+        // max lev is 4x and borrow asset is worth twice the collat in this case
+        // so max amount of borrows is twice the absolute amount of deposit
+        vm.assume(borrowAmt / 2 < depositAmt);
+
+        _deposit(depositAmt);
+        _borrow(borrowAmt);
+        _repay(type(uint256).max);
+    }
+
     function _deposit(uint256 amt) internal {
         erc20Collat.mint(address(this), amt);
         erc20Collat.approve(address(positionManager), type(uint256).max);

@@ -239,7 +239,7 @@ contract SdpBorrowTest is BaseTest {
         erc20Collat.approve(address(positionManager), type(uint256).max);
         erc20Borrow.approve(address(positionManager), type(uint256).max);
 
-        address positionAddr = portfolioLens.predictAddress(0x1, salt);
+        (address positionAddr,) = portfolioLens.predictAddress(address(this), 0x1, salt);
         bytes memory newPosdata = abi.encode(user, 0x1, salt);
         Action memory newPosAction = Action({op: Operation.NewPosition, data: newPosdata});
 

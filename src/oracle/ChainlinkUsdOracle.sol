@@ -45,6 +45,8 @@ contract ChainlinkUsdOracle is Ownable {
         uint256 assetUsdPrice = _getPriceWithSanityChecks(asset);
 
         uint256 decimals = IERC20Metadata(asset).decimals();
+
+        // [ROUND] price is rounded down. this is used for both debt and asset math, no effect
         if (decimals <= 18) {
             return (amt * 10 ** (18 - decimals)).mulDiv(uint256(assetUsdPrice), uint256(ethUsdPrice));
         } else {

@@ -82,6 +82,7 @@ contract SingleDebtRiskModule is IRiskModule {
             collatInWei += getAssetValue(pool, collat[i].asset, collat[i].amt);
         }
 
+        // [ROUND] liquidation discount is rounded down, in favor of the protocol
         if (collatInWei > debtInWei.mulDiv((1e18 + liquidationDiscount), 1e18)) revert Errors.SeizedTooMuchCollateral();
 
         return true;
@@ -179,7 +180,10 @@ contract SingleDebtRiskModule is IRiskModule {
                 // total borrows are denominated in eth, scaled by 18 decimals
                 // wt is the fraction of total account balance held in asset[i]
                 // asset[i].ltv is the ltv for asset[i] according to the only debt pool for the position
+                // [ROUND] asset weights are rounded down so that SUM(assetData[i]) < 1
                 uint256 wt = assetData[i].mulDiv(1e18, totalAssetsInEth, Math.Rounding.Floor);
+
+                // [ROUND] minimum assets required is rounded up, in favor of the protocol
                 minReqAssetsInEth += totalDebtInEth.mulDiv(wt, riskEngine.ltvFor(pool, assets[i]), Math.Rounding.Ceil);
             }
         }

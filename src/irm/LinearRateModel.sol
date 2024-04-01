@@ -45,9 +45,11 @@ contract LinearRateModel is IRateModel {
         uint256 totalAssets = borrows + idleAmt;
 
         // util = borrows / (borrows + idleAmt)
+        // [ROUND] pool utilisation is rounded up, in favor of the protocol
         uint256 util = (totalAssets == 0) ? 0 : borrows.mulDiv(1e18, totalAssets, Math.Rounding.Ceil);
 
         // interest rate = MIN_RATE + util * (MAX_RATE - MIN_RATE)
+        // [ROUND] interest rate is rounded up, in favor of the protocol
         return MIN_RATE + util.mulDiv(RATE_DIFF, 1e18, Math.Rounding.Ceil);
     }
 
@@ -58,11 +60,13 @@ contract LinearRateModel is IRateModel {
     function interestAccrued(uint256 lastUpdated, uint256 borrows, uint256 idleAmt) external view returns (uint256) {
         // rateFactor = time delta * apr / secs_per_year
         // rate is scaled but time delta and seconds_per_year are not scaled, to preserve precision
+        // [ROUND] rateFactor is rounded up, in favor of the protocol
         uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(
             getInterestRate(borrows, idleAmt), SECONDS_PER_YEAR, Math.Rounding.Ceil
         );
 
         // interest accrued = borrows * rateFactor
+        // [ROUND] interest accrued is rounded up, in favor of the protocol
         return borrows.mulDiv(rateFactor, 1e18, Math.Rounding.Ceil);
     }
 }

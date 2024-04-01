@@ -171,6 +171,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         uint256 shares = ERC4626Upgradeable.previewWithdraw(assets);
 
         // compute fees
+        // [ROUND] protocol fee is rounded down, in favor of the user
         uint256 fee = protocolFee.mulDiv(assets, 1e18); // withdrawal fee
         uint256 feeShares = protocolFee.mulDiv(shares, 1e18); // withdrawal fee, as vault shares
 
@@ -197,6 +198,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         uint256 assets = previewRedeem(shares);
 
         // compute fees
+        // [ROUND] protocol fee is rounded down, in favor of the user
         uint256 fee = protocolFee.mulDiv(assets, 1e18); // withdrawal fee
         uint256 feeShares = protocolFee.mulDiv(shares, 1e18); // withdrawal fee, as shares
 

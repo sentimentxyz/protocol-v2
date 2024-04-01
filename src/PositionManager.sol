@@ -401,6 +401,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // transfer position assets to the liqudiator and accrue protocol liquidation fees
         for (uint256 i; i < collat.length; ++i) {
             // compute fee amt
+            // [ROUND] liquidation fee is rounded down, in favor of the liquidator
             uint256 fee = liquidationFee.mulDiv(collat[i].amt, 1e18);
 
             // transfer fee amt to protocol

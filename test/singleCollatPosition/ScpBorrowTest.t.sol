@@ -11,6 +11,7 @@ import {PoolFactory, PoolDeployParams} from "src/PoolFactory.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
 import {PositionManager, Operation, Action} from "src/PositionManager.sol";
+import {console2} from "forge-std/Test.sol";
 
 contract ScpBorrowTest is BaseTest {
     Pool pool;
@@ -85,6 +86,20 @@ contract ScpBorrowTest is BaseTest {
         assertEq(pool.getBorrowsOf(address(position)), 0);
         address[] memory debtPools = position.getDebtPools();
         assertEq(debtPools.length, 0);
+    }
+
+    function testMaxRepay(uint256 depositAmt, uint256 borrowAmt) public {
+        vm.assume(borrowAmt > 3);
+        vm.assume(depositAmt < MAX_NUM);
+        // max lev is 4x and borrow asset is same as the collat in this case
+        vm.assume(borrowAmt / 4 < depositAmt);
+
+        console2.log("deposit", depositAmt);
+        console2.log("borrow", borrowAmt);
+
+        _deposit(depositAmt);
+        _borrow(borrowAmt);
+        _repay(type(uint256).max);
     }
 
     // refer: https://github.com/sentimentxyz/protocol-v2/issues/109

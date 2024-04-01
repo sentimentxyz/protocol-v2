@@ -55,9 +55,7 @@ event Transfer(address indexed position, address indexed caller, address indexed
 
 event Approve(address indexed position, address indexed caller, address indexed spender, address asset, uint256 amount);
 
-event Deposit(
-    address indexed position, address indexed caller, address indexed depositor, address asset, uint256 amount
-);
+event Deposit(address indexed position, address indexed depositor, address asset, uint256 amount);
 
 /*//////////////////////////////////////////////////////////////
                             Structs
@@ -277,6 +275,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // asset -> address of token to be transferred
         // amt -> amount of asset to be transferred
         (address recipient, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
+        if (!isKnownContract[asset]) revert Errors.UnknownContract();
         IPosition(position).transfer(recipient, asset, amt);
 
         emit Transfer(position, msg.sender, recipient, asset, amt);
@@ -286,10 +285,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // depositor -> address to transfer the tokens from, must have approval
         // asset -> address of token to be deposited
         // amt -> amount of asset to be deposited
-        (address depositor, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
-        IERC20(asset).safeTransferFrom(depositor, position, amt);
+        (address asset, uint256 amt) = abi.decode(data, (address, uint256));
+        IERC20(asset).safeTransferFrom(msg.sender, position, amt);
 
-        emit Deposit(position, msg.sender, depositor, asset, amt);
+        emit Deposit(position, msg.sender, asset, amt);
     }
 
     function approve(address position, bytes calldata data) internal {
@@ -312,11 +311,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // if the passed amt is type(uint).max assume repayment of the entire debt
         uint256 amt = (_amt == type(uint256).max) ? Pool(pool).getBorrowsOf(position) : _amt;
 
-        // transfer assets to be repaid from the position to the given pool
         // signals repayment to the position without making any changes in the pool
         // since every position is structured differently
         // we assume that any checks needed to validate repayment are implemented in the position
         IPosition(position).repay(pool, amt);
+
+        // transfer assets to be repaid from the position to the given pool
+        IPosition(position).transfer(pool, Pool(pool).asset(), amt);
 
         // trigger pool repayment which assumes successful transfer of repaid assets
         Pool(pool).repay(position, amt);
@@ -331,7 +332,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         (address pool, uint256 amt) = abi.decode(data, (address, uint256));
 
         // revert if the given pool was not deployed by the protocol pool factory
-        if (poolFactory.managerFor(pool) == address(0)) revert Errors.UnknownPool();
+        if (poolFactory.deployerFor(pool) == address(0)) revert Errors.UnknownPool();
 
         // signals a borrow operation without any actual transfer of borrowed assets
         // since every position type is structured differently
@@ -383,6 +384,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         for (uint256 i; i < debt.length; ++i) {
             // verify that the asset being repaid is actually the pool asset
             if (debt[i].asset != Pool(debt[i].pool).asset()) revert Errors.InvalidDebtData();
+
+            // update position to reflect repayment of debt by liquidator
+            IPosition(position).repay(debt[i].pool, debt[i].amt);
 
             // transfer debt asset from the liquidator to the pool
             IERC20(debt[i].asset).transferFrom(msg.sender, debt[i].pool, debt[i].amt);

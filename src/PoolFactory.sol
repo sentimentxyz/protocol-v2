@@ -43,10 +43,11 @@ contract PoolFactory is Ownable, Pausable {
     /// @notice implementation contract for pool used to create clones
     address public poolImplementation;
 
-    // a mapping can be used to verify that a pool was deployed by this factory
-    // storing pool => manager is more useful as a utility mapping than the minimal pool => bool
-    /// @notice fetch pool manager for a given pool
-    mapping(address pool => address poolManager) public managerFor;
+    // a mapping that can be used to verify that a pool was deployed by this factory
+    // since pool ownership can be transferred, we only store the pool deployer
+    // to get the current pool owner, query the pool contract directly
+    /// @notice fetch pool deployer for a given pool
+    mapping(address pool => address poolManager) public deployerFor;
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -76,7 +77,7 @@ contract PoolFactory is Ownable, Pausable {
         pool.transferOwnership(msg.sender);
 
         // store pool manager for given pool
-        managerFor[address(pool)] = msg.sender;
+        deployerFor[address(pool)] = msg.sender;
 
         emit PoolCreated(msg.sender, address(pool));
 

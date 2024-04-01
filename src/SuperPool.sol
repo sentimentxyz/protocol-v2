@@ -124,7 +124,8 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
     /// @inheritdoc ERC4626Upgradeable
     function maxDeposit(address) public view override returns (uint256) {
-        return totalPoolCap - totalAssets();
+        uint256 assets = totalAssets();
+        return totalPoolCap > assets ? totalPoolCap - assets : 0;
     }
 
     /// @inheritdoc ERC4626Upgradeable

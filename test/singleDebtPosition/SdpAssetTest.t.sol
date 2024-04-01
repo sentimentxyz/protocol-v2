@@ -31,7 +31,7 @@ contract SdpAssetTest is BaseTest {
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
 
-        bytes memory data = abi.encode(address(this), address(erc201), amt);
+        bytes memory data = abi.encode(address(erc201), amt);
         Action memory action1 = Action({op: Operation.Deposit, data: data});
         Action memory action2 = Action({op: Operation.AddAsset, data: abi.encode(address(erc201))});
         Action[] memory actions = new Action[](2);
@@ -49,7 +49,7 @@ contract SdpAssetTest is BaseTest {
         erc201.mint(address(this), amt);
         erc201.approve(address(positionManager), type(uint256).max);
 
-        bytes memory data = abi.encode(address(this), address(erc201), amt / 2);
+        bytes memory data = abi.encode(address(erc201), amt / 2);
         Action memory action1 = Action({op: Operation.Deposit, data: data});
         Action memory action2 = Action({op: Operation.AddAsset, data: abi.encode(address(erc201))});
         Action[] memory actions = new Action[](2);
@@ -61,7 +61,7 @@ contract SdpAssetTest is BaseTest {
         assertEq(assets.length, 1);
         assertEq(assets[0], address(erc201));
 
-        data = abi.encode(address(this), address(erc201), amt - (amt / 2));
+        data = abi.encode(address(erc201), amt - (amt / 2));
         action1 = Action({op: Operation.Deposit, data: data});
         actions[0] = action1;
 
@@ -102,7 +102,7 @@ contract SdpAssetTest is BaseTest {
         uint256 POSITION_TYPE = 0x1;
         bytes32 salt = "SingleDebtPosition";
         bytes memory data = abi.encode(address(this), POSITION_TYPE, salt);
-        address positionAddress = portfolioLens.predictAddress(POSITION_TYPE, salt);
+        (address positionAddress,) = portfolioLens.predictAddress(POSITION_TYPE, salt);
 
         Action memory action = Action({op: Operation.NewPosition, data: data});
         Action[] memory actions = new Action[](1);

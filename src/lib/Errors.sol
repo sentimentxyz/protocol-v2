@@ -14,7 +14,7 @@ library Errors {
     // [PositionManager.toggleAuth] only position owners can call this method
     error OnlyPositionOwner();
 
-    // [RiskEngine.setOracle] oracle not recognized by the risk engine
+    // [RiskEngine.setOracle] oracle-asset pair not recognized by the risk engine
     error UnknownOracle();
 
     // [BasePosition.exec] exec call failed and returned false
@@ -97,4 +97,20 @@ library Errors {
 
     // [Pool.deposit] deposit amount too small
     error ZeroSharesDeposit();
+
+    // [ChainlinkUsdOracle.sol] arbitrum sequencer is down
+    // [ChainlinkEthOracle.sol] arbitrum sequencer is down
+    error SequencerDown();
+
+    // [ChainlinkUsdOracle.sol] sequencer is back but the grace period is not over yet
+    // [ChainlinkEthOracle.sol] sequencer is back but the grace period is not over yet
+    error GracePeriodNotOver();
+
+    // [ChainlinkUsdOracle.sol] reported price is negative
+    // [ChainlinkEthOracle.sol] reported price is negative
+    error NegativePrice();
+
+    // [ChainlinkUsdOracle.sol] last price update is older than the stale price threshold
+    // [ChainlinkEthOracle.sol] last price update is older than the stale price threshold
+    error StalePrice();
 }

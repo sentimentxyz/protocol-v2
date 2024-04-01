@@ -93,7 +93,7 @@ contract SdpBorrowTest is BaseTest {
         erc20Collat.mint(address(this), amt);
         erc20Collat.approve(address(positionManager), type(uint256).max);
 
-        bytes memory data = abi.encode(address(this), address(erc20Collat), amt);
+        bytes memory data = abi.encode(address(erc20Collat), amt);
         Action memory action1 = Action({op: Operation.Deposit, data: data});
         Action memory action2 = Action({op: Operation.AddAsset, data: abi.encode(address(erc20Collat))});
         Action[] memory actions = new Action[](2);
@@ -122,7 +122,7 @@ contract SdpBorrowTest is BaseTest {
         uint256 POSITION_TYPE = 0x1;
         bytes32 salt = "SingleDebtPosition";
         bytes memory data = abi.encode(address(this), POSITION_TYPE, salt);
-        address positionAddress = portfolioLens.predictAddress(POSITION_TYPE, salt);
+        (address positionAddress,) = portfolioLens.predictAddress(POSITION_TYPE, salt);
 
         Action memory action = Action({op: Operation.NewPosition, data: data});
         Action[] memory actions = new Action[](1);
@@ -146,12 +146,12 @@ contract SdpBorrowTest is BaseTest {
         pool = Pool(poolFactory.deployPool(params));
 
         FixedPriceOracle borrowTokenOracle = new FixedPriceOracle(2e18); // 1 borrow token = 2 eth
-        riskEngine.toggleOracleStatus(address(borrowTokenOracle));
+        riskEngine.toggleOracleStatus(address(borrowTokenOracle), address(erc20Borrow));
         riskEngine.setOracle(address(pool), address(erc20Borrow), address(borrowTokenOracle));
         riskEngine.setLtv(address(pool), address(erc20Borrow), 4e18); // 400% ltv
 
         FixedPriceOracle collatTokenOracle = new FixedPriceOracle(1e18); // 1 collat token = 1 eth
-        riskEngine.toggleOracleStatus(address(collatTokenOracle));
+        riskEngine.toggleOracleStatus(address(collatTokenOracle), address(erc20Collat));
         riskEngine.setOracle(address(pool), address(erc20Collat), address(collatTokenOracle));
         riskEngine.setLtv(address(pool), address(erc20Collat), 4e18); // 400% ltv
     }

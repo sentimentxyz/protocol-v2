@@ -331,6 +331,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @notice set the maximum deposit cap for a pool
     /// @param pool the pool to set the cap for
     /// @param assets the amount of assets to set the cap to
+    /// @dev owner must take care to ensure that pool caps are only set to 0 after all assets
+    /// are removed. failure to do so will result in the superpool share price to decrease
+    /// dramatically, even though the assets accessible to it will remain the same which can lead
+    /// to price share attacks. refer: https://github.com/sentimentxyz/protocol-v2/issues/118
     function setPoolCap(address pool, uint256 assets) external onlyOwner {
         // revert if pool asset does not match superpool asset
         if (Pool(pool).asset() != asset()) revert Errors.InvalidPoolAsset();

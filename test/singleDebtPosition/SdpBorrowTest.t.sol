@@ -197,12 +197,12 @@ contract SdpBorrowTest is BaseTest {
         FixedPriceOracle borrowTokenOracle = new FixedPriceOracle(2e18); // 1 borrow token = 2 eth
         riskEngine.toggleOracleStatus(address(borrowTokenOracle), address(erc20Borrow));
         riskEngine.setOracle(address(pool), address(erc20Borrow), address(borrowTokenOracle));
-        riskEngine.setLtv(address(pool), address(erc20Borrow), 4e18); // 400% ltv
+        riskEngine.setLtv(address(pool), address(erc20Borrow), 8e17); // max lev = 5x
 
         FixedPriceOracle collatTokenOracle = new FixedPriceOracle(1e18); // 1 collat token = 1 eth
         riskEngine.toggleOracleStatus(address(collatTokenOracle), address(erc20Collat));
         riskEngine.setOracle(address(pool), address(erc20Collat), address(collatTokenOracle));
-        riskEngine.setLtv(address(pool), address(erc20Collat), 4e18); // 400% ltv
+        riskEngine.setLtv(address(pool), address(erc20Collat), 8e17); // max lev = 5x
     }
 
     function _repay(uint256 amt) internal {

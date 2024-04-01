@@ -183,7 +183,7 @@ contract PositionManagerTest is BaseTest {
         return predicted;
     }
 
-    function depositActionFromThis(address token, uint256 amt) internal view returns (Action[] memory) {
+    function depositActionFromThis(address token, uint256 amt) internal pure returns (Action[] memory) {
         Action memory action = Action({op: Operation.Deposit, data: abi.encode(token, amt)});
 
         Action[] memory actions = new Action[](1);

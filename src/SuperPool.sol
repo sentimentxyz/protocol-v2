@@ -13,6 +13,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Errors} from "src/lib/Errors.sol";
 import {IterableMap} from "src/lib/IterableMap.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 //contracts
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -124,7 +125,8 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
     /// @inheritdoc ERC4626Upgradeable
     function maxDeposit(address) public view override returns (uint256) {
-        return totalPoolCap - totalAssets();
+        uint256 assets = totalAssets();
+        return totalPoolCap > assets ? totalPoolCap - assets : 0;
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -159,18 +161,25 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param receiver the address to send the assets to
     /// @param owner the owner of the shares were burning from
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
-        // compute fee amount for given assets
+        // must not withdraw more than owner balance
+        uint256 maxAssets = maxWithdraw(owner);
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
+        }
+
+        // amount of shares for given assets
+        uint256 shares = ERC4626Upgradeable.previewWithdraw(assets);
+
+        // compute fees
         // [ROUND] protocol fee is rounded down, in favor of the user
-        uint256 fee = protocolFee.mulDiv(assets, 1e18);
+        uint256 fee = protocolFee.mulDiv(assets, 1e18); // withdrawal fee
+        uint256 feeShares = protocolFee.mulDiv(shares, 1e18); // withdrawal fee, as vault shares
 
-        // erc4626 return val for fee withdrawal
-        uint256 feeShares = ERC4626Upgradeable.withdraw(fee, OwnableUpgradeable.owner(), owner);
+        // process withdrawal including fee deduction
+        _withdrawWithFee(msg.sender, receiver, owner, assets, shares, fee, feeShares);
 
-        // erc4626 return val for receiver shares withdrawal
-        uint256 recieverShares = ERC4626Upgradeable.withdraw(assets - fee, receiver, owner);
-
-        // final return value must comply with erc4626 spec
-        return feeShares + recieverShares;
+        // return value as per erc4626 spec
+        return shares;
     }
 
     /// @notice redeem shares for assets from the superpool
@@ -179,18 +188,25 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param receiver the address to send the assets to
     /// @param owner the owner of the shares were burning from
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
-        // compute fee amount for given shares
+        // must not redeem more than owner balance
+        uint256 maxShares = maxRedeem(owner);
+        if (shares > maxShares) {
+            revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
+        }
+
+        // amount of asset for given shares
+        uint256 assets = previewRedeem(shares);
+
+        // compute fees
         // [ROUND] protocol fee is rounded down, in favor of the user
-        uint256 fee = protocolFee.mulDiv(shares, 1e18);
+        uint256 fee = protocolFee.mulDiv(assets, 1e18); // withdrawal fee
+        uint256 feeShares = protocolFee.mulDiv(shares, 1e18); // withdrawal fee, as shares
 
-        // erc4626 return val for fee redemption
-        uint256 feeAssets = ERC4626Upgradeable.redeem(fee, OwnableUpgradeable.owner(), owner);
+        // process redemption including fee deduction
+        _withdrawWithFee(msg.sender, receiver, owner, assets, shares, fee, feeShares);
 
-        // erc4626 return val for receiver asset redemption
-        uint256 receiverAssets = ERC4626Upgradeable.redeem(shares - fee, receiver, owner);
-
-        // final return value must comply with erc4626 spec
-        return feeAssets + receiverAssets;
+        // return value as per erc4626 spec
+        return assets;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -212,6 +228,37 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /*//////////////////////////////////////////////////////////////
                           Internal Functions
     //////////////////////////////////////////////////////////////*/
+
+    // replicates ERC4626Upgradeable._withdraw logic with a withdrawal fee
+    function _withdrawWithFee(
+        address caller,
+        address receiver,
+        address owner,
+        uint256 assets,
+        uint256 shares,
+        uint256 fee,
+        uint256 feeShares
+    ) internal {
+        // msg.sender must be approved to redeem on behalf of owner
+        if (owner != caller) {
+            ERC20Upgradeable._spendAllowance(owner, caller, shares);
+        }
+
+        // burn shares equivalent to assets from owner's balance
+        ERC20Upgradeable._burn(owner, shares);
+
+        // transfer fee to superpool owner
+        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), OwnableUpgradeable.owner(), fee);
+
+        // transfer assets after fee deduction to given receiver
+        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), receiver, assets - fee);
+
+        // event corresponding fee withdrawal
+        emit Withdraw(msg.sender, receiver, owner, fee, feeShares);
+
+        // event corresponding user withdrawal
+        emit Withdraw(msg.sender, receiver, owner, assets - fee, shares - feeShares);
+    }
 
     function _poolWithdraw(IERC4626 pool, uint256 assets) internal {
         // withdraw assets from pool back to superpool
@@ -286,6 +333,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @notice set the maximum deposit cap for a pool
     /// @param pool the pool to set the cap for
     /// @param assets the amount of assets to set the cap to
+    /// @dev owner must take care to ensure that pool caps are only set to 0 after all assets
+    /// are removed. failure to do so will result in the superpool share price to decrease
+    /// dramatically, even though the assets accessible to it will remain the same which can lead
+    /// to price share attacks. refer: https://github.com/sentimentxyz/protocol-v2/issues/118
     function setPoolCap(address pool, uint256 assets) external onlyOwner {
         // revert if pool asset does not match superpool asset
         if (Pool(pool).asset() != asset()) revert Errors.InvalidPoolAsset();

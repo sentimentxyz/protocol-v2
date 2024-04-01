@@ -159,11 +159,9 @@ contract SuperPoolLens {
         address[] memory pools = superPool.pools();
         for (uint256 i; i < pools.length; ++i) {
             uint256 assets = IERC4626(pools[i]).previewRedeem(IERC20(asset).balanceOf(_superPool));
-            // [ROUND] pool deposit weights are rounded up, in favor of the user
-            weightedAssets += assets.mulDiv(getPoolInterestRate(pools[i]), 1e18, Math.Rounding.Ceil);
+            weightedAssets += assets * getPoolInterestRate(pools[i]);
         }
 
-        // [ROUND] weighted superpool interest rate is rounded up, in favor of the user
-        return weightedAssets.mulDiv(1e18, totalAssets, Math.Rounding.Ceil);
+        return weightedAssets / totalAssets;
     }
 }

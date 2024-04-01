@@ -95,6 +95,9 @@ library Errors {
     // [SingleDebtPosition.sol] exceeded max number of assets allowed for one position
     error MaxAssetLimit();
 
+    // [Pool.deposit] deposit amount too small
+    error ZeroSharesDeposit();
+
     // [ChainlinkUsdOracle.sol] arbitrum sequencer is down
     // [ChainlinkEthOracle.sol] arbitrum sequencer is down
     error SequencerDown();

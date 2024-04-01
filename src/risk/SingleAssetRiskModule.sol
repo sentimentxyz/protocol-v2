@@ -51,9 +51,6 @@ contract SingleAssetRiskModule is IRiskModule {
     //////////////////////////////////////////////////////////////*/
 
     function isPositionHealthy(address position) external view returns (bool) {
-        // short circuit happy path with zero debt
-        if (IPosition(position).getDebtPools().length == 0) return true;
-
         (uint256 totalAssetsInEth,, uint256 minReqAssetsInEth) = getRiskData(position);
         // the position is healthy if the value of the assets in the position is more than the
         // minimum balance required to meet the ltv requirements of debts from all pools
@@ -85,13 +82,16 @@ contract SingleAssetRiskModule is IRiskModule {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            Internal View
+                             Public View
     //////////////////////////////////////////////////////////////*/
 
     function getDebtValue(address pool, address asset, uint256 amt) public view returns (uint256) {
-        return IOracle(riskEngine.oracleFor(pool, asset)).getValueInEth(asset, amt);
+        address oracle = riskEngine.oracleFor(pool, asset);
+        if (oracle == address(0)) revert Errors.NoOracleFound();
+        return IOracle(oracle).getValueInEth(asset, amt);
     }
 
+    // no need to explicitly handle zero debt positions, this returns zero in that case
     function getTotalDebtValue(address position) public view returns (uint256) {
         address[] memory debtPools = IPosition(position).getDebtPools();
         uint256 totalDebtInEth;
@@ -102,6 +102,7 @@ contract SingleAssetRiskModule is IRiskModule {
         return totalDebtInEth;
     }
 
+    // no need to explicitly handle zero debt positions, this returns zero in that case
     function getAssetValue(address position, address asset, uint256 amt) public view returns (uint256) {
         address[] memory debtPools = IPosition(position).getDebtPools();
         uint256[] memory debtInfo = new uint256[](debtPools.length);
@@ -118,89 +119,100 @@ contract SingleAssetRiskModule is IRiskModule {
 
         uint256 assetValue;
         for (uint256 i; i < debtPools.length; ++i) {
-            assetValue +=
-                IOracle(riskEngine.oracleFor(debtPools[i], asset)).getValueInEth(asset, amt).mulDiv(debtInfo[i], 1e18);
+            address oracle = riskEngine.oracleFor(debtPools[i], asset);
+            if (oracle == address(0)) revert Errors.NoOracleFound();
+            assetValue += IOracle(oracle).getValueInEth(asset, amt).mulDiv(debtInfo[i], 1e18);
         }
 
         return assetValue;
     }
 
-    function getTotalAssetValue(address position) external view returns (uint256) {
-        address[] memory assets = IPosition(position).getAssets();
-        if (assets.length == 0) return 0;
-        return getAssetValue(position, assets[0], IERC20(assets[0]).balanceOf(position));
+    // no need to explicitly handle zero debt positions, this returns zero in that case
+    function getTotalAssetValue(address position) public view returns (uint256) {
+        address asset = _fetchAssetOrZero(position);
+        if (asset == address(0)) return 0;
+        return getAssetValue(position, asset, IERC20(asset).balanceOf(position));
     }
 
     function getRiskData(address position) public view returns (uint256, uint256, uint256) {
         assert(TYPE == IPosition(position).TYPE());
+
+        // total debt accrued by account, denominated in eth, with 18 decimals
+        uint256 totalDebtInEth;
+
         // fetch list of pools with active borrows for the given position
         address[] memory debtPools = IPosition(position).getDebtPools();
 
         // container array used to store additional info for each debt pool
         uint256[] memory debtInfo = new uint256[](debtPools.length);
 
-        // fetch collateral asset for the position using getAsset()
-        // since single collateral positions can only have one collateral asset
-        // only read the first element of the array and ignore the rest
-        address positionAsset = IPosition(position).getAssets()[0];
+        // a position with no debt has zero value in assets, debt and min req assets
+        // since there are no associated oracles that can be used to value these
+        // if (debtPools.length == 0) return (0, 0, 0);
+        if (debtPools.length != 0) {
+            for (uint256 i; i < debtPools.length; ++i) {
+                uint256 debtInWei =
+                    getDebtValue(debtPools[i], Pool(debtPools[i]).asset(), Pool(debtPools[i]).getBorrowsOf(position));
 
-        // total debt accrued by account, denominated in eth, with 18 decimals
-        uint256 totalDebtInEth;
+                // add current pool debt to aggregate position debt
+                totalDebtInEth += debtInWei;
+
+                // debtInfo[i] stores the debt owed by this position to debtPools[i], to be used later
+                // debt is denominated in eth, with 18 decimals
+                debtInfo[i] = debtInWei;
+            }
+        }
 
         // minimum position balance required to meet risk threshold denominated in eth, with 18 decimals
         uint256 minReqAssetsInEth;
 
-        // loop over all debt pools and compute the aggrgate debt owed by the position, in eth terms
-        // and the minimum balance, in eth terms, required to meet the risk threshold for that debt
-        for (uint256 i; i < debtPools.length; ++i) {
-            // fetch debt owed to debtPools[i] in eth, with 18 decimals
-            // the oracle for the debt asset is pool-specific and is configured by the pool manager
-            uint256 debtInWei =
-                getDebtValue(debtPools[i], Pool(debtPools[i]).asset(), Pool(debtPools[i]).getBorrowsOf(position));
-
-            // add current pool debt to aggregate position debt
-            totalDebtInEth += debtInWei;
-
-            // min balance required in eth to meet risk threshold, scaled by 18 decimals
-            // the ltv of the collateral asset is pool-specifc and is configured by th pool manager
-            // min collateralAsset amt to back debt = debt owed / ltv for collateralAsset
-            minReqAssetsInEth +=
-                debtInWei.mulDiv(1e18, riskEngine.ltvFor(debtPools[i], positionAsset), Math.Rounding.Ceil);
-
-            // debtInfo[i] stores the debt owed by this position to debtPools[i], to be used later
-            // debt is denominated in eth, with 18 decimals
-            debtInfo[i] = debtInWei;
-        }
-
-        // loop over debtPools to compute the fraction of total debt owed to each pool
-        for (uint256 i; i < debtPools.length; ++i) {
-            // debtInfo[i] stores the fraction of total debt owed to debtPools[i], with 18 decimals
-            // fraction = debt owed to pool[i] / total debt
-            debtInfo[i] = debtInfo[i].mulDiv(1e18, totalDebtInEth, Math.Rounding.Ceil);
-        }
-
-        // total position balance, in terms of the collateral asset
-        // since this position can only have a single collateral, it's balance is the total balance
-        uint256 notionalBalance = IERC20(positionAsset).balanceOf(position);
-
         // total position balance in eth, with 18 decimals
         uint256 totalBalanceInWei;
 
-        // pricing the collateral is non-trivial since every debt pool has a different oracle
-        // it is priced as a weighted average of all debt pool prices
-        // the weight of each pool is the fraction of total debt owed to that pool
-        // loop over debt pools to compute total position balance using debt pool weighted prices
-        for (uint256 i; i < debtPools.length; ++i) {
-            // collateral value = weight * total notional collateral price of collateral
-            // weight = fraction of the total debt owed to the given pool
-            // total notional collateral is denominated in terms of the collateral asset of the position
-            // the value of collateral is fetched using the given pool's oracle for collateralAsset
-            // this oracle is set by the pool manager and can be different for different pools
-            totalBalanceInWei += IOracle(riskEngine.oracleFor(debtPools[i], positionAsset)).getValueInEth(
-                positionAsset, notionalBalance
-            ).mulDiv(debtInfo[i], 1e18);
+        // fetch collateral asset for the position using getAsset()
+        address positionAsset = _fetchAssetOrZero(position);
+
+        if (positionAsset != address(0) && debtPools.length != 0) {
+            // loop over all debt pools and compute the aggrgate debt owed by the position, in eth terms
+            // and the minimum balance, in eth terms, required to meet the risk threshold for that debt
+            for (uint256 i; i < debtPools.length; ++i) {
+                minReqAssetsInEth +=
+                    debtInfo[i].mulDiv(1e18, riskEngine.ltvFor(debtPools[i], positionAsset), Math.Rounding.Ceil);
+            }
+
+            // total position balance, in terms of the collateral asset
+            // since this position can only have a single collateral, it's balance is the total balance
+            uint256 notionalBalance = IERC20(positionAsset).balanceOf(position);
+
+            // pricing the collateral is non-trivial since every debt pool has a different oracle
+            // it is priced as a weighted average of all debt pool prices
+            // the weight of each pool is the fraction of total debt owed to that pool
+            // loop over debt pools to compute total position balance using debt pool weighted prices
+            for (uint256 i; i < debtPools.length; ++i) {
+                // fetch oracle associated with the position asset for debtPools[i]
+                address oracle = riskEngine.oracleFor(debtPools[i], positionAsset);
+                if (oracle == address(0)) revert Errors.NoOracleFound();
+
+                // collateral value = weight * total notional collateral price of collateral
+                // weight = fraction of the total debt owed to the given pool
+                // total notional collateral is denominated in terms of the collateral asset of the position
+                // the value of collateral is fetched using the given pool's oracle for collateralAsset
+                // this oracle is set by the pool manager and can be different for different pools
+                uint256 wt = debtInfo[i].mulDiv(1e18, totalDebtInEth, Math.Rounding.Ceil);
+                totalBalanceInWei += IOracle(oracle).getValueInEth(positionAsset, notionalBalance).mulDiv(wt, 1e18);
+            }
         }
 
         return (totalBalanceInWei, totalDebtInEth, minReqAssetsInEth);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            Internal VIew
+    //////////////////////////////////////////////////////////////*/
+
+    function _fetchAssetOrZero(address position) internal view returns (address) {
+        address[] memory assets = IPosition(position).getAssets();
+
+        return (assets.length == 0) ? address(0) : assets[0];
     }
 }

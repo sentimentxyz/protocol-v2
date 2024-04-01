@@ -55,9 +55,7 @@ event Transfer(address indexed position, address indexed caller, address indexed
 
 event Approve(address indexed position, address indexed caller, address indexed spender, address asset, uint256 amount);
 
-event Deposit(
-    address indexed position, address indexed caller, address indexed depositor, address asset, uint256 amount
-);
+event Deposit(address indexed position, address indexed depositor, address asset, uint256 amount);
 
 /*//////////////////////////////////////////////////////////////
                             Structs
@@ -287,10 +285,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // depositor -> address to transfer the tokens from, must have approval
         // asset -> address of token to be deposited
         // amt -> amount of asset to be deposited
-        (address depositor, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
-        IERC20(asset).safeTransferFrom(depositor, position, amt);
+        (address asset, uint256 amt) = abi.decode(data, (address, uint256));
+        IERC20(asset).safeTransferFrom(msg.sender, position, amt);
 
-        emit Deposit(position, msg.sender, depositor, asset, amt);
+        emit Deposit(position, msg.sender, asset, amt);
     }
 
     function approve(address position, bytes calldata data) internal {

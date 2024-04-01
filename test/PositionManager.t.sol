@@ -183,7 +183,7 @@ contract PositionManagerTest is BaseTest {
     }
 
     function depositActionFromThis(address token, uint256 amt) internal view returns (Action[] memory) {
-        Action memory action = Action({op: Operation.Deposit, data: abi.encode(address(this), token, amt)});
+        Action memory action = Action({op: Operation.Deposit, data: abi.encode(token, amt)});
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;

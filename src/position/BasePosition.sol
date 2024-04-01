@@ -96,8 +96,8 @@ abstract contract BasePosition is IPosition {
                    Virtual State Mutating Functions
     //////////////////////////////////////////////////////////////*/
 
-    // transfer assets to be repaid in order to decrease debt
-    // must be followed by Pool.repay() to trigger debt repayment
+    // signal repayment of assets in order to decrease debt
+    // must be followed by BasePosition.transfer() + Pool.repay() to process debt repayment
     // any position-specfic repay validation should be implemented within this function
     function repay(address pool, uint256 amt) external virtual;
 

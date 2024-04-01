@@ -313,11 +313,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // if the passed amt is type(uint).max assume repayment of the entire debt
         uint256 amt = (_amt == type(uint256).max) ? Pool(pool).getBorrowsOf(position) : _amt;
 
-        // transfer assets to be repaid from the position to the given pool
         // signals repayment to the position without making any changes in the pool
         // since every position is structured differently
         // we assume that any checks needed to validate repayment are implemented in the position
         IPosition(position).repay(pool, amt);
+
+        // transfer assets to be repaid from the position to the given pool
+        IPosition(position).transfer(pool, Pool(pool).asset(), amt);
 
         // trigger pool repayment which assumes successful transfer of repaid assets
         Pool(pool).repay(position, amt);
@@ -382,6 +384,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator
         for (uint256 i; i < debt.length; ++i) {
+            // update position to reflect repayment of debt by liquidator
+            IPosition(position).repay(debt[i].pool, debt[i].amt);
+
             // transfer debt asset from the liquidator to the pool
             IERC20(debt[i].asset).transferFrom(msg.sender, debt[i].pool, debt[i].amt);
 

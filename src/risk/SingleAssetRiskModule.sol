@@ -51,10 +51,10 @@ contract SingleAssetRiskModule is IRiskModule {
     //////////////////////////////////////////////////////////////*/
 
     function isPositionHealthy(address position) external view returns (bool) {
-        (uint256 totalAssetsInEth, uint256 totalDebtInEth, uint256 minReqAssetsInEth) = getRiskData(position);
+        (uint256 totalAssetsInEth,, uint256 minReqAssetsInEth) = getRiskData(position);
         // the position is healthy if the value of the assets in the position is more than the
         // minimum balance required to meet the ltv requirements of debts from all pools
-        return totalAssetsInEth - totalDebtInEth >= minReqAssetsInEth;
+        return totalAssetsInEth >= minReqAssetsInEth;
     }
 
     function isValidLiquidation(
@@ -67,10 +67,6 @@ contract SingleAssetRiskModule is IRiskModule {
         uint256 debtRepaidInEth;
         for (uint256 i; i < debt.length; ++i) {
             debtRepaidInEth += getDebtValue(debt[0].pool, debt[i].asset, debt[i].amt);
-        }
-
-        if (debtRepaidInEth > getTotalDebtValue(position).mulDiv(riskEngine.closeFactor(), 1e18)) {
-            revert Errors.RepaidTooMuchDebt();
         }
 
         uint256 assetsSeizedInEth;

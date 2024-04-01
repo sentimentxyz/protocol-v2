@@ -30,8 +30,6 @@ contract RiskEngine is OwnableUpgradeable {
     uint256 public minLtv;
     uint256 public maxLtv;
 
-    uint256 public closeFactor;
-
     // liquidators buy position collateral at a discount by receiving a higher value of collateral
     // than debt repaid. the discount is a protocol parameter to incentivize liquidators while
     // ensuring efficient liquidations of risky positions. the value stored is scaled by 18 decimals
@@ -39,7 +37,8 @@ contract RiskEngine is OwnableUpgradeable {
 
     // pool managers are free to choose their own oracle, but it must be recognized by the protocol
     /// @notice check if an oracle is recognized by the protocol
-    mapping(address oracle => bool isKnown) public isKnownOracle;
+    // map oracle to its corresponding asset, any value other than address(0) == true
+    mapping(address oracle => mapping(address asset => bool isKnown)) public isKnownOracle;
 
     // each position type implements its own health check
     /// @notice fetch the health check implementations for each position type
@@ -57,13 +56,12 @@ contract RiskEngine is OwnableUpgradeable {
                                 Events
     //////////////////////////////////////////////////////////////*/
 
-    event CloseFactorSet(uint256 closeFactor);
     event LtvBoundsSet(uint256 minLtv, uint256 maxLtv);
     event LiquidationDiscountSet(uint256 liqudiationDiscount);
-    event OracleStatusSet(address indexed oracle, bool isKnown);
     event RiskModuleSet(uint256 indexed positionType, address riskModule);
     event LtvSet(address indexed pool, address indexed asset, uint256 ltv);
     event OracleSet(address indexed pool, address indexed asset, address oracle);
+    event OracleStatusSet(address indexed oracle, address indexed asset, bool isKnown);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -73,14 +71,10 @@ contract RiskEngine is OwnableUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(uint256 _minLtv, uint256 _maxLtv, uint256 _closeFactor, uint256 _liquidationDiscount)
-        public
-        initializer
-    {
+    function initialize(uint256 _minLtv, uint256 _maxLtv, uint256 _liquidationDiscount) public initializer {
         OwnableUpgradeable.__Ownable_init(msg.sender);
         minLtv = _minLtv;
         maxLtv = _maxLtv;
-        closeFactor = _closeFactor;
         liqudiationDiscount = _liquidationDiscount;
     }
 
@@ -143,7 +137,7 @@ contract RiskEngine is OwnableUpgradeable {
     /// @dev only pool owners can set the oracle for their pools
     function setOracle(address pool, address asset, address oracle) external {
         // revert if the oracle is not recognized by the protocol
-        if (!isKnownOracle[oracle]) revert Errors.UnknownOracle();
+        if (!isKnownOracle[oracle][asset]) revert Errors.UnknownOracle();
 
         // only pool owners are allowed to set oracles
         if (msg.sender != Pool(pool).owner()) revert Errors.onlyPoolOwner();
@@ -157,12 +151,6 @@ contract RiskEngine is OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////
                               Only Owner
     //////////////////////////////////////////////////////////////*/
-
-    function setCloseFactor(uint256 _closeFactor) external onlyOwner {
-        closeFactor = _closeFactor;
-
-        emit CloseFactorSet(_closeFactor);
-    }
 
     function setLiquidationDiscount(uint256 _liquidationDiscount) external onlyOwner {
         liqudiationDiscount = _liquidationDiscount;
@@ -187,12 +175,13 @@ contract RiskEngine is OwnableUpgradeable {
         emit RiskModuleSet(positionType, riskModule);
     }
 
-    /// @notice toggle whether a given oracle is recognized by the protocol
+    /// @notice toggle whether a given oracle-asset pair is recognized by the protocol
     /// @dev only callable by RiskEngine owner
-    /// @param oracle the address of the oracle who status to negate
-    function toggleOracleStatus(address oracle) external onlyOwner {
-        isKnownOracle[oracle] = !isKnownOracle[oracle];
+    /// @param oracle oracle address
+    /// @param asset token address for the given oracle
+    function toggleOracleStatus(address oracle, address asset) external onlyOwner {
+        isKnownOracle[oracle][asset] = !isKnownOracle[oracle][asset];
 
-        emit OracleStatusSet(oracle, isKnownOracle[oracle]);
+        emit OracleStatusSet(oracle, asset, isKnownOracle[oracle][asset]);
     }
 }

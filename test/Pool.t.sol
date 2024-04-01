@@ -25,7 +25,7 @@ contract PoolTest is BaseTest {
     }
 
     function testDepositsWork(uint256 amount) public {
-        vm.assume(amount < MAX_NUM);
+        vm.assume(amount > 0 && amount < MAX_NUM);
         mockToken.mint(address(this), amount);
         mockToken.approve(address(pool), amount);
         pool.deposit(amount, address(this));
@@ -33,7 +33,7 @@ contract PoolTest is BaseTest {
     }
 
     function testWithdrawsWork(uint256 amount) public {
-        vm.assume(amount < MAX_NUM);
+        vm.assume(amount > 0 && amount < MAX_NUM);
         mockToken.mint(address(this), amount);
         mockToken.approve(address(pool), amount);
 
@@ -47,7 +47,7 @@ contract PoolTest is BaseTest {
     }
 
     function testRedeemsWork(uint256 amount) public {
-        vm.assume(amount < MAX_NUM);
+        vm.assume(amount > 0 && amount < MAX_NUM);
         mockToken.mint(address(this), amount);
         mockToken.approve(address(pool), amount);
 

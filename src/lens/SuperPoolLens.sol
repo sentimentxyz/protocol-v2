@@ -156,9 +156,9 @@ contract SuperPoolLens {
         address[] memory pools = superPool.pools();
         for (uint256 i; i < pools.length; ++i) {
             uint256 assets = IERC4626(pools[i]).previewRedeem(IERC20(asset).balanceOf(_superPool));
-            weightedAssets += assets.mulDiv(getPoolInterestRate(pools[i]), 1e18);
+            weightedAssets += assets * getPoolInterestRate(pools[i]);
         }
 
-        return weightedAssets.mulDiv(1e18, totalAssets);
+        return weightedAssets / totalAssets;
     }
 }

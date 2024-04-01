@@ -10,6 +10,7 @@ import {TestUtils} from "test/TestUtils.sol";
 import {BaseTest, MintableToken} from "./BaseTest.t.sol";
 import {FixedRateModel} from "src/irm/FixedRateModel.sol";
 import {Pool} from "src/Pool.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract SuperPoolTest is BaseTest {
     SuperPool superPool;
@@ -506,7 +507,8 @@ contract SuperPoolTest is BaseTest {
 
         vm.startPrank(notOwner);
 
-        vm.expectRevert(Errors.OnlyAllocatorOrOwner.selector);
+        // can fail due to OnlyAllocatorOrOwner or when notOwner is proxy admin
+        vm.expectRevert();
         superPool.poolDeposit(pool, 1e18);
 
         vm.stopPrank();
@@ -553,6 +555,70 @@ contract SuperPoolTest is BaseTest {
 
     function _deployMockPool() public returns (address) {
         return address(new MockPool(address(mockToken)));
+    }
+
+    function testZach_WithdrawAllCanFail() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 1e18);
+        superPool.setProtocolFee(0.75e18);
+
+        // deposit into the superpool
+        uint256 deposit = 51;
+        mockToken.mint(address(this), deposit);
+        mockToken.approve(address(superPool), deposit);
+        superPool.deposit(deposit, address(this));
+
+        // simulate interest earned
+        uint256 interestAccrued = 50;
+        mockToken.mint(address(superPool), interestAccrued);
+
+        // withdraw max will fail due to rounding
+        uint256 maxWithdrawal = superPool.maxWithdraw(address(this));
+        superPool.withdraw(maxWithdrawal, address(this), address(this));
+    }
+
+    function testZachFuzz_WithdrawAllSucceeds(uint256 deposit, uint256 interestAccrued, uint256 fee) public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 1e18);
+        fee = bound(fee, 0, 1e18);
+        superPool.setProtocolFee(fee);
+
+        // deposit into the superpool
+        deposit = bound(deposit, 0, 10e18);
+        mockToken.mint(address(this), deposit);
+        mockToken.approve(address(superPool), deposit);
+        superPool.deposit(deposit, address(this));
+
+        // simulate interest earned
+        interestAccrued = bound(interestAccrued, 0, 1e18);
+        mockToken.mint(address(superPool), interestAccrued);
+
+        // withdraw max succeeds even with rounding
+        uint256 maxWithdrawal = superPool.maxWithdraw(address(this));
+        superPool.withdraw(maxWithdrawal, address(this), address(this));
+    }
+
+    function testZach_withdrawAllAfterFix() public {
+        address pool = _deployMockPool();
+        _setPoolCap(pool, 100);
+
+        superPool.setProtocolFee(5e17);
+        superPool.transferOwnership(address(1));
+
+        mockToken.mint(address(this), 100);
+        mockToken.approve(address(superPool), 100);
+        superPool.deposit(100, address(this));
+
+        vm.prank(address(123));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector, address(123), uint256(0), uint256(100)
+            )
+        );
+        superPool.withdraw(100, address(123), address(this));
+
+        assertEq(mockToken.balanceOf(address(123)), 0);
+        assertEq(superPool.balanceOf(address(this)), 100);
     }
 }
 

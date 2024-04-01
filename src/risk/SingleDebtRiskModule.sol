@@ -51,12 +51,12 @@ contract SingleDebtRiskModule is IRiskModule {
 
     /// @notice check if a given position violates the risk thresholds
     function isPositionHealthy(address position) external view returns (bool) {
-        (uint256 totalAssetsInEth, uint256 totalDebtInEth, uint256 minReqAssetsInEth) = getRiskData(position);
+        (uint256 totalAssetsInEth,, uint256 minReqAssetsInEth) = getRiskData(position);
 
         // the position is healthy if the value of the assets in the position is more than the
         // minimum collateral required to meet the ltv requirements of debts from all pools
         // this reverts if borrows > balance, which is intended to never allow that
-        return totalAssetsInEth - totalDebtInEth >= minReqAssetsInEth;
+        return totalAssetsInEth >= minReqAssetsInEth;
     }
 
     function isValidLiquidation(
@@ -65,12 +65,12 @@ contract SingleDebtRiskModule is IRiskModule {
         AssetData[] calldata collat,
         uint256 liquidationDiscount
     ) external view returns (bool) {
+        // assert that debt[] is a singleton array
+        if (debt.length != 1 || debt[0].pool != IPosition(position).getDebtPools()[0]) revert Errors.InvalidDebtData();
+
         // compute the amount of debt repaid in wei. since there is only one debt pool, debt[]
         // need not have more than one element. we ignore everything other than the first element.
         uint256 debtInWei = getDebtValue(debt[0].pool, debt[0].asset, debt[0].amt);
-        uint256 totalDebtInWei = getDebtValue(debt[0].pool, debt[0].asset, Pool(debt[0].pool).getBorrowsOf(position));
-
-        if (debtInWei > totalDebtInWei.mulDiv(riskEngine.closeFactor(), 1e18)) revert Errors.RepaidTooMuchDebt();
 
         // fetch the debt pool. since single debt positions can only have one debt pool, only read
         // the first element of the array and ignore the rest

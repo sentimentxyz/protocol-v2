@@ -293,7 +293,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     function convertAssetToBorrowShares(uint256 amt) internal view returns (uint256) {
         // borrow shares = amt * totalBorrowShares / currentTotalBorrows
         // handle edge case for when borrows are zero by minting shares in 1:1 amt
-        return totalBorrowShares == 0 ? amt : amt.mulDiv(totalBorrowShares, getTotalBorrows(), Math.Rounding.Ceil);
+        uint256 currentTotalBorrows = getTotalBorrows();
+        return currentTotalBorrows == 0 ? amt : amt.mulDiv(totalBorrowShares, currentTotalBorrows, Math.Rounding.Ceil);
     }
 
     /// @notice convert borrow shares to notional asset amount

@@ -245,6 +245,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // revert if given position type doesn't have a register beacon
         if (beaconFor[positionType] == address(0)) revert Errors.NoPositionBeacon();
 
+        // hash salt with owner to mitigate position creations being frontrun
+        salt = keccak256(abi.encodePacked(owner, salt));
+
         // create2 a new position as a beacon proxy
         address position = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));
 

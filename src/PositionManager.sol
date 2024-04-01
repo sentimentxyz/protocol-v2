@@ -331,7 +331,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         (address pool, uint256 amt) = abi.decode(data, (address, uint256));
 
         // revert if the given pool was not deployed by the protocol pool factory
-        if (poolFactory.managerFor(pool) == address(0)) revert Errors.UnknownPool();
+        if (poolFactory.deployerFor(pool) == address(0)) revert Errors.UnknownPool();
 
         // signals a borrow operation without any actual transfer of borrowed assets
         // since every position type is structured differently

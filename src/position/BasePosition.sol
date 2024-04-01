@@ -27,6 +27,10 @@ abstract contract BasePosition is IPosition {
     // position manager associated with this position
     address public immutable positionManager;
 
+    // BasePosition is inherited by other contracts, so typical append-only storage upgrades
+    // will mess up the proxy storage structure. we implement a storage gap to mitigate this
+    uint256[50] __gap;
+
     /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/

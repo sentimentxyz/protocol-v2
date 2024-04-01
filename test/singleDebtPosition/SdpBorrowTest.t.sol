@@ -101,7 +101,7 @@ contract SdpBorrowTest is BaseTest {
 
         // whoops, price of collateral falls by 1%, so we're liquidatable
         FixedPriceOracle newCollatTokenOracle = new FixedPriceOracle(0.99e18);
-        riskEngine.toggleOracleStatus(address(newCollatTokenOracle));
+        riskEngine.toggleOracleStatus(address(newCollatTokenOracle), address(erc20Collat));
         riskEngine.setOracle(address(pool), address(erc20Collat), address(newCollatTokenOracle));
 
         // confirm we are now unhealthy & can be liquidated

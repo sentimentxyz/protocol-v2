@@ -95,6 +95,10 @@ library Errors {
     // [SingleDebtPosition.sol] exceeded max number of assets allowed for one position
     error MaxAssetLimit();
 
+    // [PositionManager.liquidate] DebtData.asset does not correspond to DebtData.pool
+    // [SingleDebtRiskModule.isValidLiquidation] debt[] must be singleton for single debt positions
+    error InvalidDebtData();
+
     // [Pool.deposit] deposit amount too small
     error ZeroSharesDeposit();
 

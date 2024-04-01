@@ -507,7 +507,8 @@ contract SuperPoolTest is BaseTest {
 
         vm.startPrank(notOwner);
 
-        vm.expectRevert(Errors.OnlyAllocatorOrOwner.selector);
+        // can fail due to OnlyAllocatorOrOwner or when notOwner is proxy admin
+        vm.expectRevert();
         superPool.poolDeposit(pool, 1e18);
 
         vm.stopPrank();

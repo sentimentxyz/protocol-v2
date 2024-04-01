@@ -141,7 +141,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
 
     /// @inheritdoc ERC4626Upgradeable
     function maxDeposit(address) public view override returns (uint256) {
-        return poolCap - totalAssets();
+        uint256 assets = totalAssets();
+        return poolCap > assets ? poolCap - assets : 0;
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -161,8 +162,14 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // update state to accrue interest since the last time ping() was called
         ping();
 
+        // deposit assets to pool
+        uint256 shares = ERC4626Upgradeable.deposit(assets, receiver);
+
+        // ensure more than zero shares were minted to mitigate donation attacks
+        if (shares == 0) revert Errors.ZeroSharesDeposit();
+
         // inherited erc4626 call
-        return ERC4626Upgradeable.deposit(assets, receiver);
+        return shares;
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -292,7 +299,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     function convertAssetToBorrowShares(uint256 amt) internal view returns (uint256) {
         // borrow shares = amt * totalBorrowShares / currentTotalBorrows
         // handle edge case for when borrows are zero by minting shares in 1:1 amt
-        return totalBorrowShares == 0 ? amt : amt.mulDiv(totalBorrowShares, getTotalBorrows(), Math.Rounding.Ceil);
+        uint256 currentTotalBorrows = getTotalBorrows();
+        return currentTotalBorrows == 0 ? amt : amt.mulDiv(totalBorrowShares, currentTotalBorrows, Math.Rounding.Ceil);
     }
 
     /// @notice convert borrow shares to notional asset amount

@@ -81,12 +81,11 @@ contract SingleAssetPosition is BasePosition {
         debtPools.insert(pool);
     }
 
-    // transfer assets to be repaid in order to decrease debt
-    // must be followed by Pool.repay() to trigger debt repayment
+    // signal repayment of assets in order to decrease debt
+    // must be followed by BasePosition.transfer() + Pool.repay() to process debt repayment
     // must implement repay validation, if any
     function repay(address pool, uint256 amt) external override onlyPositionManager {
         if (Pool(pool).getBorrowsOf(address(this)) == amt) debtPools.remove(pool);
-        IERC20(Pool(pool).asset()).safeTransfer(pool, amt);
     }
 
     // register a new asset to be used collateral in the position

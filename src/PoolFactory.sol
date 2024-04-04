@@ -41,7 +41,10 @@ contract PoolFactory is Ownable, Pausable {
 
     // pools are deployed as EIP1167 minimal clones owned by the pool manager (msg.sender)
     /// @notice implementation contract for pool used to create clones
-    address public poolImplementation;
+    address public immutable POOL_IMPL;
+
+    // position manager associated with pools deployed by the factory
+    address public immutable POSITION_MANAGER;
 
     // a mapping that can be used to verify that a pool was deployed by this factory
     // since pool ownership can be transferred, we only store the pool deployer
@@ -53,8 +56,9 @@ contract PoolFactory is Ownable, Pausable {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address owner, address _poolImplementation) Ownable(owner) {
-        poolImplementation = _poolImplementation;
+    constructor(address owner, address positionManager) Ownable(owner) {
+        POSITION_MANAGER = positionManager;
+        POOL_IMPL = address(new Pool(positionManager));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -66,7 +70,7 @@ contract PoolFactory is Ownable, Pausable {
     /// @param params the parameters to deploy the pool with
     function deployPool(PoolDeployParams calldata params) external whenNotPaused returns (address) {
         // deploy pool as a minimal clone
-        Pool pool = Pool(Clones.clone(poolImplementation));
+        Pool pool = Pool(Clones.clone(POOL_IMPL));
 
         // init erc4626 params for the pool
         pool.initialize(
@@ -82,15 +86,5 @@ contract PoolFactory is Ownable, Pausable {
         emit PoolCreated(msg.sender, address(pool));
 
         return address(pool);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                              Only Owner
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice update pool implementation contract used to create clones
-    /// @dev only callable by PoolFactory owner
-    function setPoolImplementation(address _poolImplementation) external onlyOwner {
-        poolImplementation = _poolImplementation;
     }
 }

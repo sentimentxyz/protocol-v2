@@ -61,8 +61,7 @@ contract Deploy is BaseScript {
         positionManagerImpl = address(new PositionManager());
         positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0)));
 
-        poolImpl = address(new Pool(positionManager));
-        poolFactory = address(new PoolFactory(params.owner, poolImpl));
+        poolFactory = address(new PoolFactory(params.owner, positionManager));
 
         riskEngineImpl = address(new RiskEngine());
         riskEngine = address(new TransparentUpgradeableProxy(riskEngineImpl, params.owner, new bytes(0)));

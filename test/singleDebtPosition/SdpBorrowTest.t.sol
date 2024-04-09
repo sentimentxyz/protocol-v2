@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 import "forge-std/console2.sol";
 import {Pool} from "src/Pool.sol";
-import {Errors} from "src/lib/Errors.sol";
 import {console2} from "forge-std/Test.sol";
 import {TestUtils} from "../TestUtils.sol";
 import {RiskEngine} from "src/RiskEngine.sol";

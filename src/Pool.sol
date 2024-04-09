@@ -10,7 +10,6 @@ import {IRateModel} from "./interface/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
-import {Errors} from "src/lib/Errors.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
@@ -81,6 +80,15 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     // fetch debt for a given position, denominated in borrow shares
     // borrow shares use a different base and are not related to erc4626 shares for this pool
     mapping(address position => uint256 borrowShares) borrowSharesOf;
+
+    /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+
+    error Pool_ZeroSharesRepay(address pool, uint256 amt);
+    error Pool_ZeroSharesBorrow(address pool, uint256 amt);
+    error Pool_ZeroSharesDeposit(address pool, uint256 amt);
+    error Pool_OnlyPositionManager(address pool, address sender);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -167,7 +175,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         uint256 shares = ERC4626Upgradeable.deposit(assets, receiver);
 
         // ensure more than zero shares were minted to mitigate donation attacks
-        if (shares == 0) revert Errors.ZeroSharesDeposit();
+        if (shares == 0) revert Pool_ZeroSharesDeposit(address(this), assets);
 
         // inherited erc4626 call
         return shares;
@@ -221,7 +229,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     /// @return borrowShares the amount of shares minted
     function borrow(address position, uint256 amt) external whenNotPaused returns (uint256 borrowShares) {
         // revert if the caller is not the position manager
-        if (msg.sender != positionManager) revert Errors.OnlyPositionManager();
+        if (msg.sender != positionManager) revert Pool_OnlyPositionManager(address(this), msg.sender);
 
         // update state to accrue interest since the last time ping() was called
         ping();
@@ -231,7 +239,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         borrowShares = convertAssetToBorrowShares(amt, Math.Rounding.Ceil);
 
         // revert if borrow amt is too small
-        if (borrowShares == 0) revert Errors.ZeroSharesBorrow();
+        if (borrowShares == 0) revert Pool_ZeroSharesBorrow(address(this), amt);
 
         // update total pool debt, denominated in notional asset units
         totalBorrows += amt;
@@ -269,7 +277,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // the call to Pool.repay() is not frontrun allowing debt repayment for another position
 
         // revert if the caller is not the position manager
-        if (msg.sender != positionManager) revert Errors.OnlyPositionManager();
+        if (msg.sender != positionManager) revert Pool_OnlyPositionManager(address(this), msg.sender);
 
         // update state to accrue interest since the last time ping() was called
         ping();
@@ -279,7 +287,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         uint256 borrowShares = convertAssetToBorrowShares(amt, Math.Rounding.Floor);
 
         // revert if repaid amt is too small
-        if (borrowShares == 0) revert Errors.ZeroSharesRepay();
+        if (borrowShares == 0) revert Pool_ZeroSharesRepay(address(this), amt);
 
         // update total pool debt, denominated in notional asset units
         totalBorrows -= amt;

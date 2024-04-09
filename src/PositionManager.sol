@@ -12,7 +12,6 @@ import {PoolFactory} from "./PoolFactory.sol";
 import {IPosition} from "./interface/IPosition.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
-import {Errors} from "src/lib/Errors.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
@@ -148,6 +147,22 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     mapping(address target => mapping(bytes4 method => bool isAllowed)) public isKnownFunc;
 
     /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+    error PositionManager_UnknownPool(address pool);
+    error PositionManager_UnknownContract(address target);
+    error PositionManager_UnknownOperation(uint256 operation);
+    error PositionManager_HealthCheckFailed(address position);
+    error PositionManager_InvalidLiquidation(address position);
+    error PositionManager_NoPositionBeacon(uint256 positionType);
+    error PositionManager_LiquidateHealthyPosition(address position);
+    error PositionManager_InvalidDebtData(address asset, address poolAsset);
+    error PositionManager_OnlyPositionOwner(address position, address sender);
+    error PositionManager_UnknownFuncSelector(address target, bytes4 selector);
+    error PositionManager_OnlyPositionAuthorized(address position, address sender);
+    error PositionManager_PredictedPositionMismatch(address position, address predicted);
+
+    /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
@@ -173,7 +188,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     function toggleAuth(address user, address position) external {
         // only account owners are allowed to modify authorizations
         // disables transitive auth operations
-        if (msg.sender != ownerOf[position]) revert Errors.OnlyPositionOwner();
+        if (msg.sender != ownerOf[position]) revert PositionManager_OnlyPositionOwner(position, msg.sender);
 
         // update authz status in storage
         isAuth[position][user] = !isAuth[position][user];
@@ -185,7 +200,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     function process(address position, Action calldata action) external nonReentrant {
         _process(position, action);
-        if (!riskEngine.isPositionHealthy(position)) revert Errors.HealthCheckFailed();
+        if (!riskEngine.isPositionHealthy(position)) revert PositionManager_HealthCheckFailed(position);
     }
 
     /// @notice procces a batch of actions on a given position
@@ -198,7 +213,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             _process(position, actions[i]);
         }
         // after all the actions are processed, the position should be within risk thresholds
-        if (!riskEngine.isPositionHealthy(position)) revert Errors.HealthCheckFailed();
+        if (!riskEngine.isPositionHealthy(position)) revert PositionManager_HealthCheckFailed(position);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -211,7 +226,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             return;
         }
 
-        if (!isAuth[position][msg.sender]) revert Errors.UnauthorizedAction();
+        if (!isAuth[position][msg.sender]) revert PositionManager_OnlyPositionAuthorized(position, msg.sender);
 
         if (action.op == Operation.Exec) {
             exec(position, action.data);
@@ -230,7 +245,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         } else if (action.op == Operation.RemoveAsset) {
             removeAsset(position, action.data);
         } else {
-            revert Errors.UnknownOperation();
+            revert PositionManager_UnknownOperation(uint256(action.op));
         }
     }
 
@@ -243,7 +258,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         (address owner, uint256 positionType, bytes32 salt) = abi.decode(data, (address, uint256, bytes32));
 
         // revert if given position type doesn't have a register beacon
-        if (beaconFor[positionType] == address(0)) revert Errors.NoPositionBeacon();
+        if (beaconFor[positionType] == address(0)) revert PositionManager_NoPositionBeacon(positionType);
 
         // hash salt with owner to mitigate position creations being frontrun
         salt = keccak256(abi.encodePacked(owner, salt));
@@ -257,7 +272,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // owner is authzd by default
         isAuth[position][owner] = true;
 
-        if (position != predictedAddress) revert Errors.PositionAddressMismatch();
+        if (position != predictedAddress) revert PositionManager_PredictedPositionMismatch(position, predictedAddress);
 
         emit PositionDeployed(position, msg.sender, owner);
     }
@@ -267,7 +282,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // target -> first 20 bytes, contract address to be called by the position
         // callData -> rest of the data, calldata to be executed on target
         address target = address(bytes20(data[:20]));
-        if (!isKnownFunc[target][bytes4(data[20:24])]) revert Errors.UnknownExecCall();
+        if (!isKnownFunc[target][bytes4(data[20:24])]) {
+            revert PositionManager_UnknownFuncSelector(target, bytes4(data[20:24]));
+        }
         IPosition(position).exec(target, data[20:]);
 
         emit Exec(position, msg.sender, target, bytes4(data[20:24]));
@@ -278,7 +295,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // asset -> address of token to be transferred
         // amt -> amount of asset to be transferred
         (address recipient, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
-        if (!isKnownContract[asset]) revert Errors.UnknownContract();
+        if (!isKnownContract[asset]) revert PositionManager_UnknownContract(asset);
         IPosition(position).transfer(recipient, asset, amt);
 
         emit Transfer(position, msg.sender, recipient, asset, amt);
@@ -299,7 +316,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // asset -> address of token to be approves
         // amt -> amount of asset to be approved
         (address spender, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
-        if (!isKnownContract[asset]) revert Errors.UnknownContract();
+        if (!isKnownContract[asset]) revert PositionManager_UnknownContract(asset);
         IPosition(position).approve(asset, spender, amt);
 
         emit Approve(position, msg.sender, spender, asset, amt);
@@ -335,7 +352,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         (address pool, uint256 amt) = abi.decode(data, (address, uint256));
 
         // revert if the given pool was not deployed by the protocol pool factory
-        if (poolFactory.deployerFor(pool) == address(0)) revert Errors.UnknownPool();
+        if (poolFactory.deployerFor(pool) == address(0)) revert PositionManager_UnknownPool(pool);
 
         // signals a borrow operation without any actual transfer of borrowed assets
         // since every position type is structured differently
@@ -376,17 +393,19 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata collat) external nonReentrant {
         // position must breach risk thresholds before liquidation
-        if (riskEngine.isPositionHealthy(position)) revert Errors.LiquidateHealthyPosition();
+        if (riskEngine.isPositionHealthy(position)) revert PositionManager_LiquidateHealthyPosition(position);
 
         // verify that the liquidator seized by the liquidator is within bounds of the max
         // liquidation discount.
-        if (!riskEngine.isValidLiquidation(position, debt, collat)) revert Errors.InvalidLiquidation();
+        if (!riskEngine.isValidLiquidation(position, debt, collat)) revert PositionManager_InvalidLiquidation(position);
 
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator
         for (uint256 i; i < debt.length; ++i) {
             // verify that the asset being repaid is actually the pool asset
-            if (debt[i].asset != Pool(debt[i].pool).asset()) revert Errors.InvalidDebtData();
+            if (debt[i].asset != Pool(debt[i].pool).asset()) {
+                revert PositionManager_InvalidDebtData(debt[i].asset, Pool(debt[i].pool).asset());
+            }
 
             // update position to reflect repayment of debt by liquidator
             IPosition(position).repay(debt[i].pool, debt[i].amt);
@@ -412,7 +431,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         }
 
         // position should be within risk thresholds after liqudiation
-        if (!riskEngine.isPositionHealthy(position)) revert Errors.HealthCheckFailed();
+        if (!riskEngine.isPositionHealthy(position)) revert PositionManager_HealthCheckFailed(position);
 
         emit Liquidation(position, msg.sender, ownerOf[position]);
     }

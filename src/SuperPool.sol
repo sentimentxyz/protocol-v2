@@ -10,7 +10,6 @@ import {Pool} from "./Pool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
-import {Errors} from "src/lib/Errors.sol";
 import {IterableMap} from "src/lib/IterableMap.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -55,6 +54,14 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     event PoolCapSet(address indexed pool, uint256 amt);
     event PoolDeposit(address indexed pool, uint256 assets);
     event PoolWithdraw(address indexed pool, uint256 assets);
+
+    /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+
+    error SuperPool_WithdrawPathInsufficient(address superPool);
+    error SuperPool_PoolAssetMismatch(address superPool, address pool);
+    error SuperPool_OnlyAllocatorOrOwner(address superPool, address sender);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -290,7 +297,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                 }
             }
 
-            if (diff > 0) revert Errors.InsufficientWithdrawPath();
+            if (diff > 0) revert SuperPool_WithdrawPathInsufficient(address(this));
         }
     }
 
@@ -304,7 +311,9 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param assets the amount of assets to deposit
     function poolDeposit(address pool, uint256 assets) external {
         // revert unauthorized calls
-        if (msg.sender != allocator && msg.sender != owner()) revert Errors.OnlyAllocatorOrOwner();
+        if (msg.sender != allocator && msg.sender != owner()) {
+            revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
+        }
 
         // approve and deposit assets from superpool to given pool
         IERC20(asset()).approve(address(pool), assets);
@@ -322,7 +331,9 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// @param assets the amount of assets to withdraw
     function poolWithdraw(address pool, uint256 assets) external onlyOwner {
         // revert unauthorized calls
-        if (msg.sender != allocator && msg.sender != owner()) revert Errors.OnlyAllocatorOrOwner();
+        if (msg.sender != allocator && msg.sender != owner()) {
+            revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
+        }
         _poolWithdraw(IERC4626(pool), assets);
     }
 
@@ -339,7 +350,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /// to price share attacks. refer: https://github.com/sentimentxyz/protocol-v2/issues/118
     function setPoolCap(address pool, uint256 assets) external onlyOwner {
         // revert if pool asset does not match superpool asset
-        if (Pool(pool).asset() != asset()) revert Errors.InvalidPoolAsset();
+        if (Pool(pool).asset() != asset()) revert SuperPool_PoolAssetMismatch(address(this), pool);
 
         // shortcut no-op path to handle zeroed out params
         if (assets == 0 && poolCaps.get(pool) == 0) {

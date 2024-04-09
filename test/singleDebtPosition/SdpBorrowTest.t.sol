@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 import "forge-std/console2.sol";
 import {Pool} from "src/Pool.sol";
-import {Errors} from "src/lib/Errors.sol";
 import {console2} from "forge-std/Test.sol";
 import {TestUtils} from "../TestUtils.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
@@ -13,6 +12,7 @@ import {FixedRateModel} from "src/irm/FixedRateModel.sol";
 import {PoolFactory, PoolDeployParams} from "src/PoolFactory.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 import {SingleDebtPosition} from "src/position/SingleDebtPosition.sol";
+import {SingleDebtRiskModule} from "src/risk/SingleDebtRiskModule.sol";
 import {PositionManager, Operation, Action, AssetData, DebtData} from "src/PositionManager.sol";
 
 contract SdpBorrowTest is BaseTest {
@@ -142,7 +142,7 @@ contract SdpBorrowTest is BaseTest {
         erc20Borrow.mint(address(this), 1);
         erc20Borrow.approve(address(positionManager), type(uint256).max);
 
-        vm.expectRevert(Errors.InvalidDebtData.selector);
+        vm.expectRevert(SingleDebtRiskModule.SingleDebtRiskModule_InvalidDebtData.selector);
         positionManager.liquidate(address(position), dd, ad);
 
         // after liquidation: 499 eth of assets vs 0 debt

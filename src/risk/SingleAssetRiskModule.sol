@@ -14,7 +14,6 @@ import {DebtData, AssetData} from "../PositionManager.sol";
 import {IRiskModule} from "../interface/IRiskModule.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
-import {Errors} from "../lib/Errors.sol";
 import {IterableSet} from "../lib/IterableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -37,6 +36,14 @@ contract SingleAssetRiskModule is IRiskModule {
     // address of the risk engine to be associated with this health check
     // used to fetch oracles and ltvs for pools
     RiskEngine public immutable riskEngine;
+
+    /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+
+    error SingleAssetRiskModule_InvalidDebtData();
+    error SingleAssetRiskModule_NoOracleFound(address pool, address asset);
+    error SingleAssetRiskModule_SeizedTooMuch(uint256 seized, uint256 maxSeizedAmt);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -75,8 +82,9 @@ contract SingleAssetRiskModule is IRiskModule {
         }
 
         // [ROUND] liquidation discount is rounded down, in favor of the protocol
-        if (assetsSeizedInEth > debtRepaidInEth.mulDiv((1e18 + liquidationDiscount), 1e18)) {
-            revert Errors.SeizedTooMuchCollateral();
+        uint256 maxAmtSeized = debtRepaidInEth.mulDiv((1e18 + liquidationDiscount), 1e18);
+        if (assetsSeizedInEth > maxAmtSeized) {
+            revert SingleAssetRiskModule_SeizedTooMuch(assetsSeizedInEth, maxAmtSeized);
         }
 
         return true;
@@ -88,7 +96,7 @@ contract SingleAssetRiskModule is IRiskModule {
 
     function getDebtValue(address pool, address asset, uint256 amt) public view returns (uint256) {
         address oracle = riskEngine.oracleFor(pool, asset);
-        if (oracle == address(0)) revert Errors.NoOracleFound();
+        if (oracle == address(0)) revert SingleAssetRiskModule_NoOracleFound(pool, asset);
         return IOracle(oracle).getValueInEth(asset, amt);
     }
 
@@ -123,7 +131,7 @@ contract SingleAssetRiskModule is IRiskModule {
         uint256 assetValue;
         for (uint256 i; i < debtPools.length; ++i) {
             address oracle = riskEngine.oracleFor(debtPools[i], asset);
-            if (oracle == address(0)) revert Errors.NoOracleFound();
+            if (oracle == address(0)) revert SingleAssetRiskModule_NoOracleFound(debtPools[i], asset);
 
             // [ROUND] asset values are rounded up, to enforce a hard cap on the amount seized
             assetValue += IOracle(oracle).getValueInEth(asset, amt).mulDiv(debtInfo[i], 1e18, Math.Rounding.Ceil);
@@ -197,7 +205,7 @@ contract SingleAssetRiskModule is IRiskModule {
             for (uint256 i; i < debtPools.length; ++i) {
                 // fetch oracle associated with the position asset for debtPools[i]
                 address oracle = riskEngine.oracleFor(debtPools[i], positionAsset);
-                if (oracle == address(0)) revert Errors.NoOracleFound();
+                if (oracle == address(0)) revert SingleAssetRiskModule_NoOracleFound(debtPools[i], positionAsset);
 
                 // collateral value = weight * total notional collateral price of collateral
                 // weight = fraction of the total debt owed to the given pool

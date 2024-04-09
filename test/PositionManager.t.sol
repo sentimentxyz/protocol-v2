@@ -7,7 +7,6 @@ import {Operation, Action, PositionDeployed, PositionManager} from "src/Position
 import {Vm} from "forge-std/Test.sol";
 import {IPosition} from "src/interface/IPosition.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
-import {Errors} from "src/lib/Errors.sol";
 
 contract PositionManagerTest is BaseTest {
     MintableToken mockToken;
@@ -115,7 +114,11 @@ contract PositionManagerTest is BaseTest {
 
         PositionManager _manager = PositionManager(protocol.positionManager());
 
-        vm.expectRevert(Errors.UnauthorizedAction.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PositionManager.PositionManager_OnlyPositionAuthorized.selector, position, address(this)
+            )
+        );
         _manager.processBatch(position, depositActionFromThis(address(mockToken), 100));
     }
 

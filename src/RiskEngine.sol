@@ -10,8 +10,6 @@ import {Pool} from "./Pool.sol";
 import {IPosition} from "./interface/IPosition.sol";
 import {DebtData, AssetData} from "./PositionManager.sol";
 import {IRiskModule} from "./interface/IRiskModule.sol";
-// libraries
-import {Errors} from "src/lib/Errors.sol";
 // contracts
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
@@ -64,6 +62,16 @@ contract RiskEngine is OwnableUpgradeable {
     event OracleStatusSet(address indexed oracle, address indexed asset, bool isKnown);
 
     /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+
+    error RiskEngine_LtvLimitBreached(uint256 ltv);
+    error RiskEngine_MissingRiskModule(uint256 positionType);
+    error RiskEngine_NoOracleFound(address pool, address asset);
+    error RiskEngine_OnlyPoolOwner(address pool, address sender);
+    error RiskEngine_UnknownOracle(address oracle, address asset);
+
+    /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
@@ -85,7 +93,9 @@ contract RiskEngine is OwnableUpgradeable {
     /// @notice check if a position is healthy
     /// @param position the position to check
     function isPositionHealthy(address position) external view returns (bool) {
-        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.MissingRiskModule();
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) {
+            revert RiskEngine_MissingRiskModule(IPosition(position).TYPE());
+        }
 
         // call health check implementation based on position type
         return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).isPositionHealthy(position);
@@ -96,7 +106,9 @@ contract RiskEngine is OwnableUpgradeable {
         view
         returns (bool)
     {
-        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.MissingRiskModule();
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) {
+            revert RiskEngine_MissingRiskModule(IPosition(position).TYPE());
+        }
 
         // call health check implementation based on position type
         return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).isValidLiquidation(
@@ -105,7 +117,9 @@ contract RiskEngine is OwnableUpgradeable {
     }
 
     function getRiskData(address position) external view returns (uint256, uint256, uint256) {
-        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) revert Errors.MissingRiskModule();
+        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) {
+            revert RiskEngine_MissingRiskModule(IPosition(position).TYPE());
+        }
 
         return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).getRiskData(position);
     }
@@ -119,13 +133,13 @@ contract RiskEngine is OwnableUpgradeable {
     /// @dev ltv is scaled by 18 decimals
     function setLtv(address pool, address asset, uint256 ltv) external {
         // only pool owners are allowed to set ltv
-        if (msg.sender != Pool(pool).owner()) revert Errors.onlyPoolOwner();
+        if (msg.sender != Pool(pool).owner()) revert RiskEngine_OnlyPoolOwner(pool, msg.sender);
 
         // set oracle before ltv so risk modules don't have to explicitly check if an oracle exists
-        if (oracleFor[pool][asset] == address(0)) revert Errors.NoOracleFound();
+        if (oracleFor[pool][asset] == address(0)) revert RiskEngine_NoOracleFound(pool, asset);
 
         // ensure new ltv is witihin global limits or zero
-        if ((ltv != 0 && ltv < minLtv) || ltv > maxLtv) revert Errors.OutsideGlobalLtvLimits();
+        if ((ltv != 0 && ltv < minLtv) || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);
 
         // update asset ltv for the given pool
         ltvFor[pool][asset] = ltv;
@@ -137,10 +151,10 @@ contract RiskEngine is OwnableUpgradeable {
     /// @dev only pool owners can set the oracle for their pools
     function setOracle(address pool, address asset, address oracle) external {
         // revert if the oracle is not recognized by the protocol
-        if (!isKnownOracle[oracle][asset]) revert Errors.UnknownOracle();
+        if (!isKnownOracle[oracle][asset]) revert RiskEngine_UnknownOracle(oracle, asset);
 
         // only pool owners are allowed to set oracles
-        if (msg.sender != Pool(pool).owner()) revert Errors.onlyPoolOwner();
+        if (msg.sender != Pool(pool).owner()) revert RiskEngine_OnlyPoolOwner(pool, msg.sender);
 
         // update asset oracle for pool
         oracleFor[pool][asset] = oracle;

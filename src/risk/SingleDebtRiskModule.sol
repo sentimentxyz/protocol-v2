@@ -14,9 +14,7 @@ import {DebtData, AssetData} from "../PositionManager.sol";
 import {IRiskModule} from "../interface/IRiskModule.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
-import {Errors} from "../lib/Errors.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {console2} from "forge-std/Test.sol";
 
 /*//////////////////////////////////////////////////////////////
                     Single Debt Risk Module
@@ -36,6 +34,14 @@ contract SingleDebtRiskModule is IRiskModule {
     // address of the risk engine to be associated with this health check
     // used to fetch oracles and ltvs for pools
     RiskEngine public immutable riskEngine;
+
+    /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+
+    error SingleDebtRiskModule_InvalidDebtData();
+    error SingleDebtRiskModule_NoOracleFound(address pool, address asset);
+    error SingleDebtRiskModule_SeizedTooMuch(uint256 seized, uint256 maxSeizedAmt);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -66,7 +72,9 @@ contract SingleDebtRiskModule is IRiskModule {
         uint256 liquidationDiscount
     ) external view returns (bool) {
         // assert that debt[] is a singleton array
-        if (debt.length != 1 || debt[0].pool != IPosition(position).getDebtPools()[0]) revert Errors.InvalidDebtData();
+        if (debt.length != 1 || debt[0].pool != IPosition(position).getDebtPools()[0]) {
+            revert SingleDebtRiskModule_InvalidDebtData();
+        }
 
         // compute the amount of debt repaid in wei. since there is only one debt pool, debt[]
         // need not have more than one element. we ignore everything other than the first element.
@@ -83,7 +91,10 @@ contract SingleDebtRiskModule is IRiskModule {
         }
 
         // [ROUND] liquidation discount is rounded down, in favor of the protocol
-        if (collatInWei > debtInWei.mulDiv((1e18 + liquidationDiscount), 1e18)) revert Errors.SeizedTooMuchCollateral();
+        uint256 maxSeizedAmt = debtInWei.mulDiv((1e18 + liquidationDiscount), 1e18);
+        if (collatInWei > maxSeizedAmt) {
+            revert SingleDebtRiskModule_SeizedTooMuch(collatInWei, maxSeizedAmt);
+        }
 
         return true;
     }
@@ -94,7 +105,7 @@ contract SingleDebtRiskModule is IRiskModule {
 
     function getDebtValue(address pool, address asset, uint256 amt) public view returns (uint256) {
         address oracle = riskEngine.oracleFor(pool, asset);
-        if (oracle == address(0)) revert Errors.NoOracleFound();
+        if (oracle == address(0)) revert SingleDebtRiskModule_NoOracleFound(pool, asset);
         return IOracle(oracle).getValueInEth(asset, amt);
     }
 
@@ -106,7 +117,7 @@ contract SingleDebtRiskModule is IRiskModule {
 
     function getAssetValue(address pool, address asset, uint256 amt) public view returns (uint256) {
         address oracle = riskEngine.oracleFor(pool, asset);
-        if (oracle == address(0)) revert Errors.NoOracleFound();
+        if (oracle == address(0)) revert SingleDebtRiskModule_NoOracleFound(pool, asset);
         return IOracle(oracle).getValueInEth(asset, amt);
     }
 

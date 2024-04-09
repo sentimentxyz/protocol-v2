@@ -6,7 +6,6 @@ import {IOracle} from "../interface/IOracle.sol";
 import {IAggegregatorV3} from "../interface/IAggregatorV3.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 // libraries
-import {Errors} from "../lib/Errors.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 // contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -28,6 +27,15 @@ contract ChainlinkEthOracle is Ownable {
 
     // asset/eth price feed
     mapping(address asset => address feed) public priceFeedFor;
+
+    /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+
+    error ChainlinkEthOracle_SequencerDown();
+    error ChainlinkEthOracle_GracePeriodNotOver();
+    error ChainlinkEthOracle_StalePrice(address asset);
+    error ChainlinkEthOracle_NegativePrice(address asset);
 
     constructor(address owner, address arbSeqFeed) Ownable(owner) {
         ARB_SEQ_FEED = IAggegregatorV3(arbSeqFeed);
@@ -53,19 +61,19 @@ contract ChainlinkEthOracle is Ownable {
         // Answer == 0: Sequencer is up
         // Answer == 1: Sequencer is down
         if (answer != 0) {
-            revert Errors.SequencerDown();
+            revert ChainlinkEthOracle_SequencerDown();
         }
 
         if (block.timestamp - startedAt <= SEQ_GRACE_PERIOD) {
-            revert Errors.GracePeriodNotOver();
+            revert ChainlinkEthOracle_GracePeriodNotOver();
         }
     }
 
     function _getPriceWithSanityChecks(address asset) private view returns (uint256) {
         (, int256 price,, uint256 updatedAt,) = IAggegregatorV3(priceFeedFor[asset]).latestRoundData();
 
-        if (price < 0) revert Errors.NegativePrice();
-        if (updatedAt < block.timestamp - STALE_PRICE_THRESHOLD) revert Errors.StalePrice();
+        if (price < 0) revert ChainlinkEthOracle_NegativePrice(asset);
+        if (updatedAt < block.timestamp - STALE_PRICE_THRESHOLD) revert ChainlinkEthOracle_StalePrice(asset);
 
         return uint256(price);
     }

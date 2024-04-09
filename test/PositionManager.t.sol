@@ -115,7 +115,11 @@ contract PositionManagerTest is BaseTest {
 
         PositionManager _manager = PositionManager(protocol.positionManager());
 
-        vm.expectRevert(Errors.UnauthorizedAction.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PositionManager.PositionManager_OnlyPositionAuthorized.selector, position, address(this)
+            )
+        );
         _manager.processBatch(position, depositActionFromThis(address(mockToken), 100));
     }
 

@@ -9,7 +9,6 @@ pragma solidity ^0.8.24;
 import {Pool} from "../Pool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
-import {Errors} from "src/lib/Errors.sol";
 import {IterableSet} from "../lib/IterableSet.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
@@ -39,6 +38,14 @@ contract SingleDebtPosition is BasePosition {
 
     // iterable set that stores a list of assets being used as collateral
     IterableSet.IterableSetStorage internal assets;
+
+    /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+
+    error SingleDebtPosition_MaxAssetLimit(address position);
+    error SingleDebtPosition_InvalidRepay(address position, address pool, address debtPool);
+    error SingleDebtPosition_InvalidBorrow(address position, address pool, address debtPool);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -77,7 +84,7 @@ contract SingleDebtPosition is BasePosition {
         if (debtPool == address(0)) {
             debtPool = pool;
         } else if (pool != debtPool) {
-            revert Errors.InvalidBorrow();
+            revert SingleDebtPosition_InvalidBorrow(address(this), pool, debtPool);
         }
     }
 
@@ -85,7 +92,7 @@ contract SingleDebtPosition is BasePosition {
     // must be followed by BasePosition.transfer() + Pool.repay() to process debt repayment
     // must implement repay validation, if any
     function repay(address pool, uint256 amt) external override onlyPositionManager {
-        if (pool != debtPool) revert Errors.InvalidRepay();
+        if (pool != debtPool) revert SingleDebtPosition_InvalidRepay(address(this), pool, debtPool);
         if (Pool(pool).getBorrowsOf(address(this)) == amt) {
             debtPool = address(0);
         }
@@ -95,7 +102,7 @@ contract SingleDebtPosition is BasePosition {
     // must no-op if asset is already being used as collateral
     // must implement any position specifc validation
     function addAsset(address asset) external override onlyPositionManager {
-        if (assets.length() == MAX_ASSET_LIMIT) revert Errors.MaxAssetLimit();
+        if (assets.length() == MAX_ASSET_LIMIT) revert SingleDebtPosition_MaxAssetLimit(address(this));
         assets.insert(asset);
     }
 

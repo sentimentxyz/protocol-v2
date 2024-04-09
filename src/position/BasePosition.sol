@@ -9,7 +9,6 @@ pragma solidity ^0.8.24;
 import {IPosition} from "../interface/IPosition.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
-import {Errors} from "src/lib/Errors.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -32,6 +31,13 @@ abstract contract BasePosition is IPosition {
     uint256[50] __gap;
 
     /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+
+    error BasePosition_ExecFailed(address position, address target);
+    error BasePosition_OnlyPositionManager(address position, address sender);
+
+    /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
@@ -44,7 +50,7 @@ abstract contract BasePosition is IPosition {
     //////////////////////////////////////////////////////////////*/
 
     modifier onlyPositionManager() {
-        if (msg.sender != positionManager) revert Errors.OnlyPositionManager();
+        if (msg.sender != positionManager) revert BasePosition_OnlyPositionManager(address(this), msg.sender);
         _;
     }
 
@@ -73,7 +79,7 @@ abstract contract BasePosition is IPosition {
     // any target and calldata validation must be implementeed in the position manager
     function exec(address target, bytes calldata data) external onlyPositionManager {
         (bool success,) = target.call(data);
-        if (!success) revert Errors.ExecFailed();
+        if (!success) revert BasePosition_ExecFailed(address(this), target);
     }
 
     /*//////////////////////////////////////////////////////////////

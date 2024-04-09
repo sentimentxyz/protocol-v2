@@ -9,7 +9,6 @@ pragma solidity ^0.8.24;
 import {Pool} from "../Pool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
-import {Errors} from "src/lib/Errors.sol";
 import {IterableSet} from "../lib/IterableSet.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
@@ -40,6 +39,12 @@ contract SingleAssetPosition is BasePosition {
 
     // iterable set storing a list of debt pools that the position is currently borrowing from
     IterableSet.IterableSetStorage internal debtPools;
+
+    /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+
+    error SingleAssetPosition_MaxDebtPoolLimit(address position);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -77,7 +82,7 @@ contract SingleAssetPosition is BasePosition {
     // should be followed by Pool.borrow() to actually transfer assets
     // must implement any position-specific borrow validation
     function borrow(address pool, uint256) external override onlyPositionManager {
-        if (debtPools.length() == MAX_DEBT_POOL_LIMIT) revert Errors.MaxDebtPoolLimit();
+        if (debtPools.length() == MAX_DEBT_POOL_LIMIT) revert SingleAssetPosition_MaxDebtPoolLimit(address(this));
         debtPools.insert(pool);
     }
 

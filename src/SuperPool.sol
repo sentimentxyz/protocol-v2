@@ -19,6 +19,8 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                                Storage
     //////////////////////////////////////////////////////////////*/
 
+    uint256 public constant MAX_QUEUE_LENGTH = 8;
+
     uint256 public fee;
     uint256 public superpoolCap;
 
@@ -47,6 +49,7 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     error SuperPool_AllCapsReached(address superpool);
     error Superpool_NotEnoughLiquidity(address superpool);
     error Superpool_QueueLengthMismatch(address superpool);
+    error Superpool_MaxQueueLengthReached(address superpool);
     error SuperPool_PoolAssetMismatch(address superPool, address pool);
     error Superpool_NonZeroPoolBalance(address superpool, address pool);
     error SuperPool_OnlyAllocatorOrOwner(address superPool, address sender);
@@ -242,6 +245,7 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
     function _addPool(address pool) internal {
         if (Pool(pool).asset() != asset()) revert SuperPool_PoolAssetMismatch(address(this), pool);
+        if (depositQueue.length == MAX_QUEUE_LENGTH) revert Superpool_MaxQueueLengthReached(address(this));
 
         depositQueue.push(pool);
         withdrawQueue.push(pool);

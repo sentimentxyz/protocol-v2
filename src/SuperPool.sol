@@ -13,7 +13,12 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
+// inspired by yearn v3 and metamorpho erc4626 vaults
 contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
+    /*//////////////////////////////////////////////////////////////
+                               Storage
+    //////////////////////////////////////////////////////////////*/
+
     uint256 public fee;
     uint256 public superpoolCap;
 
@@ -23,6 +28,10 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
     mapping(address => bool) isAllocator;
 
+    /*//////////////////////////////////////////////////////////////
+                                Event
+    //////////////////////////////////////////////////////////////*/
+
     event PoolAdded(address pool);
     event PoolRemoved(address pool);
     event SuperpoolFeeUpdated(uint256 fee);
@@ -30,22 +39,19 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     event SuperpoolCapUpdated(uint256 superpoolCap);
     event AllocatorUpdated(address allocator, bool isAllocator);
 
+    /*//////////////////////////////////////////////////////////////
+                                Error
+    //////////////////////////////////////////////////////////////*/
+
     error Superpool_InvalidQueue(address superpool);
     error Superpool_QueueLengthMismatch(address superpool);
-    error Superpool_ZeroPoolCap(address superpool, address pool);
-    error Superpool_UnknownPool(address superpool, address pool);
-    error Superpool_NonZeroPoolCap(address superpool, address pool);
     error SuperPool_PoolAssetMismatch(address superPool, address pool);
     error Superpool_NonZeroPoolBalance(address superpool, address pool);
     error SuperPool_OnlyAllocatorOrOwner(address superPool, address sender);
 
-    // totalAssets
-    // maxDeposit
-    // maxMint
-    // deposit
-    // mint
-    // withdraw
-    // redeem
+    /*//////////////////////////////////////////////////////////////
+                              Initialize
+    //////////////////////////////////////////////////////////////*/
 
     constructor() {
         _disableInitializers();
@@ -64,12 +70,68 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         superpoolCap = superpoolCap_;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            External View
+    //////////////////////////////////////////////////////////////*/
+
     function getPools() external view returns (address[] memory) {
         return depositQueue;
     }
 
     function getPoolCount() external view returns (uint256) {
         return depositQueue.length;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        ERC4626 View Overrides
+    //////////////////////////////////////////////////////////////*/
+
+    function totalAssets() public view override returns (uint256) {
+        uint256 assets = IERC20(ERC4626Upgradeable.asset()).balanceOf(address(this));
+
+        for (uint256 i; i < depositQueue.length; ++i) {
+            IERC4626 pool = IERC4626(depositQueue[i]);
+            assets += pool.previewRedeem(pool.balanceOf(address(this)));
+        }
+
+        return assets;
+    }
+
+    function maxDeposit(address) public view override returns (uint256) {
+        uint256 assets = totalAssets();
+        return superpoolCap > assets ? (superpoolCap - assets) : 0;
+    }
+
+    function maxMint(address) public view override returns (uint256) {
+        return previewDeposit(maxDeposit(address(0)));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          ERC4626 Overrides
+    //////////////////////////////////////////////////////////////*/
+
+    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
+        return ERC4626Upgradeable.deposit(assets, receiver);
+    }
+
+    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+        return ERC4626Upgradeable.mint(shares, receiver);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              Only Owner
+    //////////////////////////////////////////////////////////////*/
+
+    function updatePoolCap(address pool, uint256 cap) external onlyOwner {
+        if (poolCapFor[pool] == 0 && cap != 0) _addPool(pool); // add new pool
+
+        else if (poolCapFor[pool] != 0 && cap == 0) _removePool(pool); // remove existing pool
+
+        else if (poolCapFor[pool] != 0 && cap != 0) poolCapFor[pool] = cap; // modify pool cap
+
+        else return; // handle pool == 0 && cap == 0
+
+        emit PoolCapSet(pool, cap);
     }
 
     function reorderDepositQueue(uint256[] calldata indexes) external onlyOwner {
@@ -82,28 +144,27 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         withdrawQueue = _reorderQueue(indexes, withdrawQueue);
     }
 
-    function updatePoolCap(address pool, uint256 cap) external onlyOwner {
-        if (poolCapFor[pool] == 0) _addPool(pool);
+    function toggleAllocator(address _allocator) external onlyOwner {
+        isAllocator[_allocator] = !isAllocator[_allocator];
 
-        if (poolCapFor[pool] != 0 && cap == 0) {
-            revert Superpool_ZeroPoolCap(address(this), pool);
-        }
-
-        poolCapFor[pool] = cap;
-
-        emit PoolCapSet(pool, cap);
+        emit AllocatorUpdated(_allocator, isAllocator[_allocator]);
     }
 
-    function removePool(address pool) external onlyOwner {
-        if (poolCapFor[pool] == 0) return; // no-op if pool isn't in the deposit queue
-        if (IERC4626(pool).balanceOf(address(this)) != 0) revert Superpool_NonZeroPoolBalance(address(this), pool);
+    function setFee(uint256 _fee) external onlyOwner {
+        fee = _fee;
 
-        // gas intensive ops that shift the entire array to preserve order
-        _removePool(pool, depositQueue);
-        _removePool(pool, withdrawQueue);
-
-        emit PoolRemoved(pool);
+        emit SuperpoolFeeUpdated(_fee);
     }
+
+    function setSuperpoolCap(uint256 _superpoolCap) external onlyOwner {
+        superpoolCap = _superpoolCap;
+
+        emit SuperpoolCapUpdated(_superpoolCap);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           Asset Allocation
+    //////////////////////////////////////////////////////////////*/
 
     struct ReallocateParams {
         address pool;
@@ -111,28 +172,39 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     function reallocate(ReallocateParams[] calldata withdraws, ReallocateParams[] calldata deposits) external {
-        if (isAllocator[msg.sender] || msg.sender == OwnableUpgradeable.owner()) {
+        if (!isAllocator[msg.sender] && msg.sender != OwnableUpgradeable.owner()) {
             revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
         }
 
         for (uint256 i; i < withdraws.length; ++i) {
-            _withdrawFrom(withdraws[i].pool, withdraws[i].assets);
+            IERC4626(withdraws[i].pool).withdraw(withdraws[i].assets, address(this), address(this));
         }
 
         for (uint256 i; i < deposits.length; ++i) {
-            _depositTo(deposits[i].pool, deposits[i].assets);
+            IERC20(asset()).approve(deposits[i].pool, deposits[i].assets);
+            IERC4626(deposits[i].pool).deposit(deposits[i].assets, address(this));
         }
     }
 
-    function _depositTo(address pool, uint256 amt) internal {}
-    function _withdrawFrom(address pool, uint256 amt) internal {}
+    /*//////////////////////////////////////////////////////////////
+                               Internal
+    //////////////////////////////////////////////////////////////*/
 
     function _addPool(address pool) internal {
-        if (poolCapFor[pool] > 0) return; // no-op if pool is already in the deposit queue;
         if (Pool(pool).asset() != asset()) revert SuperPool_PoolAssetMismatch(address(this), pool);
 
         depositQueue.push(pool);
         withdrawQueue.push(pool);
+    }
+
+    function _removePool(address pool) internal onlyOwner {
+        if (IERC4626(pool).balanceOf(address(this)) != 0) revert Superpool_NonZeroPoolBalance(address(this), pool);
+
+        // gas intensive ops that shift the entire array to preserve order
+        _removeFromQueue(depositQueue, pool);
+        _removeFromQueue(withdrawQueue, pool);
+
+        emit PoolRemoved(pool);
     }
 
     function _reorderQueue(uint256[] calldata indexes, address[] storage queue)
@@ -157,7 +229,7 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         return newQueue;
     }
 
-    function _removePool(address pool, address[] storage queue) internal {
+    function _removeFromQueue(address[] storage queue, address pool) internal {
         uint256 toRemoveIdx;
         for (uint256 i; i < queue.length; ++i) {
             if (queue[i] == pool) {
@@ -169,23 +241,5 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
             queue[i] = queue[i + 1];
         }
         queue.pop();
-    }
-
-    function toggleAllocator(address _allocator) external onlyOwner {
-        isAllocator[_allocator] = !isAllocator[_allocator];
-
-        emit AllocatorUpdated(_allocator, isAllocator[_allocator]);
-    }
-
-    function setFee(uint256 _fee) external onlyOwner {
-        fee = _fee;
-
-        emit SuperpoolFeeUpdated(_fee);
-    }
-
-    function setSuperpoolCap(uint256 _superpoolCap) external onlyOwner {
-        superpoolCap = _superpoolCap;
-
-        emit SuperpoolCapUpdated(_superpoolCap);
     }
 }

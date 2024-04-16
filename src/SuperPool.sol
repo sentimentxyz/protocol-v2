@@ -129,8 +129,21 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         return assets;
     }
 
-    // TODO withdraw
-    // TODO redeem
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
+        uint256 assetsInSuperpool = IERC20(address(this)).balanceOf(asset());
+        if (assetsInSuperpool < assets) _withdrawFromPools(assets - assetsInSuperpool);
+        uint256 shares = ERC4626Upgradeable.previewWithdraw(assets);
+        ERC4626Upgradeable.withdraw(assets, receiver, owner);
+        return shares;
+    }
+
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
+        uint256 assets = ERC4626Upgradeable.previewRedeem(shares);
+        uint256 assetsInSuperpool = IERC20(address(this)).balanceOf(asset());
+        if (assetsInSuperpool < assets) _withdrawFromPools(assets - assetsInSuperpool);
+        ERC4626Upgradeable.redeem(shares, receiver, owner);
+        return assets;
+    }
 
     /*//////////////////////////////////////////////////////////////
                               Only Owner

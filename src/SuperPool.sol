@@ -44,6 +44,8 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     //////////////////////////////////////////////////////////////*/
 
     error Superpool_InvalidQueue(address superpool);
+    error SuperPool_AllCapsReached(address superpool);
+    error Superpool_NotEnoughLiquidity(address superpool);
     error Superpool_QueueLengthMismatch(address superpool);
     error SuperPool_PoolAssetMismatch(address superPool, address pool);
     error Superpool_NonZeroPoolBalance(address superpool, address pool);
@@ -111,12 +113,21 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     //////////////////////////////////////////////////////////////*/
 
     function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
-        return ERC4626Upgradeable.deposit(assets, receiver);
+        uint256 shares = ERC4626Upgradeable.previewDeposit(assets);
+        ERC4626Upgradeable.deposit(assets, receiver);
+        _supplyToPools(assets);
+        return shares;
     }
 
     function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
-        return ERC4626Upgradeable.mint(shares, receiver);
+        uint256 assets = ERC4626Upgradeable.previewMint(shares);
+        ERC4626Upgradeable.mint(shares, receiver);
+        _supplyToPools(assets);
+        return assets;
     }
+
+    // TODO withdraw
+    // TODO redeem
 
     /*//////////////////////////////////////////////////////////////
                               Only Owner
@@ -189,6 +200,45 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     /*//////////////////////////////////////////////////////////////
                                Internal
     //////////////////////////////////////////////////////////////*/
+
+    function _supplyToPools(uint256 assets) internal {
+        for (uint256 i; i < depositQueue.length; ++i) {
+            IERC4626 pool = IERC4626(depositQueue[i]);
+            uint256 assetsInPool = pool.previewRedeem(pool.balanceOf(address(this)));
+
+            if (assetsInPool < poolCapFor[address(pool)]) {
+                uint256 supplyAmt = poolCapFor[address(pool)] - assetsInPool;
+                if (assets < supplyAmt) supplyAmt = assets;
+                pool.approve(address(pool), diff);
+
+                try pool.deposit(supplyAmt, receiver) {
+                    assets -= supplyAmt;
+                } catch {
+                    pool.approve(address(pool), 0);
+                }
+
+                if (assets == 0) return;
+            }
+        }
+        if (assets != 0) revert Superpool_AllCapsReached(address(this));
+    }
+
+    function _withdrawFromPools(uint256 assets) internal {
+        for (uint256 i; i < withdrawQueue.length; ++i) {
+            IERC4626 pool = IERC4626(withdrawQueue[i]);
+            uint256 assetsInPool = pool.previewRedeem(pool.balanceOf(address(this)));
+
+            if (assetsInPool > 0) {
+                uint256 withdrawAmt = (assetsInPool < assets) ? assetsInPool : assets;
+                try pool.withdraw(withdrawAmt, address(this), address(this)) {
+                    assets -= withdrawAmt;
+                } catch {}
+
+                if (assets == 0) return;
+            }
+        }
+        if (assets != 0) revert Superpool_NotEnoughLiquidity(address(this));
+    }
 
     function _addPool(address pool) internal {
         if (Pool(pool).asset() != asset()) revert SuperPool_PoolAssetMismatch(address(this), pool);

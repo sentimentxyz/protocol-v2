@@ -46,7 +46,7 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     //////////////////////////////////////////////////////////////*/
 
     error Superpool_InvalidQueue(address superpool);
-    error SuperPool_AllCapsReached(address superpool);
+    error Superpool_AllCapsReached(address superpool);
     error Superpool_NotEnoughLiquidity(address superpool);
     error Superpool_QueueLengthMismatch(address superpool);
     error Superpool_MaxQueueLengthReached(address superpool);
@@ -150,12 +150,12 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     //////////////////////////////////////////////////////////////*/
 
     function updatePoolCap(address pool, uint256 cap) external onlyOwner {
-        if (poolCapFor[pool] == 0 && cap != 0) _addPool(pool); // add new pool
-
-        else if (poolCapFor[pool] != 0 && cap == 0) _removePool(pool); // remove existing pool
-
-        else if (poolCapFor[pool] != 0 && cap != 0) poolCapFor[pool] = cap; // modify pool cap
-
+        // add new pool
+        if (poolCapFor[pool] == 0 && cap != 0) _addPool(pool);
+        // remove existing pool
+        else if (poolCapFor[pool] != 0 && cap == 0) _removePool(pool);
+        // modify pool cap: if the cap is below the assets in the pool, it becomes withdraw-only
+        else if (poolCapFor[pool] != 0 && cap != 0) poolCapFor[pool] = cap;
         else return; // handle pool == 0 && cap == 0
 
         emit PoolCapSet(pool, cap);
@@ -225,9 +225,9 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
             if (assetsInPool < poolCapFor[address(pool)]) {
                 uint256 supplyAmt = poolCapFor[address(pool)] - assetsInPool;
                 if (assets < supplyAmt) supplyAmt = assets;
-                pool.approve(address(pool), diff);
+                pool.approve(address(pool), supplyAmt);
 
-                try pool.deposit(supplyAmt, receiver) {
+                try pool.deposit(supplyAmt, address(this)) {
                     assets -= supplyAmt;
                 } catch {
                     pool.approve(address(pool), 0);

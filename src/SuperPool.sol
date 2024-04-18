@@ -210,6 +210,8 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     function setFee(uint256 _fee) external onlyOwner {
+        ping();
+
         fee = _fee;
 
         emit SuperpoolFeeUpdated(_fee);
@@ -222,6 +224,8 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     function setFeeRecipient(address _feeRecipient) external onlyOwner {
+        ping();
+
         feeRecipient = _feeRecipient;
 
         emit SuperPoolFeeRecipientUpdated(_feeRecipient);
@@ -313,9 +317,12 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
             if (assetsInPool > 0) {
                 uint256 withdrawAmt = (assetsInPool < assets) ? assetsInPool : assets;
-                try pool.withdraw(withdrawAmt, address(this), address(this)) {
-                    assets -= withdrawAmt;
-                } catch {}
+
+                if (withdrawAmt > 0) {
+                    try pool.withdraw(withdrawAmt, address(this), address(this)) {
+                        assets -= withdrawAmt;
+                    } catch {}
+                }
 
                 if (assets == 0) return;
             }

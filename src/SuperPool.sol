@@ -15,7 +15,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
 // inspired by yearn v3 and metamorpho vaults
-contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
+contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     using Math for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -28,7 +28,7 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     address public feeRecipient;
 
     uint256 public fee;
-    uint256 public superpoolCap;
+    uint256 public superPoolCap;
     uint256 public lastTotalAssets;
 
     address[] public depositQueue;
@@ -43,9 +43,9 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
     event PoolAdded(address pool);
     event PoolRemoved(address pool);
-    event SuperpoolFeeUpdated(uint256 fee);
+    event SuperPoolFeeUpdated(uint256 fee);
     event PoolCapSet(address pool, uint256 cap);
-    event SuperpoolCapUpdated(uint256 superpoolCap);
+    event SuperPoolCapUpdated(uint256 superPoolCap);
     event SuperPoolFeeRecipientUpdated(address feeRecipient);
     event AllocatorUpdated(address allocator, bool isAllocator);
 
@@ -53,13 +53,14 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                                 Error
     //////////////////////////////////////////////////////////////*/
 
-    error Superpool_InvalidQueue(address superpool);
-    error Superpool_AllCapsReached(address superpool);
-    error Superpool_NotEnoughLiquidity(address superpool);
-    error Superpool_QueueLengthMismatch(address superpool);
-    error Superpool_MaxQueueLengthReached(address superpool);
+    error SuperPool_InvalidQueue(address superPool);
+    error SuperPool_AllCapsReached(address superPool);
+    error SuperPool_ZeroShareDeposit(address superpool);
+    error SuperPool_NotEnoughLiquidity(address superPool);
+    error SuperPool_QueueLengthMismatch(address superPool);
+    error SuperPool_MaxQueueLengthReached(address superPool);
     error SuperPool_PoolAssetMismatch(address superPool, address pool);
-    error Superpool_NonZeroPoolBalance(address superpool, address pool);
+    error SuperPool_NonZeroPoolBalance(address superPool, address pool);
     error SuperPool_OnlyAllocatorOrOwner(address superPool, address sender);
 
     /*//////////////////////////////////////////////////////////////
@@ -74,7 +75,7 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         address asset_,
         address feeRecipient_,
         uint256 fee_,
-        uint256 superpoolCap_,
+        uint256 superPoolCap_,
         string memory name_,
         string memory symbol_
     ) public initializer {
@@ -85,14 +86,14 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
         fee = fee_;
         feeRecipient = feeRecipient_;
-        superpoolCap = superpoolCap_;
+        superPoolCap = superPoolCap_;
     }
 
     /*//////////////////////////////////////////////////////////////
                                External
     //////////////////////////////////////////////////////////////*/
 
-    function getPools() external view returns (address[] memory) {
+    function pools() external view returns (address[] memory) {
         return depositQueue;
     }
 
@@ -127,7 +128,7 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
     function maxDeposit(address) public view override returns (uint256) {
         uint256 assets = totalAssets();
-        return superpoolCap > assets ? (superpoolCap - assets) : 0;
+        return superPoolCap > assets ? (superPoolCap - assets) : 0;
     }
 
     function maxMint(address) public view override returns (uint256) {
@@ -153,6 +154,7 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         ping();
         uint256 shares = _convertToSharesWithTotals(assets, totalSupply(), lastTotalAssets, Math.Rounding.Floor);
         _deposit(msg.sender, receiver, assets, shares);
+        if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this));
         return shares;
     }
 
@@ -194,12 +196,12 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     function reorderDepositQueue(uint256[] calldata indexes) external onlyOwner {
-        if (indexes.length != depositQueue.length) revert Superpool_QueueLengthMismatch(address(this));
+        if (indexes.length != depositQueue.length) revert SuperPool_QueueLengthMismatch(address(this));
         depositQueue = _reorderQueue(depositQueue, indexes);
     }
 
     function reorderWithdrawQueue(uint256[] calldata indexes) external onlyOwner {
-        if (indexes.length != withdrawQueue.length) revert Superpool_QueueLengthMismatch(address(this));
+        if (indexes.length != withdrawQueue.length) revert SuperPool_QueueLengthMismatch(address(this));
         withdrawQueue = _reorderQueue(withdrawQueue, indexes);
     }
 
@@ -214,13 +216,13 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
         fee = _fee;
 
-        emit SuperpoolFeeUpdated(_fee);
+        emit SuperPoolFeeUpdated(_fee);
     }
 
-    function setSuperpoolCap(uint256 _superpoolCap) external onlyOwner {
-        superpoolCap = _superpoolCap;
+    function setSuperpoolCap(uint256 _superPoolCap) external onlyOwner {
+        superPoolCap = _superPoolCap;
 
-        emit SuperpoolCapUpdated(_superpoolCap);
+        emit SuperPoolCapUpdated(_superPoolCap);
     }
 
     function setFeeRecipient(address _feeRecipient) external onlyOwner {
@@ -302,7 +304,7 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                 if (assets == 0) return;
             }
         }
-        if (assets != 0) revert Superpool_AllCapsReached(address(this));
+        if (assets != 0) revert SuperPool_AllCapsReached(address(this));
     }
 
     function _withdrawFromPools(uint256 assets) internal {
@@ -327,19 +329,19 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                 if (assets == 0) return;
             }
         }
-        if (assets != 0) revert Superpool_NotEnoughLiquidity(address(this));
+        if (assets != 0) revert SuperPool_NotEnoughLiquidity(address(this));
     }
 
     function _addPool(address pool) internal {
         if (Pool(pool).asset() != asset()) revert SuperPool_PoolAssetMismatch(address(this), pool);
-        if (depositQueue.length == MAX_QUEUE_LENGTH) revert Superpool_MaxQueueLengthReached(address(this));
+        if (depositQueue.length == MAX_QUEUE_LENGTH) revert SuperPool_MaxQueueLengthReached(address(this));
 
         depositQueue.push(pool);
         withdrawQueue.push(pool);
     }
 
     function _removePool(address pool) internal onlyOwner {
-        if (IERC4626(pool).balanceOf(address(this)) != 0) revert Superpool_NonZeroPoolBalance(address(this), pool);
+        if (IERC4626(pool).balanceOf(address(this)) != 0) revert SuperPool_NonZeroPoolBalance(address(this), pool);
 
         // gas intensive ops that shift the entire array to preserve order
         _removeFromQueue(depositQueue, pool);
@@ -358,13 +360,13 @@ contract Superpool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         address[] memory newQueue;
 
         for (uint256 i; i < indexes.length; ++i) {
-            if (seen[indexes[i]]) revert Superpool_InvalidQueue(address(this));
+            if (seen[indexes[i]]) revert SuperPool_InvalidQueue(address(this));
             newQueue[i] = queue[i];
             seen[indexes[i]] = true;
         }
 
         for (uint256 i = 1; i <= indexes.length; ++i) {
-            if (!seen[i]) revert Superpool_InvalidQueue(address(this));
+            if (!seen[i]) revert SuperPool_InvalidQueue(address(this));
         }
 
         return newQueue;

@@ -33,7 +33,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
     address[] public depositQueue;
     address[] public withdrawQueue;
-    mapping(address pool => uint256 cap) public poolCapFor;
+    mapping(address pool => uint256 cap) public poolCap;
 
     mapping(address => bool) isAllocator;
 
@@ -183,13 +183,13 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                               Only Owner
     //////////////////////////////////////////////////////////////*/
 
-    function updatePoolCap(address pool, uint256 cap) external onlyOwner {
+    function setPoolCap(address pool, uint256 cap) external onlyOwner {
         // add new pool
-        if (poolCapFor[pool] == 0 && cap != 0) _addPool(pool);
+        if (poolCap[pool] == 0 && cap != 0) _addPool(pool);
         // remove existing pool
-        else if (poolCapFor[pool] != 0 && cap == 0) _removePool(pool);
+        else if (poolCap[pool] != 0 && cap == 0) _removePool(pool);
         // modify pool cap: if the cap is below the assets in the pool, it becomes withdraw-only
-        else if (poolCapFor[pool] != 0 && cap != 0) poolCapFor[pool] = cap;
+        else if (poolCap[pool] != 0 && cap != 0) poolCap[pool] = cap;
         else return; // handle pool == 0 && cap == 0
 
         emit PoolCapSet(pool, cap);
@@ -290,8 +290,8 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
             IERC4626 pool = IERC4626(depositQueue[i]);
             uint256 assetsInPool = pool.previewRedeem(pool.balanceOf(address(this)));
 
-            if (assetsInPool < poolCapFor[address(pool)]) {
-                uint256 supplyAmt = poolCapFor[address(pool)] - assetsInPool;
+            if (assetsInPool < poolCap[address(pool)]) {
+                uint256 supplyAmt = poolCap[address(pool)] - assetsInPool;
                 if (assets < supplyAmt) supplyAmt = assets;
                 pool.approve(address(pool), supplyAmt);
 

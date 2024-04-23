@@ -42,6 +42,7 @@ contract SingleDebtRiskModule is IRiskModule {
     error SingleDebtRiskModule_InvalidDebtData();
     error SingleDebtRiskModule_NoOracleFound(address pool, address asset);
     error SingleDebtRiskModule_SeizedTooMuch(uint256 seized, uint256 maxSeizedAmt);
+    error SingleDebtRiskModule_MissingCollateral(address position);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -57,7 +58,7 @@ contract SingleDebtRiskModule is IRiskModule {
 
     /// @notice check if a given position violates the risk thresholds
     function isPositionHealthy(address position) external view returns (bool) {
-        (uint256 totalAssetsInEth,, uint256 minReqAssetsInEth) = getRiskData(position);
+        (uint256 totalAssetsInEth, , uint256 minReqAssetsInEth) = getRiskData(position);
 
         // the position is healthy if the value of the assets in the position is more than the
         // minimum collateral required to meet the ltv requirements of debts from all pools
@@ -197,6 +198,9 @@ contract SingleDebtRiskModule is IRiskModule {
                 // [ROUND] minimum assets required is rounded up, in favor of the protocol
                 minReqAssetsInEth += totalDebtInEth.mulDiv(wt, riskEngine.ltvFor(pool, assets[i]), Math.Rounding.Ceil);
             }
+        } else if (totalDebtInEth > 0) {
+            // if weve hit this branch it means the postiion has a debt but no collateral assets registered
+            revert SingleDebtRiskModule_MissingCollateral(position);
         }
 
         return (totalAssetsInEth, totalDebtInEth, minReqAssetsInEth);

@@ -20,3 +20,9 @@ lcov.info
 
 # script logs
 /script/log
+
+# node_modules
+node_modules/
+
+# wagmi generated abi
+abi/

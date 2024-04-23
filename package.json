@@ -1,0 +1,15 @@
+{
+  "name": "protocol-v2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build:abi": "pnpm wagmi generate"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@wagmi/cli": "^2.1.4"
+  }
+}

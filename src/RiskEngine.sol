@@ -86,7 +86,9 @@ contract RiskEngine is OwnableUpgradeable {
 
     error RiskEngine_LtvLimitBreached(uint256 ltv);
     error RiskEngine_MissingRiskModule(uint256 positionType);
+    error RiskEngine_NoLtvUpdate(address pool, address asset);
     error RiskEngine_NoOracleFound(address pool, address asset);
+    error RiskEngine_NoOracleUpdate(address pool, address asset);
     error RiskEngine_OnlyPoolOwner(address pool, address sender);
     error RiskEngine_UnknownOracle(address oracle, address asset);
     error RiskEngine_LtvUpdateTimelocked(address pool, address asset);
@@ -179,6 +181,8 @@ contract RiskEngine is OwnableUpgradeable {
     function acceptLtvUpdate(address pool, address asset) external onlyPoolOwner(pool) {
         LtvUpdate memory ltvUpdate = ltvUpdateFor[pool][asset];
 
+        if (ltvUpdate.validAfter == 0) revert RiskEngine_NoLtvUpdate(pool, asset);
+
         if (ltvUpdate.validAfter > block.timestamp) {
             revert RiskEngine_LtvUpdateTimelocked(pool, asset);
         }
@@ -218,6 +222,8 @@ contract RiskEngine is OwnableUpgradeable {
 
     function acceptOracleUpdate(address pool, address asset) external onlyPoolOwner(pool) {
         OracleUpdate memory oracleUpdate = oracleUpdateFor[pool][asset];
+
+        if (oracleUpdate.validAfter == 0) revert RiskEngine_NoOracleUpdate(pool, asset);
 
         if (oracleUpdate.validAfter > block.timestamp) {
             revert RiskEngine_OracleUpdateTimelocked(pool, asset);

@@ -166,7 +166,10 @@ contract RiskEngine is OwnableUpgradeable {
         // ensure new ltv is witihin global limits or zero
         if ((ltv != 0 && ltv < minLtv) || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);
 
-        LtvUpdate memory ltvUpdate = LtvUpdate({ltv: ltv, validAfter: block.timestamp + TIMELOCK_DURATION});
+        LtvUpdate memory ltvUpdate;
+        // only modification and removal of previously set ltvs require a timelock
+        if (ltvFor[pool][asset] == 0) ltvUpdate = LtvUpdate({ltv: ltv, validAfter: block.timestamp});
+        else ltvUpdate = LtvUpdate({ltv: ltv, validAfter: block.timestamp + TIMELOCK_DURATION});
 
         ltvUpdateFor[pool][asset] = ltvUpdate;
 
@@ -199,8 +202,14 @@ contract RiskEngine is OwnableUpgradeable {
         // revert if the oracle is not recognized by the protocol
         if (!isKnownOracle[oracle][asset]) revert RiskEngine_UnknownOracle(oracle, asset);
 
-        OracleUpdate memory oracleUpdate =
-            OracleUpdate({oracle: oracle, validAfter: block.timestamp + TIMELOCK_DURATION});
+        OracleUpdate memory oracleUpdate;
+
+        // no timelock required for addition of oracles, only modification and removal
+        if (oracleFor[pool][asset] == address(0)) {
+            oracleUpdate = OracleUpdate({oracle: oracle, validAfter: block.timestamp});
+        } else {
+            oracleUpdate = OracleUpdate({oracle: oracle, validAfter: block.timestamp + TIMELOCK_DURATION});
+        }
 
         oracleUpdateFor[pool][asset] = oracleUpdate;
 

@@ -36,9 +36,13 @@ event Borrow(address indexed position, address indexed asset, uint256 amount);
 
 event PoolCapSet(uint256 poolCap);
 
-event RateModelSet(address rateModel);
-
 event OriginationFeeSet(uint256 originationFee);
+
+event RateModelUpdateRejected();
+
+event RateModelUpdateAccepted(address rateModel);
+
+event RateModelUpdateRequested();
 
 /*//////////////////////////////////////////////////////////////
                             Pool
@@ -51,6 +55,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
+
+    uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
 
     // interest rate model associated with this pool
     IRateModel public rateModel;
@@ -81,10 +87,19 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     // borrow shares use a different base and are not related to erc4626 shares for this pool
     mapping(address position => uint256 borrowShares) borrowSharesOf;
 
+    struct RateModelUpdate {
+        address rateModel;
+        uint256 validAfter;
+    }
+
+    RateModelUpdate public rateModelUpdate;
+
     /*//////////////////////////////////////////////////////////////
                                 Errors
     //////////////////////////////////////////////////////////////*/
 
+    error Pool_NoRateModelUpdate(address pool);
+    error Pool_RateModelUpdateTimelock(address pool);
     error Pool_ZeroSharesRepay(address pool, uint256 amt);
     error Pool_ZeroSharesBorrow(address pool, uint256 amt);
     error Pool_ZeroSharesDeposit(address pool, uint256 amt);
@@ -328,12 +343,31 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
                               Only Owner
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice set the rate model for the pool
-    /// @notice callable only by the pool manager who is also the pool contract clone owner
-    function setRateModel(address _rateModel) external onlyOwner {
-        rateModel = IRateModel(_rateModel);
+    function requestRateModelUpdate(address _rateModel) external onlyOwner {
+        if (address(rateModel) == address(0)) {
+            rateModelUpdate = RateModelUpdate({rateModel: _rateModel, validAfter: block.timestamp});
+        } else {
+            rateModelUpdate = RateModelUpdate({rateModel: _rateModel, validAfter: block.timestamp});
+        }
 
-        emit RateModelSet(_rateModel);
+        emit RateModelUpdateRequested();
+    }
+
+    function acceptRateModelUpdate() external onlyOwner {
+        RateModelUpdate memory pendingRateModel = rateModelUpdate;
+
+        if (pendingRateModel.validAfter == 0) revert Pool_NoRateModelUpdate(address(this));
+        if (pendingRateModel.validAfter > block.timestamp) revert Pool_RateModelUpdateTimelock(address(this));
+
+        rateModel = IRateModel(pendingRateModel.rateModel);
+
+        emit RateModelUpdateAccepted(address(pendingRateModel.rateModel));
+    }
+
+    function rejectRateModelUpdate() external onlyOwner {
+        delete rateModelUpdate;
+
+        emit RateModelUpdateRejected();
     }
 
     /// @notice set the origination fee for the pool

@@ -15,7 +15,8 @@ contract SetOracle is BaseScript {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        riskEngine.setOracle(pool, asset, oracle);
+        riskEngine.requestOracleUpdate(pool, asset, oracle);
+        riskEngine.acceptOracleUpdate(pool, asset);
     }
 
     function getParams() internal {

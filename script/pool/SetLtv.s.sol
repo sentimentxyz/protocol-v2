@@ -15,7 +15,8 @@ contract SetLtv is BaseScript {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        riskEngine.setLtv(pool, asset, ltv);
+        riskEngine.requestLtvUpdate(pool, asset, ltv);
+        riskEngine.acceptLtvUpdate(pool, asset);
     }
 
     function getParams() internal {

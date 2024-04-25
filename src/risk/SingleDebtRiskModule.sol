@@ -40,7 +40,6 @@ contract SingleDebtRiskModule is IRiskModule {
     //////////////////////////////////////////////////////////////*/
 
     error SingleDebtRiskModule_InvalidDebtData();
-    error SingleDebtRiskModule_NoOracleFound(address pool, address asset);
     error SingleDebtRiskModule_SeizedTooMuch(uint256 seized, uint256 maxSeizedAmt);
 
     /*//////////////////////////////////////////////////////////////
@@ -104,8 +103,8 @@ contract SingleDebtRiskModule is IRiskModule {
     //////////////////////////////////////////////////////////////*/
 
     function getDebtValue(address pool, address asset, uint256 amt) public view returns (uint256) {
-        address oracle = riskEngine.oracleFor(pool, asset);
-        if (oracle == address(0)) revert SingleDebtRiskModule_NoOracleFound(pool, asset);
+        // will revert with RiskEngine_NoOracleFound if missing
+        address oracle = riskEngine.getOracleFor(pool, asset);
         return IOracle(oracle).getValueInEth(asset, amt);
     }
 
@@ -116,8 +115,8 @@ contract SingleDebtRiskModule is IRiskModule {
     }
 
     function getAssetValue(address pool, address asset, uint256 amt) public view returns (uint256) {
-        address oracle = riskEngine.oracleFor(pool, asset);
-        if (oracle == address(0)) revert SingleDebtRiskModule_NoOracleFound(pool, asset);
+        // will revert with RiskEngine_NoOracleFound if missing
+        address oracle = riskEngine.getOracleFor(pool, asset);
         return IOracle(oracle).getValueInEth(asset, amt);
     }
 

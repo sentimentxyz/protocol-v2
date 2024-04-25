@@ -14,7 +14,7 @@ library TestUtils {
         internal
         returns (Pool)
     {
-        Pool pool = new Pool(positionManager);
+        Pool pool = new Pool(positionManager, owner);
         pool = Pool(address(makeProxy(address(pool), owner)));
         pool.initialize(asset, rateModel, type(uint256).max, uint256(0), "test", "test");
         pool.setPoolCap(type(uint256).max);

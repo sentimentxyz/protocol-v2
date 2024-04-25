@@ -16,7 +16,7 @@ contract PoolTest is BaseTest {
     function setUp() public override {
         mockToken = new MintableToken();
         // set ourselves as the pos manager so we can mint/burn at will
-        pool = new Pool(address(this));
+        pool = new Pool(address(this), address(this));
         pool = Pool(payable(address(TestUtils.makeProxy(address(pool), address(this)))));
         rateModel = new FixedRateModel(1e18);
 

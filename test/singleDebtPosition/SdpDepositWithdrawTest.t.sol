@@ -23,8 +23,8 @@ contract SdpDepositWithdrawTest is BaseTest {
         erc201 = new MintableToken();
         erc202 = new MintableToken();
 
-        positionManager.toggleKnownContract(address(erc201));
-        positionManager.toggleKnownContract(address(erc202));
+        positionManager.toggleKnownAddress(address(erc201));
+        positionManager.toggleKnownAddress(address(erc202));
     }
 
     function testPositionSanityCheck() public {

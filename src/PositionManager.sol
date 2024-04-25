@@ -30,7 +30,7 @@ event PoolFactorySet(address poolFactory);
 
 event LiquidationFeeSet(uint256 liquidationFee);
 
-event ContractSet(address indexed target, bool isAllowed);
+event AddressSet(address indexed target, bool isAllowed);
 
 event BeaconSet(uint256 indexed positionType, address beacon);
 
@@ -143,13 +143,14 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     // defines the universe of approved contracts and methods that a position can interact with
     // mapping key -> first 20 bytes store the target address, next 4 bytes store the method selector
-    mapping(address target => bool isAllowed) public isKnownContract;
+    mapping(address target => bool isAllowed) public isKnownAddress;
     mapping(address target => mapping(bytes4 method => bool isAllowed)) public isKnownFunc;
 
     /*//////////////////////////////////////////////////////////////
                                 Errors
     //////////////////////////////////////////////////////////////*/
     error PositionManager_UnknownPool(address pool);
+    error PositionManager_UnknownSpender(address spender);
     error PositionManager_UnknownContract(address target);
     error PositionManager_UnknownOperation(uint256 operation);
     error PositionManager_HealthCheckFailed(address position);
@@ -295,7 +296,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // asset -> address of token to be transferred
         // amt -> amount of asset to be transferred
         (address recipient, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
-        if (!isKnownContract[asset]) revert PositionManager_UnknownContract(asset);
+        if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
         IPosition(position).transfer(recipient, asset, amt);
 
         emit Transfer(position, msg.sender, recipient, asset, amt);
@@ -316,7 +317,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // asset -> address of token to be approves
         // amt -> amount of asset to be approved
         (address spender, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
-        if (!isKnownContract[asset]) revert PositionManager_UnknownContract(asset);
+        if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
+        if (!isKnownAddress[spender]) revert PositionManager_UnknownSpender(spender);
         IPosition(position).approve(asset, spender, amt);
 
         emit Approve(position, msg.sender, spender, asset, amt);
@@ -474,10 +476,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @notice toggle contract inclusion in the contract universe
     /// @dev only callable by the position manager owner
-    function toggleKnownContract(address target) external onlyOwner {
-        isKnownContract[target] = !isKnownContract[target];
+    function toggleKnownAddress(address target) external onlyOwner {
+        isKnownAddress[target] = !isKnownAddress[target];
 
-        emit ContractSet(target, isKnownContract[target]);
+        emit AddressSet(target, isKnownAddress[target]);
     }
 
     /// @notice toggle function inclusion in the function universe

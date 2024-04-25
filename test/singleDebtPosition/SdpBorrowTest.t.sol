@@ -38,7 +38,7 @@ contract SdpBorrowTest is BaseTest {
 
         _deployPool();
 
-        positionManager.toggleKnownContract(address(erc20Borrow));
+        positionManager.toggleKnownAddress(address(erc20Borrow));
     }
 
     function testBorrowWithinLimits() public {

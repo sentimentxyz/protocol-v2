@@ -23,7 +23,7 @@ contract SdpAssetTest is BaseTest {
 
         erc201 = new MintableToken();
 
-        positionManager.toggleKnownContract(address(erc201));
+        positionManager.toggleKnownAddress(address(erc201));
     }
 
     function testAddAsset(uint256 amt) public {

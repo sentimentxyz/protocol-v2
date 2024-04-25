@@ -44,9 +44,9 @@ contract SuperPoolFactory {
     function deploy(
         address owner,
         address asset,
-        address allocator,
-        uint256 protocolFee,
-        uint256 totalPoolCap,
+        address feeRecipient,
+        uint256 fee,
+        uint256 superPoolCap,
         string memory name,
         string memory symbol
     ) external {
@@ -55,7 +55,7 @@ contract SuperPoolFactory {
             SuperPool(address(new TransparentUpgradeableProxy(SUPERPOOL_IMPL, msg.sender, new bytes(0))));
 
         // init superpool with given params
-        superPool.initialize(asset, totalPoolCap, protocolFee, allocator, name, symbol);
+        superPool.initialize(asset, feeRecipient, fee, superPoolCap, name, symbol);
 
         // transfer superpool ownership to specified owner
         superPool.transferOwnership(owner);

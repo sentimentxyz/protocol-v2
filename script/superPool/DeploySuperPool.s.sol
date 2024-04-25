@@ -10,9 +10,9 @@ contract DeploySuperPool is BaseScript {
     string symbol;
     address asset;
     address owner;
-    address allocator;
-    uint256 protocolFee;
-    uint256 totalPoolCap;
+    uint256 fee;
+    address feeRecipient;
+    uint256 superPoolCap;
 
     address superPool;
     address superPoolImpl;
@@ -23,19 +23,19 @@ contract DeploySuperPool is BaseScript {
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         superPoolImpl = address(new SuperPool());
         superPool = address(new TransparentUpgradeableProxy(superPoolImpl, owner, new bytes(0)));
-        SuperPool(superPool).initialize(asset, totalPoolCap, protocolFee, allocator, name, symbol);
+        SuperPool(superPool).initialize(asset, feeRecipient, fee, superPoolCap, name, symbol);
         vm.stopBroadcast();
     }
 
     function getParams() internal {
         string memory config = getConfig();
 
+        fee = vm.parseJsonUint(config, "$.DeploySuperPool.fee");
         name = vm.parseJsonString(config, "$.DeploySuperPool.name");
         asset = vm.parseJsonAddress(config, "$.DeploySuperPool.asset");
         owner = vm.parseJsonAddress(config, "$.DeploySuperPool.owner");
         symbol = vm.parseJsonString(config, "$.DeploySuperPool.symbol");
-        allocator = vm.parseJsonAddress(config, "$.DeploySuperPool.allocator");
-        protocolFee = vm.parseJsonUint(config, "$.DeploySuperPool.protocolFee");
-        totalPoolCap = vm.parseJsonUint(config, "$.DeploySuperPool.totalPoolCap");
+        superPoolCap = vm.parseJsonUint(config, "$.DeploySuperPool.superPoolCap");
+        feeRecipient = vm.parseJsonAddress(config, "$.DeploySuperPool.feeRecipient");
     }
 }

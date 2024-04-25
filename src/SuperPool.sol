@@ -1,66 +1,66 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/*//////////////////////////////////////////////////////////////
-                            Imports
-//////////////////////////////////////////////////////////////*/
-
-//types
+// types
 import {Pool} from "./Pool.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
-import {IterableMap} from "src/lib/IterableMap.sol";
+import {IterableSet} from "./lib/IterableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 //contracts
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
-/*//////////////////////////////////////////////////////////////
-                            SuperPool
-//////////////////////////////////////////////////////////////*/
-
+// inspired by yearn v3 and metamorpho vaults
 contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     using Math for uint256;
-    using IterableMap for IterableMap.IterableMapStorage;
 
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
 
-    // internal iterable mapping of (pool => pool cap)
-    IterableMap.IterableMapStorage internal poolCaps;
+    uint256 constant WAD = 1e18;
+    uint256 public constant MAX_QUEUE_LENGTH = 8;
 
-    // aggregate deposit cap for all pools
-    // updated dynamically when individual pool caps are updated
-    uint256 public totalPoolCap;
+    address public feeRecipient;
 
-    // protocol fee, collected on withdrawal
-    uint256 public protocolFee;
+    uint256 public fee;
+    uint256 public superPoolCap;
+    uint256 public lastTotalAssets;
 
-    // privileged address to allocate assets between pools
-    address public allocator;
+    address[] public depositQueue;
+    address[] public withdrawQueue;
+    mapping(address pool => uint256 cap) public poolCap;
 
-    /*//////////////////////////////////////////////////////////////
-                                Events
-    //////////////////////////////////////////////////////////////*/
-
-    event AllocatorSet(address allocator);
-    event ProtocolFeeSet(uint256 protocolFee);
-    event TotalPoolCapSet(uint256 totalPoolCap);
-    event PoolCapSet(address indexed pool, uint256 amt);
-    event PoolDeposit(address indexed pool, uint256 assets);
-    event PoolWithdraw(address indexed pool, uint256 assets);
+    mapping(address => bool) isAllocator;
 
     /*//////////////////////////////////////////////////////////////
-                                Errors
+                                Event
     //////////////////////////////////////////////////////////////*/
 
-    error SuperPool_WithdrawPathInsufficient(address superPool);
+    event PoolAdded(address pool);
+    event PoolRemoved(address pool);
+    event SuperPoolFeeUpdated(uint256 fee);
+    event PoolCapSet(address pool, uint256 cap);
+    event SuperPoolCapUpdated(uint256 superPoolCap);
+    event SuperPoolFeeRecipientUpdated(address feeRecipient);
+    event AllocatorUpdated(address allocator, bool isAllocator);
+
+    /*//////////////////////////////////////////////////////////////
+                                Error
+    //////////////////////////////////////////////////////////////*/
+
+    error SuperPool_InvalidQueue(address superPool);
+    error SuperPool_AllCapsReached(address superPool);
+    error SuperPool_ZeroShareDeposit(address superpool);
+    error SuperPool_NotEnoughLiquidity(address superPool);
+    error SuperPool_QueueLengthMismatch(address superPool);
+    error SuperPool_MaxQueueLengthReached(address superPool);
     error SuperPool_PoolAssetMismatch(address superPool, address pool);
+    error SuperPool_NonZeroPoolBalance(address superPool, address pool);
     error SuperPool_OnlyAllocatorOrOwner(address superPool, address sender);
 
     /*//////////////////////////////////////////////////////////////
@@ -72,316 +72,363 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     function initialize(
-        address asset,
-        uint256 _totalPoolCap,
-        uint256 _protocolFee,
-        address _allocator,
-        string memory _name,
-        string memory _symbol
+        address asset_,
+        address feeRecipient_,
+        uint256 fee_,
+        uint256 superPoolCap_,
+        string memory name_,
+        string memory symbol_
     ) public initializer {
         OwnableUpgradeable.__Ownable_init(msg.sender);
         PausableUpgradeable.__Pausable_init();
-        ERC20Upgradeable.__ERC20_init(_name, _symbol);
-        ERC4626Upgradeable.__ERC4626_init(IERC20(asset));
+        ERC20Upgradeable.__ERC20_init(name_, symbol_);
+        ERC4626Upgradeable.__ERC4626_init(IERC20(asset_));
 
-        totalPoolCap = _totalPoolCap;
-        protocolFee = _protocolFee;
-        allocator = _allocator;
+        fee = fee_;
+        feeRecipient = feeRecipient_;
+        superPoolCap = superPoolCap_;
     }
 
     /*//////////////////////////////////////////////////////////////
-                             Public View
+                               External
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice returns the pools with non zero deposit caps
-    /// @return an array of pool addresses
-    function pools() public view returns (address[] memory) {
-        return poolCaps.getKeys();
+    function pools() external view returns (address[] memory) {
+        return depositQueue;
     }
 
-    /// @notice returns the deposit cap for a give pool
-    /// @param _pool the pool to get the cap for
-    function poolCap(address _pool) public view returns (uint256) {
-        return poolCaps.get(_pool);
+    function getPoolCount() external view returns (uint256) {
+        return depositQueue.length;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                Public
+    //////////////////////////////////////////////////////////////*/
+
+    function ping() public {
+        (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
+        if (feeShares != 0) ERC20Upgradeable._mint(feeRecipient, feeShares);
+        lastTotalAssets = newTotalAssets;
     }
 
     /*//////////////////////////////////////////////////////////////
                         ERC4626 View Overrides
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc ERC4626Upgradeable
     function totalAssets() public view override returns (uint256) {
-        // fetch number of pools
-        uint256 len = poolCaps.length();
+        uint256 assets = IERC20(ERC4626Upgradeable.asset()).balanceOf(address(this));
 
-        // compute total assets managed by superpool across associated pools
-        uint256 total;
-        for (uint256 i; i < len; i++) {
-            // fetch pool by id
-            IERC4626 pool = IERC4626(poolCaps.getByIdx(i));
-
-            // fetch assets owned by superpool in the pool
-            total += pool.previewRedeem(pool.balanceOf(address(this)));
+        for (uint256 i; i < depositQueue.length; ++i) {
+            IERC4626 pool = IERC4626(depositQueue[i]);
+            assets += pool.previewRedeem(pool.balanceOf(address(this)));
         }
 
-        // fetch idle assets held in superpool
-        total += IERC20(asset()).balanceOf(address(this));
-
-        return total;
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function maxDeposit(address) public view override returns (uint256) {
-        uint256 assets = totalAssets();
-        return totalPoolCap > assets ? totalPoolCap - assets : 0;
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function maxMint(address) public view override returns (uint256) {
-        return previewDeposit(maxDeposit(address(0)));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                       ERC4626 Public Overrides
-    //////////////////////////////////////////////////////////////*/
-
-    // deposit and mint work as-is, but are pausable
-
-    /// @inheritdoc ERC4626Upgradeable
-    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
-        return ERC4626Upgradeable.deposit(assets, receiver);
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
-        return ERC4626Upgradeable.mint(shares, receiver);
-    }
-
-    // withdraw and mint have no major changes, but the superpool implements a withdrawal fee
-    // the fee is deducted as a portion of the withdrawn assets and accrues to the protocol
-    // the return values are recalibrated to comply with the ERC4626 specification
-    // withdraw and mint are not pausable so that depositors can withdraw, no matter what
-
-    /// @notice withdraw assets from the superpool
-    /// @dev override to account for protocol fee
-    /// @param assets the amount of assets to withdraw
-    /// @param receiver the address to send the assets to
-    /// @param owner the owner of the shares were burning from
-    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
-        // must not withdraw more than owner balance
-        uint256 maxAssets = maxWithdraw(owner);
-        if (assets > maxAssets) {
-            revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
-        }
-
-        // amount of shares for given assets
-        uint256 shares = ERC4626Upgradeable.previewWithdraw(assets);
-
-        // compute fees
-        // [ROUND] protocol fee is rounded down, in favor of the user
-        uint256 fee = protocolFee.mulDiv(assets, 1e18); // withdrawal fee
-        uint256 feeShares = protocolFee.mulDiv(shares, 1e18); // withdrawal fee, as vault shares
-
-        // process withdrawal including fee deduction
-        _withdrawWithFee(msg.sender, receiver, owner, assets, shares, fee, feeShares);
-
-        // return value as per erc4626 spec
-        return shares;
-    }
-
-    /// @notice redeem shares for assets from the superpool
-    /// @dev override to account for protocol fee
-    /// @param shares the amount of shares to redeem
-    /// @param receiver the address to send the assets to
-    /// @param owner the owner of the shares were burning from
-    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
-        // must not redeem more than owner balance
-        uint256 maxShares = maxRedeem(owner);
-        if (shares > maxShares) {
-            revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
-        }
-
-        // amount of asset for given shares
-        uint256 assets = previewRedeem(shares);
-
-        // compute fees
-        // [ROUND] protocol fee is rounded down, in favor of the user
-        uint256 fee = protocolFee.mulDiv(assets, 1e18); // withdrawal fee
-        uint256 feeShares = protocolFee.mulDiv(shares, 1e18); // withdrawal fee, as shares
-
-        // process redemption including fee deduction
-        _withdrawWithFee(msg.sender, receiver, owner, assets, shares, fee, feeShares);
-
-        // return value as per erc4626 spec
         return assets;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                          External Functions
-    //////////////////////////////////////////////////////////////*/
+    function maxDeposit(address) public view override returns (uint256) {
+        uint256 assets = totalAssets();
+        return superPoolCap > assets ? (superPoolCap - assets) : 0;
+    }
 
-    /// @notice withdraw assets from the superpool using a given path
-    /// @dev withdraw assets from the superpool by taking path[i] underlying from the pool at poolCaps[i]
-    /// @param assets the amount of assets to withdraw
-    /// @param path the amounts to withdraw from each pool
-    function withdrawWithPath(uint256 assets, uint256[] memory path) external whenNotPaused {
-        // withdraw assets from pool to superpool along given path
-        _withdrawWithPath(assets, path);
+    function maxMint(address) public view override returns (uint256) {
+        return _convertToShares(maxDeposit(address(0)), Math.Rounding.Floor);
+    }
 
-        // withdraw assets to depositor
-        withdraw(assets, msg.sender, msg.sender);
+    function maxWithdraw(address owner) public view override returns (uint256) {
+        (uint256 assets,,) = _maxWithdraw(owner);
+        return assets;
+    }
+
+    function maxRedeem(address owner) public view override returns (uint256) {
+        (uint256 assets, uint256 newTotalSupply, uint256 newTotalAssets) = _maxWithdraw(owner);
+
+        return _convertToSharesWithTotals(assets, newTotalSupply, newTotalAssets, Math.Rounding.Floor);
     }
 
     /*//////////////////////////////////////////////////////////////
-                          Internal Functions
+                          ERC4626 Overrides
     //////////////////////////////////////////////////////////////*/
 
-    // replicates ERC4626Upgradeable._withdraw logic with a withdrawal fee
-    function _withdrawWithFee(
-        address caller,
-        address receiver,
-        address owner,
-        uint256 assets,
-        uint256 shares,
-        uint256 fee,
-        uint256 feeShares
-    ) internal {
-        // msg.sender must be approved to redeem on behalf of owner
-        if (owner != caller) {
-            ERC20Upgradeable._spendAllowance(owner, caller, shares);
-        }
-
-        // burn shares equivalent to assets from owner's balance
-        ERC20Upgradeable._burn(owner, shares);
-
-        // transfer fee to superpool owner
-        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), OwnableUpgradeable.owner(), fee);
-
-        // transfer assets after fee deduction to given receiver
-        SafeERC20.safeTransfer(IERC20(ERC4626Upgradeable.asset()), receiver, assets - fee);
-
-        // event corresponding fee withdrawal
-        emit Withdraw(msg.sender, receiver, owner, fee, feeShares);
-
-        // event corresponding user withdrawal
-        emit Withdraw(msg.sender, receiver, owner, assets - fee, shares - feeShares);
+    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
+        ping();
+        uint256 shares = _convertToSharesWithTotals(assets, totalSupply(), lastTotalAssets, Math.Rounding.Floor);
+        _deposit(msg.sender, receiver, assets, shares);
+        if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this));
+        return shares;
     }
 
-    function _poolWithdraw(IERC4626 pool, uint256 assets) internal {
-        // withdraw assets from pool back to superpool
-        pool.withdraw(assets, address(this), address(this));
-
-        emit PoolWithdraw(address(pool), assets);
+    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+        ping();
+        uint256 assets = _convertToAssetsWithTotals(shares, totalSupply(), lastTotalAssets, Math.Rounding.Ceil);
+        _deposit(msg.sender, receiver, assets, shares);
+        return assets;
     }
 
-    /// @dev returns early if the amount they want to withdraw is already in the superpool
-    /// @dev if you try to withdraw more this function will ignore it
-    function _withdrawWithPath(uint256 assets, uint256[] memory path) internal {
-        // fetch amount of idle funds currently held in pool
-        uint256 balance = IERC20(asset()).balanceOf(address(this));
-
-        // no need to withdraw from pools if the superpool has enough to meet the withdrawal
-        if (balance < assets) {
-            // fetch amount diff that needs to be withdrawn from pools to meet withdrawal
-            uint256 diff = assets - balance;
-
-            for (uint256 i; i < path.length; i++) {
-                // if we covering the rest of the funds from this last pool
-                if (path[i] < diff) {
-                    _poolWithdraw(IERC4626(poolCaps.getByIdx(i)), path[i]);
-                    diff -= path[i];
-                } else {
-                    _poolWithdraw(IERC4626(poolCaps.getByIdx(i)), diff);
-                    diff = 0;
-                    break;
-                }
-            }
-
-            if (diff > 0) revert SuperPool_WithdrawPathInsufficient(address(this));
-        }
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
+        ping();
+        uint256 shares = _convertToSharesWithTotals(assets, totalSupply(), lastTotalAssets, Math.Rounding.Ceil);
+        _withdraw(msg.sender, receiver, owner, assets, shares);
+        return shares;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                       Only Allocator and Owner
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice deposit assets from the superpool into a pool
-    /// @notice callable only by privilaged allocator or owner
-    /// @param pool the pool to deposit assets into
-    /// @param assets the amount of assets to deposit
-    function poolDeposit(address pool, uint256 assets) external {
-        // revert unauthorized calls
-        if (msg.sender != allocator && msg.sender != owner()) {
-            revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
-        }
-
-        // approve and deposit assets from superpool to given pool
-        IERC20(asset()).approve(address(pool), assets);
-        IERC4626(pool).deposit(assets, address(this));
-
-        // revert if pool balance
-        require(IERC4626(pool).previewRedeem(IERC4626(pool).balanceOf(address(this))) <= poolCap(pool));
-
-        emit PoolDeposit(pool, assets);
-    }
-
-    /// @notice withdraw assets from a pool
-    /// @notice only callable by owner
-    /// @param pool the pool to withdraw assets from
-    /// @param assets the amount of assets to withdraw
-    function poolWithdraw(address pool, uint256 assets) external onlyOwner {
-        // revert unauthorized calls
-        if (msg.sender != allocator && msg.sender != owner()) {
-            revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
-        }
-        _poolWithdraw(IERC4626(pool), assets);
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
+        ping();
+        uint256 assets = _convertToAssetsWithTotals(shares, totalSupply(), lastTotalAssets, Math.Rounding.Floor);
+        _withdraw(msg.sender, receiver, owner, assets, shares);
+        return assets;
     }
 
     /*//////////////////////////////////////////////////////////////
                               Only Owner
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice set the maximum deposit cap for a pool
-    /// @param pool the pool to set the cap for
-    /// @param assets the amount of assets to set the cap to
-    /// @dev owner must take care to ensure that pool caps are only set to 0 after all assets
-    /// are removed. failure to do so will result in the superpool share price to decrease
-    /// dramatically, even though the assets accessible to it will remain the same which can lead
-    /// to price share attacks. refer: https://github.com/sentimentxyz/protocol-v2/issues/118
-    function setPoolCap(address pool, uint256 assets) external onlyOwner {
-        // revert if pool asset does not match superpool asset
-        if (Pool(pool).asset() != asset()) revert SuperPool_PoolAssetMismatch(address(this), pool);
+    function setPoolCap(address pool, uint256 cap) external onlyOwner {
+        // add new pool
+        if (poolCap[pool] == 0 && cap != 0) _addPool(pool);
+        // remove existing pool
+        else if (poolCap[pool] != 0 && cap == 0) _removePool(pool);
+        // modify pool cap: if the cap is below the assets in the pool, it becomes withdraw-only
+        else if (poolCap[pool] != 0 && cap != 0) poolCap[pool] = cap;
+        else return; // handle pool == 0 && cap == 0
 
-        // shortcut no-op path to handle zeroed out params
-        if (assets == 0 && poolCaps.get(pool) == 0) {
-            return;
+        emit PoolCapSet(pool, cap);
+    }
+
+    function reorderDepositQueue(uint256[] calldata indexes) external onlyOwner {
+        if (indexes.length != depositQueue.length) revert SuperPool_QueueLengthMismatch(address(this));
+        depositQueue = _reorderQueue(depositQueue, indexes);
+    }
+
+    function reorderWithdrawQueue(uint256[] calldata indexes) external onlyOwner {
+        if (indexes.length != withdrawQueue.length) revert SuperPool_QueueLengthMismatch(address(this));
+        withdrawQueue = _reorderQueue(withdrawQueue, indexes);
+    }
+
+    function toggleAllocator(address _allocator) external onlyOwner {
+        isAllocator[_allocator] = !isAllocator[_allocator];
+
+        emit AllocatorUpdated(_allocator, isAllocator[_allocator]);
+    }
+
+    function setFee(uint256 _fee) external onlyOwner {
+        ping();
+
+        fee = _fee;
+
+        emit SuperPoolFeeUpdated(_fee);
+    }
+
+    function setSuperpoolCap(uint256 _superPoolCap) external onlyOwner {
+        superPoolCap = _superPoolCap;
+
+        emit SuperPoolCapUpdated(_superPoolCap);
+    }
+
+    function setFeeRecipient(address _feeRecipient) external onlyOwner {
+        ping();
+
+        feeRecipient = _feeRecipient;
+
+        emit SuperPoolFeeRecipientUpdated(_feeRecipient);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           Asset Allocation
+    //////////////////////////////////////////////////////////////*/
+
+    struct ReallocateParams {
+        address pool;
+        uint256 assets;
+    }
+
+    function reallocate(ReallocateParams[] calldata withdraws, ReallocateParams[] calldata deposits) external {
+        if (!isAllocator[msg.sender] && msg.sender != OwnableUpgradeable.owner()) {
+            revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
         }
 
-        // update pool cap in storage mapping
-        poolCaps.set(pool, assets);
+        for (uint256 i; i < withdraws.length; ++i) {
+            IERC4626(withdraws[i].pool).withdraw(withdraws[i].assets, address(this), address(this));
+        }
 
-        emit PoolCapSet(pool, assets);
+        for (uint256 i; i < deposits.length; ++i) {
+            IERC20(asset()).approve(deposits[i].pool, deposits[i].assets);
+            IERC4626(deposits[i].pool).deposit(deposits[i].assets, address(this));
+        }
     }
 
-    /// @notice set the allocator address
-    /// @param _allocator the address to set the allocator to
-    function setAllocator(address _allocator) external onlyOwner {
-        allocator = _allocator;
+    /*//////////////////////////////////////////////////////////////
+                               Internal
+    //////////////////////////////////////////////////////////////*/
 
-        emit AllocatorSet(_allocator);
+    function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
+        ERC4626Upgradeable._deposit(caller, receiver, assets, shares);
+        _supplyToPools(assets);
+        lastTotalAssets += assets;
     }
 
-    /// @notice set the protocol fee
-    /// @param _protocolFee the fee to set scaled by 1e18
-    function setProtocolFee(uint256 _protocolFee) external onlyOwner {
-        protocolFee = _protocolFee;
-
-        emit ProtocolFeeSet(_protocolFee);
+    function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
+        internal
+        override
+    {
+        _withdrawFromPools(assets);
+        ERC4626Upgradeable._withdraw(caller, receiver, owner, assets, shares);
+        lastTotalAssets -= assets;
     }
 
-    function setTotalPoolCap(uint256 _totalPoolCap) external onlyOwner {
-        totalPoolCap = _totalPoolCap;
+    function _maxWithdraw(address owner) internal view returns (uint256, uint256, uint256) {
+        (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
 
-        emit TotalPoolCapSet(_totalPoolCap);
+        uint256 assets =
+            _convertToSharesWithTotals(balanceOf(owner), totalSupply() + feeShares, newTotalAssets, Math.Rounding.Floor);
+
+        return (assets, totalSupply() + feeShares, newTotalAssets);
+    }
+
+    function _supplyToPools(uint256 assets) internal {
+        for (uint256 i; i < depositQueue.length; ++i) {
+            IERC4626 pool = IERC4626(depositQueue[i]);
+            uint256 assetsInPool = pool.previewRedeem(pool.balanceOf(address(this)));
+
+            if (assetsInPool < poolCap[address(pool)]) {
+                uint256 supplyAmt = poolCap[address(pool)] - assetsInPool;
+                if (assets < supplyAmt) supplyAmt = assets;
+                pool.approve(address(pool), supplyAmt);
+
+                try pool.deposit(supplyAmt, address(this)) {
+                    assets -= supplyAmt;
+                } catch {
+                    pool.approve(address(pool), 0);
+                }
+
+                if (assets == 0) return;
+            }
+        }
+        if (assets != 0) revert SuperPool_AllCapsReached(address(this));
+    }
+
+    function _withdrawFromPools(uint256 assets) internal {
+        uint256 assetsInSuperpool = IERC20(address(this)).balanceOf(asset());
+
+        if (assetsInSuperpool >= assets) return;
+        else assets -= assetsInSuperpool;
+
+        for (uint256 i; i < withdrawQueue.length; ++i) {
+            IERC4626 pool = IERC4626(withdrawQueue[i]);
+            uint256 assetsInPool = pool.previewRedeem(pool.balanceOf(address(this)));
+
+            if (assetsInPool > 0) {
+                uint256 withdrawAmt = (assetsInPool < assets) ? assetsInPool : assets;
+
+                if (withdrawAmt > 0) {
+                    try pool.withdraw(withdrawAmt, address(this), address(this)) {
+                        assets -= withdrawAmt;
+                    } catch {}
+                }
+
+                if (assets == 0) return;
+            }
+        }
+        if (assets != 0) revert SuperPool_NotEnoughLiquidity(address(this));
+    }
+
+    function _addPool(address pool) internal {
+        if (Pool(pool).asset() != asset()) revert SuperPool_PoolAssetMismatch(address(this), pool);
+        if (depositQueue.length == MAX_QUEUE_LENGTH) revert SuperPool_MaxQueueLengthReached(address(this));
+
+        depositQueue.push(pool);
+        withdrawQueue.push(pool);
+    }
+
+    function _removePool(address pool) internal onlyOwner {
+        if (IERC4626(pool).balanceOf(address(this)) != 0) revert SuperPool_NonZeroPoolBalance(address(this), pool);
+
+        // gas intensive ops that shift the entire array to preserve order
+        _removeFromQueue(depositQueue, pool);
+        _removeFromQueue(withdrawQueue, pool);
+
+        emit PoolRemoved(pool);
+    }
+
+    function _reorderQueue(address[] storage queue, uint256[] calldata indexes)
+        internal
+        view
+        returns (address[] memory)
+    {
+        bool[] memory seen = new bool[](indexes.length);
+
+        address[] memory newQueue;
+
+        for (uint256 i; i < indexes.length; ++i) {
+            if (seen[indexes[i]]) revert SuperPool_InvalidQueue(address(this));
+            newQueue[i] = queue[i];
+            seen[indexes[i]] = true;
+        }
+
+        for (uint256 i = 1; i <= indexes.length; ++i) {
+            if (!seen[i]) revert SuperPool_InvalidQueue(address(this));
+        }
+
+        return newQueue;
+    }
+
+    function _removeFromQueue(address[] storage queue, address pool) internal {
+        uint256 toRemoveIdx;
+        for (uint256 i; i < queue.length; ++i) {
+            if (queue[i] == pool) {
+                toRemoveIdx = i;
+                break;
+            }
+        }
+        for (uint256 i = toRemoveIdx; i < queue.length - 1; ++i) {
+            queue[i] = queue[i + 1];
+        }
+        queue.pop();
+    }
+
+    function _simulateFeeAccrual() internal view returns (uint256, uint256) {
+        uint256 newTotalAssets = totalAssets();
+        uint256 interestAccrued = (newTotalAssets > lastTotalAssets) ? newTotalAssets - lastTotalAssets : 0;
+        if (interestAccrued == 0 || fee == 0) return (0, 0);
+
+        uint256 feeAssets = interestAccrued.mulDiv(fee, WAD);
+        uint256 feeShares =
+            _convertToSharesWithTotals(feeAssets, totalSupply(), newTotalAssets - feeAssets, Math.Rounding.Floor);
+
+        return (feeShares, newTotalAssets);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             Shares Math
+    //////////////////////////////////////////////////////////////*/
+
+    function _convertToShares(uint256 assets, Math.Rounding rounding) internal view override returns (uint256) {
+        (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
+
+        return _convertToSharesWithTotals(assets, totalSupply() + feeShares, newTotalAssets, rounding);
+    }
+
+    function _convertToSharesWithTotals(
+        uint256 assets,
+        uint256 newTotalSupply,
+        uint256 newTotalAssets,
+        Math.Rounding rounding
+    ) internal view returns (uint256) {
+        return assets.mulDiv(newTotalSupply + 10 ** _decimalsOffset(), newTotalAssets + 1, rounding);
+    }
+
+    function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view override returns (uint256) {
+        (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
+
+        return _convertToAssetsWithTotals(shares, totalSupply() + feeShares, newTotalAssets, rounding);
+    }
+
+    function _convertToAssetsWithTotals(
+        uint256 shares,
+        uint256 newTotalSupply,
+        uint256 newTotalAssets,
+        Math.Rounding rounding
+    ) internal view returns (uint256) {
+        return shares.mulDiv(newTotalAssets + 1, newTotalSupply + 10 ** _decimalsOffset(), rounding);
     }
 }

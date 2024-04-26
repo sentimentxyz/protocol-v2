@@ -266,8 +266,11 @@ contract ScpBorrowTest is BaseTest {
 
         FixedPriceOracle collatTokenOracle = new FixedPriceOracle(1e18); // 1 collat token = 1 eth
         riskEngine.toggleOracleStatus(address(collatTokenOracle), address(erc20Collat));
-        riskEngine.setOracle(address(pool), address(erc20Collat), address(collatTokenOracle));
-        riskEngine.setLtv(address(pool), address(erc20Collat), 8e17); // max lev = 5x
+        riskEngine.requestOracleUpdate(address(pool), address(erc20Collat), address(collatTokenOracle));
+        riskEngine.acceptOracleUpdate(address(pool), address(erc20Collat));
+
+        riskEngine.requestLtvUpdate(address(pool), address(erc20Collat), 8e17); // max lev = 5x
+        riskEngine.acceptLtvUpdate(address(pool), address(erc20Collat));
     }
 
     function testFailZach_DepositFrontrun() public {

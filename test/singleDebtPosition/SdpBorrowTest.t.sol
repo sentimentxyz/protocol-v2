@@ -115,7 +115,8 @@ contract SdpBorrowTest is BaseTest {
         // whoops, price of collateral falls by 1%, so we're liquidatable
         FixedPriceOracle newCollatTokenOracle = new FixedPriceOracle(0.99e18);
         riskEngine.toggleOracleStatus(address(newCollatTokenOracle), address(erc20Collat));
-        riskEngine.setOracle(address(pool), address(erc20Collat), address(newCollatTokenOracle));
+        riskEngine.requestOracleUpdate(address(pool), address(erc20Collat), address(newCollatTokenOracle));
+        riskEngine.acceptOracleUpdate(address(pool), address(erc20Collat));
 
         // confirm we are now unhealthy & can be liquidated
         assert(!riskEngine.isPositionHealthy(address(position)));
@@ -283,13 +284,17 @@ contract SdpBorrowTest is BaseTest {
 
         FixedPriceOracle borrowTokenOracle = new FixedPriceOracle(2e18); // 1 borrow token = 2 eth
         riskEngine.toggleOracleStatus(address(borrowTokenOracle), address(erc20Borrow));
-        riskEngine.setOracle(address(pool), address(erc20Borrow), address(borrowTokenOracle));
-        riskEngine.setLtv(address(pool), address(erc20Borrow), 8e17); // max lev = 5x
+        riskEngine.requestOracleUpdate(address(pool), address(erc20Borrow), address(borrowTokenOracle));
+        riskEngine.acceptOracleUpdate(address(pool), address(erc20Borrow));
+        riskEngine.requestLtvUpdate(address(pool), address(erc20Borrow), 8e17); // max lev = 5x
+        riskEngine.acceptLtvUpdate(address(pool), address(erc20Borrow)); // max lev = 5x
 
         FixedPriceOracle collatTokenOracle = new FixedPriceOracle(1e18); // 1 collat token = 1 eth
         riskEngine.toggleOracleStatus(address(collatTokenOracle), address(erc20Collat));
-        riskEngine.setOracle(address(pool), address(erc20Collat), address(collatTokenOracle));
-        riskEngine.setLtv(address(pool), address(erc20Collat), 8e17); // max lev = 5x
+        riskEngine.requestOracleUpdate(address(pool), address(erc20Collat), address(collatTokenOracle));
+        riskEngine.acceptOracleUpdate(address(pool), address(erc20Collat));
+        riskEngine.requestLtvUpdate(address(pool), address(erc20Collat), 8e17); // max lev = 5x
+        riskEngine.acceptLtvUpdate(address(pool), address(erc20Collat));
     }
 
     function _repay(uint256 amt) internal {

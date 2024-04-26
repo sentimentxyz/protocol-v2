@@ -22,6 +22,18 @@ contract RiskEngine is OwnableUpgradeable {
                                Storage
     //////////////////////////////////////////////////////////////*/
 
+    uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
+
+    struct OracleUpdate {
+        address oracle;
+        uint256 validAfter;
+    }
+
+    struct LtvUpdate {
+        uint256 ltv;
+        uint256 validAfter;
+    }
+
     // lenders are free to set their own ltv within the global protocol limits
     // the global limits can only be modified by the protocol
     // ltv updates revert if they fall beyond the bounds
@@ -50,6 +62,9 @@ contract RiskEngine is OwnableUpgradeable {
     /// @notice fetch the oracle for a given asset in a pool
     mapping(address pool => mapping(address asset => address oracle)) public oracleFor;
 
+    mapping(address pool => mapping(address asset => LtvUpdate ltvUpdate)) public ltvUpdateFor;
+    mapping(address pool => mapping(address asset => OracleUpdate oracleUpdate)) public oracleUpdateFor;
+
     /*//////////////////////////////////////////////////////////////
                                 Events
     //////////////////////////////////////////////////////////////*/
@@ -57,8 +72,12 @@ contract RiskEngine is OwnableUpgradeable {
     event LtvBoundsSet(uint256 minLtv, uint256 maxLtv);
     event LiquidationDiscountSet(uint256 liqudiationDiscount);
     event RiskModuleSet(uint256 indexed positionType, address riskModule);
-    event LtvSet(address indexed pool, address indexed asset, uint256 ltv);
-    event OracleSet(address indexed pool, address indexed asset, address oracle);
+    event LtvUpdateRejected(address indexed pool, address indexed asset);
+    event LtvUpdateAccepted(address indexed pool, address indexed asset, uint256 ltv);
+    event LtvUpdateRequested(address indexed pool, address indexed asset, LtvUpdate ltvUpdate);
+    event OracleUpdateRejected(address indexed pool, address indexed asset);
+    event OracleUpdateAccepted(address indexed pool, address indexed asset, address oracle);
+    event OracleUpdateRequested(address indexed pool, address indexed asset, OracleUpdate oracleUpdate);
     event OracleStatusSet(address indexed oracle, address indexed asset, bool isKnown);
 
     /*//////////////////////////////////////////////////////////////
@@ -67,9 +86,13 @@ contract RiskEngine is OwnableUpgradeable {
 
     error RiskEngine_LtvLimitBreached(uint256 ltv);
     error RiskEngine_MissingRiskModule(uint256 positionType);
+    error RiskEngine_NoLtvUpdate(address pool, address asset);
     error RiskEngine_NoOracleFound(address pool, address asset);
+    error RiskEngine_NoOracleUpdate(address pool, address asset);
     error RiskEngine_OnlyPoolOwner(address pool, address sender);
     error RiskEngine_UnknownOracle(address oracle, address asset);
+    error RiskEngine_LtvUpdateTimelocked(address pool, address asset);
+    error RiskEngine_OracleUpdateTimelocked(address pool, address asset);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -84,6 +107,16 @@ contract RiskEngine is OwnableUpgradeable {
         minLtv = _minLtv;
         maxLtv = _maxLtv;
         liqudiationDiscount = _liquidationDiscount;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              Modifiers
+    //////////////////////////////////////////////////////////////*/
+
+    modifier onlyPoolOwner(address pool) {
+        // only pool owners are allowed to set oracles
+        if (msg.sender != Pool(pool).owner()) revert RiskEngine_OnlyPoolOwner(pool, msg.sender);
+        _;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -125,41 +158,86 @@ contract RiskEngine is OwnableUpgradeable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           Only Pool Owner
+                              LTV Update
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice set ltv for a given asset in a pool
-    /// @dev only pool owners can set the ltv for their pools
-    /// @dev ltv is scaled by 18 decimals
-    function setLtv(address pool, address asset, uint256 ltv) external {
-        // only pool owners are allowed to set ltv
-        if (msg.sender != Pool(pool).owner()) revert RiskEngine_OnlyPoolOwner(pool, msg.sender);
-
+    function requestLtvUpdate(address pool, address asset, uint256 ltv) external onlyPoolOwner(pool) {
         // set oracle before ltv so risk modules don't have to explicitly check if an oracle exists
         if (oracleFor[pool][asset] == address(0)) revert RiskEngine_NoOracleFound(pool, asset);
 
         // ensure new ltv is witihin global limits or zero
         if ((ltv != 0 && ltv < minLtv) || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);
 
-        // update asset ltv for the given pool
-        ltvFor[pool][asset] = ltv;
+        LtvUpdate memory ltvUpdate;
+        // only modification and removal of previously set ltvs require a timelock
+        if (ltvFor[pool][asset] == 0) ltvUpdate = LtvUpdate({ltv: ltv, validAfter: block.timestamp});
+        else ltvUpdate = LtvUpdate({ltv: ltv, validAfter: block.timestamp + TIMELOCK_DURATION});
 
-        emit LtvSet(pool, asset, ltv);
+        ltvUpdateFor[pool][asset] = ltvUpdate;
+
+        emit LtvUpdateRequested(pool, asset, ltvUpdate);
     }
 
-    /// @notice set the oracle for a given asset in a pool
-    /// @dev only pool owners can set the oracle for their pools
-    function setOracle(address pool, address asset, address oracle) external {
+    function acceptLtvUpdate(address pool, address asset) external onlyPoolOwner(pool) {
+        LtvUpdate memory ltvUpdate = ltvUpdateFor[pool][asset];
+
+        if (ltvUpdate.validAfter == 0) revert RiskEngine_NoLtvUpdate(pool, asset);
+
+        if (ltvUpdate.validAfter > block.timestamp) {
+            revert RiskEngine_LtvUpdateTimelocked(pool, asset);
+        }
+
+        ltvFor[pool][asset] = ltvUpdate.ltv;
+
+        emit LtvUpdateAccepted(pool, asset, ltvUpdate.ltv);
+    }
+
+    function rejectLtvUpdate(address pool, address asset) external onlyPoolOwner(pool) {
+        delete ltvUpdateFor[pool][asset];
+
+        emit LtvUpdateRejected(pool, asset);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            Oracle Update
+    //////////////////////////////////////////////////////////////*/
+
+    function requestOracleUpdate(address pool, address asset, address oracle) external onlyPoolOwner(pool) {
         // revert if the oracle is not recognized by the protocol
         if (!isKnownOracle[oracle][asset]) revert RiskEngine_UnknownOracle(oracle, asset);
 
-        // only pool owners are allowed to set oracles
-        if (msg.sender != Pool(pool).owner()) revert RiskEngine_OnlyPoolOwner(pool, msg.sender);
+        OracleUpdate memory oracleUpdate;
 
-        // update asset oracle for pool
-        oracleFor[pool][asset] = oracle;
+        // no timelock required for addition of oracles, only modification and removal
+        if (oracleFor[pool][asset] == address(0)) {
+            oracleUpdate = OracleUpdate({oracle: oracle, validAfter: block.timestamp});
+        } else {
+            oracleUpdate = OracleUpdate({oracle: oracle, validAfter: block.timestamp + TIMELOCK_DURATION});
+        }
 
-        emit OracleSet(pool, asset, oracle);
+        oracleUpdateFor[pool][asset] = oracleUpdate;
+
+        emit OracleUpdateRequested(pool, asset, oracleUpdate);
+    }
+
+    function acceptOracleUpdate(address pool, address asset) external onlyPoolOwner(pool) {
+        OracleUpdate memory oracleUpdate = oracleUpdateFor[pool][asset];
+
+        if (oracleUpdate.validAfter == 0) revert RiskEngine_NoOracleUpdate(pool, asset);
+
+        if (oracleUpdate.validAfter > block.timestamp) {
+            revert RiskEngine_OracleUpdateTimelocked(pool, asset);
+        }
+
+        oracleFor[asset][pool] = oracleUpdate.oracle;
+
+        emit OracleUpdateAccepted(pool, asset, oracleUpdate.oracle);
+    }
+
+    function rejectOracleUpdate(address pool, address asset) external onlyPoolOwner(pool) {
+        delete oracleUpdateFor[pool][asset];
+
+        emit OracleUpdateRejected(pool, asset);
     }
 
     /*//////////////////////////////////////////////////////////////

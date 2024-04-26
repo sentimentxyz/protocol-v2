@@ -124,7 +124,7 @@ contract PoolTest is BaseTest {
         vm.startPrank(tryMe);
 
         vm.expectRevert();
-        pool.setRateModel(tryMe);
+        pool.requestRateModelUpdate(tryMe);
 
         vm.stopPrank();
     }

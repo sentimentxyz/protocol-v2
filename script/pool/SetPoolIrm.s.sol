@@ -12,7 +12,8 @@ contract SetPoolIrm is BaseScript {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        Pool(pool).setRateModel(rateModel);
+        Pool(pool).requestRateModelUpdate(rateModel);
+        Pool(pool).acceptRateModelUpdate();
     }
 
     function getParams() internal {

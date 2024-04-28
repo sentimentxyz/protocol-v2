@@ -19,6 +19,7 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 
 struct DeployParams {
     address owner;
+    address feeAdmin;
     uint256 minLtv;
     uint256 maxLtv;
     uint256 liqFee;
@@ -62,7 +63,7 @@ contract Deploy is BaseScript {
         positionManagerImpl = address(new PositionManager());
         positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0)));
 
-        poolFactory = address(new PoolFactory(params.owner, positionManager));
+        poolFactory = address(new PoolFactory(params.owner, positionManager, params.feeAdmin));
 
         riskEngineImpl = address(new RiskEngine());
         riskEngine = address(new TransparentUpgradeableProxy(riskEngineImpl, params.owner, new bytes(0)));
@@ -102,6 +103,7 @@ contract Deploy is BaseScript {
         params.liqFee = vm.parseJsonUint(config, "$.Deploy.liqFee");
         params.owner = vm.parseJsonAddress(config, "$.Deploy.owner");
         params.minDebt = vm.parseJsonUint(config, "$.Deploy.minDebt");
+        params.feeAdmin = vm.parseJsonAddress(config, "$.Deploy.feeAdmin");
         params.liqDiscount = vm.parseJsonUint(config, "$.Deploy.liqDiscount");
     }
 

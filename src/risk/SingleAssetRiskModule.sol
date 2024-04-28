@@ -33,6 +33,9 @@ contract SingleAssetRiskModule is IRiskModule {
     // the position type that this health check corresponds to
     uint256 public constant TYPE = 0x2;
 
+    // min debt in wei for single asset position types
+    uint256 public immutable MIN_DEBT;
+
     // address of the risk engine to be associated with this health check
     // used to fetch oracles and ltvs for pools
     RiskEngine public immutable riskEngine;
@@ -41,6 +44,7 @@ contract SingleAssetRiskModule is IRiskModule {
                                 Errors
     //////////////////////////////////////////////////////////////*/
 
+    error SingleAssetRiskModule_DebtTooLow();
     error SingleAssetRiskModule_InvalidDebtData();
     error SingleAssetRiskModule_SeizedTooMuch(uint256 seized, uint256 maxSeizedAmt);
 
@@ -48,8 +52,9 @@ contract SingleAssetRiskModule is IRiskModule {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address _riskEngine) {
+    constructor(address _riskEngine, uint256 _minDebt) {
         riskEngine = RiskEngine(_riskEngine);
+        MIN_DEBT = _minDebt;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -57,7 +62,11 @@ contract SingleAssetRiskModule is IRiskModule {
     //////////////////////////////////////////////////////////////*/
 
     function isPositionHealthy(address position) external view returns (bool) {
-        (uint256 totalAssetsInEth,, uint256 minReqAssetsInEth) = getRiskData(position);
+        (uint256 totalAssetsInEth, uint256 totalDebtInEth, uint256 minReqAssetsInEth) = getRiskData(position);
+
+        // to allow efficient liquidations, revert if debt is less than min debt
+        if (totalDebtInEth != 0 && totalDebtInEth < MIN_DEBT) revert SingleAssetRiskModule_DebtTooLow();
+
         // the position is healthy if the value of the assets in the position is more than the
         // minimum balance required to meet the ltv requirements of debts from all pools
         return totalAssetsInEth >= minReqAssetsInEth;

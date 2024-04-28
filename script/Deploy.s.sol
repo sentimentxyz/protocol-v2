@@ -22,6 +22,7 @@ struct DeployParams {
     uint256 minLtv;
     uint256 maxLtv;
     uint256 liqFee;
+    uint256 minDebt;
     uint256 liqDiscount;
 }
 
@@ -66,8 +67,8 @@ contract Deploy is BaseScript {
         riskEngineImpl = address(new RiskEngine());
         riskEngine = address(new TransparentUpgradeableProxy(riskEngineImpl, params.owner, new bytes(0)));
 
-        singleDebtRiskModule = address(new SingleDebtRiskModule(riskEngine));
-        singleAssetRiskModule = address(new SingleAssetRiskModule(riskEngine));
+        singleDebtRiskModule = address(new SingleDebtRiskModule(riskEngine, params.minDebt));
+        singleAssetRiskModule = address(new SingleAssetRiskModule(riskEngine, params.minDebt));
 
         singleDebtPositionImpl = address(new SingleDebtPosition(positionManager));
         singleAssetPositionImpl = address(new SingleAssetPosition(positionManager));
@@ -100,6 +101,7 @@ contract Deploy is BaseScript {
         params.maxLtv = vm.parseJsonUint(config, "$.Deploy.maxLtv");
         params.liqFee = vm.parseJsonUint(config, "$.Deploy.liqFee");
         params.owner = vm.parseJsonAddress(config, "$.Deploy.owner");
+        params.minDebt = vm.parseJsonUint(config, "$.Deploy.minDebt");
         params.liqDiscount = vm.parseJsonUint(config, "$.Deploy.liqDiscount");
     }
 

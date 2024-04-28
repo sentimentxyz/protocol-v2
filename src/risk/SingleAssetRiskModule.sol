@@ -42,7 +42,6 @@ contract SingleAssetRiskModule is IRiskModule {
     //////////////////////////////////////////////////////////////*/
 
     error SingleAssetRiskModule_InvalidDebtData();
-    error SingleAssetRiskModule_NoOracleFound(address pool, address asset);
     error SingleAssetRiskModule_SeizedTooMuch(uint256 seized, uint256 maxSeizedAmt);
 
     /*//////////////////////////////////////////////////////////////
@@ -95,8 +94,8 @@ contract SingleAssetRiskModule is IRiskModule {
     //////////////////////////////////////////////////////////////*/
 
     function getDebtValue(address pool, address asset, uint256 amt) public view returns (uint256) {
-        address oracle = riskEngine.oracleFor(pool, asset);
-        if (oracle == address(0)) revert SingleAssetRiskModule_NoOracleFound(pool, asset);
+        // will revert with RiskEngine_NoOracleFound if missing
+        address oracle = riskEngine.getOracleFor(pool, asset);
         return IOracle(oracle).getValueInEth(asset, amt);
     }
 
@@ -130,8 +129,8 @@ contract SingleAssetRiskModule is IRiskModule {
 
         uint256 assetValue;
         for (uint256 i; i < debtPools.length; ++i) {
-            address oracle = riskEngine.oracleFor(debtPools[i], asset);
-            if (oracle == address(0)) revert SingleAssetRiskModule_NoOracleFound(debtPools[i], asset);
+            // will revert with RiskEngine_NoOracleFound if missing
+            address oracle = riskEngine.getOracleFor(debtPools[i], asset);
 
             // [ROUND] asset values are rounded up, to enforce a hard cap on the amount seized
             assetValue += IOracle(oracle).getValueInEth(asset, amt).mulDiv(debtInfo[i], 1e18, Math.Rounding.Ceil);
@@ -204,8 +203,8 @@ contract SingleAssetRiskModule is IRiskModule {
             // loop over debt pools to compute total position balance using debt pool weighted prices
             for (uint256 i; i < debtPools.length; ++i) {
                 // fetch oracle associated with the position asset for debtPools[i]
-                address oracle = riskEngine.oracleFor(debtPools[i], positionAsset);
-                if (oracle == address(0)) revert SingleAssetRiskModule_NoOracleFound(debtPools[i], positionAsset);
+                // will revert with RiskEngine_NoOracleFound if missing
+                address oracle = riskEngine.getOracleFor(debtPools[i], positionAsset);
 
                 // collateral value = weight * total notional collateral price of collateral
                 // weight = fraction of the total debt owed to the given pool

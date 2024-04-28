@@ -60,7 +60,7 @@ contract RiskEngine is OwnableUpgradeable {
 
     // pool managers are free to choose oracles for assets in pools they own
     /// @notice fetch the oracle for a given asset in a pool
-    mapping(address pool => mapping(address asset => address oracle)) public oracleFor;
+    mapping(address pool => mapping(address asset => address oracle)) internal oracleFor;
 
     mapping(address pool => mapping(address asset => LtvUpdate ltvUpdate)) public ltvUpdateFor;
     mapping(address pool => mapping(address asset => OracleUpdate oracleUpdate)) public oracleUpdateFor;
@@ -122,6 +122,12 @@ contract RiskEngine is OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////
                            Public Functions
     //////////////////////////////////////////////////////////////*/
+
+    function getOracleFor(address pool, address asset) public view returns (address) {
+        address oracle = oracleFor[pool][asset];
+        if (oracle == address(0)) revert RiskEngine_NoOracleFound(pool, asset);
+        return oracle;
+    }
 
     /// @notice check if a position is healthy
     /// @param position the position to check

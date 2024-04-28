@@ -46,6 +46,9 @@ contract PoolFactory is Ownable, Pausable {
     // position manager associated with pools deployed by the factory
     address public immutable POSITION_MANAGER;
 
+    // fee admin for all pools created by this factory
+    address public immutable FEE_ADMIN;
+
     // a mapping that can be used to verify that a pool was deployed by this factory
     // since pool ownership can be transferred, we only store the pool deployer
     // to get the current pool owner, query the pool contract directly
@@ -56,9 +59,10 @@ contract PoolFactory is Ownable, Pausable {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address owner, address positionManager) Ownable(owner) {
+    constructor(address owner, address positionManager, address feeAdmin) Ownable(owner) {
         POSITION_MANAGER = positionManager;
-        POOL_IMPL = address(new Pool(positionManager));
+        POOL_IMPL = address(new Pool(positionManager, feeAdmin));
+        FEE_ADMIN = feeAdmin;
     }
 
     /*//////////////////////////////////////////////////////////////

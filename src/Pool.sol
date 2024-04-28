@@ -64,6 +64,9 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     // position manager associated with this pool
     address immutable positionManager;
 
+    // privileged address to modify protocol fees
+    address immutable FEE_ADMIN;
+
     // last time ping() was called
     // used to track pending interest accruals
     uint256 public lastUpdated;
@@ -109,10 +112,11 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address _positionManager) {
+    constructor(address _positionManager, address _feeAdmin) {
         // stored only once when we deploy the initial implementation
         // does not need to be update or initialized by clones
         positionManager = _positionManager;
+        FEE_ADMIN = _feeAdmin;
         _disableInitializers();
     }
 

@@ -77,7 +77,7 @@ contract PositionManagerTest is BaseTest {
         _manager.processBatch(position, actions);
 
         // toggling it should allow us to call them
-        _manager.toggleKnownContract(address(mockToken));
+        _manager.toggleKnownAddress(address(mockToken));
         _manager.processBatch(position, actions);
     }
 

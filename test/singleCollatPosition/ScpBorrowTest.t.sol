@@ -34,7 +34,7 @@ contract ScpBorrowTest is BaseTest {
 
         _deployPool();
 
-        positionManager.toggleKnownContract(address(erc20Collat));
+        positionManager.toggleKnownAddress(address(erc20Collat));
     }
 
     function testBorrowWithinLimits() public {

@@ -22,6 +22,7 @@ contract PoolFactoryTest is BaseTest {
                     asset: address(0),
                     rateModel: address(0),
                     poolCap: 0,
+                    interestFee: 0,
                     originationFee: 0,
                     name: "test",
                     symbol: "test"

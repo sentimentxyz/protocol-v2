@@ -258,6 +258,7 @@ contract ScpBorrowTest is BaseTest {
             asset: address(erc20Collat),
             rateModel: address(rateModel),
             poolCap: type(uint256).max,
+            interestFee: 0,
             originationFee: 0,
             name: "SDP Test Pool",
             symbol: "SDP-TEST"

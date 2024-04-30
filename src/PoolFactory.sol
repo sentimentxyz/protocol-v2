@@ -29,6 +29,7 @@ struct PoolDeployParams {
     address asset;
     address rateModel;
     uint256 poolCap;
+    uint256 interestFee;
     uint256 originationFee;
     string name;
     string symbol;
@@ -78,7 +79,13 @@ contract PoolFactory is Ownable, Pausable {
 
         // init erc4626 params for the pool
         pool.initialize(
-            params.asset, params.rateModel, params.poolCap, params.originationFee, params.name, params.symbol
+            params.asset,
+            params.rateModel,
+            params.poolCap,
+            params.interestFee,
+            params.originationFee,
+            params.name,
+            params.symbol
         );
 
         // transfer pool owner to pool manager - msg.sender

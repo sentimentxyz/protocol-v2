@@ -20,7 +20,9 @@ contract PoolTest is BaseTest {
         pool = Pool(payable(address(TestUtils.makeProxy(address(pool), address(this)))));
         rateModel = new FixedRateModel(1e18);
 
-        pool.initialize(address(mockToken), address(rateModel), type(uint256).max, uint256(0), "test", "test");
+        pool.initialize(
+            address(mockToken), address(rateModel), type(uint256).max, uint256(0), uint256(0), "test", "test"
+        );
         super.setUp();
     }
 

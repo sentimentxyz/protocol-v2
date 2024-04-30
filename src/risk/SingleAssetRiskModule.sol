@@ -46,6 +46,7 @@ contract SingleAssetRiskModule is IRiskModule {
 
     error SingleAssetRiskModule_DebtTooLow();
     error SingleAssetRiskModule_InvalidDebtData();
+    error SingleAssetRiskModule_ZeroAssetsWithDebt();
     error SingleAssetRiskModule_SeizedTooMuch(uint256 seized, uint256 maxSeizedAmt);
 
     /*//////////////////////////////////////////////////////////////
@@ -66,6 +67,9 @@ contract SingleAssetRiskModule is IRiskModule {
 
         // to allow efficient liquidations, revert if debt is less than min debt
         if (totalDebtInEth != 0 && totalDebtInEth < MIN_DEBT) revert SingleAssetRiskModule_DebtTooLow();
+
+        // handle zero assets and non-zero debt edge case
+        if (totalAssetsInEth == 0 && totalDebtInEth != 0) revert SingleAssetRiskModule_ZeroAssetsWithDebt();
 
         // the position is healthy if the value of the assets in the position is more than the
         // minimum balance required to meet the ltv requirements of debts from all pools

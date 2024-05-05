@@ -7,9 +7,9 @@ pragma solidity ^0.8.24;
 
 // types
 import {Pool} from "./Pool.sol";
-import {IPosition} from "./interface/IPosition.sol";
+import {IPosition} from "./interfaces/IPosition.sol";
 import {DebtData, AssetData} from "./PositionManager.sol";
-import {IRiskModule} from "./interface/IRiskModule.sol";
+import {IRiskModule} from "./interfaces/IRiskModule.sol";
 // contracts
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 

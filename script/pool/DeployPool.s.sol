@@ -2,10 +2,8 @@
 pragma solidity ^0.8.24;
 
 import {BaseScript} from "../BaseScript.s.sol";
-import {PoolFactory, PoolDeployParams} from "src/PoolFactory.sol";
 
 contract DeployPool is BaseScript {
-    PoolFactory poolFactory;
     PoolDeployParams params;
 
     function run() public {

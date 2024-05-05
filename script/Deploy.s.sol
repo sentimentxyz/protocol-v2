@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import {Pool} from "src/Pool.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 import {PoolFactory} from "src/PoolFactory.sol";
-import {IPosition} from "src/interface/IPosition.sol";
+import {IPosition} from "src/interfaces/IPosition.sol";
 import {PositionManager} from "src/PositionManager.sol";
 import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";

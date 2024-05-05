@@ -8,8 +8,7 @@ pragma solidity ^0.8.24;
 // types
 import {Pool} from "./Pool.sol";
 import {RiskEngine} from "./RiskEngine.sol";
-import {PoolFactory} from "./PoolFactory.sol";
-import {IPosition} from "./interface/IPosition.sol";
+import {IPosition} from "./interfaces/IPosition.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -115,11 +114,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice pool factory address
-    /// @dev helps verify if a given pool was created by the pool factory
-    PoolFactory public poolFactory;
-
     /// @notice risk engine address
     /// @dev used to check if a given position breaches risk thresholds
     RiskEngine public riskEngine;

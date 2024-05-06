@@ -69,7 +69,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     // privileged address to modify protocol fees
     address immutable FEE_ADMIN;
 
-    // last time ping() was called
+    // last time accrueInterestAndFees() was called
     // used to track pending interest accruals
     uint256 public lastUpdated;
 
@@ -196,8 +196,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
 
     /// @inheritdoc ERC4626Upgradeable
     function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
-        // update state to accrue interest since the last time ping() was called
-        ping();
+        // update state to accrue interest since the last time accrueInterestAndFees() was called
+        accrueInterestAndFees();
 
         // deposit assets to pool
         uint256 shares = ERC4626Upgradeable.deposit(assets, receiver);
@@ -211,8 +211,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
 
     /// @inheritdoc ERC4626Upgradeable
     function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
-        // update state to accrue interest since the last time ping() was called
-        ping();
+        // update state to accrue interest since the last time accrueInterestAndFees() was called
+        accrueInterestAndFees();
 
         // inherited erc4626 call
         return ERC4626Upgradeable.mint(shares, receiver);
@@ -220,8 +220,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
 
     /// @inheritdoc ERC4626Upgradeable
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
-        // update state to accrue interest since the last time ping() was called
-        ping();
+        // update state to accrue interest since the last time accrueInterestAndFees() was called
+        accrueInterestAndFees();
 
         // inherited erc4626 call
         return ERC4626Upgradeable.withdraw(assets, receiver, owner);
@@ -229,8 +229,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
 
     /// @inheritdoc ERC4626Upgradeable
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
-        // update state to accrue interest since the last time ping() was called
-        ping();
+        // update state to accrue interest since the last time accrueInterestAndFees() was called
+        accrueInterestAndFees();
 
         // inherited erc4626 call
         return ERC4626Upgradeable.redeem(shares, receiver, owner);
@@ -240,8 +240,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
                              Pool Actions
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice update pool state to accrue interest since the last time ping() was called
-    function ping() public {
+    /// @notice update pool state to accrue interest since the last time accrueInterestAndFees() was called
+    function accrueInterestAndFees() public {
         uint256 interestAccrued =
             rateModel.interestAccrued(lastUpdated, totalBorrows, IERC20(asset()).balanceOf(address(this)));
 
@@ -250,8 +250,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // update cached notional borrows to current borrow amount
         totalBorrows += interestAccrued;
 
-        // store a timestamp for this ping() call
-        // used to compute the pending interest next time ping() is called
+        // store a timestamp for this accrueInterestAndFees() call
+        // used to compute the pending interest next time accrueInterestAndFees() is called
         lastUpdated = block.timestamp;
     }
 
@@ -264,8 +264,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // revert if the caller is not the position manager
         if (msg.sender != positionManager) revert Pool_OnlyPositionManager(address(this), msg.sender);
 
-        // update state to accrue interest since the last time ping() was called
-        ping();
+        // update state to accrue interest since the last time accrueInterestAndFees() was called
+        accrueInterestAndFees();
 
         // compute borrow shares equivalant for notional borrow amt
         // [ROUND] round up shares minted, to ensure they capture the borrowed amount
@@ -312,8 +312,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
         // revert if the caller is not the position manager
         if (msg.sender != positionManager) revert Pool_OnlyPositionManager(address(this), msg.sender);
 
-        // update state to accrue interest since the last time ping() was called
-        ping();
+        // update state to accrue interest since the last time accrueInterestAndFees() was called
+        accrueInterestAndFees();
 
         // compute borrow shares equivalent to notional asset amt
         // [ROUND] burn fewer borrow shares, to ensure excess debt isn't pushed to others

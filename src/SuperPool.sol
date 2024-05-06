@@ -105,7 +105,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                                 Public
     //////////////////////////////////////////////////////////////*/
 
-    function ping() public {
+    function accrueInterestAndFees() public {
         (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
         if (feeShares != 0) ERC20Upgradeable._mint(feeRecipient, feeShares);
         lastTotalAssets = newTotalAssets;
@@ -151,7 +151,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     //////////////////////////////////////////////////////////////*/
 
     function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
-        ping();
+        accrueInterestAndFees();
         uint256 shares = _convertToSharesWithTotals(assets, totalSupply(), lastTotalAssets, Math.Rounding.Floor);
         _deposit(msg.sender, receiver, assets, shares);
         if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this));
@@ -159,21 +159,21 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
-        ping();
+        accrueInterestAndFees();
         uint256 assets = _convertToAssetsWithTotals(shares, totalSupply(), lastTotalAssets, Math.Rounding.Ceil);
         _deposit(msg.sender, receiver, assets, shares);
         return assets;
     }
 
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
-        ping();
+        accrueInterestAndFees();
         uint256 shares = _convertToSharesWithTotals(assets, totalSupply(), lastTotalAssets, Math.Rounding.Ceil);
         _withdraw(msg.sender, receiver, owner, assets, shares);
         return shares;
     }
 
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
-        ping();
+        accrueInterestAndFees();
         uint256 assets = _convertToAssetsWithTotals(shares, totalSupply(), lastTotalAssets, Math.Rounding.Floor);
         _withdraw(msg.sender, receiver, owner, assets, shares);
         return assets;
@@ -212,7 +212,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     function setFee(uint256 _fee) external onlyOwner {
-        ping();
+        accrueInterestAndFees();
 
         fee = _fee;
 
@@ -226,7 +226,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     function setFeeRecipient(address _feeRecipient) external onlyOwner {
-        ping();
+        accrueInterestAndFees();
 
         feeRecipient = _feeRecipient;
 

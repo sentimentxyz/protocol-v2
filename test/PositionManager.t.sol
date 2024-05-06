@@ -5,7 +5,7 @@ import {BaseTest, MintableToken} from "./BaseTest.t.sol";
 import {PoolDeployParams} from "src/PoolFactory.sol";
 import {Operation, Action, PositionDeployed, PositionManager} from "src/PositionManager.sol";
 import {Vm} from "forge-std/Test.sol";
-import {IPosition} from "src/interface/IPosition.sol";
+import {IPosition} from "src/interfaces/IPosition.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 
 contract PositionManagerTest is BaseTest {

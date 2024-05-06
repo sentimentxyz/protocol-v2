@@ -8,10 +8,10 @@ pragma solidity ^0.8.24;
 // types
 import {Pool} from "../Pool.sol";
 import {RiskEngine} from "../RiskEngine.sol";
-import {IOracle} from "../interface/IOracle.sol";
-import {IPosition} from "../interface/IPosition.sol";
+import {IOracle} from "../interfaces/IOracle.sol";
+import {IPosition} from "../interfaces/IPosition.sol";
 import {DebtData, AssetData} from "../PositionManager.sol";
-import {IRiskModule} from "../interface/IRiskModule.sol";
+import {IRiskModule} from "../interfaces/IRiskModule.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";

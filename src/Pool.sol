@@ -64,7 +64,7 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
         uint128 lastUpdated;
         Fraction assets;
         Fraction borrows;
-        mapping(address => uint256) borrowSharesOf;
+        mapping(uint256 => uint256) borrowSharesOf;
     }
 
     mapping(uint256 => PoolData) public poolData;
@@ -169,9 +169,10 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
     /// @notice mint borrow shares and send borrowed assets to the borrowing position
     /// @dev only callable by the position manager
     /// @param position the position to mint shares to
+    /// @param to the address to send the borrowed assets to
     /// @param amt the amount of assets to borrow, denominated in notional asset units
     /// @return borrowShares the amount of shares minted
-    function borrow(uint256 poolId, address position, uint256 amt) external returns (uint256 borrowShares) {
+    function borrow(uint256 poolId, uint256 position, address to, uint256 amt) external returns (uint256 borrowShares) {
         PoolData storage pool = poolData[poolId];
 
         // revert if the caller is not the position manager
@@ -203,7 +204,7 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
         ERC20(asset).safeTransfer(owner, fee);
 
         // send borrowed assets to position
-        ERC20(asset).safeTransfer(position, amt - fee);
+        ERC20(asset).safeTransfer(to, amt - fee);
 
         emit Borrow(position, asset, amt);
     }
@@ -213,7 +214,7 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
     /// @param position the position for which debt is being repaid
     /// @param amt the notional amount of debt asset repaid
     /// @return remainingShares remaining debt in borrow shares owed by the position
-    function repay(uint256 poolId, address position, uint256 amt) external returns (uint256 remainingShares) {
+    function repay(uint256 poolId, uint256 position, uint256 amt) external returns (uint256 remainingShares) {
         PoolData storage pool = poolData[poolId];
         // the only way to call repay() is through the position manager
         // PositionManager.repay() MUST transfer the assets to be repaid before calling Pool.repay()

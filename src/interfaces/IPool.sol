@@ -10,13 +10,13 @@ interface IPool {
     /// @param position address to position for which debt was repaid
     /// @param asset debt asset for this pool
     /// @param amount amount of debt repaid, in debt asset units
-    event Repay(address indexed position, address indexed asset, uint256 amount);
+    event Repay(uint256 indexed position, address indexed asset, uint256 amount);
 
     /// @dev emitted on borrow()
     /// @param position address to position which borrowed funds
     /// @param asset debt asset for this pool
     /// @param amount amount of funds borrowed, in debt asset units
-    event Borrow(address indexed position, address indexed asset, uint256 amount);
+    event Borrow(uint256 indexed position, address indexed asset, uint256 amount);
 
     event PoolCapSet(uint256 poolCap);
 

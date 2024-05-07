@@ -446,18 +446,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @notice update the risk engine address
     /// @dev only callable by the position manager owner
-    function setRiskEngine(address _riskEngine) external onlyOwner {
+    function setRiskEngine(uint256 poolId, address _riskEngine) external onlyOwner {
         riskEngine = RiskEngine(_riskEngine);
 
         emit RiskEngineSet(_riskEngine);
-    }
-
-    /// @notice update the pool factory address
-    /// @dev only callable by the position manager owner
-    function setPoolFactory(address _poolFactory) external onlyOwner {
-        poolFactory = PoolFactory(_poolFactory);
-
-        emit PoolFactorySet(_poolFactory);
     }
 
     /// @notice update the protocol liqudiation fee

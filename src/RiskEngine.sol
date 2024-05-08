@@ -24,11 +24,6 @@ contract RiskEngine is OwnableUpgradeable {
 
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
 
-    struct OracleUpdate {
-        address oracle;
-        uint256 validAfter;
-    }
-
     struct LtvUpdate {
         uint256 ltv;
         uint256 validAfter;
@@ -42,21 +37,13 @@ contract RiskEngine is OwnableUpgradeable {
 
     RiskModule public riskModule;
 
-    // pool managers are free to choose their own oracle, but it must be recognized by the protocol
-    /// @notice check if an oracle is recognized by the protocol
-    // map oracle to its corresponding asset, any value other than address(0) == true
-    mapping(address oracle => mapping(address asset => bool isKnown)) public isKnownOracle;
+    /// @notice fetch the oracle for a given asset
+    mapping(address asset => address oracle) internal oracleFor;
 
     // pool managers are free to choose LTVs for pool they own
     /// @notice fetch the ltv for a given asset in a pool
     mapping(address pool => mapping(address asset => uint256 ltv)) public ltvFor;
-
-    // pool managers are free to choose oracles for assets in pools they own
-    /// @notice fetch the oracle for a given asset in a pool
-    mapping(address pool => mapping(address asset => address oracle)) internal oracleFor;
-
     mapping(address pool => mapping(address asset => LtvUpdate ltvUpdate)) public ltvUpdateFor;
-    mapping(address pool => mapping(address asset => OracleUpdate oracleUpdate)) public oracleUpdateFor;
 
     /*//////////////////////////////////////////////////////////////
                                 Events
@@ -64,14 +51,11 @@ contract RiskEngine is OwnableUpgradeable {
 
     event RiskModuleSet(address riskModule);
     event LtvBoundsSet(uint256 minLtv, uint256 maxLtv);
+    event OracleSet(address indexed asset, address oracle);
     event LiquidationDiscountSet(uint256 liqudiationDiscount);
     event LtvUpdateRejected(address indexed pool, address indexed asset);
     event LtvUpdateAccepted(address indexed pool, address indexed asset, uint256 ltv);
     event LtvUpdateRequested(address indexed pool, address indexed asset, LtvUpdate ltvUpdate);
-    event OracleUpdateRejected(address indexed pool, address indexed asset);
-    event OracleUpdateAccepted(address indexed pool, address indexed asset, address oracle);
-    event OracleUpdateRequested(address indexed pool, address indexed asset, OracleUpdate oracleUpdate);
-    event OracleStatusSet(address indexed oracle, address indexed asset, bool isKnown);
 
     /*//////////////////////////////////////////////////////////////
                                 Errors
@@ -115,7 +99,7 @@ contract RiskEngine is OwnableUpgradeable {
     //////////////////////////////////////////////////////////////*/
 
     function getOracleFor(address pool, address asset) public view returns (address) {
-        address oracle = oracleFor[pool][asset];
+        address oracle = oracleFor[asset];
         if (oracle == address(0)) revert RiskEngine_NoOracleFound(pool, asset);
         return oracle;
     }
@@ -146,7 +130,7 @@ contract RiskEngine is OwnableUpgradeable {
 
     function requestLtvUpdate(address pool, address asset, uint256 ltv) external onlyPoolOwner(pool) {
         // set oracle before ltv so risk modules don't have to explicitly check if an oracle exists
-        if (oracleFor[pool][asset] == address(0)) revert RiskEngine_NoOracleFound(pool, asset);
+        if (oracleFor[asset] == address(0)) revert RiskEngine_NoOracleFound(pool, asset);
 
         // ensure new ltv is witihin global limits or zero
         if ((ltv != 0 && ltv < minLtv) || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);
@@ -182,48 +166,6 @@ contract RiskEngine is OwnableUpgradeable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            Oracle Update
-    //////////////////////////////////////////////////////////////*/
-
-    function requestOracleUpdate(address pool, address asset, address oracle) external onlyPoolOwner(pool) {
-        // revert if the oracle is not recognized by the protocol
-        if (!isKnownOracle[oracle][asset]) revert RiskEngine_UnknownOracle(oracle, asset);
-
-        OracleUpdate memory oracleUpdate;
-
-        // no timelock required for addition of oracles, only modification and removal
-        if (oracleFor[pool][asset] == address(0)) {
-            oracleUpdate = OracleUpdate({oracle: oracle, validAfter: block.timestamp});
-        } else {
-            oracleUpdate = OracleUpdate({oracle: oracle, validAfter: block.timestamp + TIMELOCK_DURATION});
-        }
-
-        oracleUpdateFor[pool][asset] = oracleUpdate;
-
-        emit OracleUpdateRequested(pool, asset, oracleUpdate);
-    }
-
-    function acceptOracleUpdate(address pool, address asset) external onlyPoolOwner(pool) {
-        OracleUpdate memory oracleUpdate = oracleUpdateFor[pool][asset];
-
-        if (oracleUpdate.validAfter == 0) revert RiskEngine_NoOracleUpdate(pool, asset);
-
-        if (oracleUpdate.validAfter > block.timestamp) {
-            revert RiskEngine_OracleUpdateTimelocked(pool, asset);
-        }
-
-        oracleFor[asset][pool] = oracleUpdate.oracle;
-
-        emit OracleUpdateAccepted(pool, asset, oracleUpdate.oracle);
-    }
-
-    function rejectOracleUpdate(address pool, address asset) external onlyPoolOwner(pool) {
-        delete oracleUpdateFor[pool][asset];
-
-        emit OracleUpdateRejected(pool, asset);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                               Only Owner
     //////////////////////////////////////////////////////////////*/
 
@@ -243,13 +185,9 @@ contract RiskEngine is OwnableUpgradeable {
         emit RiskModuleSet(_riskModule);
     }
 
-    /// @notice toggle whether a given oracle-asset pair is recognized by the protocol
-    /// @dev only callable by RiskEngine owner
-    /// @param oracle oracle address
-    /// @param asset token address for the given oracle
-    function toggleOracleStatus(address oracle, address asset) external onlyOwner {
-        isKnownOracle[oracle][asset] = !isKnownOracle[oracle][asset];
+    function setOracle(address asset, address oracle) external onlyOwner {
+        oracleFor[asset] = oracle;
 
-        emit OracleStatusSet(oracle, asset, isKnownOracle[oracle][asset]);
+        emit OracleSet(asset, oracle);
     }
 }

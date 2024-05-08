@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+// types
 import {IRateModel} from "./interfaces/IRateModel.sol";
-import {IERC20} from "forge-std/interfaces/IERC20.sol";
-import {IERC4626} from "forge-std/interfaces/IERC4626.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IPool} from "./interfaces/IPool.sol";
+// libraries
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+// contracts
+import {ERC6909} from "./lib/ERC6909.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {FixedPointMathLib} from "lib/solmate/src/utils/FixedPointMathLib.sol";
-import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
-import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
-import {ERC6909} from "lib/solmate/src/tokens/ERC6909.sol";
-import {Owned} from "lib/solmate/src/auth/Owned.sol";
-
-contract Pool is Owned(msg.sender), ERC6909, IPool {
-    using FixedPointMathLib for uint256;
-    using SafeTransferLib for ERC20;
+contract Pool is Ownable(msg.sender), ERC6909, IPool {
+    using Math for uint256;
+    using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
                                Storage
@@ -80,11 +81,11 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
     //////////////////////////////////////////////////////////////*/
 
     function convertToShares(Fraction memory frac, uint256 assets) public pure returns (uint256 shares) {
-        shares = assets.mulDivDown(frac.shares, frac.assets);
+        shares = assets.mulDiv(frac.shares, frac.assets);
     }
 
     function convertToAssets(Fraction memory frac, uint256 shares) public pure returns (uint256 assets) {
-        assets = shares.mulDivDown(frac.assets, frac.shares);
+        assets = shares.mulDiv(frac.assets, frac.shares);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -100,7 +101,7 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
         require((shares = convertToShares(pool.assets, assets)) != 0, "ZERO_SHARES");
 
         // Need to transfer before minting or ERC777s could reenter.
-        ERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
+        IERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
 
         _mint(receiver, poolId, shares);
 
@@ -125,7 +126,7 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
-        ERC20(pool.asset).safeTransfer(receiver, assets);
+        IERC20(pool.asset).safeTransfer(receiver, assets);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -144,13 +145,13 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
 
         if (interestAccrued != 0) {
             // [ROUND] floor fees in favor of pool lenders
-            uint256 feeAssets = interestAccrued.mulDivDown(pool.interestFee, 1e18);
+            uint256 feeAssets = interestAccrued.mulDiv(pool.interestFee, 1e18);
 
             // totalAssets() - feeAssets
             uint256 totalAssetExFees = pool.assets.assets + interestAccrued - feeAssets;
 
             // [ROUND] round down in favor of pool lenders
-            uint256 feeShares = feeAssets.mulDivDown(pool.assets.shares, totalAssetExFees + 1);
+            uint256 feeShares = feeAssets.mulDiv(pool.assets.shares, totalAssetExFees + 1);
 
             _mint(FEE_ADMIN, id, feeShares);
         }
@@ -197,14 +198,14 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
 
         // compute origination fee amt
         // [ROUND] origination fee is rounded down, in favor of the borrower
-        uint256 fee = amt.mulDivDown(pool.originationFee, 1e18);
+        uint256 fee = amt.mulDiv(pool.originationFee, 1e18);
 
         address asset = pool.asset;
         // send origination fee to owner
-        ERC20(asset).safeTransfer(owner, fee);
+        IERC20(asset).safeTransfer(FEE_ADMIN, fee);
 
         // send borrowed assets to position
-        ERC20(asset).safeTransfer(to, amt - fee);
+        IERC20(asset).safeTransfer(to, amt - fee);
 
         emit Borrow(position, asset, amt);
     }

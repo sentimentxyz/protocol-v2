@@ -2,16 +2,15 @@
 pragma solidity ^0.8.24;
 
 import {IRateModel} from "./interfaces/IRateModel.sol";
-import {IERC20} from "./interfaces/IERC20.sol";
-import {IERC4626} from "./interfaces/IERC4626.sol";
+import {IERC20} from "forge-std/interfaces/IERC20.sol";
+import {IERC4626} from "forge-std/interfaces/IERC4626.sol";
 import {IPool} from "./interfaces/IPool.sol";
 
-import { FixedPointMathLib } from "lib/solmate/src/utils/FixedPointMathLib.sol";
-import { SafeTransferLib } from "lib/solmate/src/utils/SafeTransferLib.sol";
-import { ERC20 } from "lib/solmate/src/tokens/ERC20.sol";
-import { ERC6909 } from "lib/solmate/src/tokens/ERC6909.sol";
-import { Owned } from "lib/solmate/src/auth/Owned.sol";
-
+import {FixedPointMathLib} from "lib/solmate/src/utils/FixedPointMathLib.sol";
+import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
+import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
+import {ERC6909} from "lib/solmate/src/tokens/ERC6909.sol";
+import {Owned} from "lib/solmate/src/auth/Owned.sol";
 
 contract Pool is Owned(msg.sender), ERC6909, IPool {
     using FixedPointMathLib for uint256;
@@ -69,8 +68,7 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
 
     mapping(uint256 => PoolData) public poolData;
 
-    constructor(address _positionManager, address _feeAdmin
-    ) {
+    constructor(address _positionManager, address _feeAdmin) {
         // stored only once when we deploy the initial implementation
         // does not need to be update or initialized by clones
         positionManager = _positionManager;
@@ -152,8 +150,7 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
             uint256 totalAssetExFees = pool.assets.assets + interestAccrued - feeAssets;
 
             // [ROUND] round down in favor of pool lenders
-            uint256 feeShares =
-                feeAssets.mulDivDown(pool.assets.shares, totalAssetExFees + 1);
+            uint256 feeShares = feeAssets.mulDivDown(pool.assets.shares, totalAssetExFees + 1);
 
             _mint(FEE_ADMIN, id, feeShares);
         }
@@ -172,7 +169,10 @@ contract Pool is Owned(msg.sender), ERC6909, IPool {
     /// @param to the address to send the borrowed assets to
     /// @param amt the amount of assets to borrow, denominated in notional asset units
     /// @return borrowShares the amount of shares minted
-    function borrow(uint256 poolId, uint256 position, address to, uint256 amt) external returns (uint256 borrowShares) {
+    function borrow(uint256 poolId, uint256 position, address to, uint256 amt)
+        external
+        returns (uint256 borrowShares)
+    {
         PoolData storage pool = poolData[poolId];
 
         // revert if the caller is not the position manager

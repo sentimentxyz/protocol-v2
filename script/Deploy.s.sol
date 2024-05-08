@@ -8,9 +8,9 @@ import {IPosition} from "src/interfaces/IPosition.sol";
 import {PositionManager} from "src/PositionManager.sol";
 import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
-import {SingleDebtPosition} from "src/position/SingleDebtPosition.sol";
+// import {SingleDebtPosition} from "src/position/SingleDebtPosition.sol";
 import {SingleDebtRiskModule} from "src/risk/SingleDebtRiskModule.sol";
-import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
+// import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
 import {SingleAssetRiskModule} from "src/risk/SingleAssetRiskModule.sol";
 
 import {BaseScript} from "./BaseScript.s.sol";
@@ -68,11 +68,11 @@ contract Deploy is BaseScript {
         riskEngineImpl = address(new RiskEngine());
         riskEngine = address(new TransparentUpgradeableProxy(riskEngineImpl, params.owner, new bytes(0)));
 
-        singleDebtRiskModule = address(new SingleDebtRiskModule(riskEngine, params.minDebt));
-        singleAssetRiskModule = address(new SingleAssetRiskModule(riskEngine, params.minDebt));
+        // singleDebtRiskModule = address(new SingleDebtRiskModule(riskEngine, params.minDebt));
+        // singleAssetRiskModule = address(new SingleAssetRiskModule(riskEngine, params.minDebt));
 
-        singleDebtPositionImpl = address(new SingleDebtPosition(positionManager));
-        singleAssetPositionImpl = address(new SingleAssetPosition(positionManager));
+        // singleDebtPositionImpl = address(new SingleDebtPosition(positionManager));
+        // singleAssetPositionImpl = address(new SingleAssetPosition(positionManager));
 
         singleDebtPositionBeacon = address(new UpgradeableBeacon(singleDebtPositionImpl, params.owner));
         singleAssetPositionBeacon = address(new UpgradeableBeacon(singleAssetPositionImpl, params.owner));
@@ -81,8 +81,8 @@ contract Deploy is BaseScript {
         portfolioLens = address(new PortfolioLens(positionManager));
 
         RiskEngine(riskEngine).initialize(params.minLtv, params.maxLtv, params.liqDiscount);
-        RiskEngine(riskEngine).setRiskModule(IPosition(singleDebtPositionImpl).TYPE(), singleDebtRiskModule);
-        RiskEngine(riskEngine).setRiskModule(IPosition(singleAssetPositionImpl).TYPE(), singleAssetRiskModule);
+        // RiskEngine(riskEngine).setRiskModule(IPosition(singleDebtPositionImpl).TYPE(), singleDebtRiskModule);
+        // RiskEngine(riskEngine).setRiskModule(IPosition(singleAssetPositionImpl).TYPE(), singleAssetRiskModule);
 
         PositionManager(positionManager).initialize(poolFactory, riskEngine, params.liqFee);
         PositionManager(positionManager).setBeacon(IPosition(singleDebtPositionImpl).TYPE(), singleDebtPositionBeacon);

@@ -67,7 +67,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
         mapping(uint256 => uint256) borrowSharesOf;
     }
 
-    mapping(uint256 => PoolData) public poolData;
+    mapping(uint256 poolId => PoolData data) public poolData;
 
     constructor(address _positionManager, address _feeAdmin) {
         // stored only once when we deploy the initial implementation

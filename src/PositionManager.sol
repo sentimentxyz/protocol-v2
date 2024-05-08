@@ -333,16 +333,16 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // if the passed amt is type(uint).max assume repayment of the entire debt
         uint256 amt = (_amt == type(uint256).max) ? Pool(pool).getBorrowsOf(position) : _amt;
 
-        // signals repayment to the position without making any changes in the pool
-        // since every position is structured differently
-        // we assume that any checks needed to validate repayment are implemented in the position
-        IPosition(position).repay(pool, amt);
-
         // transfer assets to be repaid from the position to the given pool
         IPosition(position).transfer(pool, Pool(pool).asset(), amt);
 
         // trigger pool repayment which assumes successful transfer of repaid assets
         Pool(pool).repay(position, amt);
+
+        // signals repayment to the position without making any changes in the pool
+        // since every position is structured differently
+        // we assume that any checks needed to validate repayment are implemented in the position
+        IPosition(position).repay(pool, amt);
 
         emit Repay(position, msg.sender, pool, amt);
     }
@@ -356,14 +356,14 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // revert if the given pool was not deployed by the protocol pool factory
         if (poolFactory.deployerFor(pool) == address(0)) revert PositionManager_UnknownPool(pool);
 
+        // transfer borrowed assets from given pool to position
+        // trigger pool borrow and increase debt owed by the position
+        Pool(pool).borrow(position, amt);
+
         // signals a borrow operation without any actual transfer of borrowed assets
         // since every position type is structured differently
         // we assume that the position implements any checks needed to validate the borrow
         IPosition(position).borrow(pool, amt);
-
-        // transfer borrowed assets from given pool to position
-        // trigger pool borrow and increase debt owed by the position
-        Pool(pool).borrow(position, amt);
 
         emit Borrow(position, msg.sender, pool, amt);
     }

@@ -9,9 +9,9 @@ import {PositionManager} from "src/PositionManager.sol";
 import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 // import {SingleDebtPosition} from "src/position/SingleDebtPosition.sol";
-import {SingleDebtRiskModule} from "src/risk/SingleDebtRiskModule.sol";
+// import {SingleDebtRiskModule} from "src/risk/SingleDebtRiskModule.sol";
 // import {SingleAssetPosition} from "src/position/SingleAssetPosition.sol";
-import {SingleAssetRiskModule} from "src/risk/SingleAssetRiskModule.sol";
+// import {SingleAssetRiskModule} from "src/risk/SingleAssetRiskModule.sol";
 
 import {BaseScript} from "./BaseScript.s.sol";
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";

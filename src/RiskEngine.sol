@@ -61,9 +61,9 @@ contract RiskEngine is OwnableUpgradeable {
                                 Errors
     //////////////////////////////////////////////////////////////*/
 
+    error RiskEngine_NoOracleFound(address asset);
     error RiskEngine_LtvLimitBreached(uint256 ltv);
     error RiskEngine_NoLtvUpdate(address pool, address asset);
-    error RiskEngine_NoOracleFound(address pool, address asset);
     error RiskEngine_NoOracleUpdate(address pool, address asset);
     error RiskEngine_OnlyPoolOwner(address pool, address sender);
     error RiskEngine_UnknownOracle(address oracle, address asset);
@@ -98,9 +98,9 @@ contract RiskEngine is OwnableUpgradeable {
                            Public Functions
     //////////////////////////////////////////////////////////////*/
 
-    function getOracleFor(address pool, address asset) public view returns (address) {
+    function getOracleFor(address asset) public view returns (address) {
         address oracle = oracleFor[asset];
-        if (oracle == address(0)) revert RiskEngine_NoOracleFound(pool, asset);
+        if (oracle == address(0)) revert RiskEngine_NoOracleFound(asset);
         return oracle;
     }
 
@@ -130,7 +130,7 @@ contract RiskEngine is OwnableUpgradeable {
 
     function requestLtvUpdate(address pool, address asset, uint256 ltv) external onlyPoolOwner(pool) {
         // set oracle before ltv so risk modules don't have to explicitly check if an oracle exists
-        if (oracleFor[asset] == address(0)) revert RiskEngine_NoOracleFound(pool, asset);
+        if (oracleFor[asset] == address(0)) revert RiskEngine_NoOracleFound(asset);
 
         // ensure new ltv is witihin global limits or zero
         if ((ltv != 0 && ltv < minLtv) || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);

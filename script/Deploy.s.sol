@@ -80,7 +80,7 @@ contract Deploy is BaseScript {
         superPoolLens = address(new SuperPoolLens());
         portfolioLens = address(new PortfolioLens(positionManager));
 
-        RiskEngine(riskEngine).initialize(params.minLtv, params.maxLtv, params.liqDiscount);
+        RiskEngine(riskEngine).initialize(params.minLtv, params.maxLtv);
         // RiskEngine(riskEngine).setRiskModule(IPosition(singleDebtPositionImpl).TYPE(), singleDebtRiskModule);
         // RiskEngine(riskEngine).setRiskModule(IPosition(singleAssetPositionImpl).TYPE(), singleAssetRiskModule);
 

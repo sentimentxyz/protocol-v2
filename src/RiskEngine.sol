@@ -40,11 +40,6 @@ contract RiskEngine is OwnableUpgradeable {
     uint256 public minLtv;
     uint256 public maxLtv;
 
-    // liquidators buy position collateral at a discount by receiving a higher value of collateral
-    // than debt repaid. the discount is a protocol parameter to incentivize liquidators while
-    // ensuring efficient liquidations of risky positions. the value stored is scaled by 18 decimals
-    uint256 public liqudiationDiscount;
-
     RiskModule public riskModule;
 
     // pool managers are free to choose their own oracle, but it must be recognized by the protocol
@@ -99,11 +94,10 @@ contract RiskEngine is OwnableUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(uint256 _minLtv, uint256 _maxLtv, uint256 _liquidationDiscount) public initializer {
+    function initialize(uint256 _minLtv, uint256 _maxLtv) public initializer {
         OwnableUpgradeable.__Ownable_init(msg.sender);
         minLtv = _minLtv;
         maxLtv = _maxLtv;
-        liqudiationDiscount = _liquidationDiscount;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -232,12 +226,6 @@ contract RiskEngine is OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////
                               Only Owner
     //////////////////////////////////////////////////////////////*/
-
-    function setLiquidationDiscount(uint256 _liquidationDiscount) external onlyOwner {
-        liqudiationDiscount = _liquidationDiscount;
-
-        emit LiquidationDiscountSet(_liquidationDiscount);
-    }
 
     function setLtvBounds(uint256 _minLtv, uint256 _maxLtv) external onlyOwner {
         minLtv = _minLtv;

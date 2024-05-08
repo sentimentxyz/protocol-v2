@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import "../BaseScript.s.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 
-contract ToggleOracleStatus is BaseScript {
+contract SetOracle is BaseScript {
     address asset;
     address oracle;
     RiskEngine riskEngine;
@@ -13,7 +13,7 @@ contract ToggleOracleStatus is BaseScript {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        riskEngine.toggleOracleStatus(oracle, asset);
+        riskEngine.setOracle(asset, oracle);
     }
 
     function getParams() internal {

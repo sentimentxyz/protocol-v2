@@ -19,6 +19,7 @@ contract RiskModule {
     RiskEngine public immutable RISK_ENGINE;
     uint256 public immutable LIQUIDATION_DISCOUNT;
 
+    error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
     error RiskModule_DebtTooLow(address position);
     error RiskModule_ZeroAssetsWithDebt(address position);
 
@@ -53,11 +54,27 @@ contract RiskModule {
         return (totalAssetValue, totalDebtValue, minReqAssetValue);
     }
 
-    function isValidLiquidation(address position, DebtData[] calldata debt, AssetData[] calldata assets)
-        external
-        view
-        returns (bool)
-    {}
+    function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata positionAsset) external view {
+        uint256 debtRepaidValue;
+        for (uint256 i; i < debt.length; ++i) {
+            // PositionManger.liquidate() verifies that the asset belongs to the associated pool
+            IOracle oracle = IOracle(RISK_ENGINE.getOracleFor(debt[i].asset));
+            debtRepaidValue += oracle.getValueInEth(debt[i].asset, debt[i].amt);
+        }
+
+        uint256 assetSeizedValue;
+        for (uint256 i; i < positionAsset.length; ++i) {
+            IOracle oracle = IOracle(RISK_ENGINE.getOracleFor(positionAsset[i].asset));
+            assetSeizedValue += oracle.getValueInEth(positionAsset[i].asset, positionAsset[i].amt);
+        }
+
+        // max asset value that can be seized by the liquidator
+        uint256 maxSeizedAssetValue = debtRepaidValue.mulDiv((1e18 + LIQUIDATION_DISCOUNT), 1e18);
+
+        if (assetSeizedValue > maxSeizedAssetValue) {
+            revert RiskModule_SeizedTooMuch(assetSeizedValue, maxSeizedAssetValue);
+        }
+    }
 
     /*//////////////////////////////////////////////////////////////
                           Position Debt Math

@@ -392,9 +392,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // position must breach risk thresholds before liquidation
         if (riskEngine.isPositionHealthy(position)) revert PositionManager_LiquidateHealthyPosition(position);
 
-        // verify that the liquidator seized by the liquidator is within bounds of the max
-        // liquidation discount.
-        if (!riskEngine.isValidLiquidation(position, debt, collat)) revert PositionManager_InvalidLiquidation(position);
+        // verify that the liquidator seized by the liquidator is within liquidiation discount
+        riskEngine.validateLiquidation(debt, collat);
 
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator

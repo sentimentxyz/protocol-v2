@@ -111,13 +111,8 @@ contract RiskEngine is OwnableUpgradeable {
         return riskModule.isPositionHealthy(position);
     }
 
-    function isValidLiquidation(address position, DebtData[] calldata debt, AssetData[] calldata collat)
-        external
-        view
-        returns (bool)
-    {
-        // call health check implementation based on position type
-        return riskModule.isValidLiquidation(position, debt, collat);
+    function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata collat) external view {
+        riskModule.validateLiquidation(debt, collat);
     }
 
     function getRiskData(address position) external view returns (uint256, uint256, uint256) {

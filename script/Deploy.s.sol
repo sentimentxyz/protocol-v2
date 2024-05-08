@@ -85,8 +85,8 @@ contract Deploy is BaseScript {
         // RiskEngine(riskEngine).setRiskModule(IPosition(singleAssetPositionImpl).TYPE(), singleAssetRiskModule);
 
         PositionManager(positionManager).initialize(poolFactory, riskEngine, params.liqFee);
-        PositionManager(positionManager).setBeacon(IPosition(singleDebtPositionImpl).TYPE(), singleDebtPositionBeacon);
-        PositionManager(positionManager).setBeacon(IPosition(singleAssetPositionImpl).TYPE(), singleAssetPositionBeacon);
+        // PositionManager(positionManager).setBeacon(IPosition(singleDebtPositionImpl).TYPE(), singleDebtPositionBeacon);
+        // PositionManager(positionManager).setBeacon(IPosition(singleAssetPositionImpl).TYPE(), singleAssetPositionBeacon);
 
         RiskEngine(riskEngine).transferOwnership(params.owner);
         PositionManager(positionManager).transferOwnership(params.owner);

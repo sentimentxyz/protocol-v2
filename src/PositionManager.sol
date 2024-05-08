@@ -24,6 +24,8 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
                             Events
 //////////////////////////////////////////////////////////////*/
 
+event BeaconSet(address beacon);
+
 event RiskEngineSet(address riskEngine);
 
 event PoolFactorySet(address poolFactory);
@@ -31,8 +33,6 @@ event PoolFactorySet(address poolFactory);
 event LiquidationFeeSet(uint256 liquidationFee);
 
 event AddressSet(address indexed target, bool isAllowed);
-
-event BeaconSet(uint256 indexed positionType, address beacon);
 
 event AddAsset(address indexed position, address indexed caller, address asset);
 
@@ -124,6 +124,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @dev used to check if a given position breaches risk thresholds
     RiskEngine public riskEngine;
 
+    address public positionBeacon;
+
     /// @notice liquidation fee in percentage, scaled by 18 decimals
     /// @dev accrued to the protocol on every liqudation
     uint256 public liquidationFee;
@@ -131,10 +133,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     // position => owner mapping
     /// @notice fetch owner for given position
     mapping(address position => address owner) public ownerOf;
-
-    // position type => OZ UpgradeableBeacon
-    /// @notice fetch beacon address for a given position type
-    mapping(uint256 positionType => address beacon) public beaconFor;
 
     /// [caller][position] => [isAuthorized]
     /// @notice check if a given address is allowed to operate on a particular position
@@ -149,13 +147,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /*//////////////////////////////////////////////////////////////
                                 Errors
     //////////////////////////////////////////////////////////////*/
+    error PositionManager_NoPositionBeacon();
     error PositionManager_UnknownPool(address pool);
     error PositionManager_UnknownSpender(address spender);
     error PositionManager_UnknownContract(address target);
     error PositionManager_UnknownOperation(uint256 operation);
     error PositionManager_HealthCheckFailed(address position);
     error PositionManager_InvalidLiquidation(address position);
-    error PositionManager_NoPositionBeacon(uint256 positionType);
     error PositionManager_LiquidateHealthyPosition(address position);
     error PositionManager_InvalidDebtData(address asset, address poolAsset);
     error PositionManager_OnlyPositionOwner(address position, address sender);
@@ -256,16 +254,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // positionType -> position type of new position to be deployed
         // owner -> owner to create the position on behalf of
         // salt -> create2 salt for position
-        (address owner, uint256 positionType, bytes32 salt) = abi.decode(data, (address, uint256, bytes32));
-
-        // revert if given position type doesn't have a register beacon
-        if (beaconFor[positionType] == address(0)) revert PositionManager_NoPositionBeacon(positionType);
+        (address owner, bytes32 salt) = abi.decode(data, (address, bytes32));
 
         // hash salt with owner to mitigate position creations being frontrun
         salt = keccak256(abi.encodePacked(owner, salt));
 
         // create2 a new position as a beacon proxy
-        address position = address(new BeaconProxy{salt: salt}(beaconFor[positionType], ""));
+        address position = address(new BeaconProxy{salt: salt}(positionBeacon, ""));
 
         // update position owner
         ownerOf[position] = owner;
@@ -444,10 +439,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @notice update the beacon for a given position type
     /// @dev only callable by the position manager owner
-    function setBeacon(uint256 positionType, address beacon) external onlyOwner {
-        beaconFor[positionType] = beacon;
+    function setBeacon(address _positionBeacon) external onlyOwner {
+        positionBeacon = _positionBeacon;
 
-        emit BeaconSet(positionType, beacon);
+        emit BeaconSet(_positionBeacon);
     }
 
     /// @notice update the risk engine address

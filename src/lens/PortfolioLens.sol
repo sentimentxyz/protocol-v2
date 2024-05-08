@@ -113,11 +113,11 @@ contract PortfolioLens {
         return debtData;
     }
 
-    function predictAddress(address owner, uint256 positionType, bytes32 salt) external view returns (address, bool) {
+    function predictAddress(address owner, bytes32 salt) external view returns (address, bool) {
         salt = keccak256(abi.encodePacked(owner, salt));
 
         bytes memory creationCode =
-            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(POSITION_MANAGER.beaconFor(positionType), ""));
+            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(POSITION_MANAGER.positionBeacon()));
 
         address predictedAddress = address(
             uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), POSITION_MANAGER, salt, keccak256(creationCode)))))

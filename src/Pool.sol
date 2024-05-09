@@ -42,6 +42,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
 
     error Pool_NoRateModelUpdate(address pool);
     error Pool_RateModelUpdateTimelock(address pool);
+    error Pool_PoolAlreadyInitialized(uint256 poolId);
     error Pool_ZeroSharesRepay(address pool, uint256 amt);
     error Pool_ZeroSharesBorrow(address pool, uint256 amt);
     error Pool_ZeroSharesDeposit(address pool, uint256 amt);
@@ -64,11 +65,11 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
         uint128 originationFee;
         Uint128Pair totalAssets;
         Uint128Pair totalBorrows;
-        mapping(uint256 => uint256) borrowSharesOf;
     }
 
-    mapping(uint256 poolId => PoolData data) public poolData;
     mapping(uint256 poolId => address poolOwner) public ownerOf;
+    mapping(uint256 poolId => PoolData data) public poolDataFor;
+    mapping(uint256 poolId => mapping(address position => uint256 borrowShares)) public borrowSharesOf;
 
     constructor(address _positionManager, address _feeAdmin) {
         // stored only once when we deploy the initial implementation
@@ -93,7 +94,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
                           Lending Functionality
     //////////////////////////////////////////////////////////////*/
     function deposit(uint256 poolId, uint256 assets, address receiver) public returns (uint256 shares) {
-        PoolData storage pool = poolData[poolId];
+        PoolData storage pool = poolDataFor[poolId];
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
@@ -110,7 +111,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     }
 
     function redeem(uint256 poolId, uint256 shares, address receiver, address owner) public returns (uint256 assets) {
-        PoolData storage pool = poolData[poolId];
+        PoolData storage pool = poolDataFor[poolId];
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
@@ -135,7 +136,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     //////////////////////////////////////////////////////////////*/
 
     function accrue(uint256 id) external {
-        PoolData storage pool = poolData[id];
+        PoolData storage pool = poolDataFor[id];
         accrue(pool, id);
     }
 
@@ -172,11 +173,11 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     /// @param to the address to send the borrowed assets to
     /// @param amt the amount of assets to borrow, denominated in notional asset units
     /// @return borrowShares the amount of shares minted
-    function borrow(uint256 poolId, uint256 position, address to, uint256 amt)
+    function borrow(uint256 poolId, address position, address to, uint256 amt)
         external
         returns (uint256 borrowShares)
     {
-        PoolData storage pool = poolData[poolId];
+        PoolData storage pool = poolDataFor[poolId];
 
         // revert if the caller is not the position manager
         if (msg.sender != positionManager) revert Pool_OnlyPositionManager(address(this), msg.sender);
@@ -196,7 +197,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
         pool.totalBorrows.shares += uint128(borrowShares);
 
         // update position debt, denominated in borrow shares
-        pool.borrowSharesOf[position] += borrowShares;
+        borrowSharesOf[poolId][position] += borrowShares;
 
         // compute origination fee amt
         // [ROUND] origination fee is rounded down, in favor of the borrower
@@ -217,8 +218,8 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     /// @param position the position for which debt is being repaid
     /// @param amt the notional amount of debt asset repaid
     /// @return remainingShares remaining debt in borrow shares owed by the position
-    function repay(uint256 poolId, uint256 position, uint256 amt) external returns (uint256 remainingShares) {
-        PoolData storage pool = poolData[poolId];
+    function repay(uint256 poolId, address position, uint256 amt) external returns (uint256 remainingShares) {
+        PoolData storage pool = poolDataFor[poolId];
         // the only way to call repay() is through the position manager
         // PositionManager.repay() MUST transfer the assets to be repaid before calling Pool.repay()
         // this function assumes the transfer of assets was completed successfully
@@ -246,6 +247,15 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
         emit Repay(position, pool.asset, amt);
 
         // return the remaining position debt, denominated in borrow shares
-        return (pool.borrowSharesOf[position] -= borrowShares);
+        return (borrowSharesOf[poolId][position] -= borrowShares);
+    }
+
+    function initializePool(address owner, bytes32 salt, PoolData calldata poolData) external {
+        uint256 poolId = uint256(keccak256(abi.encodePacked(owner, salt)));
+        if (ownerOf[poolId] != address(0)) revert Pool_PoolAlreadyInitialized(poolId);
+        ownerOf[poolId] = owner;
+        poolDataFor[poolId] = poolData;
+
+        emit PoolInitialized(owner, poolId, poolData);
     }
 }

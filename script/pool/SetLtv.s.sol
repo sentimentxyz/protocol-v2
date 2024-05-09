@@ -6,7 +6,7 @@ import {RiskEngine} from "src/RiskEngine.sol";
 
 contract SetLtv is BaseScript {
     uint256 ltv;
-    address pool;
+    uint256 poolId;
     address asset;
 
     RiskEngine riskEngine;
@@ -15,15 +15,15 @@ contract SetLtv is BaseScript {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        riskEngine.requestLtvUpdate(pool, asset, ltv);
-        riskEngine.acceptLtvUpdate(pool, asset);
+        riskEngine.requestLtvUpdate(poolId, asset, ltv);
+        riskEngine.acceptLtvUpdate(poolId, asset);
     }
 
     function getParams() internal {
         string memory config = getConfig();
 
         ltv = vm.parseJsonUint(config, "$.SetLtv.ltv");
-        pool = vm.parseJsonAddress(config, "$.SetLtv.pool");
+        poolId = vm.parseJsonUint(config, "$.SetLtv.poolId");
         asset = vm.parseJsonAddress(config, "$.SetLtv.asset");
         riskEngine = RiskEngine(vm.parseJsonAddress(config, "$.SetLtv.riskEngine"));
     }

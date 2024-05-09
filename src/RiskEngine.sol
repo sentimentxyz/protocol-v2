@@ -7,9 +7,9 @@ pragma solidity ^0.8.24;
 
 // types
 import {Pool} from "./Pool.sol";
-import {IPosition} from "./interfaces/IPosition.sol";
+import {Position} from "./Position.sol";
 import {DebtData, AssetData} from "./PositionManager.sol";
-import {IRiskModule} from "./interfaces/IRiskModule.sol";
+import {RiskModule} from "./RiskModule.sol";
 // contracts
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
@@ -24,11 +24,6 @@ contract RiskEngine is OwnableUpgradeable {
 
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
 
-    struct OracleUpdate {
-        address oracle;
-        uint256 validAfter;
-    }
-
     struct LtvUpdate {
         uint256 ltv;
         uint256 validAfter;
@@ -40,59 +35,41 @@ contract RiskEngine is OwnableUpgradeable {
     uint256 public minLtv;
     uint256 public maxLtv;
 
-    // liquidators buy position collateral at a discount by receiving a higher value of collateral
-    // than debt repaid. the discount is a protocol parameter to incentivize liquidators while
-    // ensuring efficient liquidations of risky positions. the value stored is scaled by 18 decimals
-    uint256 public liqudiationDiscount;
+    Pool public pool;
+    RiskModule public riskModule;
 
-    // pool managers are free to choose their own oracle, but it must be recognized by the protocol
-    /// @notice check if an oracle is recognized by the protocol
-    // map oracle to its corresponding asset, any value other than address(0) == true
-    mapping(address oracle => mapping(address asset => bool isKnown)) public isKnownOracle;
-
-    // each position type implements its own health check
-    /// @notice fetch the health check implementations for each position type
-    mapping(uint256 positionType => address riskModule) public riskModuleFor;
+    /// @notice fetch the oracle for a given asset
+    mapping(address asset => address oracle) internal oracleFor;
 
     // pool managers are free to choose LTVs for pool they own
     /// @notice fetch the ltv for a given asset in a pool
-    mapping(address pool => mapping(address asset => uint256 ltv)) public ltvFor;
-
-    // pool managers are free to choose oracles for assets in pools they own
-    /// @notice fetch the oracle for a given asset in a pool
-    mapping(address pool => mapping(address asset => address oracle)) internal oracleFor;
-
-    mapping(address pool => mapping(address asset => LtvUpdate ltvUpdate)) public ltvUpdateFor;
-    mapping(address pool => mapping(address asset => OracleUpdate oracleUpdate)) public oracleUpdateFor;
+    mapping(uint256 poolId => mapping(address asset => uint256 ltv)) public ltvFor;
+    mapping(uint256 poolId => mapping(address asset => LtvUpdate ltvUpdate)) public ltvUpdateFor;
 
     /*//////////////////////////////////////////////////////////////
                                 Events
     //////////////////////////////////////////////////////////////*/
 
+    event RiskModuleSet(address riskModule);
     event LtvBoundsSet(uint256 minLtv, uint256 maxLtv);
+    event OracleSet(address indexed asset, address oracle);
     event LiquidationDiscountSet(uint256 liqudiationDiscount);
-    event RiskModuleSet(uint256 indexed positionType, address riskModule);
-    event LtvUpdateRejected(address indexed pool, address indexed asset);
-    event LtvUpdateAccepted(address indexed pool, address indexed asset, uint256 ltv);
-    event LtvUpdateRequested(address indexed pool, address indexed asset, LtvUpdate ltvUpdate);
-    event OracleUpdateRejected(address indexed pool, address indexed asset);
-    event OracleUpdateAccepted(address indexed pool, address indexed asset, address oracle);
-    event OracleUpdateRequested(address indexed pool, address indexed asset, OracleUpdate oracleUpdate);
-    event OracleStatusSet(address indexed oracle, address indexed asset, bool isKnown);
+    event LtvUpdateRejected(uint256 indexed poolId, address indexed asset);
+    event LtvUpdateAccepted(uint256 indexed poolId, address indexed asset, uint256 ltv);
+    event LtvUpdateRequested(uint256 indexed poolId, address indexed asset, LtvUpdate ltvUpdate);
 
     /*//////////////////////////////////////////////////////////////
                                 Errors
     //////////////////////////////////////////////////////////////*/
 
+    error RiskEngine_NoOracleFound(address asset);
     error RiskEngine_LtvLimitBreached(uint256 ltv);
-    error RiskEngine_MissingRiskModule(uint256 positionType);
-    error RiskEngine_NoLtvUpdate(address pool, address asset);
-    error RiskEngine_NoOracleFound(address pool, address asset);
-    error RiskEngine_NoOracleUpdate(address pool, address asset);
-    error RiskEngine_OnlyPoolOwner(address pool, address sender);
+    error RiskEngine_NoLtvUpdate(uint256 poolId, address asset);
+    error RiskEngine_NoOracleUpdate(uint256 poolId, address asset);
+    error RiskEngine_OnlyPoolOwner(uint256 poolId, address sender);
     error RiskEngine_UnknownOracle(address oracle, address asset);
-    error RiskEngine_LtvUpdateTimelocked(address pool, address asset);
-    error RiskEngine_OracleUpdateTimelocked(address pool, address asset);
+    error RiskEngine_LtvUpdateTimelocked(uint256 poolId, address asset);
+    error RiskEngine_OracleUpdateTimelocked(uint256 poolId, address asset);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -102,20 +79,22 @@ contract RiskEngine is OwnableUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(uint256 _minLtv, uint256 _maxLtv, uint256 _liquidationDiscount) public initializer {
+    function initialize(uint256 _minLtv, uint256 _maxLtv, address _pool, address _riskModule) public initializer {
         OwnableUpgradeable.__Ownable_init(msg.sender);
         minLtv = _minLtv;
         maxLtv = _maxLtv;
-        liqudiationDiscount = _liquidationDiscount;
+
+        pool = Pool(_pool);
+        riskModule = RiskModule(_riskModule);
     }
 
     /*//////////////////////////////////////////////////////////////
                               Modifiers
     //////////////////////////////////////////////////////////////*/
 
-    modifier onlyPoolOwner(address pool) {
+    modifier onlyPoolOwner(uint256 poolId) {
         // only pool owners are allowed to set oracles
-        if (msg.sender != Pool(pool).owner()) revert RiskEngine_OnlyPoolOwner(pool, msg.sender);
+        if (msg.sender != pool.ownerOf(poolId)) revert RiskEngine_OnlyPoolOwner(poolId, msg.sender);
         _;
     }
 
@@ -123,138 +102,71 @@ contract RiskEngine is OwnableUpgradeable {
                            Public Functions
     //////////////////////////////////////////////////////////////*/
 
-    function getOracleFor(address pool, address asset) public view returns (address) {
-        address oracle = oracleFor[pool][asset];
-        if (oracle == address(0)) revert RiskEngine_NoOracleFound(pool, asset);
+    function getOracleFor(address asset) public view returns (address) {
+        address oracle = oracleFor[asset];
+        if (oracle == address(0)) revert RiskEngine_NoOracleFound(asset);
         return oracle;
     }
 
     /// @notice check if a position is healthy
     /// @param position the position to check
     function isPositionHealthy(address position) external view returns (bool) {
-        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) {
-            revert RiskEngine_MissingRiskModule(IPosition(position).TYPE());
-        }
-
         // call health check implementation based on position type
-        return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).isPositionHealthy(position);
+        return riskModule.isPositionHealthy(position);
     }
 
-    function isValidLiquidation(address position, DebtData[] calldata debt, AssetData[] calldata collat)
-        external
-        view
-        returns (bool)
-    {
-        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) {
-            revert RiskEngine_MissingRiskModule(IPosition(position).TYPE());
-        }
-
-        // call health check implementation based on position type
-        return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).isValidLiquidation(
-            position, debt, collat, liqudiationDiscount
-        );
+    function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata collat) external view {
+        riskModule.validateLiquidation(debt, collat);
     }
 
     function getRiskData(address position) external view returns (uint256, uint256, uint256) {
-        if (riskModuleFor[IPosition(position).TYPE()] == address(0)) {
-            revert RiskEngine_MissingRiskModule(IPosition(position).TYPE());
-        }
-
-        return IRiskModule(riskModuleFor[IPosition(position).TYPE()]).getRiskData(position);
+        return riskModule.getRiskData(position);
     }
 
     /*//////////////////////////////////////////////////////////////
                               LTV Update
     //////////////////////////////////////////////////////////////*/
 
-    function requestLtvUpdate(address pool, address asset, uint256 ltv) external onlyPoolOwner(pool) {
+    function requestLtvUpdate(uint256 poolId, address asset, uint256 ltv) external onlyPoolOwner(poolId) {
         // set oracle before ltv so risk modules don't have to explicitly check if an oracle exists
-        if (oracleFor[pool][asset] == address(0)) revert RiskEngine_NoOracleFound(pool, asset);
+        if (oracleFor[asset] == address(0)) revert RiskEngine_NoOracleFound(asset);
 
         // ensure new ltv is witihin global limits or zero
         if ((ltv != 0 && ltv < minLtv) || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);
 
         LtvUpdate memory ltvUpdate;
         // only modification and removal of previously set ltvs require a timelock
-        if (ltvFor[pool][asset] == 0) ltvUpdate = LtvUpdate({ltv: ltv, validAfter: block.timestamp});
+        if (ltvFor[poolId][asset] == 0) ltvUpdate = LtvUpdate({ltv: ltv, validAfter: block.timestamp});
         else ltvUpdate = LtvUpdate({ltv: ltv, validAfter: block.timestamp + TIMELOCK_DURATION});
 
-        ltvUpdateFor[pool][asset] = ltvUpdate;
+        ltvUpdateFor[poolId][asset] = ltvUpdate;
 
-        emit LtvUpdateRequested(pool, asset, ltvUpdate);
+        emit LtvUpdateRequested(poolId, asset, ltvUpdate);
     }
 
-    function acceptLtvUpdate(address pool, address asset) external onlyPoolOwner(pool) {
-        LtvUpdate memory ltvUpdate = ltvUpdateFor[pool][asset];
+    function acceptLtvUpdate(uint256 poolId, address asset) external onlyPoolOwner(poolId) {
+        LtvUpdate memory ltvUpdate = ltvUpdateFor[poolId][asset];
 
-        if (ltvUpdate.validAfter == 0) revert RiskEngine_NoLtvUpdate(pool, asset);
+        if (ltvUpdate.validAfter == 0) revert RiskEngine_NoLtvUpdate(poolId, asset);
 
         if (ltvUpdate.validAfter > block.timestamp) {
-            revert RiskEngine_LtvUpdateTimelocked(pool, asset);
+            revert RiskEngine_LtvUpdateTimelocked(poolId, asset);
         }
 
-        ltvFor[pool][asset] = ltvUpdate.ltv;
+        ltvFor[poolId][asset] = ltvUpdate.ltv;
 
-        emit LtvUpdateAccepted(pool, asset, ltvUpdate.ltv);
+        emit LtvUpdateAccepted(poolId, asset, ltvUpdate.ltv);
     }
 
-    function rejectLtvUpdate(address pool, address asset) external onlyPoolOwner(pool) {
-        delete ltvUpdateFor[pool][asset];
+    function rejectLtvUpdate(uint256 poolId, address asset) external onlyPoolOwner(poolId) {
+        delete ltvUpdateFor[poolId][asset];
 
-        emit LtvUpdateRejected(pool, asset);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            Oracle Update
-    //////////////////////////////////////////////////////////////*/
-
-    function requestOracleUpdate(address pool, address asset, address oracle) external onlyPoolOwner(pool) {
-        // revert if the oracle is not recognized by the protocol
-        if (!isKnownOracle[oracle][asset]) revert RiskEngine_UnknownOracle(oracle, asset);
-
-        OracleUpdate memory oracleUpdate;
-
-        // no timelock required for addition of oracles, only modification and removal
-        if (oracleFor[pool][asset] == address(0)) {
-            oracleUpdate = OracleUpdate({oracle: oracle, validAfter: block.timestamp});
-        } else {
-            oracleUpdate = OracleUpdate({oracle: oracle, validAfter: block.timestamp + TIMELOCK_DURATION});
-        }
-
-        oracleUpdateFor[pool][asset] = oracleUpdate;
-
-        emit OracleUpdateRequested(pool, asset, oracleUpdate);
-    }
-
-    function acceptOracleUpdate(address pool, address asset) external onlyPoolOwner(pool) {
-        OracleUpdate memory oracleUpdate = oracleUpdateFor[pool][asset];
-
-        if (oracleUpdate.validAfter == 0) revert RiskEngine_NoOracleUpdate(pool, asset);
-
-        if (oracleUpdate.validAfter > block.timestamp) {
-            revert RiskEngine_OracleUpdateTimelocked(pool, asset);
-        }
-
-        oracleFor[asset][pool] = oracleUpdate.oracle;
-
-        emit OracleUpdateAccepted(pool, asset, oracleUpdate.oracle);
-    }
-
-    function rejectOracleUpdate(address pool, address asset) external onlyPoolOwner(pool) {
-        delete oracleUpdateFor[pool][asset];
-
-        emit OracleUpdateRejected(pool, asset);
+        emit LtvUpdateRejected(poolId, asset);
     }
 
     /*//////////////////////////////////////////////////////////////
                               Only Owner
     //////////////////////////////////////////////////////////////*/
-
-    function setLiquidationDiscount(uint256 _liquidationDiscount) external onlyOwner {
-        liqudiationDiscount = _liquidationDiscount;
-
-        emit LiquidationDiscountSet(_liquidationDiscount);
-    }
 
     function setLtvBounds(uint256 _minLtv, uint256 _maxLtv) external onlyOwner {
         minLtv = _minLtv;
@@ -263,23 +175,18 @@ contract RiskEngine is OwnableUpgradeable {
         emit LtvBoundsSet(_minLtv, _maxLtv);
     }
 
-    /// @notice set the health check implementation for a given position type
+    /// @notice set the risk module used to store risk logic for positions
     /// @dev only callable by RiskEngine owner
-    /// @param positionType the type of position
-    /// @param riskModule the address of the risk module implementation
-    function setRiskModule(uint256 positionType, address riskModule) external onlyOwner {
-        riskModuleFor[positionType] = riskModule;
+    /// @param _riskModule the address of the risk module implementation
+    function setRiskModule(address _riskModule) external onlyOwner {
+        riskModule = RiskModule(_riskModule);
 
-        emit RiskModuleSet(positionType, riskModule);
+        emit RiskModuleSet(_riskModule);
     }
 
-    /// @notice toggle whether a given oracle-asset pair is recognized by the protocol
-    /// @dev only callable by RiskEngine owner
-    /// @param oracle oracle address
-    /// @param asset token address for the given oracle
-    function toggleOracleStatus(address oracle, address asset) external onlyOwner {
-        isKnownOracle[oracle][asset] = !isKnownOracle[oracle][asset];
+    function setOracle(address asset, address oracle) external onlyOwner {
+        oracleFor[asset] = oracle;
 
-        emit OracleStatusSet(oracle, asset, isKnownOracle[oracle][asset]);
+        emit OracleSet(asset, oracle);
     }
 }

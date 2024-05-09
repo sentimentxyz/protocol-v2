@@ -6,6 +6,7 @@ import {IRateModel} from "./interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IPool} from "./interfaces/IPool.sol";
+import {IPool} from "./interfaces/IPool.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -42,6 +43,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
 
     error Pool_NoRateModelUpdate(address pool);
     error Pool_RateModelUpdateTimelock(address pool);
+    error Pool_PoolAlreadyInitialized(uint256 poolId);
     error Pool_ZeroSharesRepay(address pool, uint256 amt);
     error Pool_ZeroSharesBorrow(address pool, uint256 amt);
     error Pool_ZeroSharesDeposit(address pool, uint256 amt);
@@ -51,7 +53,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    struct Fraction {
+    struct Uint128Pair {
         uint128 assets;
         uint128 shares;
     }
@@ -59,15 +61,16 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     struct PoolData {
         address asset;
         address rateModel;
+        uint128 lastUpdated;
         uint128 interestFee;
         uint128 originationFee;
-        uint128 lastUpdated;
-        Fraction assets;
-        Fraction borrows;
-        mapping(uint256 => uint256) borrowSharesOf;
+        Uint128Pair totalAssets;
+        Uint128Pair totalBorrows;
     }
 
-    mapping(uint256 poolId => PoolData data) public poolData;
+    mapping(uint256 poolId => address poolOwner) public ownerOf;
+    mapping(uint256 poolId => PoolData data) public poolDataFor;
+    mapping(uint256 poolId => mapping(address position => uint256 borrowShares)) public borrowSharesOf;
 
     constructor(address _positionManager, address _feeAdmin) {
         // stored only once when we deploy the initial implementation
@@ -80,11 +83,27 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
                         Public View Functions
     //////////////////////////////////////////////////////////////*/
 
-    function convertToShares(Fraction memory frac, uint256 assets) public pure returns (uint256 shares) {
+    function getAssetsOf(uint256 poolId, address guy) public view returns (uint256) {}
+
+    function getBorrowsOf(uint256 poolId, address position) public view returns (uint256) {}
+
+    function getTotalBorrows(uint256 poolId) public view returns (uint256) {
+        return poolDataFor[poolId].totalBorrows.assets;
+    }
+
+    function getRateModelFor(uint256 poolId) public view returns (address) {
+        return poolDataFor[poolId].rateModel;
+    }
+
+    function getPoolAssetFor(uint256 poolId) public view returns (address) {
+        return poolDataFor[poolId].asset;
+    }
+
+    function convertToShares(Uint128Pair memory frac, uint256 assets) public pure returns (uint256 shares) {
         shares = assets.mulDiv(frac.shares, frac.assets);
     }
 
-    function convertToAssets(Fraction memory frac, uint256 shares) public pure returns (uint256 assets) {
+    function convertToAssets(Uint128Pair memory frac, uint256 shares) public pure returns (uint256 assets) {
         assets = shares.mulDiv(frac.assets, frac.shares);
     }
 
@@ -92,13 +111,13 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
                           Lending Functionality
     //////////////////////////////////////////////////////////////*/
     function deposit(uint256 poolId, uint256 assets, address receiver) public returns (uint256 shares) {
-        PoolData storage pool = poolData[poolId];
+        PoolData storage pool = poolDataFor[poolId];
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
 
         // Check for rounding error since we round down in previewDeposit.
-        require((shares = convertToShares(pool.assets, assets)) != 0, "ZERO_SHARES");
+        require((shares = convertToShares(pool.totalAssets, assets)) != 0, "ZERO_SHARES");
 
         // Need to transfer before minting or ERC777s could reenter.
         IERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
@@ -109,7 +128,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     }
 
     function redeem(uint256 poolId, uint256 shares, address receiver, address owner) public returns (uint256 assets) {
-        PoolData storage pool = poolData[poolId];
+        PoolData storage pool = poolDataFor[poolId];
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
@@ -120,7 +139,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
         }
 
         // Check for rounding error since we round down in previewRedeem.
-        require((assets = convertToAssets(pool.assets, shares)) != 0, "ZERO_ASSETS");
+        require((assets = convertToAssets(pool.totalAssets, shares)) != 0, "ZERO_ASSETS");
 
         _burn(owner, poolId, shares);
 
@@ -134,31 +153,35 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     //////////////////////////////////////////////////////////////*/
 
     function accrue(uint256 id) external {
-        PoolData storage pool = poolData[id];
+        PoolData storage pool = poolDataFor[id];
         accrue(pool, id);
     }
 
     /// @notice update pool state to accrue interest since the last time accrue() was called
     function accrue(PoolData storage pool, uint256 id) internal {
-        uint256 interestAccrued =
-            IRateModel(pool.rateModel).interestAccrued(pool.lastUpdated, pool.borrows.assets, pool.assets.assets);
+        uint256 interestAccrued = IRateModel(pool.rateModel).interestAccrued(
+            pool.lastUpdated, pool.totalBorrows.assets, pool.totalAssets.assets
+        );
 
         if (interestAccrued != 0) {
             // [ROUND] floor fees in favor of pool lenders
             uint256 feeAssets = interestAccrued.mulDiv(pool.interestFee, 1e18);
 
             // totalAssets() - feeAssets
-            uint256 totalAssetExFees = pool.assets.assets + interestAccrued - feeAssets;
+            uint256 totalAssetExFees = pool.totalAssets.assets + interestAccrued - feeAssets;
 
             // [ROUND] round down in favor of pool lenders
-            uint256 feeShares = feeAssets.mulDiv(pool.assets.shares, totalAssetExFees + 1);
+            uint256 feeShares = feeAssets.mulDiv(pool.totalAssets.shares, totalAssetExFees + 1);
 
             _mint(FEE_ADMIN, id, feeShares);
         }
 
         // update cached notional borrows to current borrow amount
-        pool.borrows.assets += uint128(interestAccrued);
+        pool.totalBorrows.assets += uint128(interestAccrued);
 
+        // store a timestamp for this accrue() call
+        // used to compute the pending interest next time accrue() is called
+        pool.lastUpdated = uint128(block.timestamp);
         // store a timestamp for this accrue() call
         // used to compute the pending interest next time accrue() is called
         pool.lastUpdated = uint128(block.timestamp);
@@ -167,14 +190,10 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     /// @notice mint borrow shares and send borrowed assets to the borrowing position
     /// @dev only callable by the position manager
     /// @param position the position to mint shares to
-    /// @param to the address to send the borrowed assets to
     /// @param amt the amount of assets to borrow, denominated in notional asset units
     /// @return borrowShares the amount of shares minted
-    function borrow(uint256 poolId, uint256 position, address to, uint256 amt)
-        external
-        returns (uint256 borrowShares)
-    {
-        PoolData storage pool = poolData[poolId];
+    function borrow(uint256 poolId, address position, uint256 amt) external returns (uint256 borrowShares) {
+        PoolData storage pool = poolDataFor[poolId];
 
         // revert if the caller is not the position manager
         if (msg.sender != positionManager) revert Pool_OnlyPositionManager(address(this), msg.sender);
@@ -184,17 +203,17 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
 
         // compute borrow shares equivalant for notional borrow amt
         // [ROUND] round up shares minted, to ensure they capture the borrowed amount
-        borrowShares = convertToShares(pool.borrows, amt);
+        borrowShares = convertToShares(pool.totalBorrows, amt);
 
         // revert if borrow amt is too small
         if (borrowShares == 0) revert Pool_ZeroSharesBorrow(address(this), amt);
 
         // update total pool debt, denominated in notional asset units and shares
-        pool.borrows.assets += uint128(amt);
-        pool.borrows.shares += uint128(borrowShares);
+        pool.totalBorrows.assets += uint128(amt);
+        pool.totalBorrows.shares += uint128(borrowShares);
 
         // update position debt, denominated in borrow shares
-        pool.borrowSharesOf[position] += borrowShares;
+        borrowSharesOf[poolId][position] += borrowShares;
 
         // compute origination fee amt
         // [ROUND] origination fee is rounded down, in favor of the borrower
@@ -205,7 +224,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
         IERC20(asset).safeTransfer(FEE_ADMIN, fee);
 
         // send borrowed assets to position
-        IERC20(asset).safeTransfer(to, amt - fee);
+        IERC20(asset).safeTransfer(position, amt - fee);
 
         emit Borrow(position, asset, amt);
     }
@@ -215,8 +234,8 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     /// @param position the position for which debt is being repaid
     /// @param amt the notional amount of debt asset repaid
     /// @return remainingShares remaining debt in borrow shares owed by the position
-    function repay(uint256 poolId, uint256 position, uint256 amt) external returns (uint256 remainingShares) {
-        PoolData storage pool = poolData[poolId];
+    function repay(uint256 poolId, address position, uint256 amt) external returns (uint256 remainingShares) {
+        PoolData storage pool = poolDataFor[poolId];
         // the only way to call repay() is through the position manager
         // PositionManager.repay() MUST transfer the assets to be repaid before calling Pool.repay()
         // this function assumes the transfer of assets was completed successfully
@@ -232,18 +251,27 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
 
         // compute borrow shares equivalent to notional asset amt
         // [ROUND] burn fewer borrow shares, to ensure excess debt isn't pushed to others
-        uint256 borrowShares = convertToShares(pool.borrows, amt);
+        uint256 borrowShares = convertToShares(pool.totalBorrows, amt);
 
         // revert if repaid amt is too small
         if (borrowShares == 0) revert Pool_ZeroSharesRepay(address(this), amt);
 
         // update total pool debt, denominated in notional asset units, and shares
-        pool.borrows.assets -= uint128(amt);
-        pool.borrows.shares -= uint128(borrowShares);
+        pool.totalBorrows.assets -= uint128(amt);
+        pool.totalBorrows.shares -= uint128(borrowShares);
 
         emit Repay(position, pool.asset, amt);
 
         // return the remaining position debt, denominated in borrow shares
-        return (pool.borrowSharesOf[position] -= borrowShares);
+        return (borrowSharesOf[poolId][position] -= borrowShares);
+    }
+
+    function initializePool(address owner, bytes32 salt, PoolData calldata poolData) external {
+        uint256 poolId = uint256(keccak256(abi.encodePacked(owner, salt)));
+        if (ownerOf[poolId] != address(0)) revert Pool_PoolAlreadyInitialized(poolId);
+        ownerOf[poolId] = owner;
+        poolDataFor[poolId] = poolData;
+
+        emit PoolInitialized(owner, poolId, poolData);
     }
 }

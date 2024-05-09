@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {Pool} from "../Pool.sol";
+
 interface IPool {
-        /*//////////////////////////////////////////////////////////////
+    /*//////////////////////////////////////////////////////////////
                                 Events
     //////////////////////////////////////////////////////////////*/
 
@@ -10,13 +12,13 @@ interface IPool {
     /// @param position address to position for which debt was repaid
     /// @param asset debt asset for this pool
     /// @param amount amount of debt repaid, in debt asset units
-    event Repay(uint256 indexed position, address indexed asset, uint256 amount);
+    event Repay(address indexed position, address indexed asset, uint256 amount);
 
     /// @dev emitted on borrow()
     /// @param position address to position which borrowed funds
     /// @param asset debt asset for this pool
     /// @param amount amount of funds borrowed, in debt asset units
-    event Borrow(uint256 indexed position, address indexed asset, uint256 amount);
+    event Borrow(address indexed position, address indexed asset, uint256 amount);
 
     event PoolCapSet(uint256 poolCap);
 
@@ -33,10 +35,8 @@ interface IPool {
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
 
     event Withdraw(
-        address indexed caller,
-        address indexed receiver,
-        address indexed owner,
-        uint256 assets,
-        uint256 shares
+        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
+
+    event PoolInitialized(address indexed owner, uint256 indexed poolId, Pool.PoolData poolData);
 }

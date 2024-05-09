@@ -5,7 +5,7 @@ import {SuperPool} from "src/SuperPool.sol";
 import {BaseScript} from "../BaseScript.s.sol";
 
 contract SetPoolCap is BaseScript {
-    address pool;
+    uint256 poolId;
     uint256 poolCap;
     SuperPool superPool;
 
@@ -13,13 +13,13 @@ contract SetPoolCap is BaseScript {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        superPool.setPoolCap(pool, poolCap);
+        superPool.setPoolCap(poolId, poolCap);
     }
 
     function getParams() internal {
         string memory config = getConfig();
 
-        pool = vm.parseJsonAddress(config, "$.SetPoolCap.pool");
+        poolId = vm.parseJsonUint(config, "$.SetPoolCap.pool");
         poolCap = vm.parseJsonUint(config, "$.SetPoolCap.poolCap");
         superPool = SuperPool(vm.parseJsonAddress(config, "$.SetPoolCap.superPool"));
     }

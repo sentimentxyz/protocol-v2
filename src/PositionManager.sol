@@ -8,7 +8,6 @@ pragma solidity ^0.8.24;
 // types
 import {Pool} from "./Pool.sol";
 import {RiskEngine} from "./RiskEngine.sol";
-import {PoolFactory} from "./PoolFactory.sol";
 import {IPosition} from "./interfaces/IPosition.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
@@ -44,9 +43,9 @@ event Liquidation(address indexed position, address indexed liquidator, address 
 
 event PositionDeployed(address indexed position, address indexed caller, address indexed owner);
 
-event Repay(address indexed position, address indexed caller, address indexed pool, uint256 amount);
+event Repay(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
 
-event Borrow(address indexed position, address indexed caller, address indexed pool, uint256 amount);
+event Borrow(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
 
 event Exec(address indexed position, address indexed caller, address indexed target, bytes4 functionSelector);
 
@@ -62,8 +61,8 @@ event Deposit(address indexed position, address indexed depositor, address asset
 
 // data for position debt to be repaid by the liquidator
 struct DebtData {
-    // pool address for debt to be repaid
-    address pool;
+    // poolId address for debt to be repaid
+    uint256 poolId;
     // debt asset for pool, utility param to avoid calling pool.asset()
     address asset;
     // amount of debt to be repaid by the liqudiator
@@ -116,9 +115,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
                                Storage
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice pool factory address
-    /// @dev helps verify if a given pool was created by the pool factory
-    PoolFactory public poolFactory;
+    Pool public pool;
 
     /// @notice risk engine address
     /// @dev used to check if a given position breaches risk thresholds
@@ -149,7 +146,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /*//////////////////////////////////////////////////////////////
                                 Errors
     //////////////////////////////////////////////////////////////*/
-    error PositionManager_UnknownPool(address pool);
+    error PositionManager_UnknownPool(uint256 poolId);
     error PositionManager_UnknownSpender(address spender);
     error PositionManager_UnknownContract(address target);
     error PositionManager_UnknownOperation(uint256 operation);
@@ -171,12 +168,11 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         _disableInitializers();
     }
 
-    function initialize(address _poolFactory, address _riskEngine, uint256 _liquidationFee) public initializer {
+    function initialize(address _riskEngine, uint256 _liquidationFee) public initializer {
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         OwnableUpgradeable.__Ownable_init(msg.sender);
         PausableUpgradeable.__Pausable_init();
 
-        poolFactory = PoolFactory(_poolFactory);
         riskEngine = RiskEngine(_riskEngine);
         liquidationFee = _liquidationFee;
     }
@@ -326,46 +322,46 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @dev to repay the entire debt set _amt to uint.max
     function repay(address position, bytes calldata data) internal {
-        // pool -> address of the pool that recieves the repaid debt
+        // poolId -> pool that recieves the repaid debt
         // amt -> notional amount to be repaid
 
-        (address pool, uint256 _amt) = abi.decode(data, (address, uint256));
+        (uint256 poolId, uint256 _amt) = abi.decode(data, (uint256, uint256));
         // if the passed amt is type(uint).max assume repayment of the entire debt
-        uint256 amt = (_amt == type(uint256).max) ? Pool(pool).getBorrowsOf(position) : _amt;
+        uint256 amt = (_amt == type(uint256).max) ? pool.getBorrowsOf(poolId, position) : _amt;
 
         // signals repayment to the position without making any changes in the pool
         // since every position is structured differently
         // we assume that any checks needed to validate repayment are implemented in the position
-        IPosition(position).repay(pool, amt);
+        IPosition(position).repay(poolId, amt);
 
         // transfer assets to be repaid from the position to the given pool
-        IPosition(position).transfer(pool, Pool(pool).asset(), amt);
+        IPosition(position).transfer(address(pool), pool.getPoolAssetFor(poolId), amt);
 
         // trigger pool repayment which assumes successful transfer of repaid assets
-        Pool(pool).repay(position, amt);
+        pool.repay(poolId, position, amt);
 
-        emit Repay(position, msg.sender, pool, amt);
+        emit Repay(position, msg.sender, poolId, amt);
     }
 
     function borrow(address position, bytes calldata data) internal whenNotPaused {
         // decode data
-        // pool -> pool to borrow from
+        // poolId -> pool to borrow from
         // amt -> notional amount to be borrowed
-        (address pool, uint256 amt) = abi.decode(data, (address, uint256));
+        (uint256 poolId, uint256 amt) = abi.decode(data, (uint256, uint256));
 
         // revert if the given pool was not deployed by the protocol pool factory
-        if (poolFactory.deployerFor(pool) == address(0)) revert PositionManager_UnknownPool(pool);
+        if (pool.ownerOf(poolId) == address(0)) revert PositionManager_UnknownPool(poolId);
 
         // signals a borrow operation without any actual transfer of borrowed assets
         // since every position type is structured differently
         // we assume that the position implements any checks needed to validate the borrow
-        IPosition(position).borrow(pool, amt);
+        IPosition(position).borrow(poolId, amt);
 
         // transfer borrowed assets from given pool to position
         // trigger pool borrow and increase debt owed by the position
-        Pool(pool).borrow(position, amt);
+        pool.borrow(poolId, position, amt);
 
-        emit Borrow(position, msg.sender, pool, amt);
+        emit Borrow(position, msg.sender, poolId, amt);
     }
 
     function addAsset(address position, bytes calldata data) internal whenNotPaused {
@@ -405,18 +401,18 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // assumes the position manager is approved to pull assets from the liquidator
         for (uint256 i; i < debt.length; ++i) {
             // verify that the asset being repaid is actually the pool asset
-            if (debt[i].asset != Pool(debt[i].pool).asset()) {
-                revert PositionManager_InvalidDebtData(debt[i].asset, Pool(debt[i].pool).asset());
+            if (debt[i].asset != pool.getPoolAssetFor(debt[i].poolId)) {
+                revert PositionManager_InvalidDebtData(debt[i].asset, pool.getPoolAssetFor(debt[i].poolId));
             }
 
             // update position to reflect repayment of debt by liquidator
-            IPosition(position).repay(debt[i].pool, debt[i].amt);
+            IPosition(position).repay(debt[i].poolId, debt[i].amt);
 
             // transfer debt asset from the liquidator to the pool
-            IERC20(debt[i].asset).transferFrom(msg.sender, debt[i].pool, debt[i].amt);
+            IERC20(debt[i].asset).transferFrom(msg.sender, address(pool), debt[i].amt);
 
             // trigger pool repayment which assumes successful transfer of repaid assets
-            Pool(debt[i].pool).repay(position, debt[i].amt);
+            pool.repay(debt[i].poolId, position, debt[i].amt);
         }
 
         // transfer position assets to the liqudiator and accrue protocol liquidation fees
@@ -456,14 +452,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         riskEngine = RiskEngine(_riskEngine);
 
         emit RiskEngineSet(_riskEngine);
-    }
-
-    /// @notice update the pool factory address
-    /// @dev only callable by the position manager owner
-    function setPoolFactory(address _poolFactory) external onlyOwner {
-        poolFactory = PoolFactory(_poolFactory);
-
-        emit PoolFactorySet(_poolFactory);
     }
 
     /// @notice update the protocol liqudiation fee

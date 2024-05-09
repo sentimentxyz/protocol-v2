@@ -13,7 +13,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 // contracts
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-abstract contract BasePosition is IPosition {
+abstract contract BasePosition {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////

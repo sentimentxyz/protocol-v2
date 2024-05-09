@@ -82,6 +82,14 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
                         Public View Functions
     //////////////////////////////////////////////////////////////*/
 
+    function getAssetsOf(uint256 poolId, address guy) public view returns (uint256) {}
+
+    function getBorrowsOf(uint256 poolId, address position) public view returns (uint256) {}
+
+    function getPoolAssetFor(uint256 poolId) public view returns (address) {
+        return poolDataFor[poolId].asset;
+    }
+
     function convertToShares(Uint128Pair memory frac, uint256 assets) public pure returns (uint256 shares) {
         shares = assets.mulDiv(frac.shares, frac.assets);
     }
@@ -170,13 +178,9 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     /// @notice mint borrow shares and send borrowed assets to the borrowing position
     /// @dev only callable by the position manager
     /// @param position the position to mint shares to
-    /// @param to the address to send the borrowed assets to
     /// @param amt the amount of assets to borrow, denominated in notional asset units
     /// @return borrowShares the amount of shares minted
-    function borrow(uint256 poolId, address position, address to, uint256 amt)
-        external
-        returns (uint256 borrowShares)
-    {
+    function borrow(uint256 poolId, address position, uint256 amt) external returns (uint256 borrowShares) {
         PoolData storage pool = poolDataFor[poolId];
 
         // revert if the caller is not the position manager
@@ -208,7 +212,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
         IERC20(asset).safeTransfer(FEE_ADMIN, fee);
 
         // send borrowed assets to position
-        IERC20(asset).safeTransfer(to, amt - fee);
+        IERC20(asset).safeTransfer(position, amt - fee);
 
         emit Borrow(position, asset, amt);
     }

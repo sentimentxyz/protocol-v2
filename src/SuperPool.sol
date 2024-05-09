@@ -8,6 +8,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
 import {IterableSet} from "./lib/IterableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 //contracts
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -17,6 +18,7 @@ import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC2
 // inspired by yearn v3 and metamorpho vaults
 contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
     using Math for uint256;
+    using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
                                Storage
@@ -25,15 +27,17 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     uint256 constant WAD = 1e18;
     uint256 public constant MAX_QUEUE_LENGTH = 8;
 
-    address public feeRecipient;
+    Pool public pool;
 
     uint256 public fee;
+    address public feeRecipient;
+
     uint256 public superPoolCap;
     uint256 public lastTotalAssets;
 
-    address[] public depositQueue;
-    address[] public withdrawQueue;
-    mapping(address pool => uint256 cap) public poolCap;
+    uint256[] public depositQueue;
+    uint256[] public withdrawQueue;
+    mapping(uint256 poolId => uint256 cap) public poolCap;
 
     mapping(address => bool) isAllocator;
 
@@ -41,10 +45,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                                 Event
     //////////////////////////////////////////////////////////////*/
 
-    event PoolAdded(address pool);
-    event PoolRemoved(address pool);
+    event PoolAdded(uint256 poolId);
+    event PoolRemoved(uint256 poolId);
     event SuperPoolFeeUpdated(uint256 fee);
-    event PoolCapSet(address pool, uint256 cap);
+    event PoolCapSet(uint256 poolId, uint256 cap);
     event SuperPoolCapUpdated(uint256 superPoolCap);
     event SuperPoolFeeRecipientUpdated(address feeRecipient);
     event AllocatorUpdated(address allocator, bool isAllocator);
@@ -59,8 +63,8 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     error SuperPool_NotEnoughLiquidity(address superPool);
     error SuperPool_QueueLengthMismatch(address superPool);
     error SuperPool_MaxQueueLengthReached(address superPool);
-    error SuperPool_PoolAssetMismatch(address superPool, address pool);
-    error SuperPool_NonZeroPoolBalance(address superPool, address pool);
+    error SuperPool_PoolAssetMismatch(address superPool, uint256 poolId);
+    error SuperPool_NonZeroPoolBalance(address superPool, uint256 poolId);
     error SuperPool_OnlyAllocatorOrOwner(address superPool, address sender);
 
     /*//////////////////////////////////////////////////////////////
@@ -93,7 +97,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                                External
     //////////////////////////////////////////////////////////////*/
 
-    function pools() external view returns (address[] memory) {
+    function pools() external view returns (uint256[] memory) {
         return depositQueue;
     }
 
@@ -119,8 +123,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         uint256 assets = IERC20(ERC4626Upgradeable.asset()).balanceOf(address(this));
 
         for (uint256 i; i < depositQueue.length; ++i) {
-            IERC4626 pool = IERC4626(depositQueue[i]);
-            assets += pool.previewRedeem(pool.balanceOf(address(this)));
+            assets += pool.getAssetsOf(depositQueue[i], address(this));
         }
 
         return assets;
@@ -183,16 +186,16 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                               Only Owner
     //////////////////////////////////////////////////////////////*/
 
-    function setPoolCap(address pool, uint256 cap) external onlyOwner {
+    function setPoolCap(uint256 poolId, uint256 cap) external onlyOwner {
         // add new pool
-        if (poolCap[pool] == 0 && cap != 0) _addPool(pool);
+        if (poolCap[poolId] == 0 && cap != 0) _addPool(poolId);
         // remove existing pool
-        else if (poolCap[pool] != 0 && cap == 0) _removePool(pool);
+        else if (poolCap[poolId] != 0 && cap == 0) _removePool(poolId);
         // modify pool cap: if the cap is below the assets in the pool, it becomes withdraw-only
-        else if (poolCap[pool] != 0 && cap != 0) poolCap[pool] = cap;
+        else if (poolCap[poolId] != 0 && cap != 0) poolCap[poolId] = cap;
         else return; // handle pool == 0 && cap == 0
 
-        emit PoolCapSet(pool, cap);
+        emit PoolCapSet(poolId, cap);
     }
 
     function reorderDepositQueue(uint256[] calldata indexes) external onlyOwner {
@@ -287,18 +290,18 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
     function _supplyToPools(uint256 assets) internal {
         for (uint256 i; i < depositQueue.length; ++i) {
-            IERC4626 pool = IERC4626(depositQueue[i]);
-            uint256 assetsInPool = pool.previewRedeem(pool.balanceOf(address(this)));
+            uint256 poolId = depositQueue[i];
+            uint256 assetsInPool = pool.getAssetsOf(poolId, address(this));
 
-            if (assetsInPool < poolCap[address(pool)]) {
-                uint256 supplyAmt = poolCap[address(pool)] - assetsInPool;
+            if (assetsInPool < poolCap[poolId]) {
+                uint256 supplyAmt = poolCap[poolId] - assetsInPool;
                 if (assets < supplyAmt) supplyAmt = assets;
-                pool.approve(address(pool), supplyAmt);
+                IERC20(asset()).forceApprove(address(pool), supplyAmt);
 
-                try pool.deposit(supplyAmt, address(this)) {
+                try pool.deposit(poolId, supplyAmt, address(this)) {
                     assets -= supplyAmt;
                 } catch {
-                    pool.approve(address(pool), 0);
+                    IERC20(asset()).forceApprove(address(pool), 0);
                 }
 
                 if (assets == 0) return;
@@ -314,16 +317,17 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         else assets -= assetsInSuperpool;
 
         for (uint256 i; i < withdrawQueue.length; ++i) {
-            IERC4626 pool = IERC4626(withdrawQueue[i]);
-            uint256 assetsInPool = pool.previewRedeem(pool.balanceOf(address(this)));
+            uint256 poolId = withdrawQueue[i];
+            uint256 assetsInPool = pool.getAssetsOf(poolId, address(this));
 
             if (assetsInPool > 0) {
                 uint256 withdrawAmt = (assetsInPool < assets) ? assetsInPool : assets;
 
                 if (withdrawAmt > 0) {
-                    try pool.withdraw(withdrawAmt, address(this), address(this)) {
-                        assets -= withdrawAmt;
-                    } catch {}
+                    // TODO
+                    // try pool.withdraw(withdrawAmt, address(this), address(this)) {
+                    //     assets -= withdrawAmt;
+                    // } catch {}
                 }
 
                 if (assets == 0) return;
@@ -332,32 +336,32 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         if (assets != 0) revert SuperPool_NotEnoughLiquidity(address(this));
     }
 
-    function _addPool(address pool) internal {
-        if (Pool(pool).asset() != asset()) revert SuperPool_PoolAssetMismatch(address(this), pool);
+    function _addPool(uint256 poolId) internal {
+        if (pool.getPoolAssetFor(poolId) != asset()) revert SuperPool_PoolAssetMismatch(address(this), poolId);
         if (depositQueue.length == MAX_QUEUE_LENGTH) revert SuperPool_MaxQueueLengthReached(address(this));
 
-        depositQueue.push(pool);
-        withdrawQueue.push(pool);
+        depositQueue.push(poolId);
+        withdrawQueue.push(poolId);
     }
 
-    function _removePool(address pool) internal onlyOwner {
-        if (IERC4626(pool).balanceOf(address(this)) != 0) revert SuperPool_NonZeroPoolBalance(address(this), pool);
+    function _removePool(uint256 poolId) internal onlyOwner {
+        if (pool.getAssetsOf(poolId, address(this)) != 0) revert SuperPool_NonZeroPoolBalance(address(this), poolId);
 
         // gas intensive ops that shift the entire array to preserve order
-        _removeFromQueue(depositQueue, pool);
-        _removeFromQueue(withdrawQueue, pool);
+        _removeFromQueue(depositQueue, poolId);
+        _removeFromQueue(withdrawQueue, poolId);
 
-        emit PoolRemoved(pool);
+        emit PoolRemoved(poolId);
     }
 
-    function _reorderQueue(address[] storage queue, uint256[] calldata indexes)
+    function _reorderQueue(uint256[] storage queue, uint256[] calldata indexes)
         internal
         view
-        returns (address[] memory)
+        returns (uint256[] memory)
     {
         bool[] memory seen = new bool[](indexes.length);
 
-        address[] memory newQueue;
+        uint256[] memory newQueue;
 
         for (uint256 i; i < indexes.length; ++i) {
             if (seen[indexes[i]]) revert SuperPool_InvalidQueue(address(this));
@@ -372,10 +376,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         return newQueue;
     }
 
-    function _removeFromQueue(address[] storage queue, address pool) internal {
+    function _removeFromQueue(uint256[] storage queue, uint256 poolId) internal {
         uint256 toRemoveIdx;
         for (uint256 i; i < queue.length; ++i) {
-            if (queue[i] == pool) {
+            if (queue[i] == poolId) {
                 toRemoveIdx = i;
                 break;
             }

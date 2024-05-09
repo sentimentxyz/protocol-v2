@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {Pool} from "../Pool.sol";
+
 interface IPool {
     /*//////////////////////////////////////////////////////////////
                                 Events
@@ -36,5 +38,5 @@ interface IPool {
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
-    event PoolInitialized(address indexed owner, uint256 poolId, PoolData poolData);
+    event PoolInitialized(address indexed owner, uint256 indexed poolId, Pool.PoolData poolData);
 }

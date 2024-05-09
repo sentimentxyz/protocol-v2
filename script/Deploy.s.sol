@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 import {Pool} from "src/Pool.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
-import {PoolFactory} from "src/PoolFactory.sol";
 import {IPosition} from "src/interfaces/IPosition.sol";
 import {PositionManager} from "src/PositionManager.sol";
 import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
@@ -62,8 +61,6 @@ contract Deploy is BaseScript {
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         positionManagerImpl = address(new PositionManager());
         positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0)));
-
-        poolFactory = address(new PoolFactory(params.owner, positionManager, params.feeAdmin));
 
         riskEngineImpl = address(new RiskEngine());
         riskEngine = address(new TransparentUpgradeableProxy(riskEngineImpl, params.owner, new bytes(0)));

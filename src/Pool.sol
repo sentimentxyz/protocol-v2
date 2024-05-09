@@ -6,6 +6,7 @@ import {IRateModel} from "./interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IPool} from "./interfaces/IPool.sol";
+import {IPool} from "./interfaces/IPool.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -178,6 +179,9 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
         // update cached notional borrows to current borrow amount
         pool.totalBorrows.assets += uint128(interestAccrued);
 
+        // store a timestamp for this accrue() call
+        // used to compute the pending interest next time accrue() is called
+        pool.lastUpdated = uint128(block.timestamp);
         // store a timestamp for this accrue() call
         // used to compute the pending interest next time accrue() is called
         pool.lastUpdated = uint128(block.timestamp);

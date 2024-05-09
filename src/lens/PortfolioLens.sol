@@ -22,14 +22,16 @@ contract PortfolioLens {
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
-    PositionManager immutable POSITION_MANAGER;
+    Pool public immutable POOL;
+    PositionManager public immutable POSITION_MANAGER;
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address positionManager) {
-        POSITION_MANAGER = PositionManager(positionManager);
+    constructor(address pool_, address positionManager_) {
+        POOL = Pool(pool_);
+        POSITION_MANAGER = PositionManager(positionManager_);
     }
     /*//////////////////////////////////////////////////////////////
                              Data Structs
@@ -41,7 +43,7 @@ contract PortfolioLens {
     }
 
     struct DebtData {
-        address pool;
+        uint256 poolId;
         address asset;
         uint256 amount;
         uint256 interestRate;
@@ -93,20 +95,19 @@ contract PortfolioLens {
     }
 
     function getDebtData(address position) public view returns (DebtData[] memory) {
-        address[] memory debtPools = IPosition(position).getDebtPools();
+        uint256[] memory debtPools = IPosition(position).getDebtPools();
         DebtData[] memory debtData = new DebtData[](debtPools.length);
 
         for (uint256 i; i < debtPools.length; ++i) {
-            Pool debtPool = Pool(debtPools[i]);
-            address debtAsset = debtPool.asset();
-            uint256 borrows = debtPool.getTotalBorrows();
-            uint256 idleAmt = IERC20(debtAsset).balanceOf(debtPools[i]);
+            uint256 poolId = debtPools[i];
+            uint256 borrows = POOL.getTotalBorrows(poolId);
+            uint256 idleAmt; // TODO
 
             DebtData({
-                pool: debtPools[i],
-                asset: debtAsset,
-                amount: debtPool.getBorrowsOf(position),
-                interestRate: debtPool.rateModel().getInterestRate(borrows, idleAmt)
+                poolId: poolId,
+                asset: POOL.getPoolAssetFor(poolId),
+                amount: POOL.getBorrowsOf(poolId, position),
+                interestRate: IRateModel(POOL.getRateModelFor(poolId)).getInterestRate(borrows, idleAmt)
             });
         }
 

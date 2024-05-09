@@ -10,24 +10,27 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 contract Position {
     using SafeERC20 for IERC20;
-    using IterableSet for IterableSet.IterableSetStorage;
+    using IterableSet for IterableSet.AddressSet;
+    using IterableSet for IterableSet.Uint256Set;
 
     uint256 public constant VERSION = 1;
 
     uint256 public constant MAX_ASSETS = 5;
     uint256 public constant MAX_DEBT_POOLS = 5;
 
+    Pool public immutable POOL;
     address public immutable POSITION_MANAGER;
 
-    IterableSet.IterableSetStorage internal debtPools;
-    IterableSet.IterableSetStorage internal positionAssets;
+    IterableSet.Uint256Set internal debtPools;
+    IterableSet.AddressSet internal positionAssets;
 
     error Position_MaxAssetsExceeded(address position);
     error Position_MaxDebtPoolsExceeded(address position);
     error Position_ExecFailed(address position, address target);
     error Position_OnlyPositionManager(address position, address sender);
 
-    constructor(address positionManager_) {
+    constructor(address pool_, address positionManager_) {
+        POOL = Pool(pool_);
         POSITION_MANAGER = positionManager_;
     }
 
@@ -36,7 +39,7 @@ contract Position {
         _;
     }
 
-    function getDebtPools() external view returns (address[] memory) {
+    function getDebtPools() external view returns (uint256[] memory) {
         return debtPools.getElements();
     }
 
@@ -77,12 +80,12 @@ contract Position {
         positionAssets.remove(asset);
     }
 
-    function borrow(address pool, uint256) external onlyPositionManager {
-        debtPools.insert(pool);
+    function borrow(uint256 poolId, uint256) external onlyPositionManager {
+        debtPools.insert(poolId);
         if (debtPools.length() > MAX_DEBT_POOLS) revert Position_MaxDebtPoolsExceeded(address(this));
     }
 
-    function repay(address pool, uint256) external onlyPositionManager {
-        if (Pool(pool).getBorrowsOf(address(this)) == 0) debtPools.remove(pool);
+    function repay(uint256 poolId, uint256) external onlyPositionManager {
+        if (POOL.getBorrowsOf(poolId, address(this)) == 0) debtPools.remove(poolId);
     }
 }

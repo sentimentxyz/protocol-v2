@@ -7,8 +7,8 @@ pragma solidity ^0.8.24;
 
 // types
 import {Pool} from "../Pool.sol";
+import {Position} from "../Position.sol";
 import {PositionManager} from "../PositionManager.sol";
-import {IPosition} from "src/interfaces/IPosition.sol";
 import {IRateModel} from "src/interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // contracts
@@ -84,7 +84,7 @@ contract PortfolioLens {
     }
 
     function getAssetData(address position) public view returns (AssetData[] memory) {
-        address[] memory assets = IPosition(position).getAssets();
+        address[] memory assets = Position(position).getPositionAssets();
         AssetData[] memory assetData = new AssetData[](assets.length);
 
         for (uint256 i; i < assets.length; ++i) {
@@ -95,7 +95,7 @@ contract PortfolioLens {
     }
 
     function getDebtData(address position) public view returns (DebtData[] memory) {
-        uint256[] memory debtPools = IPosition(position).getDebtPools();
+        uint256[] memory debtPools = Position(position).getDebtPools();
         DebtData[] memory debtData = new DebtData[](debtPools.length);
 
         for (uint256 i; i < debtPools.length; ++i) {

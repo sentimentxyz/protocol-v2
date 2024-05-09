@@ -15,18 +15,23 @@ contract RiskModule {
     using Math for uint256;
 
     uint256 public constant VERSION = 1;
+
     uint256 public immutable MIN_DEBT;
-    RiskEngine public immutable RISK_ENGINE;
     uint256 public immutable LIQUIDATION_DISCOUNT;
+
+    Pool public immutable POOL;
+    RiskEngine public immutable RISK_ENGINE;
 
     error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
     error RiskModule_DebtTooLow(address position);
     error RiskModule_ZeroAssetsWithDebt(address position);
 
-    constructor(uint256 minDebt_, address riskEngine_, uint256 liquidationDiscount_) {
+    constructor(uint256 minDebt_, uint256 liquidationDiscount_, address pool_, address riskEngine_) {
         MIN_DEBT = minDebt_;
-        RISK_ENGINE = RiskEngine(riskEngine_);
         LIQUIDATION_DISCOUNT = liquidationDiscount_;
+
+        POOL = Pool(pool_);
+        RISK_ENGINE = RiskEngine(riskEngine_);
     }
 
     function isPositionHealthy(address position) external view returns (bool) {
@@ -42,7 +47,7 @@ contract RiskModule {
         (uint256 totalAssetValue, address[] memory positionAssets, uint256[] memory positionAssetWeight) =
             _getPositionAssetData(position);
 
-        (uint256 totalDebtValue, address[] memory debtPools, uint256[] memory debtValueForPool) =
+        (uint256 totalDebtValue, uint256[] memory debtPools, uint256[] memory debtValueForPool) =
             _getPositionDebtData(position);
 
         if (totalDebtValue == 0) return (totalAssetValue, 0, 0);
@@ -80,15 +85,14 @@ contract RiskModule {
                           Position Debt Math
     //////////////////////////////////////////////////////////////*/
 
-    function getDebtValueForPool(address position, address debtPool) public view returns (uint256) {
-        Pool pool = Pool(debtPool);
-        address asset = pool.asset();
+    function getDebtValueForPool(address position, uint256 poolId) public view returns (uint256) {
+        address asset = POOL.getPoolAssetFor(poolId);
         IOracle oracle = IOracle(RISK_ENGINE.getOracleFor(asset));
-        return oracle.getValueInEth(asset, pool.getBorrowsOf(position));
+        return oracle.getValueInEth(asset, POOL.getBorrowsOf(poolId, position));
     }
 
     function getTotalDebtValue(address position) public view returns (uint256) {
-        address[] memory debtPools = Position(position).getDebtPools();
+        uint256[] memory debtPools = Position(position).getDebtPools();
 
         uint256 totalDebtValue;
         for (uint256 i; i < debtPools.length; ++i) {
@@ -126,10 +130,10 @@ contract RiskModule {
     function _getPositionDebtData(address position)
         internal
         view
-        returns (uint256, address[] memory, uint256[] memory)
+        returns (uint256, uint256[] memory, uint256[] memory)
     {
         uint256 totalDebtValue;
-        address[] memory debtPools = Position(position).getDebtPools();
+        uint256[] memory debtPools = Position(position).getDebtPools();
         uint256[] memory debtValueForPool = new uint256[](debtPools.length);
         for (uint256 i; i < debtPools.length; ++i) {
             uint256 debt = getDebtValueForPool(position, debtPools[i]);
@@ -166,7 +170,7 @@ contract RiskModule {
     }
 
     function _getCompositeLtvForPool(
-        address[] memory debtPools,
+        uint256[] memory debtPools,
         address[] memory positionAssets,
         uint256[] memory positionAssetWeight
     ) internal view returns (uint256[] memory) {

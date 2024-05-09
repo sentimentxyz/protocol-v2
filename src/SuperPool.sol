@@ -324,10 +324,10 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                 uint256 withdrawAmt = (assetsInPool < assets) ? assetsInPool : assets;
 
                 if (withdrawAmt > 0) {
-                    // TODO
-                    // try pool.withdraw(withdrawAmt, address(this), address(this)) {
-                    //     assets -= withdrawAmt;
-                    // } catch {}
+                    // TODO replace with withdraw logic
+                    try pool.redeem(poolId, 0, address(this), address(this)) {
+                        assets -= withdrawAmt;
+                    } catch {}
                 }
 
                 if (assets == 0) return;

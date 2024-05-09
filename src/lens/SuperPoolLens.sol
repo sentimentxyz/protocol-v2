@@ -8,6 +8,7 @@ pragma solidity ^0.8.24;
 // types
 import {Pool} from "../Pool.sol";
 import {SuperPool} from "../SuperPool.sol";
+import {IRateModel} from "../interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
@@ -34,7 +35,7 @@ contract SuperPoolLens {
     }
 
     struct PoolDepositData {
-        address pool;
+        uint256 poolId;
         address asset;
         uint256 amount;
         uint256 interestRate;
@@ -53,13 +54,19 @@ contract SuperPoolLens {
         uint256 interestRate;
     }
 
+    Pool public immutable POOL;
+
+    constructor(address pool_) {
+        POOL = Pool(pool_);
+    }
+
     /*//////////////////////////////////////////////////////////////
                             SuperPool View
     //////////////////////////////////////////////////////////////*/
 
     function getSuperPoolData(address _superPool) external view returns (SuperPoolData memory) {
         SuperPool superPool = SuperPool(_superPool);
-        address[] memory pools = superPool.pools();
+        uint256[] memory pools = superPool.pools();
 
         PoolDepositData[] memory deposits = new PoolDepositData[](pools.length);
         for (uint256 i; i < pools.length; ++i) {
@@ -78,15 +85,14 @@ contract SuperPoolLens {
         });
     }
 
-    function getPoolDepositData(address superPool, address _pool) public view returns (PoolDepositData memory) {
-        Pool pool = Pool(_pool);
-        address asset = pool.asset();
+    function getPoolDepositData(address superPool, uint256 _poolId) public view returns (PoolDepositData memory) {
+        address asset = POOL.getPoolAssetFor(_poolId);
 
         return PoolDepositData({
-            pool: _pool,
+            poolId: _poolId,
             asset: asset,
-            interestRate: getPoolInterestRate(_pool),
-            amount: IERC4626(_pool).previewRedeem(IERC20(asset).balanceOf(superPool))
+            interestRate: getPoolInterestRate(_poolId),
+            amount: POOL.getAssetsOf(_poolId, superPool)
         });
     }
 
@@ -140,25 +146,24 @@ contract SuperPoolLens {
                          Interest Rates View
     //////////////////////////////////////////////////////////////*/
 
-    function getPoolInterestRate(address _pool) public view returns (uint256) {
-        Pool pool = Pool(_pool);
-        uint256 borrows = pool.getTotalBorrows();
-        uint256 idleAmt = IERC20(pool.asset()).balanceOf(_pool);
+    function getPoolInterestRate(uint256 _poolId) public view returns (uint256) {
+        uint256 borrows = POOL.getTotalBorrows(_poolId);
+        uint256 idleAmt; // TODO
+        IRateModel irm = IRateModel(POOL.getRateModelFor(_poolId));
 
-        return pool.rateModel().getInterestRate(borrows, idleAmt);
+        return irm.getInterestRate(borrows, idleAmt);
     }
 
     function getSuperPoolInterestRate(address _superPool) public view returns (uint256) {
         SuperPool superPool = SuperPool(_superPool);
-        address asset = superPool.asset();
         uint256 totalAssets = superPool.totalAssets();
 
         if (totalAssets == 0) return 0;
 
         uint256 weightedAssets;
-        address[] memory pools = superPool.pools();
+        uint256[] memory pools = superPool.pools();
         for (uint256 i; i < pools.length; ++i) {
-            uint256 assets = IERC4626(pools[i]).previewRedeem(IERC20(asset).balanceOf(_superPool));
+            uint256 assets = POOL.getAssetsOf(pools[i], _superPool);
             weightedAssets += assets * getPoolInterestRate(pools[i]);
         }
 

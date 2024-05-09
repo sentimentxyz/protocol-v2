@@ -7,7 +7,7 @@ interface IPosition {
     //////////////////////////////////////////////////////////////*/
     function TYPE() external view returns (uint256 positionType);
     function getAssets() external view returns (address[] memory assets);
-    function getDebtPools() external view returns (address[] memory debtPool);
+    function getDebtPools() external view returns (uint256[] memory debtPool);
 
     /*//////////////////////////////////////////////////////////////
                        State Mutating Functions

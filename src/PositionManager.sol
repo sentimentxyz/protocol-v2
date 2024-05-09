@@ -168,7 +168,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         _disableInitializers();
     }
 
-    function initialize(address _poolFactory, address _riskEngine, uint256 _liquidationFee) public initializer {
+    function initialize(address _riskEngine, uint256 _liquidationFee) public initializer {
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         OwnableUpgradeable.__Ownable_init(msg.sender);
         PausableUpgradeable.__Pausable_init();

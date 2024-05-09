@@ -86,6 +86,14 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
 
     function getBorrowsOf(uint256 poolId, address position) public view returns (uint256) {}
 
+    function getTotalBorrows(uint256 poolId) public view returns (uint256) {
+        return poolDataFor[poolId].totalBorrows.assets;
+    }
+
+    function getRateModelFor(uint256 poolId) public view returns (address) {
+        return poolDataFor[poolId].rateModel;
+    }
+
     function getPoolAssetFor(uint256 poolId) public view returns (address) {
         return poolDataFor[poolId].asset;
     }

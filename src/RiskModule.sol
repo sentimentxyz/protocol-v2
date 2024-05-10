@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 // types
 import {Pool} from "./Pool.sol";
 import {Position} from "./Position.sol";
+import {Registry} from "./Registry.sol";
 import {RiskEngine} from "./RiskEngine.sol";
 import {IOracle} from "./interfaces/IOracle.sol";
 import {DebtData, AssetData} from "./PositionManager.sol";
@@ -16,22 +17,33 @@ contract RiskModule {
 
     uint256 public constant VERSION = 1;
 
+    // keccak(SENTIMENT_POOL_KEY)
+    bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
+    // keccak(SENTIMENT_RISK_ENGINE_KEY)
+    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
+        0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
+
     uint256 public immutable MIN_DEBT;
     uint256 public immutable LIQUIDATION_DISCOUNT;
 
-    Pool public immutable POOL;
-    RiskEngine public immutable RISK_ENGINE;
+    Registry public immutable REGISTRY;
+
+    Pool public pool;
+    RiskEngine public riskEngine;
 
     error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
     error RiskModule_DebtTooLow(address position);
     error RiskModule_ZeroAssetsWithDebt(address position);
 
-    constructor(uint256 minDebt_, uint256 liquidationDiscount_, address pool_, address riskEngine_) {
+    constructor(address registry_, uint256 minDebt_, uint256 liquidationDiscount_) {
+        REGISTRY = Registry(registry_);
         MIN_DEBT = minDebt_;
         LIQUIDATION_DISCOUNT = liquidationDiscount_;
+    }
 
-        POOL = Pool(pool_);
-        RISK_ENGINE = RiskEngine(riskEngine_);
+    function updateFromRegistry() external {
+        pool = Pool(REGISTRY.addressFor(SENTIMENT_POOL_KEY));
+        riskEngine = RiskEngine(REGISTRY.addressFor(SENTIMENT_RISK_ENGINE_KEY));
     }
 
     function isPositionHealthy(address position) external view returns (bool) {
@@ -63,13 +75,13 @@ contract RiskModule {
         uint256 debtRepaidValue;
         for (uint256 i; i < debt.length; ++i) {
             // PositionManger.liquidate() verifies that the asset belongs to the associated pool
-            IOracle oracle = IOracle(RISK_ENGINE.getOracleFor(debt[i].asset));
+            IOracle oracle = IOracle(riskEngine.getOracleFor(debt[i].asset));
             debtRepaidValue += oracle.getValueInEth(debt[i].asset, debt[i].amt);
         }
 
         uint256 assetSeizedValue;
         for (uint256 i; i < positionAsset.length; ++i) {
-            IOracle oracle = IOracle(RISK_ENGINE.getOracleFor(positionAsset[i].asset));
+            IOracle oracle = IOracle(riskEngine.getOracleFor(positionAsset[i].asset));
             assetSeizedValue += oracle.getValueInEth(positionAsset[i].asset, positionAsset[i].amt);
         }
 
@@ -86,9 +98,9 @@ contract RiskModule {
     //////////////////////////////////////////////////////////////*/
 
     function getDebtValueForPool(address position, uint256 poolId) public view returns (uint256) {
-        address asset = POOL.getPoolAssetFor(poolId);
-        IOracle oracle = IOracle(RISK_ENGINE.getOracleFor(asset));
-        return oracle.getValueInEth(asset, POOL.getBorrowsOf(poolId, position));
+        address asset = pool.getPoolAssetFor(poolId);
+        IOracle oracle = IOracle(riskEngine.getOracleFor(asset));
+        return oracle.getValueInEth(asset, pool.getBorrowsOf(poolId, position));
     }
 
     function getTotalDebtValue(address position) public view returns (uint256) {
@@ -107,7 +119,7 @@ contract RiskModule {
     //////////////////////////////////////////////////////////////*/
 
     function getAssetValue(address position, address asset) public view returns (uint256) {
-        IOracle oracle = IOracle(RISK_ENGINE.getOracleFor(asset));
+        IOracle oracle = IOracle(riskEngine.getOracleFor(asset));
         uint256 amt = IERC20(asset).balanceOf(position);
         return oracle.getValueInEth(asset, amt);
     }
@@ -181,7 +193,7 @@ contract RiskModule {
             uint256 compositeLtv;
             for (uint256 j; j < positionAssets.length; ++j) {
                 // ltv for given pool-asset pair
-                uint256 ltv = RISK_ENGINE.ltvFor(debtPools[i], positionAssets[j]);
+                uint256 ltv = riskEngine.ltvFor(debtPools[i], positionAssets[j]);
 
                 // the intermediate value has 36 decimals
                 // this will not overflow uint256 due to MAX_ASSETS and MAX_DEBT_POOLS

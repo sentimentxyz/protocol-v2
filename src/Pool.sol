@@ -2,11 +2,11 @@
 pragma solidity ^0.8.24;
 
 // types
+import {Registry} from "./Registry.sol";
+import {IPool} from "./interfaces/IPool.sol";
 import {IRateModel} from "./interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {IPool} from "./interfaces/IPool.sol";
-import {IPool} from "./interfaces/IPool.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -14,7 +14,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ERC6909} from "./lib/ERC6909.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Pool is Ownable(msg.sender), ERC6909, IPool {
+contract Pool is Ownable, ERC6909, IPool {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -23,12 +23,16 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     //////////////////////////////////////////////////////////////*/
 
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
+    // registry key for position manager derived from keccak(SENTIMENT_POSITION_MANAGER_KEY)
+    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
+        0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
 
-    // position manager associated with this pool
-    address immutable positionManager;
+    Registry public immutable REGISTRY;
 
-    // privileged address to modify protocol fees
-    address immutable FEE_ADMIN;
+    // address that receives protocol fees
+    address public feeRecipient;
+
+    address public positionManager;
 
     struct RateModelUpdate {
         address rateModel;
@@ -41,6 +45,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
                                 Errors
     //////////////////////////////////////////////////////////////*/
 
+    error Pool_AlreadyInitialized();
     error Pool_NoRateModelUpdate(address pool);
     error Pool_RateModelUpdateTimelock(address pool);
     error Pool_PoolAlreadyInitialized(uint256 poolId);
@@ -72,11 +77,13 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
     mapping(uint256 poolId => PoolData data) public poolDataFor;
     mapping(uint256 poolId => mapping(address position => uint256 borrowShares)) public borrowSharesOf;
 
-    constructor(address _positionManager, address _feeAdmin) {
-        // stored only once when we deploy the initial implementation
-        // does not need to be update or initialized by clones
-        positionManager = _positionManager;
-        FEE_ADMIN = _feeAdmin;
+    constructor(address registry_, address feeRecipient_) Ownable(msg.sender) {
+        feeRecipient = feeRecipient_;
+        REGISTRY = Registry(registry_);
+    }
+
+    function updateFromRegistry() external {
+        positionManager = REGISTRY.addressFor(SENTIMENT_POSITION_MANAGER_KEY);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -173,7 +180,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
             // [ROUND] round down in favor of pool lenders
             uint256 feeShares = feeAssets.mulDiv(pool.totalAssets.shares, totalAssetExFees + 1);
 
-            _mint(FEE_ADMIN, id, feeShares);
+            _mint(feeRecipient, id, feeShares);
         }
 
         // update cached notional borrows to current borrow amount
@@ -221,7 +228,7 @@ contract Pool is Ownable(msg.sender), ERC6909, IPool {
 
         address asset = pool.asset;
         // send origination fee to owner
-        IERC20(asset).safeTransfer(FEE_ADMIN, fee);
+        IERC20(asset).safeTransfer(feeRecipient, fee);
 
         // send borrowed assets to position
         IERC20(asset).safeTransfer(position, amt - fee);

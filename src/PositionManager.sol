@@ -7,8 +7,9 @@ pragma solidity ^0.8.24;
 
 // types
 import {Pool} from "./Pool.sol";
-import {RiskEngine} from "./RiskEngine.sol";
+import {Registry} from "./Registry.sol";
 import {Position} from "./Position.sol";
+import {RiskEngine} from "./RiskEngine.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -115,6 +116,17 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
                                Storage
     //////////////////////////////////////////////////////////////*/
 
+    // keccak(SENTIMENT_POOL_KEY)
+    bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
+    // keccak(SENTIMENT_RISK_ENGINE_KEY)
+    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
+        0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
+    // keccak(SENIMENT_POSITION_BEACON_KEY)
+    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
+        0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
+
+    Registry public registry;
+
     Pool public pool;
 
     /// @notice risk engine address
@@ -166,13 +178,19 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         _disableInitializers();
     }
 
-    function initialize(address _riskEngine, uint256 _liquidationFee) public initializer {
+    function initialize(address _registry, uint256 _liquidationFee) public initializer {
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         OwnableUpgradeable.__Ownable_init(msg.sender);
         PausableUpgradeable.__Pausable_init();
 
-        riskEngine = RiskEngine(_riskEngine);
+        registry = Registry(_registry);
         liquidationFee = _liquidationFee;
+    }
+
+    function updateFromRegistry() external {
+        pool = Pool(registry.addressFor(SENTIMENT_POOL_KEY));
+        riskEngine = RiskEngine(registry.addressFor(SENTIMENT_RISK_ENGINE_KEY));
+        positionBeacon = registry.addressFor(SENTIMENT_POSITION_BEACON_KEY);
     }
 
     /*//////////////////////////////////////////////////////////////

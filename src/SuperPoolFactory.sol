@@ -25,7 +25,7 @@ contract SuperPoolFactory {
                                 Events
     //////////////////////////////////////////////////////////////*/
 
-    event SuperPoolInitialized(address indexed owner, address superPool, string name, string symbol);
+    event SuperPoolDeployed(address indexed owner, address superPool, string name, string symbol);
 
     /*//////////////////////////////////////////////////////////////
                              Constructor
@@ -41,26 +41,18 @@ contract SuperPoolFactory {
                           External Functions
     //////////////////////////////////////////////////////////////*/
 
-    function deploy(
-        address owner,
-        address asset,
-        address feeRecipient,
-        uint256 fee,
-        uint256 superPoolCap,
-        string memory name,
-        string memory symbol
-    ) external {
+    function deploy(address owner, SuperPool.SuperPoolInitParams calldata params) external {
         // deploy a new superpool as a transparent proxy pointing to the impl for this factory
         SuperPool superPool =
             SuperPool(address(new TransparentUpgradeableProxy(SUPERPOOL_IMPL, msg.sender, new bytes(0))));
 
         // init superpool with given params
-        superPool.initialize(asset, feeRecipient, fee, superPoolCap, name, symbol);
+        superPool.initialize(params);
 
         // transfer superpool ownership to specified owner
         superPool.transferOwnership(owner);
 
         // log superpool creation
-        emit SuperPoolInitialized(owner, address(superPool), name, symbol);
+        emit SuperPoolDeployed(owner, address(superPool), params.name, params.symbol);
     }
 }

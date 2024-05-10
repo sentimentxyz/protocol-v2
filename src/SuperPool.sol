@@ -75,22 +75,24 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         _disableInitializers();
     }
 
-    function initialize(
-        address asset_,
-        address feeRecipient_,
-        uint256 fee_,
-        uint256 superPoolCap_,
-        string memory name_,
-        string memory symbol_
-    ) public initializer {
+    struct SuperPoolInitParams {
+        address asset;
+        address feeRecipient;
+        uint256 fee;
+        uint256 superPoolCap;
+        string name;
+        string symbol;
+    }
+
+    function initialize(SuperPoolInitParams calldata params) public initializer {
         OwnableUpgradeable.__Ownable_init(msg.sender);
         PausableUpgradeable.__Pausable_init();
-        ERC20Upgradeable.__ERC20_init(name_, symbol_);
-        ERC4626Upgradeable.__ERC4626_init(IERC20(asset_));
+        ERC20Upgradeable.__ERC20_init(params.name, params.symbol);
+        ERC4626Upgradeable.__ERC4626_init(IERC20(params.asset));
 
-        fee = fee_;
-        feeRecipient = feeRecipient_;
-        superPoolCap = superPoolCap_;
+        fee = params.fee;
+        feeRecipient = params.feeRecipient;
+        superPoolCap = params.superPoolCap;
     }
 
     /*//////////////////////////////////////////////////////////////

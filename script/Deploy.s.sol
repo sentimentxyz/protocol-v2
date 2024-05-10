@@ -76,6 +76,14 @@ contract Deploy is BaseScript {
         superPoolLens = address(new SuperPoolLens(pool));
         portfolioLens = address(new PortfolioLens(pool, positionManager));
 
+        // update from registry
+        Pool(pool).updateFromRegistry();
+        RiskEngine(riskEngine).updateFromRegistry();
+        PositionManager(positionManager).updateFromRegistry();
+
+        Pool(pool).transferOwnership(params.owner);
+        Registry(registry).transferOwnership(params.owner);
+        RiskEngine(riskEngine).transferOwnership(params.owner);
         PositionManager(positionManager).transferOwnership(params.owner);
         vm.stopBroadcast();
 

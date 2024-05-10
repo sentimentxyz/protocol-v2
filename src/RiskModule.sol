@@ -201,7 +201,7 @@ contract RiskModule {
             }
 
             // scale down the intermediate value to 18 decimals
-            compositeLtvForPool[i] = compositeLtv / (positionAssets.length * 1e18);
+            compositeLtvForPool[i] = compositeLtv / 1e18;
         }
 
         return compositeLtvForPool;

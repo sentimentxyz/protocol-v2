@@ -7,27 +7,35 @@ pragma solidity ^0.8.24;
 
 // types
 import {Pool} from "./Pool.sol";
+import {Registry} from "./Registry.sol";
 import {Position} from "./Position.sol";
 import {DebtData, AssetData} from "./PositionManager.sol";
 import {RiskModule} from "./RiskModule.sol";
 // contracts
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /*//////////////////////////////////////////////////////////////
                             RiskEngine
 //////////////////////////////////////////////////////////////*/
 
-contract RiskEngine is OwnableUpgradeable {
+contract RiskEngine is Ownable {
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
 
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
+    // keccak(SENTIMENT_POOL_KEY)
+    bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
+    // keccak(SENTIMENT_RISK_MODULE_KEY)
+    bytes32 public constant SENTIMENT_RISK_MODULE_KEY =
+        0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
 
     struct LtvUpdate {
         uint256 ltv;
         uint256 validAfter;
     }
+
+    Registry public registry;
 
     // lenders are free to set their own ltv within the global protocol limits
     // the global limits can only be modified by the protocol
@@ -50,6 +58,7 @@ contract RiskEngine is OwnableUpgradeable {
                                 Events
     //////////////////////////////////////////////////////////////*/
 
+    event PoolSet(address pool);
     event RiskModuleSet(address riskModule);
     event LtvBoundsSet(uint256 minLtv, uint256 maxLtv);
     event OracleSet(address indexed asset, address oracle);
@@ -62,6 +71,7 @@ contract RiskEngine is OwnableUpgradeable {
                                 Errors
     //////////////////////////////////////////////////////////////*/
 
+    error RiskEngine_AlreadyInitialized();
     error RiskEngine_NoOracleFound(address asset);
     error RiskEngine_LtvLimitBreached(uint256 ltv);
     error RiskEngine_NoLtvUpdate(uint256 poolId, address asset);
@@ -75,17 +85,27 @@ contract RiskEngine is OwnableUpgradeable {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor() {
-        _disableInitializers();
+    struct RiskEngineInitParams {
+        address pool;
+        address riskModule;
+        uint256 minLtv;
+        uint256 maxLtv;
     }
 
-    function initialize(uint256 _minLtv, uint256 _maxLtv, address _pool, address _riskModule) public initializer {
-        OwnableUpgradeable.__Ownable_init(msg.sender);
-        minLtv = _minLtv;
-        maxLtv = _maxLtv;
+    constructor(address registry_, uint256 minLtv_, uint256 maxLtv_) Ownable(msg.sender) {
+        registry = Registry(registry_);
+        minLtv = minLtv_;
+        maxLtv = maxLtv_;
 
-        pool = Pool(_pool);
-        riskModule = RiskModule(_riskModule);
+        emit LtvBoundsSet(minLtv_, maxLtv_);
+    }
+
+    function updateFromRegistry() external {
+        pool = Pool(registry.addressFor(SENTIMENT_POOL_KEY));
+        riskModule = RiskModule(registry.addressFor(SENTIMENT_RISK_MODULE_KEY));
+
+        emit PoolSet(address(pool));
+        emit RiskModuleSet(address(riskModule));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -188,5 +208,11 @@ contract RiskEngine is OwnableUpgradeable {
         oracleFor[asset] = oracle;
 
         emit OracleSet(asset, oracle);
+    }
+
+    function setPool(address _pool) external onlyOwner {
+        pool = Pool(_pool);
+
+        emit PoolSet(_pool);
     }
 }

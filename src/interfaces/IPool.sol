@@ -20,17 +20,17 @@ interface IPool {
     /// @param amount amount of funds borrowed, in debt asset units
     event Borrow(address indexed position, address indexed asset, uint256 amount);
 
-    event PoolCapSet(uint256 poolCap);
+    event PoolCapSet(uint256 indexed poolId, uint128 poolCap);
 
-    event OriginationFeeSet(uint256 originationFee);
+    event OriginationFeeSet(uint256 indexed poolId, uint128 originationFee);
 
-    event InterestFeeSet(uint256 interestFee);
+    event InterestFeeSet(uint256 indexed poolId, uint128 interestFee);
 
-    event RateModelUpdateRejected();
+    event RateModelUpdateRejected(uint256 indexed poolId, address rateModel);
 
-    event RateModelUpdateAccepted(address rateModel);
+    event RateModelUpdated(uint256 indexed poolId, address rateModel);
 
-    event RateModelUpdateRequested();
+    event RateModelUpdateRequested(uint256 indexed poolId, address rateModel);
 
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
 

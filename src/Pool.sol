@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 // types
 import {Registry} from "./Registry.sol";
-import {IPool} from "./interfaces/IPool.sol";
 import {IRateModel} from "./interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -14,9 +13,42 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ERC6909} from "./lib/ERC6909.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Pool is Ownable, ERC6909, IPool {
+contract Pool is Ownable, ERC6909 {
     using Math for uint256;
     using SafeERC20 for IERC20;
+
+    /*//////////////////////////////////////////////////////////////
+                                Events
+    //////////////////////////////////////////////////////////////*/
+
+    event PoolCapSet(uint256 indexed poolId, uint128 poolCap);
+    event PoolOwnerSet(uint256 indexed poolId, address owner);
+    event RateModelUpdated(uint256 indexed poolId, address rateModel);
+    event InterestFeeSet(uint256 indexed poolId, uint128 interestFee);
+    event OriginationFeeSet(uint256 indexed poolId, uint128 originationFee);
+    event RateModelUpdateRejected(uint256 indexed poolId, address rateModel);
+    event RateModelUpdateRequested(uint256 indexed poolId, address rateModel);
+    event Repay(address indexed position, address indexed asset, uint256 amount);
+    event Borrow(address indexed position, address indexed asset, uint256 amount);
+    event PoolInitialized(uint256 indexed poolId, address indexed owner, address indexed asset);
+    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(
+        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
+    );
+
+    /*//////////////////////////////////////////////////////////////
+                                Errors
+    //////////////////////////////////////////////////////////////*/
+
+    error Pool_AlreadyInitialized();
+    error Pool_NoRateModelUpdate(uint256 poolId);
+    error Pool_PoolAlreadyInitialized(uint256 poolId);
+    error Pool_ZeroSharesRepay(address pool, uint256 amt);
+    error Pool_ZeroSharesBorrow(address pool, uint256 amt);
+    error Pool_ZeroSharesDeposit(address pool, uint256 amt);
+    error Pool_OnlyPoolOwner(uint256 poolId, address sender);
+    error Pool_OnlyPositionManager(address pool, address sender);
+    error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp);
 
     /*//////////////////////////////////////////////////////////////
                              Data Structs
@@ -62,20 +94,6 @@ contract Pool is Ownable, ERC6909, IPool {
     mapping(uint256 poolId => PoolData data) public poolDataFor;
     mapping(uint256 poolId => RateModelUpdate rateModelUpdate) public rateModelUpdateFor;
     mapping(uint256 poolId => mapping(address position => uint256 borrowShares)) public borrowSharesOf;
-
-    /*//////////////////////////////////////////////////////////////
-                                Errors
-    //////////////////////////////////////////////////////////////*/
-
-    error Pool_AlreadyInitialized();
-    error Pool_NoRateModelUpdate(uint256 poolId);
-    error Pool_PoolAlreadyInitialized(uint256 poolId);
-    error Pool_ZeroSharesRepay(address pool, uint256 amt);
-    error Pool_ZeroSharesBorrow(address pool, uint256 amt);
-    error Pool_ZeroSharesDeposit(address pool, uint256 amt);
-    error Pool_OnlyPoolOwner(uint256 poolId, address sender);
-    error Pool_OnlyPositionManager(address pool, address sender);
-    error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize

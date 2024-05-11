@@ -22,6 +22,8 @@ interface IPool {
 
     event PoolCapSet(uint256 indexed poolId, uint128 poolCap);
 
+    event PoolOwnerSet(uint256 indexed poolId, address owner);
+
     event OriginationFeeSet(uint256 indexed poolId, uint128 originationFee);
 
     event InterestFeeSet(uint256 indexed poolId, uint128 interestFee);

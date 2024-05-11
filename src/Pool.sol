@@ -295,6 +295,12 @@ contract Pool is Ownable, ERC6909, IPool {
         _;
     }
 
+    function transferPoolOwnership(uint256 poolId, address newOwner) external onlyPoolOwner(poolId, msg.sender) {
+        ownerOf[poolId] = newOwner;
+
+        emit PoolOwnerSet(poolId, newOwner);
+    }
+
     function requestRateModelUpdate(uint256 poolId, address rateModel) external onlyPoolOwner(poolId, msg.sender) {
         rateModelUpdateFor[poolId] =
             RateModelUpdate({rateModel: rateModel, validAfter: block.timestamp + TIMELOCK_DURATION});

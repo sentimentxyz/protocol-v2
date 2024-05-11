@@ -3,12 +3,20 @@ pragma solidity ^0.8.24;
 
 // types
 import {IOracle} from "../interfaces/IOracle.sol";
-import {IAggegregatorV3} from "../interfaces/IAggregatorV3.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 // libraries
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 // contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+interface IAggegregatorV3 {
+    function latestRoundData()
+        external
+        view
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
+
+    function decimals() external view returns (uint256);
+}
 
 contract ChainlinkEthOracle is Ownable {
     using Math for uint256;

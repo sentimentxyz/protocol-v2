@@ -19,6 +19,31 @@ contract Pool is Ownable, ERC6909, IPool {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
+                             Data Structs
+    //////////////////////////////////////////////////////////////*/
+
+    struct Uint128Pair {
+        uint128 assets;
+        uint128 shares;
+    }
+
+    struct PoolData {
+        address asset;
+        address rateModel;
+        uint128 poolCap;
+        uint128 lastUpdated;
+        uint128 interestFee;
+        uint128 originationFee;
+        Uint128Pair totalAssets;
+        Uint128Pair totalBorrows;
+    }
+
+    struct RateModelUpdate {
+        address rateModel;
+        uint256 validAfter;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
 
@@ -31,51 +56,30 @@ contract Pool is Ownable, ERC6909, IPool {
 
     // address that receives protocol fees
     address public feeRecipient;
-
     address public positionManager;
 
-    struct RateModelUpdate {
-        address rateModel;
-        uint256 validAfter;
-    }
-
-    RateModelUpdate public rateModelUpdate;
+    mapping(uint256 poolId => address poolOwner) public ownerOf;
+    mapping(uint256 poolId => PoolData data) public poolDataFor;
+    mapping(uint256 poolId => RateModelUpdate rateModelUpdate) public rateModelUpdateFor;
+    mapping(uint256 poolId => mapping(address position => uint256 borrowShares)) public borrowSharesOf;
 
     /*//////////////////////////////////////////////////////////////
                                 Errors
     //////////////////////////////////////////////////////////////*/
 
     error Pool_AlreadyInitialized();
-    error Pool_NoRateModelUpdate(address pool);
-    error Pool_RateModelUpdateTimelock(address pool);
+    error Pool_NoRateModelUpdate(uint256 poolId);
     error Pool_PoolAlreadyInitialized(uint256 poolId);
     error Pool_ZeroSharesRepay(address pool, uint256 amt);
     error Pool_ZeroSharesBorrow(address pool, uint256 amt);
     error Pool_ZeroSharesDeposit(address pool, uint256 amt);
+    error Pool_OnlyPoolOwner(uint256 poolId, address sender);
     error Pool_OnlyPositionManager(address pool, address sender);
+    error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/
-
-    struct Uint128Pair {
-        uint128 assets;
-        uint128 shares;
-    }
-
-    struct PoolData {
-        address asset;
-        address rateModel;
-        uint128 lastUpdated;
-        uint128 interestFee;
-        uint128 originationFee;
-        Uint128Pair totalAssets;
-        Uint128Pair totalBorrows;
-    }
-
-    mapping(uint256 poolId => address poolOwner) public ownerOf;
-    mapping(uint256 poolId => PoolData data) public poolDataFor;
-    mapping(uint256 poolId => mapping(address position => uint256 borrowShares)) public borrowSharesOf;
 
     constructor(address registry_, address feeRecipient_) Ownable(msg.sender) {
         feeRecipient = feeRecipient_;
@@ -279,6 +283,71 @@ contract Pool is Ownable, ERC6909, IPool {
         ownerOf[poolId] = owner;
         poolDataFor[poolId] = poolData;
 
-        emit PoolInitialized(owner, poolId, poolData);
+        emit PoolInitialized(poolId, owner, poolData.asset);
+
+        emit PoolOwnerSet(poolId, owner);
+        emit PoolCapSet(poolId, poolData.poolCap);
+        emit RateModelUpdated(poolId, poolData.rateModel);
+        emit InterestFeeSet(poolId, poolData.interestFee);
+        emit OriginationFeeSet(poolId, poolData.originationFee);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           Only Pool Owner
+    //////////////////////////////////////////////////////////////*/
+
+    modifier onlyPoolOwner(uint256 poolId, address sender) {
+        if (ownerOf[poolId] != sender) revert Pool_OnlyPoolOwner(poolId, sender);
+        _;
+    }
+
+    function transferPoolOwnership(uint256 poolId, address newOwner) external onlyPoolOwner(poolId, msg.sender) {
+        ownerOf[poolId] = newOwner;
+
+        emit PoolOwnerSet(poolId, newOwner);
+    }
+
+    function requestRateModelUpdate(uint256 poolId, address rateModel) external onlyPoolOwner(poolId, msg.sender) {
+        rateModelUpdateFor[poolId] =
+            RateModelUpdate({rateModel: rateModel, validAfter: block.timestamp + TIMELOCK_DURATION});
+
+        emit RateModelUpdateRequested(poolId, rateModel);
+    }
+
+    function acceptRateModelUpdate(uint256 poolId) external onlyPoolOwner(poolId, msg.sender) {
+        RateModelUpdate memory rateModelUpdate = rateModelUpdateFor[poolId];
+
+        if (rateModelUpdate.validAfter == 0) revert Pool_NoRateModelUpdate(poolId);
+        if (rateModelUpdate.validAfter > block.timestamp) revert Pool_TimelockPending(poolId, block.timestamp);
+
+        poolDataFor[poolId].rateModel = rateModelUpdate.rateModel;
+
+        emit RateModelUpdated(poolId, rateModelUpdate.rateModel);
+    }
+
+    function rejectRateModelUpdate(uint256 poolId) external onlyPoolOwner(poolId, msg.sender) {
+        RateModelUpdate memory rateModelUpdate = rateModelUpdateFor[poolId];
+
+        delete rateModelUpdateFor[poolId];
+
+        emit RateModelUpdateRejected(poolId, rateModelUpdate.rateModel);
+    }
+
+    function setInterestFee(uint256 poolId, uint128 interestFee) external onlyPoolOwner(poolId, msg.sender) {
+        poolDataFor[poolId].interestFee = interestFee;
+
+        emit InterestFeeSet(poolId, interestFee);
+    }
+
+    function setPoolCap(uint256 poolId, uint128 poolCap) external onlyPoolOwner(poolId, msg.sender) {
+        poolDataFor[poolId].poolCap = poolCap;
+
+        emit PoolCapSet(poolId, poolCap);
+    }
+
+    function setOriginationFee(uint256 poolId, uint128 originationFee) external onlyPoolOwner(poolId, msg.sender) {
+        poolDataFor[poolId].originationFee = originationFee;
+
+        emit OriginationFeeSet(poolId, originationFee);
     }
 }

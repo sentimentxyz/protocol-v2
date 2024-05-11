@@ -283,7 +283,13 @@ contract Pool is Ownable, ERC6909, IPool {
         ownerOf[poolId] = owner;
         poolDataFor[poolId] = poolData;
 
-        emit PoolInitialized(owner, poolId, poolData);
+        emit PoolInitialized(poolId, owner, poolData.asset);
+
+        emit PoolOwnerSet(poolId, owner);
+        emit PoolCapSet(poolId, poolData.poolCap);
+        emit RateModelUpdated(poolId, poolData.rateModel);
+        emit InterestFeeSet(poolId, poolData.interestFee);
+        emit OriginationFeeSet(poolId, poolData.originationFee);
     }
 
     /*//////////////////////////////////////////////////////////////

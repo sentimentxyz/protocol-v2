@@ -40,5 +40,5 @@ interface IPool {
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
-    event PoolInitialized(address indexed owner, uint256 indexed poolId, Pool.PoolData poolData);
+    event PoolInitialized(uint256 indexed poolId, address indexed owner, address indexed asset);
 }

@@ -14,10 +14,10 @@ import {SuperPoolFactory} from "src/SuperPoolFactory.sol";
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
-import {FixedRateModel} from "../../src/irm/FixedRateModel.sol";
-import {LinearRateModel} from "../../src/irm/LinearRateModel.sol";
+import {FixedRateModel} from "../src/irm/FixedRateModel.sol";
+import {LinearRateModel} from "../src/irm/LinearRateModel.sol";
 
-import { MockERC20 } from "./mocks/MockERC20.sol";
+import {MockERC20} from "./mocks/MockERC20.sol";
 
 import {Test} from "forge-std/Test.sol";
 
@@ -25,7 +25,7 @@ contract BaseTest is Test {
     Registry public registry;
     SuperPoolFactory public superPoolFactory;
     PositionManager public positionManager;
-    address public positionManagerImpl; // Shouldn't be called directly
+    address positionManagerImpl; // Shouldn't be called directly
     RiskEngine public riskEngine;
     RiskModule public riskModule;
     PortfolioLens public portfolioLens;
@@ -62,7 +62,7 @@ contract BaseTest is Test {
         uint256 liquidationDiscount;
     }
 
-    function setUp() virtual public {
+    function setUp() public virtual {
         DeployParams memory params = DeployParams({
             owner: address(this),
             feeRecipient: address(this),
@@ -114,8 +114,7 @@ contract BaseTest is Test {
         riskEngine.updateFromRegistry();
         riskModule.updateFromRegistry();
 
-
-        asset = new MockERC20("Asset", "ASSET", 18); 
+        asset = new MockERC20("Asset", "ASSET", 18);
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
         linearRatePool = pool.initializePool(address(0x99), address(asset), rateModel, 0, 0);

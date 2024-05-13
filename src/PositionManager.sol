@@ -20,7 +20,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-import { console } from "forge-std/console.sol";
+import {console} from "forge-std/console.sol";
 
 /*//////////////////////////////////////////////////////////////
                             Events
@@ -92,8 +92,8 @@ enum Operation {
     Approve, // allow a spender to transfer assets from a position
     Repay, // decrease position debt
     Borrow, // increase position debt
-    AddCollateralType, // upsert collateral asset to position storage
-    RemoveCollateralType // remove collateral asset from position storage
+    AddToken, // upsert collateral asset to position storage
+    RemoveToken // remove collateral asset from position storage
 
 }
 
@@ -255,10 +255,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             repay(position, action.data);
         } else if (action.op == Operation.Borrow) {
             borrow(position, action.data);
-        } else if (action.op == Operation.AddCollateralType) {
-            addCollateralType(position, action.data);
-        } else if (action.op == Operation.RemoveCollateralType) {
-            removeCollateralType(position, action.data);
+        } else if (action.op == Operation.AddToken) {
+            addToken(position, action.data);
+        } else if (action.op == Operation.RemoveToken) {
+            removeToken(position, action.data);
         } else {
             revert PositionManager_UnknownOperation(uint256(action.op));
         }
@@ -384,7 +384,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         emit Borrow(position, msg.sender, poolId, amt);
     }
 
-    function addCollateralType(address position, bytes calldata data) internal whenNotPaused {
+    function addToken(address position, bytes calldata data) internal whenNotPaused {
         // asset -> address of asset to be registered as collateral
         address asset = abi.decode(data, (address));
 
@@ -395,7 +395,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         emit AddAsset(position, msg.sender, asset);
     }
 
-    function removeCollateralType(address position, bytes calldata data) internal whenNotPaused {
+    function removeToken(address position, bytes calldata data) internal whenNotPaused {
         // asset -> address of asset to be deregistered as collateral
         address asset = abi.decode(data, (address));
 

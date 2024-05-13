@@ -5,13 +5,13 @@ import "../BaseTest.t.sol";
 import {FixedRateModel} from "../../src/irm/FixedRateModel.sol";
 import {LinearRateModel} from "../../src/irm/LinearRateModel.sol";
 
-import { Action, Operation } from "src/PositionManager.sol";
+import {Action, Operation} from "src/PositionManager.sol";
 
-import { MockERC20 } from "../mocks/MockERC20.sol";
-import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
+import {MockERC20} from "../mocks/MockERC20.sol";
+import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
 contract PositionManagerUnitTests is BaseTest {
-    address public owner = address(0x5);
+    address public positionOwner = makeAddr("positionOwner");
     MockERC20 public collateral = new MockERC20("Collateral", "COL", 18);
 
     FixedPriceOracle collateralOracle = new FixedPriceOracle(0.5e18);
@@ -30,12 +30,11 @@ contract PositionManagerUnitTests is BaseTest {
 
         pool.deposit(linearRatePool, 10000 ether, address(0x9));
 
-
         bytes32 salt = bytes32(uint256(3492932942));
-        bytes memory data = abi.encode(owner, salt);
-        owner = address(0x05);
+        bytes memory data = abi.encode(positionOwner, salt);
+        // owner = address(0x05);
 
-        (position, ) = portfolioLens.predictAddress(owner, salt);
+        (position,) = portfolioLens.predictAddress(positionOwner, salt);
 
         Action memory action = Action({op: Operation.NewPosition, data: data});
 
@@ -44,7 +43,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         PositionManager(positionManager).processBatch(position, actions);
 
-        vm.startPrank(address(0x99));
+        vm.startPrank(protocolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
         vm.stopPrank();
@@ -52,10 +51,10 @@ contract PositionManagerUnitTests is BaseTest {
 
     function testInitializePosition() public {
         bytes32 salt = bytes32(uint256(43534853));
-        bytes memory data = abi.encode(owner, salt);
-        owner = address(0x05);
+        bytes memory data = abi.encode(positionOwner, salt);
+        // owner = address(0x05);
 
-        (address expectedAddress, ) = portfolioLens.predictAddress(owner, salt);
+        (address expectedAddress,) = portfolioLens.predictAddress(positionOwner, salt);
 
         Action memory action = Action({op: Operation.NewPosition, data: data});
 
@@ -91,11 +90,9 @@ contract PositionManagerUnitTests is BaseTest {
     } */
 
     function testSimpleBorrow() public {
-        address user = address(0x0999);
+        address user = makeAddr("user");
         vm.startPrank(user);
 
-
         collateral.mint(user, 1000 ether);
-
     }
 }

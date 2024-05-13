@@ -146,6 +146,9 @@ contract RiskModule {
     {
         uint256 totalDebtValue;
         uint256[] memory debtPools = Position(position).getDebtPools();
+        if (debtPools.length == 0) {
+            return(0, debtPools, new uint256[](0));
+        }
         uint256[] memory debtValueForPool = new uint256[](debtPools.length);
         for (uint256 i; i < debtPools.length; ++i) {
             uint256 debt = getDebtValueForPool(position, debtPools[i]);

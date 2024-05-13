@@ -87,13 +87,13 @@ enum Operation {
     NewPosition, // create2 a new position with a given type, no auth needed
     // the following operations require msg.sender to be authorized
     Exec, // execute arbitrary calldata on a position
-    Deposit, // deposit collateral assets to a given position
+    AddCollateral, // Add collateral to a given position
     Transfer, // transfer assets from the position to a external address
     Approve, // allow a spender to transfer assets from a position
     Repay, // decrease position debt
     Borrow, // increase position debt
-    AddAsset, // upsert collateral asset to position storage
-    RemoveAsset // remove collateral asset from position storage
+    AddCollateralType, // upsert collateral asset to position storage
+    RemoveCollateralType // remove collateral asset from position storage
 
 }
 
@@ -247,18 +247,18 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             exec(position, action.data);
         } else if (action.op == Operation.Transfer) {
             transfer(position, action.data);
-        } else if (action.op == Operation.Deposit) {
-            deposit(position, action.data);
+        } else if (action.op == Operation.AddCollateral) {
+            addCollateral(position, action.data);
         } else if (action.op == Operation.Approve) {
             approve(position, action.data);
         } else if (action.op == Operation.Repay) {
             repay(position, action.data);
         } else if (action.op == Operation.Borrow) {
             borrow(position, action.data);
-        } else if (action.op == Operation.AddAsset) {
-            addAsset(position, action.data);
-        } else if (action.op == Operation.RemoveAsset) {
-            removeAsset(position, action.data);
+        } else if (action.op == Operation.AddCollateralType) {
+            addCollateralType(position, action.data);
+        } else if (action.op == Operation.RemoveCollateralType) {
+            removeCollateralType(position, action.data);
         } else {
             revert PositionManager_UnknownOperation(uint256(action.op));
         }
@@ -313,7 +313,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         emit Transfer(position, msg.sender, recipient, asset, amt);
     }
 
-    function deposit(address position, bytes calldata data) internal {
+    function addCollateral(address position, bytes calldata data) internal {
         // depositor -> address to transfer the tokens from, must have approval
         // asset -> address of token to be deposited
         // amt -> amount of asset to be deposited
@@ -384,23 +384,23 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         emit Borrow(position, msg.sender, poolId, amt);
     }
 
-    function addAsset(address position, bytes calldata data) internal whenNotPaused {
+    function addCollateralType(address position, bytes calldata data) internal whenNotPaused {
         // asset -> address of asset to be registered as collateral
         address asset = abi.decode(data, (address));
 
         // register asset as collateral
         // any position-specific validation must be done within the position contract
-        Position(position).addAsset(asset);
+        Position(position).addCollateralType(asset);
 
         emit AddAsset(position, msg.sender, asset);
     }
 
-    function removeAsset(address position, bytes calldata data) internal whenNotPaused {
+    function removeCollateralType(address position, bytes calldata data) internal whenNotPaused {
         // asset -> address of asset to be deregistered as collateral
         address asset = abi.decode(data, (address));
 
         // deregister asset as collateral
-        Position(position).removeAsset(asset);
+        Position(position).removeCollateralType(asset);
 
         emit RemoveAsset(position, msg.sender, asset);
     }

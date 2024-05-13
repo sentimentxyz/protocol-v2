@@ -22,6 +22,8 @@ import {MockERC20} from "./mocks/MockERC20.sol";
 import {Test} from "forge-std/Test.sol";
 
 contract BaseTest is Test {
+    address public protocolOwner = makeAddr("protocolOwner");
+
     Registry public registry;
     SuperPoolFactory public superPoolFactory;
     PositionManager public positionManager;
@@ -64,7 +66,7 @@ contract BaseTest is Test {
 
     function setUp() public virtual {
         DeployParams memory params = DeployParams({
-            owner: address(this),
+            owner: protocolOwner,
             feeRecipient: address(this),
             minLtv: 0,
             maxLtv: 115792089237316195423570985008687907853269984665640564039457584007913129639935,
@@ -117,10 +119,10 @@ contract BaseTest is Test {
         asset = new MockERC20("Asset", "ASSET", 18);
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        linearRatePool = pool.initializePool(address(0x99), address(asset), rateModel, 0, 0);
+        linearRatePool = pool.initializePool(protocolOwner, address(asset), rateModel, 0, 0);
 
         rateModel = address(new FixedRateModel(1e18));
-        fixedRatePool = pool.initializePool(address(0x99), address(asset), rateModel, 0, 0);
+        fixedRatePool = pool.initializePool(protocolOwner, address(asset), rateModel, 0, 0);
     }
 }
 

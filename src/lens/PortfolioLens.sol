@@ -14,6 +14,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // contracts
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 
+import { console } from "forge-std/console.sol";
+
 /*//////////////////////////////////////////////////////////////
                         PortfolioLens
 //////////////////////////////////////////////////////////////*/
@@ -118,7 +120,7 @@ contract PortfolioLens {
         salt = keccak256(abi.encodePacked(owner, salt));
 
         bytes memory creationCode =
-            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(POSITION_MANAGER.positionBeacon()));
+            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(address(POSITION_MANAGER.positionBeacon()), ""));
 
         address predictedAddress = address(
             uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), POSITION_MANAGER, salt, keccak256(creationCode)))))

@@ -20,6 +20,8 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
+import { console } from "forge-std/console.sol";
+
 /*//////////////////////////////////////////////////////////////
                             Events
 //////////////////////////////////////////////////////////////*/

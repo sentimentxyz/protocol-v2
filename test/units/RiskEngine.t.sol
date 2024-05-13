@@ -5,13 +5,15 @@ import "../BaseTest.t.sol";
 import {FixedRateModel} from "../../src/irm/FixedRateModel.sol";
 import {LinearRateModel} from "../../src/irm/LinearRateModel.sol";
 
-import { Action, Operation } from "src/PositionManager.sol";
+import {Action, Operation} from "src/PositionManager.sol";
 
-import { MockERC20 } from "../mocks/MockERC20.sol";
-import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
+import {MockERC20} from "../mocks/MockERC20.sol";
+import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
 contract RiskModuleUnitTests is BaseTest {
-    address public owner = address(0x5);
+    address public owner = makeAddr("owner");
+    address public notOwner = makeAddr("notOwner");
+
     MockERC20 public collateral = new MockERC20("Collateral", "COL", 18);
 
     FixedPriceOracle collateralOracle = new FixedPriceOracle(0.5e18);
@@ -35,7 +37,7 @@ contract RiskModuleUnitTests is BaseTest {
         uint256 startLtv = riskEngine.ltvFor(linearRatePool, address(asset));
         assertEq(startLtv, 0);
 
-        vm.startPrank(address(0x99));
+        vm.startPrank(protocolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
 
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
@@ -45,7 +47,7 @@ contract RiskModuleUnitTests is BaseTest {
 
     function testOwnerCanRejectLTVUpdated() public {
         // Set a starting non-zero ltv
-        vm.startPrank(address(0x99));
+        vm.startPrank(protocolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
 
@@ -58,10 +60,10 @@ contract RiskModuleUnitTests is BaseTest {
     }
 
     function testNonOwnerCannotUpdateLTV() public {
-        vm.prank(address(0x99));
+        vm.prank(protocolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
 
-        vm.startPrank(address(0x90));
+        vm.startPrank(notOwner);
         vm.expectRevert();
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
 
@@ -75,7 +77,7 @@ contract RiskModuleUnitTests is BaseTest {
         vm.prank(riskEngine.owner());
         riskEngine.setLtvBounds(0.25e18, 1.25e18);
 
-        vm.startPrank(address(0x99));
+        vm.startPrank(protocolOwner);
         vm.expectRevert();
         riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.24e18);
 
@@ -104,11 +106,11 @@ contract RiskModuleUnitTests is BaseTest {
     }
 
     function testCannotUpdateLTVBeforeTimelock() public {
-        vm.startPrank(address(0x99));
+        vm.startPrank(protocolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
 
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.50e18);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.5e18);
 
         vm.expectRevert();
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
@@ -119,5 +121,4 @@ contract RiskModuleUnitTests is BaseTest {
 
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
     }
-      
 }

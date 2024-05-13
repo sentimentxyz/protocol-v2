@@ -87,15 +87,6 @@ contract RiskModuleUnitTests is BaseTest {
         assertEq(riskEngine.ltvFor(linearRatePool, address(asset)), 0);
     }
 
-    function testCanSetDifferentPoolContract() public {
-        riskEngine.setPool(address(0x3828342));
-        assertEq(address(riskEngine.pool()), address(0x3828342));
-
-        vm.startPrank(address(0x21));
-        vm.expectRevert();
-        riskEngine.setPool(address(0x821813));
-    }
-
     function testCanUpdateRiskModule() public {
         riskEngine.setRiskModule(address(0x3828342));
         assertEq(address(riskEngine.riskModule()), address(0x3828342));

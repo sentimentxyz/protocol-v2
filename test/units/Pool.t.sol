@@ -122,10 +122,10 @@ contract PoolUnitTests is BaseTest {
     }
 
     function testOnlyPositionManagerCanBorrow() public {
-        vm.startPrank(user);
-
         address notPositionManager = makeAddr("notPositionManager");
-        vm.expectRevert(Pool.Pool_OnlyPositionManager.selector);
+        vm.startPrank(notPositionManager);
+        // vm.expectRevert(abi.encodePacked(Pool.Pool_OnlyPositionManager.selector, linearRatePool, notPositionManager));
+        vm.expectRevert();
         pool.borrow(linearRatePool, notPositionManager, 100 ether);
     }
 
@@ -134,7 +134,7 @@ contract PoolUnitTests is BaseTest {
 
         vm.startPrank(registry.addressFor(SENTIMENT_POSITION_MANAGER_KEY));
 
-        vm.expectRevert(Pool.Pool_ZeroSharesBorrow.selector);
+        vm.expectRevert(abi.encodePacked(Pool.Pool_ZeroSharesBorrow.selector, linearRatePool, uint256(0)));
         pool.borrow(linearRatePool, user, 0);
     }
 

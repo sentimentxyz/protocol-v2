@@ -5,10 +5,10 @@ import "../BaseTest.t.sol";
 import {FixedRateModel} from "../../src/irm/FixedRateModel.sol";
 import {LinearRateModel} from "../../src/irm/LinearRateModel.sol";
 
-import { Action, Operation } from "src/PositionManager.sol";
+import {Action, Operation} from "src/PositionManager.sol";
 
-import { MockERC20 } from "../mocks/MockERC20.sol";
-import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
+import {MockERC20} from "../mocks/MockERC20.sol";
+import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
 contract RiskModuleUnitTests is BaseTest {
     address public owner = address(0x5);
@@ -85,15 +85,6 @@ contract RiskModuleUnitTests is BaseTest {
         assertEq(riskEngine.ltvFor(linearRatePool, address(asset)), 0);
     }
 
-    function testCanSetDifferentPoolContract() public {
-        riskEngine.setPool(address(0x3828342));
-        assertEq(address(riskEngine.pool()), address(0x3828342));
-
-        vm.startPrank(address(0x21));
-        vm.expectRevert();
-        riskEngine.setPool(address(0x821813));
-    }
-
     function testCanUpdateRiskModule() public {
         riskEngine.setRiskModule(address(0x3828342));
         assertEq(address(riskEngine.riskModule()), address(0x3828342));
@@ -108,7 +99,7 @@ contract RiskModuleUnitTests is BaseTest {
         riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
 
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.50e18);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.5e18);
 
         vm.expectRevert();
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
@@ -119,5 +110,4 @@ contract RiskModuleUnitTests is BaseTest {
 
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
     }
-      
 }

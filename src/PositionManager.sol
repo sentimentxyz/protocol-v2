@@ -20,44 +20,6 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-import {console} from "forge-std/console.sol";
-
-/*//////////////////////////////////////////////////////////////
-                            Events
-//////////////////////////////////////////////////////////////*/
-
-event BeaconSet(address beacon);
-
-event RiskEngineSet(address riskEngine);
-
-event PoolFactorySet(address poolFactory);
-
-event LiquidationFeeSet(uint256 liquidationFee);
-
-event AddressSet(address indexed target, bool isAllowed);
-
-event AddAsset(address indexed position, address indexed caller, address asset);
-
-event FunctionSet(address indexed target, bytes4 indexed method, bool isAllowed);
-
-event RemoveAsset(address indexed position, address indexed caller, address asset);
-
-event Liquidation(address indexed position, address indexed liquidator, address indexed owner);
-
-event PositionDeployed(address indexed position, address indexed caller, address indexed owner);
-
-event Repay(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
-
-event Borrow(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
-
-event Exec(address indexed position, address indexed caller, address indexed target, bytes4 functionSelector);
-
-event Transfer(address indexed position, address indexed caller, address indexed target, address asset, uint256 amount);
-
-event Approve(address indexed position, address indexed caller, address indexed spender, address asset, uint256 amount);
-
-event Deposit(address indexed position, address indexed depositor, address asset, uint256 amount);
-
 /*//////////////////////////////////////////////////////////////
                             Structs
 //////////////////////////////////////////////////////////////*/
@@ -87,7 +49,7 @@ enum Operation {
     NewPosition, // create2 a new position with a given type, no auth needed
     // the following operations require msg.sender to be authorized
     Exec, // execute arbitrary calldata on a position
-    AddCollateral, // Add collateral to a given position
+    Deposit, // Add collateral to a given position
     Transfer, // transfer assets from the position to a external address
     Approve, // allow a spender to transfer assets from a position
     Repay, // decrease position debt
@@ -154,6 +116,31 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     // mapping key -> first 20 bytes store the target address, next 4 bytes store the method selector
     mapping(address target => bool isAllowed) public isKnownAddress;
     mapping(address target => mapping(bytes4 method => bool isAllowed)) public isKnownFunc;
+
+    /*//////////////////////////////////////////////////////////////
+                            Events
+    //////////////////////////////////////////////////////////////*/
+
+    event BeaconSet(address beacon);
+    event RiskEngineSet(address riskEngine);
+    event PoolFactorySet(address poolFactory);
+    event LiquidationFeeSet(uint256 liquidationFee);
+    event AddressSet(address indexed target, bool isAllowed);
+    event AddToken(address indexed position, address indexed caller, address asset);
+    event FunctionSet(address indexed target, bytes4 indexed method, bool isAllowed);
+    event RemoveToken(address indexed position, address indexed caller, address asset);
+    event Liquidation(address indexed position, address indexed liquidator, address indexed owner);
+    event PositionDeployed(address indexed position, address indexed caller, address indexed owner);
+    event Deposit(address indexed position, address indexed depositor, address asset, uint256 amount);
+    event Repay(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
+    event Borrow(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
+    event Exec(address indexed position, address indexed caller, address indexed target, bytes4 functionSelector);
+    event Transfer(
+        address indexed position, address indexed caller, address indexed target, address asset, uint256 amount
+    );
+    event Approve(
+        address indexed position, address indexed caller, address indexed spender, address asset, uint256 amount
+    );
 
     /*//////////////////////////////////////////////////////////////
                                 Errors
@@ -247,8 +234,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             exec(position, action.data);
         } else if (action.op == Operation.Transfer) {
             transfer(position, action.data);
-        } else if (action.op == Operation.AddCollateral) {
-            addCollateral(position, action.data);
+        } else if (action.op == Operation.Deposit) {
+            deposit(position, action.data);
         } else if (action.op == Operation.Approve) {
             approve(position, action.data);
         } else if (action.op == Operation.Repay) {
@@ -313,7 +300,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         emit Transfer(position, msg.sender, recipient, asset, amt);
     }
 
-    function addCollateral(address position, bytes calldata data) internal {
+    function deposit(address position, bytes calldata data) internal {
         // depositor -> address to transfer the tokens from, must have approval
         // asset -> address of token to be deposited
         // amt -> amount of asset to be deposited
@@ -392,7 +379,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // any position-specific validation must be done within the position contract
         Position(position).addCollateralType(asset);
 
-        emit AddAsset(position, msg.sender, asset);
+        emit AddToken(position, msg.sender, asset);
     }
 
     function removeToken(address position, bytes calldata data) internal whenNotPaused {
@@ -402,7 +389,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // deregister asset as collateral
         Position(position).removeCollateralType(asset);
 
-        emit RemoveAsset(position, msg.sender, asset);
+        emit RemoveToken(position, msg.sender, asset);
     }
 
     /*//////////////////////////////////////////////////////////////

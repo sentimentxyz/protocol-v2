@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 // types
 import {Registry} from "./Registry.sol";
-import {IPool} from "./interfaces/IPool.sol";
 import {IRateModel} from "./interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -14,7 +13,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ERC6909} from "./lib/ERC6909.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Pool is Ownable, ERC6909, IPool {
+contract Pool is Ownable, ERC6909 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -42,17 +41,37 @@ contract Pool is Ownable, ERC6909, IPool {
     RateModelUpdate public rateModelUpdate;
 
     /*//////////////////////////////////////////////////////////////
+                                Events
+    //////////////////////////////////////////////////////////////*/
+
+    event PoolCapSet(uint256 indexed poolId, uint128 poolCap);
+    event PoolOwnerSet(uint256 indexed poolId, address owner);
+    event RateModelUpdated(uint256 indexed poolId, address rateModel);
+    event InterestFeeSet(uint256 indexed poolId, uint128 interestFee);
+    event OriginationFeeSet(uint256 indexed poolId, uint128 originationFee);
+    event RateModelUpdateRejected(uint256 indexed poolId, address rateModel);
+    event RateModelUpdateRequested(uint256 indexed poolId, address rateModel);
+    event Repay(address indexed position, address indexed asset, uint256 amount);
+    event Borrow(address indexed position, address indexed asset, uint256 amount);
+    event PoolInitialized(uint256 indexed poolId, address indexed owner, address indexed asset);
+    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(
+        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
+    );
+
+    /*//////////////////////////////////////////////////////////////
                                 Errors
     //////////////////////////////////////////////////////////////*/
 
     error Pool_AlreadyInitialized();
-    error Pool_NoRateModelUpdate();
-    error Pool_RateModelUpdateTimelock();
-    error Pool_PoolAlreadyInitialized();
-    error Pool_ZeroSharesRepay();
-    error Pool_ZeroSharesBorrow();
-    error Pool_ZeroSharesDeposit();
-    error Pool_OnlyPositionManager();
+    error Pool_NoRateModelUpdate(uint256 poolId);
+    error Pool_PoolAlreadyInitialized(uint256 poolId);
+    error Pool_ZeroSharesRepay(uint256 poolId, uint256 amt);
+    error Pool_ZeroSharesBorrow(uint256 poolId, uint256 amt);
+    error Pool_ZeroSharesDeposit(uint256 poolId, uint256 amt);
+    error Pool_OnlyPoolOwner(uint256 poolId, address sender);
+    error Pool_OnlyPositionManager(uint256 poolId, address sender);
+    error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -211,7 +230,7 @@ contract Pool is Ownable, ERC6909, IPool {
         PoolData storage pool = poolDataFor[poolId];
 
         // revert if the caller is not the position manager
-        if (msg.sender != positionManager) revert Pool_OnlyPositionManager();
+        if (msg.sender != positionManager) revert Pool_OnlyPositionManager(poolId, msg.sender);
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
@@ -221,7 +240,7 @@ contract Pool is Ownable, ERC6909, IPool {
         borrowShares = convertToShares(pool.totalBorrows, amt);
 
         // revert if borrow amt is too small
-        if (borrowShares == 0) revert Pool_ZeroSharesBorrow();
+        if (borrowShares == 0) revert Pool_ZeroSharesBorrow(poolId, amt);
 
         // update total pool debt, denominated in notional asset units and shares
         pool.totalBorrows.assets += uint128(amt);
@@ -259,7 +278,7 @@ contract Pool is Ownable, ERC6909, IPool {
         // the call to Pool.repay() is not frontrun allowing debt repayment for another position
 
         // revert if the caller is not the position manager
-        if (msg.sender != positionManager) revert Pool_OnlyPositionManager();
+        if (msg.sender != positionManager) revert Pool_OnlyPositionManager(poolId, msg.sender);
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
@@ -269,7 +288,7 @@ contract Pool is Ownable, ERC6909, IPool {
         uint256 borrowShares = convertToShares(pool.totalBorrows, amt);
 
         // revert if repaid amt is too small
-        if (borrowShares == 0) revert Pool_ZeroSharesRepay();
+        if (borrowShares == 0) revert Pool_ZeroSharesRepay(poolId, amt);
 
         // update total pool debt, denominated in notional asset units, and shares
         pool.totalBorrows.assets -= uint128(amt);
@@ -289,7 +308,7 @@ contract Pool is Ownable, ERC6909, IPool {
         uint128 originationFee
     ) external returns (uint256 poolId) {
         poolId = uint256(keccak256(abi.encodePacked(owner, asset, rateModel, interestFee, originationFee)));
-        if (ownerOf[poolId] != address(0)) revert Pool_PoolAlreadyInitialized();
+        if (ownerOf[poolId] != address(0)) revert Pool_PoolAlreadyInitialized(poolId);
         ownerOf[poolId] = owner;
 
         PoolData memory poolData = PoolData({
@@ -304,6 +323,6 @@ contract Pool is Ownable, ERC6909, IPool {
 
         poolDataFor[poolId] = poolData;
 
-        emit PoolInitialized(owner, poolId, poolData);
+        emit PoolInitialized(poolId, owner, asset);
     }
 }

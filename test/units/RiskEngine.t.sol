@@ -11,7 +11,6 @@ import {MockERC20} from "../mocks/MockERC20.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
 contract RiskModuleUnitTests is BaseTest {
-    address public owner = makeAddr("owner");
     address public notOwner = makeAddr("notOwner");
 
     MockERC20 public collateral = new MockERC20("Collateral", "COL", 18);

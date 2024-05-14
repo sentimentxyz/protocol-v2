@@ -35,6 +35,9 @@ contract BaseTest is Test {
     address public positionBeacon;
     Pool public pool;
 
+    address public user = makeAddr("user");
+    address public owner = makeAddr("owner");
+
     MockERC20 public asset;
     uint256 public fixedRatePool;
     uint256 public linearRatePool;

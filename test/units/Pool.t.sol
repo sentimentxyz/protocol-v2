@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 import "../BaseTest.t.sol";
 
 contract PoolUnitTests is BaseTest {
-    address user = makeAddr("user");
     address poolOwner = makeAddr("poolOwner");
 
     function testIntializePool() public {

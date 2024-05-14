@@ -31,6 +31,7 @@ contract RiskModule {
     Pool public pool;
     RiskEngine public riskEngine;
 
+    error RiskModule_UnsupportedAsset(uint256 pool, address asset);
     error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
     error RiskModule_DebtTooLow(address position);
     error RiskModule_ZeroAssetsWithDebt(address position);
@@ -49,8 +50,12 @@ contract RiskModule {
     function isPositionHealthy(address position) external view returns (bool) {
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = getRiskData(position);
 
-        if (totalDebtValue != 0 && totalDebtValue < MIN_DEBT) revert RiskModule_DebtTooLow(position);
-        if (totalAssetValue == 0 && totalDebtValue != 0) revert RiskModule_ZeroAssetsWithDebt(position);
+        if (totalDebtValue != 0 && totalDebtValue < MIN_DEBT) {
+            revert RiskModule_DebtTooLow(position);
+        }
+        if (totalAssetValue == 0 && totalDebtValue != 0) {
+            revert RiskModule_ZeroAssetsWithDebt(position);
+        }
 
         return totalAssetValue >= minReqAssetValue;
     }
@@ -64,9 +69,7 @@ contract RiskModule {
 
         if (totalDebtValue == 0) return (totalAssetValue, 0, 0);
 
-        uint256[] memory compositeLtvForPool = _getCompositeLtvForPool(debtPools, positionAssets, positionAssetWeight);
-
-        uint256 minReqAssetValue = _getMinReqAssetValue(debtValueForPool, compositeLtvForPool);
+        uint256 minReqAssetValue = _getMinReqAssetValue(debtPools, debtValueForPool, positionAssets, positionAssetWeight);
 
         return (totalAssetValue, totalDebtValue, minReqAssetValue);
     }
@@ -147,6 +150,7 @@ contract RiskModule {
         uint256 totalDebtValue;
         uint256[] memory debtPools = Position(position).getDebtPools();
         uint256[] memory debtValueForPool = new uint256[](debtPools.length);
+
         for (uint256 i; i < debtPools.length; ++i) {
             uint256 debt = getDebtValueForPool(position, debtPools[i]);
             debtValueForPool[i] = debt;
@@ -163,6 +167,7 @@ contract RiskModule {
     {
         uint256 totalAssetValue;
         address[] memory positionAssets = Position(position).getPositionAssets();
+
         uint256[] memory positionAssetData = new uint256[](positionAssets.length);
 
         for (uint256 i; i < positionAssets.length; ++i) {
@@ -181,41 +186,29 @@ contract RiskModule {
         return (totalAssetValue, positionAssets, positionAssetData);
     }
 
-    function _getCompositeLtvForPool(
-        uint256[] memory debtPools,
+    function _getMinReqAssetValue(
+        uint256[] memory pools,
+        uint256[] memory debtValuleForPool,
         address[] memory positionAssets,
-        uint256[] memory positionAssetWeight
-    ) internal view returns (uint256[] memory) {
-        uint256[] memory compositeLtvForPool = new uint256[](debtPools.length);
-
-        // this nested loop is O(MAX_ASSETS * MAX_DEBT_POOLS) instead of the unbounded O(n^2)
-        for (uint256 i; i < debtPools.length; ++i) {
-            uint256 compositeLtv;
-            for (uint256 j; j < positionAssets.length; ++j) {
-                // ltv for given pool-asset pair
-                uint256 ltv = riskEngine.ltvFor(debtPools[i], positionAssets[j]);
-
-                // the intermediate value has 36 decimals
-                // this will not overflow uint256 due to MAX_ASSETS and MAX_DEBT_POOLS
-                compositeLtv += positionAssetWeight[j] * ltv;
-            }
-
-            // scale down the intermediate value to 18 decimals
-            compositeLtvForPool[i] = compositeLtv / 1e18;
-        }
-
-        return compositeLtvForPool;
-    }
-
-    function _getMinReqAssetValue(uint256[] memory debtValueForPool, uint256[] memory compositeLtvForPool)
-        internal
-        pure
-        returns (uint256)
-    {
+        uint256[] memory wt
+    ) internal view returns (uint256) {
         uint256 minReqAssetValue;
 
-        for (uint256 i; i < debtValueForPool.length; ++i) {
-            minReqAssetValue += debtValueForPool[i].mulDiv(1e18, compositeLtvForPool[i], Math.Rounding.Ceil);
+        // O(pools.len * positionAssets.len)
+        for (uint256 i; i < pools.length; ++i) {
+            for (uint256 j; j < positionAssets.length; ++j) {
+                uint256 ltv = riskEngine.ltvFor(pools[i], positionAssets[j]);
+
+                if (ltv == 0) {
+                    revert RiskModule_UnsupportedAsset(pools[i], positionAssets[j]);
+                }
+
+                // debt is backed according to the share of value of the collateral
+                // ie. if your collateral value is 60% BTC and 40% ETH, 
+                // then 60% of the debt is assigned to be backed by BTC
+                // and 40% by ETH
+                minReqAssetValue += debtValuleForPool[i].mulDiv(wt[j], ltv, Math.Rounding.Ceil);
+            }
         }
 
         return minReqAssetValue;

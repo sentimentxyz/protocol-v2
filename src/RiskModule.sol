@@ -31,10 +31,10 @@ contract RiskModule {
     Pool public pool;
     RiskEngine public riskEngine;
 
-    error RiskModule_UnsupportedAsset(uint256 pool, address asset);
-    error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
     error RiskModule_DebtTooLow(address position);
     error RiskModule_ZeroAssetsWithDebt(address position);
+    error RiskModule_UnsupportedAsset(uint256 pool, address asset);
+    error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
 
     constructor(address registry_, uint256 minDebt_, uint256 liquidationDiscount_) {
         REGISTRY = Registry(registry_);
@@ -69,7 +69,8 @@ contract RiskModule {
 
         if (totalDebtValue == 0) return (totalAssetValue, 0, 0);
 
-        uint256 minReqAssetValue = _getMinReqAssetValue(debtPools, debtValueForPool, positionAssets, positionAssetWeight);
+        uint256 minReqAssetValue =
+            _getMinReqAssetValue(debtPools, debtValueForPool, positionAssets, positionAssetWeight);
 
         return (totalAssetValue, totalDebtValue, minReqAssetValue);
     }
@@ -187,7 +188,7 @@ contract RiskModule {
     }
 
     function _getMinReqAssetValue(
-        uint256[] memory pools,
+        uint256[] memory debtPools,
         uint256[] memory debtValuleForPool,
         address[] memory positionAssets,
         uint256[] memory wt
@@ -195,18 +196,17 @@ contract RiskModule {
         uint256 minReqAssetValue;
 
         // O(pools.len * positionAssets.len)
-        for (uint256 i; i < pools.length; ++i) {
+        for (uint256 i; i < debtPools.length; ++i) {
             for (uint256 j; j < positionAssets.length; ++j) {
-                uint256 ltv = riskEngine.ltvFor(pools[i], positionAssets[j]);
+                uint256 ltv = riskEngine.ltvFor(debtPools[i], positionAssets[j]);
 
                 if (ltv == 0) {
-                    revert RiskModule_UnsupportedAsset(pools[i], positionAssets[j]);
+                    revert RiskModule_UnsupportedAsset(debtPools[i], positionAssets[j]);
                 }
 
-                // debt is backed according to the share of value of the collateral
-                // ie. if your collateral value is 60% BTC and 40% ETH, 
-                // then 60% of the debt is assigned to be backed by BTC
-                // and 40% by ETH
+                // debt is weighted in proportion to value of position assets. if your position
+                // consists of 60% A and 40% B, then 60% of the debt is assigned to be backed by A
+                // and 40% by B. this is iteratively computed for each pool the position borrows from
                 minReqAssetValue += debtValuleForPool[i].mulDiv(wt[j], ltv, Math.Rounding.Ceil);
             }
         }

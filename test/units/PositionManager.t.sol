@@ -22,8 +22,10 @@ contract PositionManagerUnitTests is BaseTest {
     function setUp() public override {
         super.setUp();
 
+        vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(collateral), address(collateralOracle));
         riskEngine.setOracle(address(asset), address(assetOracle));
+        vm.stopPrank();
 
         asset.mint(address(this), 10000 ether);
         asset.approve(address(pool), 10000 ether);
@@ -45,7 +47,6 @@ contract PositionManagerUnitTests is BaseTest {
         vm.startPrank(protocolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
-
         riskEngine.requestLtvUpdate(linearRatePool, address(collateral), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(collateral));
         vm.stopPrank();
@@ -60,10 +61,8 @@ contract PositionManagerUnitTests is BaseTest {
 
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl
-        address beacon = address((new TransparentUpgradeableProxy(positionManagerImpl, owner, new bytes(0))));
-        positionManager =
-            PositionManager(beacon); // setup proxy
-    
+        address beacon = address((new TransparentUpgradeableProxy(positionManagerImpl, positionOwner, new bytes(0))));
+        positionManager = PositionManager(beacon); // setup proxy
 
         PositionManager(positionManager).initialize(address(registry), 550);
 
@@ -109,7 +108,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         vm.expectRevert();
         PositionManager(positionManager).processBatch(makeAddr("incorrectPosition"), actions);
-    
+
         vm.expectRevert();
         PositionManager(positionManager).process(makeAddr("incorrectPosition"), action);
     }
@@ -134,7 +133,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         PositionManager(positionManager).processBatch(position, actions2);
         assertEq(Position(position).getPositionAssets().length, 0);
-    } 
+    }
 
     function testSimpleDepositCollateral(uint96 amount) public {
         vm.startPrank(positionOwner);
@@ -154,7 +153,7 @@ contract PositionManagerUnitTests is BaseTest {
         collateral.approve(address(positionManager), amount);
 
         PositionManager(positionManager).processBatch(position, actions);
-        
+
         assertEq(collateral.balanceOf(address(position)), amount);
         vm.stopPrank();
     }
@@ -170,7 +169,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         vm.expectRevert();
         PositionManager(positionManager).processBatch(position, actions);
-    
+
         vm.expectRevert();
         PositionManager(positionManager).process(position, action);
         vm.stopPrank();
@@ -183,7 +182,7 @@ contract PositionManagerUnitTests is BaseTest {
         uint256 initialCollateral = collateral.balanceOf(positionOwner);
         PositionManager(positionManager).processBatch(position, actions);
         assertEq(collateral.balanceOf(positionOwner), initialCollateral + 50 ether);
-    
+
         initialCollateral = collateral.balanceOf(positionOwner);
         PositionManager(positionManager).process(position, action);
         assertEq(collateral.balanceOf(positionOwner), initialCollateral + 50 ether);
@@ -292,7 +291,6 @@ contract PositionManagerUnitTests is BaseTest {
 
         assertEq(testContract.ping(), 1);
     }
-
 
     function testSimpleFailedCall() public {
         TestCallContract testContract = new TestCallContract(true);
@@ -443,7 +441,7 @@ contract PositionManagerUnitTests is BaseTest {
         PositionManager(positionManager).process(position, action);
 
         vm.prank(spender);
-        collateral.transferFrom(address(position), address(spender), 100 ether);    
+        collateral.transferFrom(address(position), address(spender), 100 ether);
     }
 
     function testToggleAuth() public {
@@ -487,12 +485,11 @@ contract PositionManagerUnitTests is BaseTest {
 
         vm.expectRevert();
         PositionManager(positionManager).processBatch(position, actions);
-    
+
         vm.expectRevert();
         PositionManager(positionManager).process(position, action);
     }
 }
-
 
 contract TestCallContract {
     bool immutable revertOrNot;
@@ -509,4 +506,3 @@ contract TestCallContract {
         ping++;
     }
 }
-

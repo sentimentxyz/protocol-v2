@@ -11,7 +11,7 @@ import {Action, Operation} from "src/PositionManager.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
-contract PoolUnitTests is BaseTest {
+contract PositionUnitTests is BaseTest {
     address public positionOwner = makeAddr("positionOwner");
     MockERC20 public collateral = new MockERC20("Collateral", "COL", 18);
 
@@ -23,8 +23,10 @@ contract PoolUnitTests is BaseTest {
     function setUp() public override {
         super.setUp();
 
+        vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(collateral), address(collateralOracle));
         riskEngine.setOracle(address(asset), address(assetOracle));
+        vm.stopPrank();
 
         asset.mint(address(this), 10000 ether);
         asset.approve(address(pool), 10000 ether);
@@ -65,7 +67,7 @@ contract PoolUnitTests is BaseTest {
     function testCannotCallNonAuthorizedFunctions() public {
         address hacker = makeAddr("hacker");
         vm.startPrank(hacker);
-        
+
         vm.expectRevert();
         Position(position).approve(address(collateral), hacker, 10000 ether);
 

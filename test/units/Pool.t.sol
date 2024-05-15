@@ -6,14 +6,15 @@ import "../BaseTest.t.sol";
 contract PoolUnitTests is BaseTest {
     address poolOwner = makeAddr("poolOwner");
 
-    function testIntializePool() public {
-        Pool newPool = new Pool(address(registry), makeAddr("feeRecipient"));
+    function setUp() public override {
+        super.setUp();
+    }
 
-        assertEq(newPool.feeRecipient(), makeAddr("feeRecipient"));
-        assertEq(address(newPool.REGISTRY()), address(registry));
+    function testIntializePool() public {
+        assertEq(address(pool.REGISTRY()), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        uint256 id = pool.initializePool(address(0x05), address(asset), rateModel, 0, 0);
+        uint256 id = pool.initializePool(poolOwner, address(asset), rateModel, 0, 0);
         assertEq(rateModel, pool.getRateModelFor(id));
     }
 
@@ -128,8 +129,9 @@ contract PoolUnitTests is BaseTest {
     function testOnlyPositionManagerCanBorrow() public {
         address notPositionManager = makeAddr("notPositionManager");
         vm.startPrank(notPositionManager);
-        // vm.expectRevert(abi.encodePacked(Pool.Pool_OnlyPositionManager.selector, linearRatePool, notPositionManager));
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(Pool.Pool_OnlyPositionManager.selector, linearRatePool, notPositionManager)
+        );
         pool.borrow(linearRatePool, notPositionManager, 100 ether);
     }
 
@@ -138,7 +140,7 @@ contract PoolUnitTests is BaseTest {
 
         vm.startPrank(registry.addressFor(SENTIMENT_POSITION_MANAGER_KEY));
 
-        vm.expectRevert(abi.encodePacked(Pool.Pool_ZeroSharesBorrow.selector, linearRatePool, uint256(0)));
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_ZeroSharesBorrow.selector, linearRatePool, uint256(0)));
         pool.borrow(linearRatePool, user, 0);
     }
 
@@ -208,10 +210,9 @@ contract PoolUnitTests is BaseTest {
         assertApproxEqAbs(pool.getTotalBorrows(linearRatePool), borrowed / 2, 1);
     }
 
-    function testConvertToSharesAndAssetsAreReversible(uint112 frac1, uint96 number) view public {
+    function testConvertToSharesAndAssetsAreReversible(uint112 frac1, uint96 number) public view {
         vm.assume(frac1 > 1e8);
         vm.assume(number > 0);
-
 
         Pool.Uint128Pair memory rebase = Pool.Uint128Pair(uint128(frac1) * 2, uint128(frac1));
 

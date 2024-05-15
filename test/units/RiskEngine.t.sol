@@ -23,8 +23,10 @@ contract RiskModuleUnitTests is BaseTest {
     function setUp() public override {
         super.setUp();
 
+        vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(collateral), address(collateralOracle));
         riskEngine.setOracle(address(asset), address(assetOracle));
+        vm.stopPrank();
 
         asset.mint(address(this), 10000 ether);
         asset.approve(address(pool), 10000 ether);
@@ -87,6 +89,7 @@ contract RiskModuleUnitTests is BaseTest {
     }
 
     function testCanUpdateRiskModule() public {
+        vm.prank(protocolOwner);
         riskEngine.setRiskModule(address(0x3828342));
         assertEq(address(riskEngine.riskModule()), address(0x3828342));
 

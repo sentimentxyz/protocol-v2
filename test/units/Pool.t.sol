@@ -12,6 +12,7 @@ contract PoolUnitTests is BaseTest {
         assertEq(newPool.feeRecipient(), makeAddr("feeRecipient"));
         assertEq(address(newPool.REGISTRY()), address(registry));
 
+
         address rateModel = address(new LinearRateModel(1e18, 2e18));
         uint256 id = pool.initializePool(address(0x05), address(asset), rateModel, 0, 0);
         assertEq(rateModel, pool.getRateModelFor(id));
@@ -239,4 +240,5 @@ contract PoolUnitTests is BaseTest {
         vm.expectRevert();
         pool.repay(linearRatePool, user, 0);
     }
+
 }

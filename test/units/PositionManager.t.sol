@@ -509,4 +509,3 @@ contract TestCallContract {
         ping++;
     }
 }
-

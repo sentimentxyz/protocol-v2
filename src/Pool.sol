@@ -11,7 +11,6 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
 import {ERC6909} from "./lib/ERC6909.sol";
-import { FixedPointMathLib } from "lib/solmate/src/utils/FixedPointMathLib.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Pool is Ownable, ERC6909 {
@@ -134,12 +133,12 @@ contract Pool is Ownable, ERC6909 {
 
     function convertToShares(Uint128Pair memory frac, uint256 assets) public pure returns (uint256 shares) {
         if (frac.assets == 0) return assets;
-        shares = FixedPointMathLib.mulDivDown(assets, frac.shares, frac.assets);
+        shares = assets.mulDiv(frac.shares, frac.assets);
     }
 
     function convertToAssets(Uint128Pair memory frac, uint256 shares) public pure returns (uint256 assets) {
         if (frac.shares == 0) return shares;
-        assets = FixedPointMathLib.mulDivDown(shares, frac.assets, frac.shares);
+        assets = shares.mulDiv(frac.assets, frac.shares);
     }
 
     /*//////////////////////////////////////////////////////////////

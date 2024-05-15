@@ -14,7 +14,7 @@ contract PoolUnitTests is BaseTest {
         assertEq(address(pool.REGISTRY()), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        uint256 id = pool.initializePool(poolOwner, address(asset), rateModel, 0, 0);
+        uint256 id = pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0);
         assertEq(rateModel, pool.getRateModelFor(id));
     }
 
@@ -22,8 +22,8 @@ contract PoolUnitTests is BaseTest {
     function testFailsDoubleInit() public {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
 
-        pool.initializePool(poolOwner, address(asset), rateModel, 0, 0);
-        pool.initializePool(poolOwner, address(asset), rateModel, 0, 0);
+        pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0);
+        pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0);
     }
 
     function testCannotFrontRunDeployment() public {
@@ -31,17 +31,17 @@ contract PoolUnitTests is BaseTest {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
 
         vm.prank(poolOwner);
-        uint256 id = pool.initializePool(poolOwner, address(asset), rateModel, 0, 0);
+        uint256 id = pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0);
 
         vm.prank(notPoolOwner);
-        uint256 id2 = pool.initializePool(notPoolOwner, address(asset), rateModel, 0, 0);
+        uint256 id2 = pool.initializePool(notPoolOwner, address(asset1), rateModel, 0, 0);
 
         assert(id != id2);
     }
 
     function testCannotDepositNothing() public {
         vm.startPrank(user);
-        asset.approve(address(pool), 0);
+        asset1.approve(address(pool), 0);
 
         vm.expectRevert("ZERO_SHARES");
         pool.deposit(linearRatePool, 0, user);
@@ -51,15 +51,15 @@ contract PoolUnitTests is BaseTest {
         vm.assume(assets > 0);
         vm.startPrank(user);
 
-        asset.mint(user, assets);
-        asset.approve(address(pool), assets);
+        asset1.mint(user, assets);
+        asset1.approve(address(pool), assets);
 
         pool.deposit(linearRatePool, assets, user);
 
         assertEq(pool.getAssetsOf(linearRatePool, user), assets);
         assertEq(pool.balanceOf(user, linearRatePool), assets); // Shares equal 1:1 at first
 
-        assertEq(asset.balanceOf(user), 0);
+        assertEq(asset1.balanceOf(user), 0);
         vm.stopPrank();
     }
 
@@ -72,7 +72,7 @@ contract PoolUnitTests is BaseTest {
         assertEq(pool.getAssetsOf(linearRatePool, user), 0);
         assertEq(pool.balanceOf(user, linearRatePool), 0);
 
-        assertEq(asset.balanceOf(user), assets);
+        assertEq(asset1.balanceOf(user), assets);
     }
 
     function testCannotWithdrawOthersAssets(uint96 assets) public {
@@ -106,7 +106,7 @@ contract PoolUnitTests is BaseTest {
         assertEq(pool.getAssetsOf(linearRatePool, user), 0);
         assertEq(pool.balanceOf(user, linearRatePool), 0);
 
-        assertEq(asset.balanceOf(approvedUser), assets);
+        assertEq(asset1.balanceOf(approvedUser), assets);
     }
 
     function testOperatorCanManageOthersAssets(uint96 assets) public {
@@ -123,7 +123,7 @@ contract PoolUnitTests is BaseTest {
         assertEq(pool.getAssetsOf(linearRatePool, user), 0);
         assertEq(pool.balanceOf(user, linearRatePool), 0);
 
-        assertEq(asset.balanceOf(operator), assets);
+        assertEq(asset1.balanceOf(operator), assets);
     }
 
     function testOnlyPositionManagerCanBorrow() public {
@@ -154,8 +154,8 @@ contract PoolUnitTests is BaseTest {
         pool.borrow(linearRatePool, user, assets / 5);
 
         assertEq(pool.getAssetsOf(linearRatePool, user), assets);
-        assertApproxEqAbs(asset.balanceOf(address(pool)), assets * 4 / 5, 1);
-        assertApproxEqAbs(asset.balanceOf(user), assets / 5, 1);
+        assertApproxEqAbs(asset1.balanceOf(address(pool)), assets * 4 / 5, 1);
+        assertApproxEqAbs(asset1.balanceOf(user), assets / 5, 1);
 
         assertEq(pool.getBorrowsOf(linearRatePool, user), assets / 5);
         assertEq(pool.getTotalBorrows(linearRatePool), assets / 5);
@@ -188,14 +188,14 @@ contract PoolUnitTests is BaseTest {
         // Add some liquidity to the pool
         address user2 = makeAddr("user2");
         vm.startPrank(user2);
-        asset.mint(user2, assets);
-        asset.approve(address(pool), assets);
+        asset1.mint(user2, assets);
+        asset1.approve(address(pool), assets);
         pool.deposit(linearRatePool, assets, user2);
 
         vm.startPrank(user);
         pool.redeem(linearRatePool, pool.balanceOf(user, linearRatePool), user, user);
 
-        assertGt(asset.balanceOf(user), assets);
+        assertGt(asset1.balanceOf(user), assets);
     }
 
     function testRepayWorksAsIntended(uint96 assets) public {

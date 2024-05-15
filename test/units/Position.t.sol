@@ -25,11 +25,11 @@ contract PositionUnitTests is BaseTest {
 
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(collateral), address(collateralOracle));
-        riskEngine.setOracle(address(asset), address(assetOracle));
+        riskEngine.setOracle(address(asset1), address(assetOracle));
         vm.stopPrank();
 
-        asset.mint(address(this), 10000 ether);
-        asset.approve(address(pool), 10000 ether);
+        asset1.mint(address(this), 10000 ether);
+        asset1.approve(address(pool), 10000 ether);
 
         pool.deposit(linearRatePool, 10000 ether, address(0x9));
 
@@ -46,8 +46,8 @@ contract PositionUnitTests is BaseTest {
         PositionManager(positionManager).processBatch(position, actions);
 
         vm.startPrank(protocolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 
         riskEngine.requestLtvUpdate(linearRatePool, address(collateral), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(collateral));

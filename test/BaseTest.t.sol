@@ -37,7 +37,7 @@ contract BaseTest is Test {
 
     address public user = makeAddr("user");
 
-    MockERC20 public asset;
+    MockERC20 public asset1;
     uint256 public fixedRatePool;
     uint256 public linearRatePool;
 
@@ -118,18 +118,17 @@ contract BaseTest is Test {
         riskEngine.updateFromRegistry();
         riskModule.updateFromRegistry();
 
-        asset = new MockERC20("Asset", "ASSET", 18);
+        asset1 = new MockERC20("Asset1", "ASSET1", 18);
 
         pool.transferOwnership(params.owner);
         registry.transferOwnership(params.owner);
         riskEngine.transferOwnership(params.owner);
-        // positionManager.transferOwnership(params.owner);
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        linearRatePool = pool.initializePool(protocolOwner, address(asset), rateModel, 0, 0);
+        linearRatePool = pool.initializePool(protocolOwner, address(asset1), rateModel, 0, 0);
 
         rateModel = address(new FixedRateModel(1e18));
-        fixedRatePool = pool.initializePool(protocolOwner, address(asset), rateModel, 0, 0);
+        fixedRatePool = pool.initializePool(protocolOwner, address(asset1), rateModel, 0, 0);
     }
 }
 

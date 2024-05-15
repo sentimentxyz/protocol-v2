@@ -24,11 +24,11 @@ contract PositionManagerUnitTests is BaseTest {
 
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(collateral), address(collateralOracle));
-        riskEngine.setOracle(address(asset), address(assetOracle));
+        riskEngine.setOracle(address(asset1), address(assetOracle));
         vm.stopPrank();
 
-        asset.mint(address(this), 10000 ether);
-        asset.approve(address(pool), 10000 ether);
+        asset1.mint(address(this), 10000 ether);
+        asset1.approve(address(pool), 10000 ether);
 
         pool.deposit(linearRatePool, 10000 ether, address(0x9));
 
@@ -45,8 +45,8 @@ contract PositionManagerUnitTests is BaseTest {
         PositionManager(positionManager).processBatch(position, actions);
 
         vm.startPrank(protocolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
         riskEngine.requestLtvUpdate(linearRatePool, address(collateral), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(collateral));
         vm.stopPrank();
@@ -198,13 +198,13 @@ contract PositionManagerUnitTests is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        uint256 initialAssetBalance = asset.balanceOf(position);
+        uint256 initialAssetBalance = asset1.balanceOf(position);
         (,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
         assertEq(address(positionManager.pool()), address(pool));
 
         PositionManager(positionManager).processBatch(position, actions);
 
-        assertGt(asset.balanceOf(position), initialAssetBalance);
+        assertGt(asset1.balanceOf(position), initialAssetBalance);
         (,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
         assertEq(newTotalBorrows.assets, totalBorrows.assets + 2 ether);
     }
@@ -213,7 +213,7 @@ contract PositionManagerUnitTests is BaseTest {
         testSimpleDepositCollateral(100 ether);
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        uint256 corruptPool = pool.initializePool(address(0), address(asset), rateModel, 0, 0);
+        uint256 corruptPool = pool.initializePool(address(0), address(asset1), rateModel, 0, 0);
 
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(corruptPool, 2 ether);
@@ -257,7 +257,7 @@ contract PositionManagerUnitTests is BaseTest {
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(linearRatePool, borrow);
 
-        asset.mint(position, 5 ether);
+        asset1.mint(position, 5 ether);
 
         Action memory action = Action({op: Operation.Repay, data: data});
         Action[] memory actions = new Action[](1);
@@ -455,7 +455,7 @@ contract PositionManagerUnitTests is BaseTest {
         vm.stopPrank();
 
         vm.startPrank(newOwner);
-        data = abi.encode(address(asset));
+        data = abi.encode(address(asset1));
         action = Action({op: Operation.AddToken, data: data});
 
         vm.expectRevert();

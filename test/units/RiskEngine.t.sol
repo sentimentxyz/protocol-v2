@@ -25,53 +25,53 @@ contract RiskModuleUnitTests is BaseTest {
 
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(collateral), address(collateralOracle));
-        riskEngine.setOracle(address(asset), address(assetOracle));
+        riskEngine.setOracle(address(asset1), address(assetOracle));
         vm.stopPrank();
 
-        asset.mint(address(this), 10000 ether);
-        asset.approve(address(pool), 10000 ether);
+        asset1.mint(address(this), 10000 ether);
+        asset1.approve(address(pool), 10000 ether);
 
         pool.deposit(linearRatePool, 10000 ether, address(0x9));
     }
 
     function testOwnerCanUpdateLTV() public {
-        uint256 startLtv = riskEngine.ltvFor(linearRatePool, address(asset));
+        uint256 startLtv = riskEngine.ltvFor(linearRatePool, address(asset1));
         assertEq(startLtv, 0);
 
         vm.startPrank(protocolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
 
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 
-        assertEq(riskEngine.ltvFor(linearRatePool, address(asset)), 0.75e18);
+        assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
     }
 
     function testOwnerCanRejectLTVUpdated() public {
         // Set a starting non-zero ltv
         vm.startPrank(protocolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 
-        assertEq(riskEngine.ltvFor(linearRatePool, address(asset)), 0.75e18);
+        assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
 
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.5e18);
-        riskEngine.rejectLtvUpdate(linearRatePool, address(asset));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.5e18);
+        riskEngine.rejectLtvUpdate(linearRatePool, address(asset1));
 
-        assertEq(riskEngine.ltvFor(linearRatePool, address(asset)), 0.75e18);
+        assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
     }
 
     function testNonOwnerCannotUpdateLTV() public {
         vm.prank(protocolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
 
         vm.startPrank(notOwner);
         vm.expectRevert();
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 
         vm.expectRevert();
-        riskEngine.rejectLtvUpdate(linearRatePool, address(asset));
+        riskEngine.rejectLtvUpdate(linearRatePool, address(asset1));
 
-        assertEq(riskEngine.ltvFor(linearRatePool, address(asset)), 0);
+        assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0);
     }
 
     function testCannotSetLTVOutsideGlobalLimits() public {
@@ -80,12 +80,12 @@ contract RiskModuleUnitTests is BaseTest {
 
         vm.startPrank(protocolOwner);
         vm.expectRevert();
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.24e18);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.24e18);
 
         vm.expectRevert();
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 1.26e18);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 1.26e18);
 
-        assertEq(riskEngine.ltvFor(linearRatePool, address(asset)), 0);
+        assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0);
     }
 
     function testCanUpdateRiskModule() public {
@@ -100,18 +100,18 @@ contract RiskModuleUnitTests is BaseTest {
 
     function testCannotUpdateLTVBeforeTimelock() public {
         vm.startPrank(protocolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.5e18);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.5e18);
 
         vm.expectRevert();
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 
-        assertEq(riskEngine.ltvFor(linearRatePool, address(asset)), 0.75e18);
+        assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
 
         vm.warp(block.timestamp + 2 days);
 
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
     }
 }

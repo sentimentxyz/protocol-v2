@@ -131,14 +131,14 @@ contract Pool is Ownable, ERC6909 {
         return poolDataFor[poolId].asset;
     }
 
-    function convertToShares(Uint128Pair memory frac, uint256 assets) public pure returns (uint256 shares) {
-        if (frac.assets == 0) return assets;
-        shares = assets.mulDiv(frac.shares, frac.assets);
+    function convertToShares(Uint128Pair memory pair, uint256 assets) public pure returns (uint256 shares) {
+        if (pair.assets == 0) return assets;
+        shares = assets.mulDiv(pair.shares, pair.assets);
     }
 
-    function convertToAssets(Uint128Pair memory frac, uint256 shares) public pure returns (uint256 assets) {
-        if (frac.shares == 0) return shares;
-        assets = shares.mulDiv(frac.assets, frac.shares);
+    function convertToAssets(Uint128Pair memory pair, uint256 shares) public pure returns (uint256 assets) {
+        if (pair.shares == 0) return shares;
+        assets = shares.mulDiv(pair.assets, pair.shares);
     }
 
     /*//////////////////////////////////////////////////////////////

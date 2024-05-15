@@ -85,13 +85,6 @@ contract RiskEngine is Ownable {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    struct RiskEngineInitParams {
-        address pool;
-        address riskModule;
-        uint256 minLtv;
-        uint256 maxLtv;
-    }
-
     constructor(address registry_, uint256 minLtv_, uint256 maxLtv_) Ownable(msg.sender) {
         registry = Registry(registry_);
         minLtv = minLtv_;
@@ -208,11 +201,5 @@ contract RiskEngine is Ownable {
         oracleFor[asset] = oracle;
 
         emit OracleSet(asset, oracle);
-    }
-
-    function setPool(address _pool) external onlyOwner {
-        pool = Pool(_pool);
-
-        emit PoolSet(_pool);
     }
 }

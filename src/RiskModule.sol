@@ -47,6 +47,9 @@ contract RiskModule {
     }
 
     function isPositionHealthy(address position) external view returns (bool) {
+        if (Position(position).getDebtPools().length == 0) {
+            return true;
+        }
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = getRiskData(position);
 
         if (totalDebtValue != 0 && totalDebtValue < MIN_DEBT) revert RiskModule_DebtTooLow(position);
@@ -146,6 +149,9 @@ contract RiskModule {
     {
         uint256 totalDebtValue;
         uint256[] memory debtPools = Position(position).getDebtPools();
+        if (debtPools.length == 0) {
+            return(0, debtPools, new uint256[](0));
+        }
         uint256[] memory debtValueForPool = new uint256[](debtPools.length);
         for (uint256 i; i < debtPools.length; ++i) {
             uint256 debt = getDebtValueForPool(position, debtPools[i]);
@@ -194,7 +200,6 @@ contract RiskModule {
             for (uint256 j; j < positionAssets.length; ++j) {
                 // ltv for given pool-asset pair
                 uint256 ltv = riskEngine.ltvFor(debtPools[i], positionAssets[j]);
-
                 // the intermediate value has 36 decimals
                 // this will not overflow uint256 due to MAX_ASSETS and MAX_DEBT_POOLS
                 compositeLtv += positionAssetWeight[j] * ltv;

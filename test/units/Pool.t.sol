@@ -7,6 +7,11 @@ contract PoolUnitTests is BaseTest {
     address poolOwner = makeAddr("poolOwner");
 
     function testIntializePool() public {
+        Pool newPool = new Pool(address(registry), makeAddr("feeRecipient"));
+
+        assertEq(newPool.feeRecipient(), makeAddr("feeRecipient"));
+        assertEq(address(newPool.REGISTRY()), address(registry));
+
         address rateModel = address(new LinearRateModel(1e18, 2e18));
         uint256 id = pool.initializePool(address(0x05), address(asset), rateModel, 0, 0);
         assertEq(rateModel, pool.getRateModelFor(id));
@@ -201,5 +206,37 @@ contract PoolUnitTests is BaseTest {
 
         assertApproxEqAbs(pool.getBorrowsOf(linearRatePool, user), borrowed / 2, 1);
         assertApproxEqAbs(pool.getTotalBorrows(linearRatePool), borrowed / 2, 1);
+    }
+
+    function testConvertToSharesAndAssetsAreReversible(uint112 frac1, uint96 number) view public {
+        vm.assume(frac1 > 1e8);
+        vm.assume(number > 0);
+
+
+        Pool.Uint128Pair memory rebase = Pool.Uint128Pair(uint128(frac1) * 2, uint128(frac1));
+
+        uint256 sharesFromAssets = pool.convertToShares(rebase, number);
+        uint256 assetsFromShares = pool.convertToAssets(rebase, sharesFromAssets);
+
+        assertApproxEqAbs(assetsFromShares, number, 2);
+    }
+
+    function testCantRepayForSomeoneElse() public {
+        testBorrowWorksAsIntended(100 ether);
+
+        uint256 borrowed = pool.getBorrowsOf(linearRatePool, user);
+
+        vm.startPrank(makeAddr("notPositionManager"));
+
+        vm.expectRevert();
+        pool.repay(linearRatePool, user, borrowed / 2);
+    }
+
+    function testCannotRepayZero() public {
+        testBorrowWorksAsIntended(100 ether);
+
+        vm.startPrank(registry.addressFor(SENTIMENT_POSITION_MANAGER_KEY));
+        vm.expectRevert();
+        pool.repay(linearRatePool, user, 0);
     }
 }

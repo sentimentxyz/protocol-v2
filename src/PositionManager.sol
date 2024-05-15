@@ -21,42 +21,6 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 /*//////////////////////////////////////////////////////////////
-                            Events
-//////////////////////////////////////////////////////////////*/
-
-event BeaconSet(address beacon);
-
-event RiskEngineSet(address riskEngine);
-
-event PoolFactorySet(address poolFactory);
-
-event LiquidationFeeSet(uint256 liquidationFee);
-
-event AddressSet(address indexed target, bool isAllowed);
-
-event AddAsset(address indexed position, address indexed caller, address asset);
-
-event FunctionSet(address indexed target, bytes4 indexed method, bool isAllowed);
-
-event RemoveAsset(address indexed position, address indexed caller, address asset);
-
-event Liquidation(address indexed position, address indexed liquidator, address indexed owner);
-
-event PositionDeployed(address indexed position, address indexed caller, address indexed owner);
-
-event Repay(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
-
-event Borrow(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
-
-event Exec(address indexed position, address indexed caller, address indexed target, bytes4 functionSelector);
-
-event Transfer(address indexed position, address indexed caller, address indexed target, address asset, uint256 amount);
-
-event Approve(address indexed position, address indexed caller, address indexed spender, address asset, uint256 amount);
-
-event Deposit(address indexed position, address indexed depositor, address asset, uint256 amount);
-
-/*//////////////////////////////////////////////////////////////
                             Structs
 //////////////////////////////////////////////////////////////*/
 
@@ -85,13 +49,13 @@ enum Operation {
     NewPosition, // create2 a new position with a given type, no auth needed
     // the following operations require msg.sender to be authorized
     Exec, // execute arbitrary calldata on a position
-    Deposit, // deposit collateral assets to a given position
+    Deposit, // Add collateral to a given position
     Transfer, // transfer assets from the position to a external address
     Approve, // allow a spender to transfer assets from a position
     Repay, // decrease position debt
     Borrow, // increase position debt
-    AddAsset, // upsert collateral asset to position storage
-    RemoveAsset // remove collateral asset from position storage
+    AddToken, // upsert collateral asset to position storage
+    RemoveToken // remove collateral asset from position storage
 
 }
 
@@ -152,6 +116,31 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     // mapping key -> first 20 bytes store the target address, next 4 bytes store the method selector
     mapping(address target => bool isAllowed) public isKnownAddress;
     mapping(address target => mapping(bytes4 method => bool isAllowed)) public isKnownFunc;
+
+    /*//////////////////////////////////////////////////////////////
+                            Events
+    //////////////////////////////////////////////////////////////*/
+
+    event BeaconSet(address beacon);
+    event RiskEngineSet(address riskEngine);
+    event PoolFactorySet(address poolFactory);
+    event LiquidationFeeSet(uint256 liquidationFee);
+    event AddressSet(address indexed target, bool isAllowed);
+    event AddToken(address indexed position, address indexed caller, address asset);
+    event FunctionSet(address indexed target, bytes4 indexed method, bool isAllowed);
+    event RemoveToken(address indexed position, address indexed caller, address asset);
+    event Liquidation(address indexed position, address indexed liquidator, address indexed owner);
+    event PositionDeployed(address indexed position, address indexed caller, address indexed owner);
+    event Deposit(address indexed position, address indexed depositor, address asset, uint256 amount);
+    event Repay(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
+    event Borrow(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
+    event Exec(address indexed position, address indexed caller, address indexed target, bytes4 functionSelector);
+    event Transfer(
+        address indexed position, address indexed caller, address indexed target, address asset, uint256 amount
+    );
+    event Approve(
+        address indexed position, address indexed caller, address indexed spender, address asset, uint256 amount
+    );
 
     /*//////////////////////////////////////////////////////////////
                                 Errors
@@ -253,10 +242,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             repay(position, action.data);
         } else if (action.op == Operation.Borrow) {
             borrow(position, action.data);
-        } else if (action.op == Operation.AddAsset) {
-            addAsset(position, action.data);
-        } else if (action.op == Operation.RemoveAsset) {
-            removeAsset(position, action.data);
+        } else if (action.op == Operation.AddToken) {
+            addToken(position, action.data);
+        } else if (action.op == Operation.RemoveToken) {
+            removeToken(position, action.data);
         } else {
             revert PositionManager_UnknownOperation(uint256(action.op));
         }
@@ -382,25 +371,25 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         emit Borrow(position, msg.sender, poolId, amt);
     }
 
-    function addAsset(address position, bytes calldata data) internal whenNotPaused {
+    function addToken(address position, bytes calldata data) internal whenNotPaused {
         // asset -> address of asset to be registered as collateral
         address asset = abi.decode(data, (address));
 
         // register asset as collateral
         // any position-specific validation must be done within the position contract
-        Position(position).addAsset(asset);
+        Position(position).addCollateralType(asset);
 
-        emit AddAsset(position, msg.sender, asset);
+        emit AddToken(position, msg.sender, asset);
     }
 
-    function removeAsset(address position, bytes calldata data) internal whenNotPaused {
+    function removeToken(address position, bytes calldata data) internal whenNotPaused {
         // asset -> address of asset to be deregistered as collateral
         address asset = abi.decode(data, (address));
 
         // deregister asset as collateral
-        Position(position).removeAsset(asset);
+        Position(position).removeCollateralType(asset);
 
-        emit RemoveAsset(position, msg.sender, asset);
+        emit RemoveToken(position, msg.sender, asset);
     }
 
     /*//////////////////////////////////////////////////////////////

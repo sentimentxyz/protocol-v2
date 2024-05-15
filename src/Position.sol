@@ -71,12 +71,12 @@ contract Position {
         if (!success) revert Position_ExecFailed(address(this), target);
     }
 
-    function addAsset(address asset) external onlyPositionManager {
+    function addCollateralType(address asset) external onlyPositionManager {
         positionAssets.insert(asset);
         if (positionAssets.length() > MAX_ASSETS) revert Position_MaxAssetsExceeded(address(this));
     }
 
-    function removeAsset(address asset) external onlyPositionManager {
+    function removeCollateralType(address asset) external onlyPositionManager {
         positionAssets.remove(asset);
     }
 

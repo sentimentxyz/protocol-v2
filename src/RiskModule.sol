@@ -48,6 +48,9 @@ contract RiskModule {
     }
 
     function isPositionHealthy(address position) external view returns (bool) {
+        if (Position(position).getDebtPools().length == 0) {
+            return true;
+        }
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = getRiskData(position);
 
         if (totalDebtValue != 0 && totalDebtValue < MIN_DEBT) {
@@ -150,6 +153,9 @@ contract RiskModule {
     {
         uint256 totalDebtValue;
         uint256[] memory debtPools = Position(position).getDebtPools();
+        if (debtPools.length == 0) {
+            return (0, debtPools, new uint256[](0));
+        }
         uint256[] memory debtValueForPool = new uint256[](debtPools.length);
 
         for (uint256 i; i < debtPools.length; ++i) {
@@ -200,9 +206,7 @@ contract RiskModule {
             for (uint256 j; j < positionAssets.length; ++j) {
                 uint256 ltv = riskEngine.ltvFor(debtPools[i], positionAssets[j]);
 
-                if (ltv == 0) {
-                    revert RiskModule_UnsupportedAsset(debtPools[i], positionAssets[j]);
-                }
+                if (ltv == 0) revert RiskModule_UnsupportedAsset(debtPools[i], positionAssets[j]);
 
                 // debt is weighted in proportion to value of position assets. if your position
                 // consists of 60% A and 40% B, then 60% of the debt is assigned to be backed by A

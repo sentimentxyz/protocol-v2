@@ -4,8 +4,6 @@ pragma solidity ^0.8.24;
 import "../BaseTest.t.sol";
 
 contract PoolUnitTests is BaseTest {
-    address poolOwner = makeAddr("poolOwner");
-
     function setUp() public override {
         super.setUp();
     }

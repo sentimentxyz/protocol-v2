@@ -42,7 +42,7 @@ contract PositionUnitTests is BaseTest {
 
         PositionManager(positionManager).processBatch(position, actions);
 
-        vm.startPrank(protocolOwner);
+        vm.startPrank(poolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 

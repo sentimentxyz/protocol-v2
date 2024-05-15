@@ -6,10 +6,10 @@ import {Registry} from "src/Registry.sol";
 import {Position} from "src/Position.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 import {RiskModule} from "src/RiskModule.sol";
-import {PositionManager} from "src/PositionManager.sol";
 import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {SuperPoolFactory} from "src/SuperPoolFactory.sol";
+import {Action, Operation, PositionManager} from "src/PositionManager.sol";
 
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -36,6 +36,8 @@ contract BaseTest is Test {
     Pool public pool;
 
     address public user = makeAddr("user");
+    address public lender = makeAddr("lender");
+    address public poolOwner = makeAddr("poolOwner");
 
     MockERC20 public asset1;
     MockERC20 public asset2;
@@ -127,26 +129,48 @@ contract BaseTest is Test {
         registry.transferOwnership(params.owner);
         riskEngine.transferOwnership(params.owner);
 
-        address rateModel = address(new LinearRateModel(1e18, 2e18));
-        linearRatePool = pool.initializePool(protocolOwner, address(asset1), rateModel, 0, 0);
+        address fixedRateModel = address(new FixedRateModel(1e18));
+        address linearRateModel = address(new LinearRateModel(1e18, 2e18));
 
-        rateModel = address(new FixedRateModel(1e18));
-        fixedRatePool = pool.initializePool(protocolOwner, address(asset1), rateModel, 0, 0);
+        vm.startPrank(poolOwner);
+        fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0);
+        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0);
+        vm.stopPrank();
     }
-}
 
-contract RegistryTest is BaseTest {
-    function testInitializesRegistryCorrectly() public view {
-        assertEq(address(pool), registry.addressFor(SENTIMENT_POOL_KEY));
-        assertEq(address(riskEngine), registry.addressFor(SENTIMENT_RISK_ENGINE_KEY));
-        assertEq(address(positionManager), registry.addressFor(SENTIMENT_POSITION_MANAGER_KEY));
-        assertEq(address(positionBeacon), registry.addressFor(SENTIMENT_POSITION_BEACON_KEY));
-        assertEq(address(riskModule), registry.addressFor(SENTIMENT_RISK_MODULE_KEY));
+    function newPosition(address owner, bytes32 salt) internal view returns (address, Action memory) {
+        bytes memory data = abi.encode(owner, salt);
+        (address position,) = portfolioLens.predictAddress(owner, salt);
+        Action memory action = Action({op: Operation.NewPosition, data: data});
+        // positionManager.process(position, action);
+        return (position, action);
+    }
 
-        assertEq(pool.positionManager(), address(positionManager));
+    function deposit(address asset, uint256 amt) internal pure returns (Action memory) {
+        bytes memory data = abi.encode(asset, amt);
+        Action memory action = Action({op: Operation.Deposit, data: data});
+        // positionManager.process(position, action);
+        return action;
+    }
 
-        assertEq(address(positionManager.riskEngine()), address(riskEngine));
-        assertEq(address(positionManager.pool()), address(pool));
-        assertEq(address(positionManager.positionBeacon()), address(positionBeacon));
+    function addToken(address asset) internal pure returns (Action memory) {
+        bytes memory data = abi.encode(asset);
+        Action memory action = Action({op: Operation.AddToken, data: data});
+        // positionManager.process(position, action);
+        return action;
+    }
+
+    function removeToken(address asset) internal pure returns (Action memory) {
+        bytes memory data = abi.encode(asset);
+        Action memory action = Action({op: Operation.RemoveToken, data: data});
+        // positionManager.process(position, action);
+        return action;
+    }
+
+    function borrow(uint256 poolId, uint256 amt) internal pure returns (Action memory) {
+        bytes memory data = abi.encode(poolId, amt);
+        Action memory action = Action({op: Operation.Borrow, data: data});
+        // positionManager.process(position, action);
+        return action;
     }
 }

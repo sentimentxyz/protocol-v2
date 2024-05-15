@@ -34,7 +34,7 @@ contract RiskModuleUnitTests is BaseTest {
         uint256 startLtv = riskEngine.ltvFor(linearRatePool, address(asset1));
         assertEq(startLtv, 0);
 
-        vm.startPrank(protocolOwner);
+        vm.startPrank(poolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
 
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
@@ -44,7 +44,7 @@ contract RiskModuleUnitTests is BaseTest {
 
     function testOwnerCanRejectLTVUpdated() public {
         // Set a starting non-zero ltv
-        vm.startPrank(protocolOwner);
+        vm.startPrank(poolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 
@@ -57,7 +57,7 @@ contract RiskModuleUnitTests is BaseTest {
     }
 
     function testNonOwnerCannotUpdateLTV() public {
-        vm.prank(protocolOwner);
+        vm.prank(poolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
 
         vm.startPrank(makeAddr("notOwner"));
@@ -74,7 +74,7 @@ contract RiskModuleUnitTests is BaseTest {
         vm.prank(riskEngine.owner());
         riskEngine.setLtvBounds(0.25e18, 1.25e18);
 
-        vm.startPrank(protocolOwner);
+        vm.startPrank(poolOwner);
         vm.expectRevert();
         riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.24e18);
 
@@ -95,7 +95,7 @@ contract RiskModuleUnitTests is BaseTest {
     }
 
     function testCannotUpdateLTVBeforeTimelock() public {
-        vm.startPrank(protocolOwner);
+        vm.startPrank(poolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 

@@ -38,6 +38,8 @@ contract BaseTest is Test {
     address public user = makeAddr("user");
 
     MockERC20 public asset1;
+    MockERC20 public asset2;
+
     uint256 public fixedRatePool;
     uint256 public linearRatePool;
 
@@ -119,6 +121,7 @@ contract BaseTest is Test {
         riskModule.updateFromRegistry();
 
         asset1 = new MockERC20("Asset1", "ASSET1", 18);
+        asset2 = new MockERC20("Asset2", "ASSET2", 18);
 
         pool.transferOwnership(params.owner);
         registry.transferOwnership(params.owner);

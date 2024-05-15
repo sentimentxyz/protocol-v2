@@ -12,20 +12,17 @@ import {MockERC20} from "../mocks/MockERC20.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
 contract PositionUnitTests is BaseTest {
-    address public positionOwner = makeAddr("positionOwner");
-    MockERC20 public collateral = new MockERC20("Collateral", "COL", 18);
-
-    FixedPriceOracle collateralOracle = new FixedPriceOracle(0.5e18);
-    FixedPriceOracle assetOracle = new FixedPriceOracle(10e18);
-
     address public position;
+    address public positionOwner = makeAddr("positionOwner");
+    FixedPriceOracle asset1Oracle = new FixedPriceOracle(10e18);
+    FixedPriceOracle asset2Oracle = new FixedPriceOracle(0.5e18);
 
     function setUp() public override {
         super.setUp();
 
         vm.startPrank(protocolOwner);
-        riskEngine.setOracle(address(collateral), address(collateralOracle));
-        riskEngine.setOracle(address(asset1), address(assetOracle));
+        riskEngine.setOracle(address(asset1), address(asset1Oracle));
+        riskEngine.setOracle(address(asset2), address(asset2Oracle));
         vm.stopPrank();
 
         asset1.mint(address(this), 10000 ether);
@@ -49,8 +46,8 @@ contract PositionUnitTests is BaseTest {
         riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 
-        riskEngine.requestLtvUpdate(linearRatePool, address(collateral), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(collateral));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
         vm.stopPrank();
     }
 
@@ -69,13 +66,13 @@ contract PositionUnitTests is BaseTest {
         vm.startPrank(hacker);
 
         vm.expectRevert();
-        Position(position).approve(address(collateral), hacker, 10000 ether);
+        Position(position).approve(address(asset2), hacker, 10000 ether);
 
         // So the call doesn't revert for a lack of balance
-        collateral.mint(address(position), 10000 ether);
+        asset2.mint(address(position), 10000 ether);
 
         vm.expectRevert();
-        Position(position).transfer(address(collateral), hacker, 10000 ether);
+        Position(position).transfer(address(asset2), hacker, 10000 ether);
 
         vm.expectRevert();
         Position(position).borrow(linearRatePool, 10000 ether);
@@ -84,10 +81,10 @@ contract PositionUnitTests is BaseTest {
         Position(position).repay(linearRatePool, 10000 ether);
 
         vm.expectRevert();
-        Position(position).addCollateralType(address(collateral));
+        Position(position).addCollateralType(address(asset2));
 
         vm.expectRevert();
-        Position(position).removeCollateralType(address(collateral));
+        Position(position).removeCollateralType(address(asset2));
 
         vm.expectRevert();
         Position(position).exec(address(0x0), bytes(""));

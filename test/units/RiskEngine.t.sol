@@ -11,21 +11,17 @@ import {MockERC20} from "../mocks/MockERC20.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
 contract RiskModuleUnitTests is BaseTest {
-    address public notOwner = makeAddr("notOwner");
-
-    MockERC20 public collateral = new MockERC20("Collateral", "COL", 18);
-
-    FixedPriceOracle collateralOracle = new FixedPriceOracle(0.5e18);
-    FixedPriceOracle assetOracle = new FixedPriceOracle(10e18);
-
     address public position;
+    address public positionOwner = makeAddr("positionOwner");
+    FixedPriceOracle asset1Oracle = new FixedPriceOracle(10e18);
+    FixedPriceOracle asset2Oracle = new FixedPriceOracle(0.5e18);
 
     function setUp() public override {
         super.setUp();
 
         vm.startPrank(protocolOwner);
-        riskEngine.setOracle(address(collateral), address(collateralOracle));
-        riskEngine.setOracle(address(asset1), address(assetOracle));
+        riskEngine.setOracle(address(asset1), address(asset1Oracle));
+        riskEngine.setOracle(address(asset2), address(asset2Oracle));
         vm.stopPrank();
 
         asset1.mint(address(this), 10000 ether);
@@ -64,7 +60,7 @@ contract RiskModuleUnitTests is BaseTest {
         vm.prank(protocolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
 
-        vm.startPrank(notOwner);
+        vm.startPrank(makeAddr("notOwner"));
         vm.expectRevert();
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 

@@ -11,20 +11,17 @@ import {MockERC20} from "../mocks/MockERC20.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
 contract PositionManagerUnitTests is BaseTest {
-    address public positionOwner = makeAddr("positionOwner");
-    MockERC20 public collateral = new MockERC20("Collateral", "COL", 18);
-
-    FixedPriceOracle collateralOracle = new FixedPriceOracle(0.5e18);
-    FixedPriceOracle assetOracle = new FixedPriceOracle(10e18);
-
     address public position;
+    address public positionOwner = makeAddr("positionOwner");
+    FixedPriceOracle asset1Oracle = new FixedPriceOracle(10e18);
+    FixedPriceOracle asset2Oracle = new FixedPriceOracle(0.5e18);
 
     function setUp() public override {
         super.setUp();
 
         vm.startPrank(protocolOwner);
-        riskEngine.setOracle(address(collateral), address(collateralOracle));
-        riskEngine.setOracle(address(asset1), address(assetOracle));
+        riskEngine.setOracle(address(asset1), address(asset1Oracle));
+        riskEngine.setOracle(address(asset2), address(asset2Oracle));
         vm.stopPrank();
 
         asset1.mint(address(this), 10000 ether);
@@ -47,8 +44,8 @@ contract PositionManagerUnitTests is BaseTest {
         vm.startPrank(protocolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
-        riskEngine.requestLtvUpdate(linearRatePool, address(collateral), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(collateral));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
         vm.stopPrank();
     }
 
@@ -115,7 +112,7 @@ contract PositionManagerUnitTests is BaseTest {
 
     function testAddAndRemoveCollateralTypes() public {
         vm.startPrank(positionOwner);
-        bytes memory data = abi.encode(address(collateral));
+        bytes memory data = abi.encode(address(asset2));
         Action memory action = Action({op: Operation.AddToken, data: data});
 
         Action[] memory actions = new Action[](1);
@@ -124,7 +121,7 @@ contract PositionManagerUnitTests is BaseTest {
         PositionManager(positionManager).processBatch(position, actions);
 
         assertEq(Position(position).getPositionAssets().length, 1);
-        assertEq(Position(position).getPositionAssets()[0], address(collateral));
+        assertEq(Position(position).getPositionAssets()[0], address(asset2));
 
         Action memory action2 = Action({op: Operation.RemoveToken, data: data});
 
@@ -137,7 +134,7 @@ contract PositionManagerUnitTests is BaseTest {
 
     function testSimpleDepositCollateral(uint96 amount) public {
         vm.startPrank(positionOwner);
-        bytes memory data = abi.encode(address(collateral));
+        bytes memory data = abi.encode(address(asset2));
         Action memory action = Action({op: Operation.AddToken, data: data});
 
         Action[] memory actions = new Action[](1);
@@ -145,16 +142,16 @@ contract PositionManagerUnitTests is BaseTest {
 
         PositionManager(positionManager).processBatch(position, actions);
 
-        data = abi.encode(address(collateral), amount);
+        data = abi.encode(address(asset2), amount);
 
         actions[0] = Action({op: Operation.Deposit, data: data});
 
-        collateral.mint(positionOwner, amount);
-        collateral.approve(address(positionManager), amount);
+        asset2.mint(positionOwner, amount);
+        asset2.approve(address(positionManager), amount);
 
         PositionManager(positionManager).processBatch(position, actions);
 
-        assertEq(collateral.balanceOf(address(position)), amount);
+        assertEq(asset2.balanceOf(address(position)), amount);
         vm.stopPrank();
     }
 
@@ -162,7 +159,7 @@ contract PositionManagerUnitTests is BaseTest {
         testSimpleDepositCollateral(100 ether);
 
         vm.startPrank(positionOwner);
-        bytes memory data = abi.encode(address(positionOwner), address(collateral), 50 ether);
+        bytes memory data = abi.encode(address(positionOwner), address(asset2), 50 ether);
         Action memory action = Action({op: Operation.Transfer, data: data});
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -175,17 +172,17 @@ contract PositionManagerUnitTests is BaseTest {
         vm.stopPrank();
 
         vm.prank(positionManager.owner());
-        positionManager.toggleKnownAddress(address(collateral));
+        positionManager.toggleKnownAddress(address(asset2));
 
         vm.startPrank(positionOwner);
 
-        uint256 initialCollateral = collateral.balanceOf(positionOwner);
+        uint256 initialCollateral = asset2.balanceOf(positionOwner);
         PositionManager(positionManager).processBatch(position, actions);
-        assertEq(collateral.balanceOf(positionOwner), initialCollateral + 50 ether);
+        assertEq(asset2.balanceOf(positionOwner), initialCollateral + 50 ether);
 
-        initialCollateral = collateral.balanceOf(positionOwner);
+        initialCollateral = asset2.balanceOf(positionOwner);
         PositionManager(positionManager).process(position, action);
-        assertEq(collateral.balanceOf(positionOwner), initialCollateral + 50 ether);
+        assertEq(asset2.balanceOf(positionOwner), initialCollateral + 50 ether);
     }
 
     function testSimpleBorrow() public {
@@ -419,7 +416,7 @@ contract PositionManagerUnitTests is BaseTest {
         address spender = makeAddr("spender");
 
         vm.startPrank(positionOwner);
-        bytes memory data = abi.encode(spender, address(collateral), 100 ether);
+        bytes memory data = abi.encode(spender, address(asset2), 100 ether);
         Action memory action = Action({op: Operation.Approve, data: data});
 
         vm.expectRevert();
@@ -427,7 +424,7 @@ contract PositionManagerUnitTests is BaseTest {
         vm.stopPrank();
 
         vm.prank(positionManager.owner());
-        positionManager.toggleKnownAddress(address(collateral));
+        positionManager.toggleKnownAddress(address(asset2));
 
         vm.startPrank(positionOwner);
         vm.expectRevert();
@@ -441,12 +438,12 @@ contract PositionManagerUnitTests is BaseTest {
         PositionManager(positionManager).process(position, action);
 
         vm.prank(spender);
-        collateral.transferFrom(address(position), address(spender), 100 ether);
+        asset2.transferFrom(address(position), address(spender), 100 ether);
     }
 
     function testToggleAuth() public {
         vm.startPrank(positionOwner);
-        bytes memory data = abi.encode(address(collateral));
+        bytes memory data = abi.encode(address(asset2));
         Action memory action = Action({op: Operation.AddToken, data: data});
 
         PositionManager(positionManager).process(position, action);

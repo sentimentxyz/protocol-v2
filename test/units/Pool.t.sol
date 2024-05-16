@@ -12,7 +12,7 @@ contract PoolUnitTests is BaseTest {
         assertEq(address(pool.REGISTRY()), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        uint256 id = pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0);
+        uint256 id = pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
         assertEq(rateModel, pool.getRateModelFor(id));
     }
 
@@ -20,8 +20,8 @@ contract PoolUnitTests is BaseTest {
     function testFailsDoubleInit() public {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
 
-        pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0);
-        pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0);
+        pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
+        pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
     }
 
     function testCannotFrontRunDeployment() public {
@@ -29,10 +29,10 @@ contract PoolUnitTests is BaseTest {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
 
         vm.prank(poolOwner);
-        uint256 id = pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0);
+        uint256 id = pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
 
         vm.prank(notPoolOwner);
-        uint256 id2 = pool.initializePool(notPoolOwner, address(asset1), rateModel, 0, 0);
+        uint256 id2 = pool.initializePool(notPoolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
 
         assert(id != id2);
     }
@@ -162,7 +162,7 @@ contract PoolUnitTests is BaseTest {
     function testTimeIncreasesDebt(uint96 assets) public {
         testBorrowWorksAsIntended(assets);
 
-        (,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
 
         uint256 time = block.timestamp + 1 days;
         vm.warp(time + 86400 * 7);
@@ -170,7 +170,7 @@ contract PoolUnitTests is BaseTest {
 
         pool.accrue(linearRatePool);
 
-        (,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
 
         assertEq(newTotalBorrows.shares, totalBorrows.shares);
         assertGt(newTotalBorrows.assets, totalBorrows.assets);
@@ -179,7 +179,7 @@ contract PoolUnitTests is BaseTest {
     function testCanWithdrawEarnedInterest(uint96 assets) public {
         testTimeIncreasesDebt(assets);
 
-        (,,,,,, Pool.Uint128Pair memory borrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, Pool.Uint128Pair memory borrows) = pool.poolDataFor(linearRatePool);
 
         assertGt(borrows.assets, borrows.shares);
 

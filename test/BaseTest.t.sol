@@ -133,8 +133,8 @@ contract BaseTest is Test {
         address linearRateModel = address(new LinearRateModel(1e18, 2e18));
 
         vm.startPrank(poolOwner);
-        fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0);
-        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0);
+        fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0, type(uint128).max);
+        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);
         vm.stopPrank();
     }
 

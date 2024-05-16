@@ -10,13 +10,13 @@ import {IterableSet} from "./lib/IterableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 //contracts
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 
 // inspired by yearn v3 and metamorpho vaults
-contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeable {
+contract SuperPool is Ownable, Pausable, ERC4626 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -71,10 +71,6 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor() {
-        _disableInitializers();
-    }
-
     struct SuperPoolInitParams {
         address asset;
         address feeRecipient;
@@ -84,15 +80,17 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         string symbol;
     }
 
-    function initialize(SuperPoolInitParams calldata params) public initializer {
-        OwnableUpgradeable.__Ownable_init(msg.sender);
-        PausableUpgradeable.__Pausable_init();
-        ERC20Upgradeable.__ERC20_init(params.name, params.symbol);
-        ERC4626Upgradeable.__ERC4626_init(IERC20(params.asset));
-
-        fee = params.fee;
-        feeRecipient = params.feeRecipient;
-        superPoolCap = params.superPoolCap;
+    constructor(
+        address asset_,
+        address feeRecipient_,
+        uint256 fee_,
+        uint256 superPoolCap_,
+        string memory name_,
+        string memory symbol_
+    ) Ownable(msg.sender) ERC20(name_, symbol_) ERC4626(IERC20(asset_)) {
+        fee = fee_;
+        feeRecipient = feeRecipient_;
+        superPoolCap = superPoolCap_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -113,7 +111,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
 
     function accrueInterestAndFees() public {
         (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
-        if (feeShares != 0) ERC20Upgradeable._mint(feeRecipient, feeShares);
+        if (feeShares != 0) ERC20._mint(feeRecipient, feeShares);
         lastTotalAssets = newTotalAssets;
     }
 
@@ -122,7 +120,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     //////////////////////////////////////////////////////////////*/
 
     function totalAssets() public view override returns (uint256) {
-        uint256 assets = IERC20(ERC4626Upgradeable.asset()).balanceOf(address(this));
+        uint256 assets = IERC20(ERC4626.asset()).balanceOf(address(this));
 
         for (uint256 i; i < depositQueue.length; ++i) {
             assets += pool.getAssetsOf(depositQueue[i], address(this));
@@ -248,7 +246,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     }
 
     function reallocate(ReallocateParams[] calldata withdraws, ReallocateParams[] calldata deposits) external {
-        if (!isAllocator[msg.sender] && msg.sender != OwnableUpgradeable.owner()) {
+        if (!isAllocator[msg.sender] && msg.sender != Ownable.owner()) {
             revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
         }
 
@@ -267,7 +265,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
     //////////////////////////////////////////////////////////////*/
 
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
-        ERC4626Upgradeable._deposit(caller, receiver, assets, shares);
+        ERC4626._deposit(caller, receiver, assets, shares);
         _supplyToPools(assets);
         lastTotalAssets += assets;
     }
@@ -277,7 +275,7 @@ contract SuperPool is OwnableUpgradeable, PausableUpgradeable, ERC4626Upgradeabl
         override
     {
         _withdrawFromPools(assets);
-        ERC4626Upgradeable._withdraw(caller, receiver, owner, assets, shares);
+        ERC4626._withdraw(caller, receiver, owner, assets, shares);
         lastTotalAssets -= assets;
     }
 

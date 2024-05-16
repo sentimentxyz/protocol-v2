@@ -142,35 +142,30 @@ contract BaseTest is Test {
         bytes memory data = abi.encode(owner, salt);
         (address position,) = portfolioLens.predictAddress(owner, salt);
         Action memory action = Action({op: Operation.NewPosition, data: data});
-        // positionManager.process(position, action);
         return (position, action);
     }
 
     function deposit(address asset, uint256 amt) internal pure returns (Action memory) {
         bytes memory data = abi.encode(asset, amt);
         Action memory action = Action({op: Operation.Deposit, data: data});
-        // positionManager.process(position, action);
         return action;
     }
 
     function addToken(address asset) internal pure returns (Action memory) {
         bytes memory data = abi.encode(asset);
         Action memory action = Action({op: Operation.AddToken, data: data});
-        // positionManager.process(position, action);
         return action;
     }
 
     function removeToken(address asset) internal pure returns (Action memory) {
         bytes memory data = abi.encode(asset);
         Action memory action = Action({op: Operation.RemoveToken, data: data});
-        // positionManager.process(position, action);
         return action;
     }
 
     function borrow(uint256 poolId, uint256 amt) internal pure returns (Action memory) {
         bytes memory data = abi.encode(poolId, amt);
         Action memory action = Action({op: Operation.Borrow, data: data});
-        // positionManager.process(position, action);
         return action;
     }
 }

@@ -196,13 +196,13 @@ contract PositionManagerUnitTests is BaseTest {
         actions[0] = action;
 
         uint256 initialAssetBalance = asset1.balanceOf(position);
-        (,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
         assertEq(address(positionManager.pool()), address(pool));
 
         PositionManager(positionManager).processBatch(position, actions);
 
         assertGt(asset1.balanceOf(position), initialAssetBalance);
-        (,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
         assertEq(newTotalBorrows.assets, totalBorrows.assets + 2 ether);
     }
 
@@ -210,7 +210,7 @@ contract PositionManagerUnitTests is BaseTest {
         testSimpleDepositCollateral(100 ether);
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        uint256 corruptPool = pool.initializePool(address(0), address(asset1), rateModel, 0, 0);
+        uint256 corruptPool = pool.initializePool(address(0), address(asset1), rateModel, 0, 0, type(uint128).max);
 
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(corruptPool, 2 ether);
@@ -233,12 +233,12 @@ contract PositionManagerUnitTests is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        (,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
         uint256 initialBorrow = pool.getBorrowsOf(linearRatePool, position);
 
         PositionManager(positionManager).processBatch(position, actions);
 
-        (,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
 
         uint256 borrow = pool.getBorrowsOf(linearRatePool, position);
 

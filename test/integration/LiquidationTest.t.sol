@@ -2,30 +2,33 @@
 pragma solidity ^0.8.24;
 
 import {BaseTest} from "../BaseTest.t.sol";
-import {Action} from "src/PositionManager.sol";
+import {DebtData, AssetData, Action} from "src/PositionManager.sol";
+import {ZeroOracle} from "src/oracle/ZeroOracle.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
 contract LiquidationIntTest is BaseTest {
     address public position;
-    FixedPriceOracle asset1Oracle = new FixedPriceOracle(1e18);
-    FixedPriceOracle asset2Oracle = new FixedPriceOracle(1e18);
+    address public liquidator = makeAddr("liquidator");
 
     function setUp() public override {
         super.setUp();
 
+        // ZeroOracle zeroOracle = new ZeroOracle();
+        FixedPriceOracle oneEthOracle = new FixedPriceOracle(1e18);
+
         vm.startPrank(protocolOwner);
-        riskEngine.setOracle(address(asset1), address(asset1Oracle));
-        riskEngine.setOracle(address(asset2), address(asset2Oracle));
+        riskEngine.setOracle(address(asset1), address(oneEthOracle)); // 1 asset1 = 1 eth
+        riskEngine.setOracle(address(asset2), address(oneEthOracle)); // 1 asset2 = 1 eth
         vm.stopPrank();
 
         vm.startPrank(poolOwner);
+        riskEngine.requestLtvUpdate(fixedRatePool, address(asset1), 0.5e18); // 2x lev
+        riskEngine.acceptLtvUpdate(fixedRatePool, address(asset1));
         riskEngine.requestLtvUpdate(fixedRatePool, address(asset2), 0.5e18); // 2x lev
         riskEngine.acceptLtvUpdate(fixedRatePool, address(asset2));
-        riskEngine.requestLtvUpdate(fixedRatePool, address(asset1), 0.9e18); // 2x lev
-        riskEngine.acceptLtvUpdate(fixedRatePool, address(asset1));
         vm.stopPrank();
 
-        asset1.mint(lender, 200e18);
+        asset1.mint(lender, 100e18);
         asset2.mint(user, 10e18);
 
         vm.startPrank(lender);
@@ -38,14 +41,38 @@ contract LiquidationIntTest is BaseTest {
         vm.startPrank(user);
         asset2.approve(address(positionManager), 1e18);
 
+        // deposit 1e18 asset2, borrow 1e18 asset1
         Action[] memory actions = new Action[](5);
         (position, actions[0]) = newPosition(user, bytes32(uint256(0x123456789)));
         actions[1] = deposit(address(asset2), 1e18);
         actions[2] = addToken(address(asset2));
         actions[3] = borrow(fixedRatePool, 1e18);
         actions[4] = addToken(address(asset1));
-
         positionManager.processBatch(position, actions);
+        vm.stopPrank();
+        assertTrue(riskEngine.isPositionHealthy(position));
+
+        // modify asset2 price from 1eth to 0.1eth
+        FixedPriceOracle pointOneEthOracle = new FixedPriceOracle(0.1e18);
+        vm.prank(protocolOwner);
+        riskEngine.setOracle(address(asset2), address(pointOneEthOracle));
+        assertFalse(riskEngine.isPositionHealthy(position));
+
+        // construct liquidator data
+        DebtData memory debtData = DebtData({poolId: fixedRatePool, asset: address(asset1), amt: 1e18});
+        DebtData[] memory debts = new DebtData[](1);
+        debts[0] = debtData;
+        AssetData memory asset1Data = AssetData({asset: address(asset1), amt: 1e18});
+        AssetData memory asset2Data = AssetData({asset: address(asset2), amt: 1e18});
+        AssetData[] memory assets = new AssetData[](2);
+        assets[0] = asset1Data;
+        assets[1] = asset2Data;
+
+        // liquidate
+        asset1.mint(liquidator, 10e18);
+        vm.startPrank(liquidator);
+        asset1.approve(address(positionManager), 1e18);
+        positionManager.liquidate(position, debts, assets);
         vm.stopPrank();
     }
 }

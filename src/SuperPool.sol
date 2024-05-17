@@ -383,8 +383,6 @@ contract SuperPool is ERC20, Owned(msg.sender) {
     function _withdrawFromPools(uint256 assets) internal {
         uint256 assetsInSuperpool = IERC20(address(this)).balanceOf(address(asset));
 
-        console.log("wt2");
-
         if (assetsInSuperpool >= assets) return;
         else assets -= assetsInSuperpool;
 
@@ -396,16 +394,11 @@ contract SuperPool is ERC20, Owned(msg.sender) {
             if (assetsInPool > 0) {
                 uint256 withdrawAmt = (assetsInPool < assets) ? assetsInPool : assets;
 
-                console.log("wtf");
-
                 if (withdrawAmt > 0) {
                     // TODO replace with withdraw logic
                     try pool.redeem(poolId, withdrawAmt, address(this), address(this)) {
                         assets -= withdrawAmt;
-                        console.log("moooooooooooose");
-                    } catch {
-                        console.log("bad");
-                    }
+                    } catch { }
                 }
 
                 if (assets == 0) return;

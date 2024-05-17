@@ -30,16 +30,8 @@ contract PositionUnitTests is BaseTest {
 
         pool.deposit(linearRatePool, 10000 ether, address(0x9));
 
-        bytes32 salt = bytes32(uint256(3492932942));
-        bytes memory data = abi.encode(positionOwner, salt);
-
-        (position,) = portfolioLens.predictAddress(positionOwner, salt);
-
-        Action memory action = Action({op: Operation.NewPosition, data: data});
-
         Action[] memory actions = new Action[](1);
-        actions[0] = action;
-
+        (position, actions[0]) = newPosition(positionOwner, bytes32(uint256(3492932942)));
         PositionManager(positionManager).processBatch(position, actions);
 
         vm.startPrank(poolOwner);

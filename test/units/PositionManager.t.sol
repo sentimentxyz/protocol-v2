@@ -4,11 +4,14 @@ pragma solidity ^0.8.24;
 import "../BaseTest.t.sol";
 import {FixedRateModel} from "../../src/irm/FixedRateModel.sol";
 import {LinearRateModel} from "../../src/irm/LinearRateModel.sol";
+import {IOracle} from "src/interfaces/IOracle.sol";
 
 import {Action, Operation} from "src/PositionManager.sol";
 
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
+
+import {console2} from "forge-std/console2.sol";
 
 contract PositionManagerUnitTests is BaseTest {
     address public position;
@@ -133,25 +136,26 @@ contract PositionManagerUnitTests is BaseTest {
     }
 
     function testSimpleDepositCollateral(uint96 amount) public {
-        vm.startPrank(positionOwner);
-        bytes memory data = abi.encode(address(asset2));
-        Action memory action = Action({op: Operation.AddToken, data: data});
-
-        Action[] memory actions = new Action[](1);
-        actions[0] = action;
-
-        PositionManager(positionManager).processBatch(position, actions);
-
-        data = abi.encode(address(asset2), amount);
-
-        actions[0] = Action({op: Operation.Deposit, data: data});
-
         asset2.mint(positionOwner, amount);
-        asset2.approve(address(positionManager), amount);
 
+        vm.startPrank(positionOwner);
+        Action[] memory actions = new Action[](1);
+
+        actions[0] = addToken(address(asset2));
         PositionManager(positionManager).processBatch(position, actions);
 
+        actions[0] = deposit(address(asset2), amount);
+        asset2.approve(address(positionManager), amount);
+        PositionManager(positionManager).processBatch(position, actions);
+
+        (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = riskEngine.getRiskData(position);
+        assertEq(
+            totalAssetValue, IOracle(riskEngine.getOracleFor(address(asset2))).getValueInEth(address(asset2), amount)
+        );
+        assertEq(totalDebtValue, 0);
+        assertEq(minReqAssetValue, 0);
         assertEq(asset2.balanceOf(address(position)), amount);
+
         vm.stopPrank();
     }
 
@@ -204,6 +208,15 @@ contract PositionManagerUnitTests is BaseTest {
         assertGt(asset1.balanceOf(position), initialAssetBalance);
         (,,,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
         assertEq(newTotalBorrows.assets, totalBorrows.assets + 2 ether);
+    }
+
+    function testMinDebtCheck() public {
+        testSimpleDepositCollateral(100 ether);
+
+        Action memory action = borrow(linearRatePool, 0.001e18); // 1 asset1 = 10 eth => 1/1000 asset1 = 0.01 eth
+        vm.prank(positionOwner);
+        vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_DebtTooLow.selector, position, 0.01 ether));
+        positionManager.process(position, action);
     }
 
     function testCannotBorrowFromDeadPool() public {

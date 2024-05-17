@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {BaseTest} from "../BaseTest.t.sol";
+import {RiskModule} from "src/RiskModule.sol";
 import {DebtData, AssetData, Action} from "src/PositionManager.sol";
 import {ZeroOracle} from "src/oracle/ZeroOracle.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
@@ -52,6 +53,12 @@ contract LiquidationIntTest is BaseTest {
         vm.stopPrank();
         assertTrue(riskEngine.isPositionHealthy(position));
 
+        (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = riskEngine.getRiskData(position);
+
+        assertEq(totalAssetValue, 2e18);
+        assertEq(totalDebtValue, 1e18);
+        assertEq(minReqAssetValue, 2e18);
+
         // modify asset2 price from 1eth to 0.1eth
         FixedPriceOracle pointOneEthOracle = new FixedPriceOracle(0.1e18);
         vm.prank(protocolOwner);
@@ -72,6 +79,52 @@ contract LiquidationIntTest is BaseTest {
         asset1.mint(liquidator, 10e18);
         vm.startPrank(liquidator);
         asset1.approve(address(positionManager), 1e18);
+        positionManager.liquidate(position, debts, assets);
+        vm.stopPrank();
+    }
+
+    function testSeizeTooMuch() public {
+        vm.startPrank(user);
+        asset2.approve(address(positionManager), 1e18);
+
+        // deposit 1e18 asset2, borrow 1e18 asset1
+        Action[] memory actions = new Action[](5);
+        (position, actions[0]) = newPosition(user, bytes32(uint256(0x123456789)));
+        actions[1] = deposit(address(asset2), 1e18);
+        actions[2] = addToken(address(asset2));
+        actions[3] = borrow(fixedRatePool, 1e18);
+        actions[4] = addToken(address(asset1));
+        positionManager.processBatch(position, actions);
+        vm.stopPrank();
+        assertTrue(riskEngine.isPositionHealthy(position));
+
+        (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = riskEngine.getRiskData(position);
+
+        assertEq(totalAssetValue, 2e18);
+        assertEq(totalDebtValue, 1e18);
+        assertEq(minReqAssetValue, 2e18);
+
+        // modify asset2 price from 1eth to 0.1eth
+        FixedPriceOracle pointOneEthOracle = new FixedPriceOracle(0.1e18);
+        vm.prank(protocolOwner);
+        riskEngine.setOracle(address(asset2), address(pointOneEthOracle));
+        assertFalse(riskEngine.isPositionHealthy(position));
+
+        // construct liquidator data
+        DebtData memory debtData = DebtData({poolId: fixedRatePool, asset: address(asset1), amt: 0.1e18});
+        DebtData[] memory debts = new DebtData[](1);
+        debts[0] = debtData;
+        AssetData memory asset1Data = AssetData({asset: address(asset1), amt: 1e18});
+        AssetData memory asset2Data = AssetData({asset: address(asset2), amt: 1e18});
+        AssetData[] memory assets = new AssetData[](2);
+        assets[0] = asset1Data;
+        assets[1] = asset2Data;
+
+        // liquidate
+        asset1.mint(liquidator, 10e18);
+        vm.startPrank(liquidator);
+        asset1.approve(address(positionManager), 1e18);
+        vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_SeizedTooMuch.selector, 1.1 ether, 0.12 ether));
         positionManager.liquidate(position, debts, assets);
         vm.stopPrank();
     }

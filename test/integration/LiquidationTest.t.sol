@@ -52,6 +52,12 @@ contract LiquidationIntTest is BaseTest {
         vm.stopPrank();
         assertTrue(riskEngine.isPositionHealthy(position));
 
+        (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = riskEngine.getRiskData(position);
+
+        assertEq(totalAssetValue, 2e18);
+        assertEq(totalDebtValue, 1e18);
+        assertEq(minReqAssetValue, 2e18);
+
         // modify asset2 price from 1eth to 0.1eth
         FixedPriceOracle pointOneEthOracle = new FixedPriceOracle(0.1e18);
         vm.prank(protocolOwner);

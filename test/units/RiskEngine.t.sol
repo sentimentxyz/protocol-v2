@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
+import {RiskEngine} from "src/RiskEngine.sol";
 import {FixedRateModel} from "../../src/irm/FixedRateModel.sol";
 import {LinearRateModel} from "../../src/irm/LinearRateModel.sol";
 
@@ -30,6 +31,19 @@ contract RiskModuleUnitTests is BaseTest {
         pool.deposit(linearRatePool, 10000 ether, address(0x9));
     }
 
+    function testRiskEngineInit() public {
+        RiskEngine testRiskEngine = new RiskEngine(address(registry), 0, 1e18);
+        assertEq(address(testRiskEngine.registry()), address(registry));
+        assertEq(testRiskEngine.minLtv(), uint256(0));
+        assertEq(testRiskEngine.maxLtv(), uint256(1e18));
+    }
+
+    function testNoOracleFound(address asset) public {
+        vm.assume(asset != address(asset1) && asset != address(asset2));
+        vm.expectRevert(abi.encodeWithSelector(RiskEngine.RiskEngine_NoOracleFound.selector, asset));
+        riskEngine.getOracleFor(asset);
+    }
+
     function testOwnerCanUpdateLTV() public {
         uint256 startLtv = riskEngine.ltvFor(linearRatePool, address(asset1));
         assertEq(startLtv, 0);
@@ -40,6 +54,22 @@ contract RiskModuleUnitTests is BaseTest {
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 
         assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
+    }
+
+    function testOnlyOwnerCanUpdateLTV(address sender) public {
+        vm.assume(sender != poolOwner);
+
+        vm.startPrank(sender);
+        vm.expectRevert(abi.encodeWithSelector(RiskEngine.RiskEngine_OnlyPoolOwner.selector, linearRatePool, sender));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
+    }
+
+    function testCannotUpdateLTVForUnknownAsset(address asset, uint256 ltv) public {
+        vm.assume(asset != address(asset1) && asset != address(asset2));
+
+        vm.prank(poolOwner);
+        vm.expectRevert(abi.encodeWithSelector(RiskEngine.RiskEngine_NoOracleFound.selector, asset));
+        riskEngine.requestLtvUpdate(linearRatePool, asset, ltv);
     }
 
     function testOwnerCanRejectLTVUpdated() public {
@@ -54,6 +84,12 @@ contract RiskModuleUnitTests is BaseTest {
         riskEngine.rejectLtvUpdate(linearRatePool, address(asset1));
 
         assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
+    }
+
+    function testNoLTVUpdate(address asset) public {
+        vm.prank(poolOwner);
+        vm.expectRevert(abi.encodeWithSelector(RiskEngine.RiskEngine_NoLtvUpdate.selector, linearRatePool, asset));
+        riskEngine.acceptLtvUpdate(linearRatePool, asset);
     }
 
     function testNonOwnerCannotUpdateLTV() public {

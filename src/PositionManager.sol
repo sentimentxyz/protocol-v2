@@ -154,6 +154,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     error PositionManager_InvalidLiquidation(address position);
     error PositionManager_LiquidateHealthyPosition(address position);
     error PositionManager_InvalidDebtData(address asset, address poolAsset);
+    error PositionManager_ZeroAmountDeposit(address position, address asset);
     error PositionManager_OnlyPositionOwner(address position, address sender);
     error PositionManager_UnknownFuncSelector(address target, bytes4 selector);
     error PositionManager_OnlyPositionAuthorized(address position, address sender);

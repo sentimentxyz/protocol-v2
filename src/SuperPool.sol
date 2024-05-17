@@ -16,7 +16,6 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
-import { console } from "forge-std/console.sol";
 
 // inspired by yearn v3 and metamorpho vaults
 contract SuperPool is ERC20, Owned(msg.sender) {
@@ -324,6 +323,7 @@ contract SuperPool is ERC20, Owned(msg.sender) {
 
         emit Deposit(msg.sender, receiver, assets, shares);
                 _supplyToPools(assets);
+                
         lastTotalAssets += assets;
     }
 

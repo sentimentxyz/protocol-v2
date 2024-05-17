@@ -96,7 +96,7 @@ contract Pool is Ownable, ERC6909 {
     error Pool_ZeroSharesDeposit(uint256 poolId, uint256 amt);
     error Pool_OnlyPoolOwner(uint256 poolId, address sender);
     error Pool_OnlyPositionManager(uint256 poolId, address sender);
-    error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp);
+    error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
@@ -353,23 +353,21 @@ contract Pool is Ownable, ERC6909 {
                            Only Pool Owner
     //////////////////////////////////////////////////////////////*/
 
-    modifier onlyPoolOwner(uint256 poolId) {
+    function togglePause(uint256 poolId) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
-        _;
-    }
-
-    function togglePause(uint256 poolId) external onlyPoolOwner(poolId) {
         PoolData storage pool = poolDataFor[poolId];
         pool.isPaused = !pool.isPaused;
         emit PoolPauseToggled(poolId, pool.isPaused);
     }
 
-    function setPoolCap(uint256 poolId, uint128 poolCap) external onlyPoolOwner(poolId) {
+    function setPoolCap(uint256 poolId, uint128 poolCap) external {
+        if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         poolDataFor[poolId].poolCap = poolCap;
         emit PoolCapSet(poolId, poolCap);
     }
 
-    function requestRateModelUpdate(uint256 poolId, address rateModel) external onlyPoolOwner(poolId) {
+    function requestRateModelUpdate(uint256 poolId, address rateModel) external {
+        if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         RateModelUpdate memory rateModelUpdate =
             RateModelUpdate({rateModel: rateModel, validAfter: block.timestamp + TIMELOCK_DURATION});
 
@@ -378,15 +376,20 @@ contract Pool is Ownable, ERC6909 {
         emit RateModelUpdateRequested(poolId, rateModel);
     }
 
-    function acceptRateModelUpdate(uint256 poolId) external onlyPoolOwner(poolId) {
+    function acceptRateModelUpdate(uint256 poolId) external {
+        if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         RateModelUpdate memory rateModelUpdate = rateModelUpdateFor[poolId];
         if (rateModelUpdate.validAfter == 0) revert Pool_NoRateModelUpdate(poolId);
+        if (block.timestamp < rateModelUpdate.validAfter) {
+            revert Pool_TimelockPending(poolId, block.timestamp, rateModelUpdate.validAfter);
+        }
         poolDataFor[poolId].rateModel = rateModelUpdate.rateModel;
         delete rateModelUpdateFor[poolId];
         emit RateModelUpdated(poolId, rateModelUpdate.rateModel);
     }
 
-    function rejectRateModelUpdate(uint256 poolId) external onlyPoolOwner(poolId) {
+    function rejectRateModelUpdate(uint256 poolId) external {
+        if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         emit RateModelUpdateRejected(poolId, rateModelUpdateFor[poolId].rateModel);
         delete rateModelUpdateFor[poolId];
     }

@@ -9,6 +9,7 @@ import {RiskModule} from "src/RiskModule.sol";
 import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {SuperPoolFactory} from "src/SuperPoolFactory.sol";
+import {SuperPool} from "src/SuperPool.sol";
 import {Action, Operation, PositionManager} from "src/PositionManager.sol";
 
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
@@ -36,6 +37,7 @@ contract BaseTest is Test {
     Pool public pool;
 
     address public user = makeAddr("user");
+    address public user2 = makeAddr("user2");
     address public lender = makeAddr("lender");
     address public poolOwner = makeAddr("poolOwner");
 
@@ -84,15 +86,15 @@ contract BaseTest is Test {
         // registry
         registry = new Registry();
 
-        // super pool
-        superPoolFactory = new SuperPoolFactory();
-
         // risk engine
         riskEngine = new RiskEngine(address(registry), params.minLtv, params.maxLtv);
         riskModule = new RiskModule(address(registry), params.minDebt, params.liquidationDiscount);
 
         // pool
         pool = new Pool(address(registry), params.feeRecipient);
+
+        // super pool
+        superPoolFactory = new SuperPoolFactory(address(pool));
 
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl
@@ -135,7 +137,7 @@ contract BaseTest is Test {
         vm.startPrank(poolOwner);
         fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0, type(uint128).max);
         linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);
-        vm.stopPrank();
+        vm.stopPrank(); 
     }
 
     function newPosition(address owner, bytes32 salt) internal view returns (address, Action memory) {

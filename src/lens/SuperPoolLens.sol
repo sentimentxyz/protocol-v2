@@ -73,7 +73,7 @@ contract SuperPoolLens {
             deposits[i] = getPoolDepositData(_superPool, pools[i]);
         }
 
-        address asset = superPool.asset();
+        address asset = address(superPool.asset());
 
         return SuperPoolData({
             asset: asset,
@@ -132,7 +132,7 @@ contract SuperPoolLens {
         returns (SuperPoolDepositData memory)
     {
         SuperPool superPool = SuperPool(_superPool);
-        address asset = superPool.asset();
+        address asset = address(superPool.asset());
 
         return SuperPoolDepositData({
             superPool: _superPool,

@@ -54,15 +54,15 @@ contract Deploy is BaseScript {
         // registry
         registry = address(new Registry());
 
-        // super pool
-        superPoolFactory = address(new SuperPoolFactory());
-
         // risk engine
         riskEngine = address(new RiskEngine(registry, params.minLtv, params.maxLtv));
         riskModule = address(new RiskModule(registry, params.minDebt, params.liquidationDiscount));
 
         // pool
         pool = address(new Pool(registry, params.feeRecipient));
+
+        // super pool
+        superPoolFactory = address(new SuperPoolFactory(pool));
 
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl

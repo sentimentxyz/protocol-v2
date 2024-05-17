@@ -31,9 +31,9 @@ contract RiskModule {
     Pool public pool;
     RiskEngine public riskEngine;
 
-    error RiskModule_DebtTooLow(address position);
     error RiskModule_ZeroAssetsWithDebt(address position);
     error RiskModule_UnsupportedAsset(uint256 pool, address asset);
+    error RiskModule_DebtTooLow(address position, uint256 debtValue);
     error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
 
     constructor(address registry_, uint256 minDebt_, uint256 liquidationDiscount_) {
@@ -48,16 +48,10 @@ contract RiskModule {
     }
 
     function isPositionHealthy(address position) external view returns (bool) {
-        if (Position(position).getDebtPools().length == 0) {
-            return true;
-        }
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = getRiskData(position);
 
         if (totalDebtValue != 0 && totalDebtValue < MIN_DEBT) {
-            revert RiskModule_DebtTooLow(position);
-        }
-        if (totalAssetValue == 0 && totalDebtValue != 0) {
-            revert RiskModule_ZeroAssetsWithDebt(position);
+            revert RiskModule_DebtTooLow(position, totalDebtValue);
         }
 
         return totalAssetValue >= minReqAssetValue;
@@ -153,9 +147,6 @@ contract RiskModule {
     {
         uint256 totalDebtValue;
         uint256[] memory debtPools = Position(position).getDebtPools();
-        if (debtPools.length == 0) {
-            return (0, debtPools, new uint256[](0));
-        }
         uint256[] memory debtValueForPool = new uint256[](debtPools.length);
 
         for (uint256 i; i < debtPools.length; ++i) {
@@ -173,8 +164,8 @@ contract RiskModule {
         returns (uint256, address[] memory, uint256[] memory)
     {
         uint256 totalAssetValue;
-        address[] memory positionAssets = Position(position).getPositionAssets();
 
+        address[] memory positionAssets = Position(position).getPositionAssets();
         uint256[] memory positionAssetData = new uint256[](positionAssets.length);
 
         for (uint256 i; i < positionAssets.length; ++i) {
@@ -183,6 +174,8 @@ contract RiskModule {
             positionAssetData[i] = assets;
             totalAssetValue += assets;
         }
+
+        if (totalAssetValue == 0) return (0, positionAssets, positionAssetData);
 
         for (uint256 i; i < positionAssetData.length; ++i) {
             // positionAssetData[i] stores weight of positionAsset[i]

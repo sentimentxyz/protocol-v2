@@ -332,5 +332,73 @@ contract SuperPoolUnitTests is BaseTest {
         vm.stopPrank();
     }
 
+    function testReallocateDeposits() public {
+        vm.startPrank(poolOwner);
+        superPool.setPoolCap(fixedRatePool, 50 ether);
+        superPool.setPoolCap(linearRatePool, 50 ether);
+        superPool.setPoolCap(fixedRatePool2, 50 ether);
+        superPool.setPoolCap(linearRatePool2, 50 ether);
+        vm.stopPrank();
+
+        uint256[] memory newWrongDepositOrder = new uint256[](3);
+        newWrongDepositOrder[0] = fixedRatePool;
+        newWrongDepositOrder[1] = linearRatePool;
+        newWrongDepositOrder[2] = fixedRatePool2;
+        // newDepositOrder[3] = linearRatePool2;
+
+        vm.expectRevert();
+        superPool.reorderDepositQueue(newWrongDepositOrder);
+
+        vm.startPrank(poolOwner);
+
+        vm.expectRevert();
+        superPool.reorderDepositQueue(newWrongDepositOrder);
+
+        uint256[] memory newDepositOrder = new uint256[](4);
+        newDepositOrder[0] = fixedRatePool;
+        newDepositOrder[1] = linearRatePool;
+        newDepositOrder[2] = fixedRatePool2;
+        newDepositOrder[3] = linearRatePool2;
+
+        superPool.reorderDepositQueue(newDepositOrder);
+        vm.stopPrank();
+
+        assertEq(superPool.depositQueue(0), fixedRatePool);
+        assertEq(superPool.depositQueue(1), linearRatePool);
+        assertEq(superPool.depositQueue(2), fixedRatePool2);
+        assertEq(superPool.depositQueue(3), linearRatePool2);
+    }
+
+    function testReorderWithdrawals() public {
+        vm.startPrank(poolOwner);
+        superPool.setPoolCap(fixedRatePool, 50 ether);
+        superPool.setPoolCap(linearRatePool, 50 ether);
+        superPool.setPoolCap(fixedRatePool2, 50 ether);
+        superPool.setPoolCap(linearRatePool2, 50 ether);
+        vm.stopPrank();
+
+        uint256[] memory newWrongWithdrawalOrder = new uint256[](3);
+        newWrongWithdrawalOrder[0] = fixedRatePool;
+        newWrongWithdrawalOrder[1] = linearRatePool;
+        newWrongWithdrawalOrder[2] = fixedRatePool2;
+        
+        vm.expectRevert();
+        superPool.reorderWithdrawQueue(newWrongWithdrawalOrder);
+
+        uint256[] memory newWithdrawalOrder = new uint256[](4);
+        newWithdrawalOrder[0] = fixedRatePool;
+        newWithdrawalOrder[1] = linearRatePool;
+        newWithdrawalOrder[2] = fixedRatePool2;
+        newWithdrawalOrder[3] = linearRatePool2;
+
+        vm.prank(poolOwner);
+        superPool.reorderWithdrawQueue(newWithdrawalOrder);
+
+        assertEq(superPool.withdrawQueue(0), fixedRatePool);
+        assertEq(superPool.withdrawQueue(1), linearRatePool);
+        assertEq(superPool.withdrawQueue(2), fixedRatePool2);
+        assertEq(superPool.withdrawQueue(3), linearRatePool2);
+    }
+
 }
 

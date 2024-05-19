@@ -430,18 +430,10 @@ contract SuperPool is ERC20, Owned(msg.sender) {
         view
         returns (uint256[] memory)
     {
-        bool[] memory seen = new bool[](indexes.length);
-
-        uint256[] memory newQueue;
+        uint256[] memory newQueue = new uint256[](indexes.length);
 
         for (uint256 i; i < indexes.length; ++i) {
-            if (seen[indexes[i]]) revert SuperPool_InvalidQueue(address(this));
             newQueue[i] = queue[i];
-            seen[indexes[i]] = true;
-        }
-
-        for (uint256 i = 1; i <= indexes.length; ++i) {
-            if (!seen[i]) revert SuperPool_InvalidQueue(address(this));
         }
 
         return newQueue;

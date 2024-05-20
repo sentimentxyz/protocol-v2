@@ -16,7 +16,6 @@ contract SuperPoolFactory {
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
-
     // all superpools from this factory point to a single impl
     address public immutable POOL;
 
@@ -40,9 +39,17 @@ contract SuperPoolFactory {
                           External Functions
     //////////////////////////////////////////////////////////////*/
 
-    function deploy(address owner, SuperPool.SuperPoolInitParams calldata params) external returns (address) {
+    function deploy(
+        address owner,
+        address asset,
+        address feeRecipient,
+        uint256 fee,
+        uint256 superPoolCap,
+        string calldata name,
+        string calldata symbol
+    ) external returns (address) {
         // deploy a new superpool as a transparent proxy pointing to the impl for this factory
-        SuperPool superPool = new SuperPool(POOL, params);
+        SuperPool superPool = new SuperPool(POOL, asset, feeRecipient, fee, superPoolCap, name, symbol);
 
         // transfer superpool ownership to specified owner
         superPool.transferOwnership(owner);

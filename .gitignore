@@ -15,8 +15,7 @@ docs/
 .vscode/
 
 # coverage reports
-coverage/
-lcov.info
+report.txt
 
 # script logs
 /script/log

@@ -102,16 +102,6 @@ contract RiskEngine is Ownable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              Modifiers
-    //////////////////////////////////////////////////////////////*/
-
-    modifier onlyPoolOwner(uint256 poolId) {
-        // only pool owners are allowed to set oracles
-        if (msg.sender != pool.ownerOf(poolId)) revert RiskEngine_OnlyPoolOwner(poolId, msg.sender);
-        _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                            Public Functions
     //////////////////////////////////////////////////////////////*/
 
@@ -140,7 +130,9 @@ contract RiskEngine is Ownable {
                               LTV Update
     //////////////////////////////////////////////////////////////*/
 
-    function requestLtvUpdate(uint256 poolId, address asset, uint256 ltv) external onlyPoolOwner(poolId) {
+    function requestLtvUpdate(uint256 poolId, address asset, uint256 ltv) external {
+        if (msg.sender != pool.ownerOf(poolId)) revert RiskEngine_OnlyPoolOwner(poolId, msg.sender);
+
         // set oracle before ltv so risk modules don't have to explicitly check if an oracle exists
         if (oracleFor[asset] == address(0)) revert RiskEngine_NoOracleFound(asset);
 
@@ -157,7 +149,9 @@ contract RiskEngine is Ownable {
         emit LtvUpdateRequested(poolId, asset, ltvUpdate);
     }
 
-    function acceptLtvUpdate(uint256 poolId, address asset) external onlyPoolOwner(poolId) {
+    function acceptLtvUpdate(uint256 poolId, address asset) external {
+        if (msg.sender != pool.ownerOf(poolId)) revert RiskEngine_OnlyPoolOwner(poolId, msg.sender);
+
         LtvUpdate memory ltvUpdate = ltvUpdateFor[poolId][asset];
 
         if (ltvUpdate.validAfter == 0) revert RiskEngine_NoLtvUpdate(poolId, asset);
@@ -171,7 +165,9 @@ contract RiskEngine is Ownable {
         emit LtvUpdateAccepted(poolId, asset, ltvUpdate.ltv);
     }
 
-    function rejectLtvUpdate(uint256 poolId, address asset) external onlyPoolOwner(poolId) {
+    function rejectLtvUpdate(uint256 poolId, address asset) external {
+        if (msg.sender != pool.ownerOf(poolId)) revert RiskEngine_OnlyPoolOwner(poolId, msg.sender);
+
         delete ltvUpdateFor[poolId][asset];
 
         emit LtvUpdateRejected(poolId, asset);

@@ -38,6 +38,7 @@ contract BaseTest is Test {
 
     address public user = makeAddr("user");
     address public user2 = makeAddr("user2");
+
     address public lender = makeAddr("lender");
     address public poolOwner = makeAddr("poolOwner");
 
@@ -81,7 +82,7 @@ contract BaseTest is Test {
             feeRecipient: address(this),
             minLtv: 0,
             maxLtv: 115792089237316195423570985008687907853269984665640564039457584007913129639935,
-            minDebt: 0,
+            minDebt: 0.03 ether,
             liquidationFee: 0,
             liquidationDiscount: 200000000000000000
         });

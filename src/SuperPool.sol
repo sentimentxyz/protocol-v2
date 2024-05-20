@@ -12,13 +12,13 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import { ERC20 } from "lib/solmate/src/tokens/ERC20.sol";
 import { Owned } from "lib/solmate/src/auth/Owned.sol";
 //contracts
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 
 // inspired by yearn v3 and metamorpho vaults
-contract SuperPool is ERC20, Owned(msg.sender) {
+contract SuperPool is Ownable, Pausable, ERC4626 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -81,25 +81,20 @@ contract SuperPool is ERC20, Owned(msg.sender) {
     /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/
-
-    IERC20 public immutable asset;
-
-    constructor(address _pool, SuperPoolInitParams memory params) ERC20(params.name, params.symbol, 18) {
+    constructor(
+        address asset_,
+        address feeRecipient_,
+        uint256 fee_,
+        uint256 superPoolCap_,
+        string memory name_,
+        string memory symbol_
+    ) Ownable(msg.sender) ERC20(name_, symbol_) {
         asset = IERC20(params.asset);
         pool = Pool(_pool);
-
-        fee = params.fee;
-        feeRecipient = params.feeRecipient;
-        superPoolCap = params.superPoolCap;
-    }
-
-    struct SuperPoolInitParams {
-        address asset;
-        address feeRecipient;
-        uint256 fee;
-        uint256 superPoolCap;
-        string name;
-        string symbol;
+    
+        fee = fee_;
+        feeRecipient = feeRecipient_;
+        superPoolCap = superPoolCap_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -120,7 +115,7 @@ contract SuperPool is ERC20, Owned(msg.sender) {
 
     function accrueInterestAndFees() public {
         (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
-        if (feeShares != 0) _mint(feeRecipient, feeShares);
+        if (feeShares != 0) ERC20._mint(feeRecipient, feeShares);
         lastTotalAssets = newTotalAssets;
     }
 
@@ -261,7 +256,7 @@ contract SuperPool is ERC20, Owned(msg.sender) {
     }
 
     function reallocate(ReallocateParams[] calldata withdraws, ReallocateParams[] calldata deposits) external {
-        if (!isAllocator[msg.sender] && msg.sender != owner) {
+        if (!isAllocator[msg.sender] && msg.sender != Ownable.owner()) {
             revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
         }
 
@@ -322,7 +317,7 @@ contract SuperPool is ERC20, Owned(msg.sender) {
         _mint(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
-        
+
         _supplyToPools(assets);
                 
         lastTotalAssets += assets;

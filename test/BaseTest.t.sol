@@ -9,6 +9,7 @@ import {RiskModule} from "src/RiskModule.sol";
 import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {SuperPoolFactory} from "src/SuperPoolFactory.sol";
+import {SuperPool} from "src/SuperPool.sol";
 import {Action, Operation, PositionManager} from "src/PositionManager.sol";
 
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
@@ -36,6 +37,8 @@ contract BaseTest is Test {
     Pool public pool;
 
     address public user = makeAddr("user");
+    address public user2 = makeAddr("user2");
+
     address public lender = makeAddr("lender");
     address public poolOwner = makeAddr("poolOwner");
 
@@ -44,6 +47,9 @@ contract BaseTest is Test {
 
     uint256 public fixedRatePool;
     uint256 public linearRatePool;
+    uint256 public fixedRatePool2;
+    uint256 public linearRatePool2;
+    uint256 public alternateAssetPool;
 
     // keccak(SENTIMENT_POSITION_MANAGER_KEY)
     bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
@@ -84,15 +90,15 @@ contract BaseTest is Test {
         // registry
         registry = new Registry();
 
-        // super pool
-        superPoolFactory = new SuperPoolFactory();
-
         // risk engine
         riskEngine = new RiskEngine(address(registry), params.minLtv, params.maxLtv);
         riskModule = new RiskModule(address(registry), params.minDebt, params.liquidationDiscount);
 
         // pool
         pool = new Pool(address(registry), params.feeRecipient);
+
+        // super pool
+        superPoolFactory = new SuperPoolFactory(address(pool));
 
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl
@@ -131,11 +137,16 @@ contract BaseTest is Test {
 
         address fixedRateModel = address(new FixedRateModel(1e18));
         address linearRateModel = address(new LinearRateModel(1e18, 2e18));
+        address fixedRateModel2 = address(new FixedRateModel(2e18));
+        address linearRateModel2 = address(new LinearRateModel(2e18, 3e18));
 
         vm.startPrank(poolOwner);
         fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0, type(uint128).max);
-        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);
-        vm.stopPrank();
+        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0, type(uint128).max);
+        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0, 0, type(uint128).max);
+        linearRatePool2 = pool.initializePool(poolOwner, address(asset1), linearRateModel2, 0, 0, type(uint128).max);
+        alternateAssetPool = pool.initializePool(poolOwner, address(asset2), fixedRateModel, 0, 0, type(uint128).max);
+        vm.stopPrank(); 
     }
 
     function newPosition(address owner, bytes32 salt) internal view returns (address, Action memory) {

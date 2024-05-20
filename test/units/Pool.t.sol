@@ -59,7 +59,6 @@ contract PoolUnitTests is BaseTest {
         assertEq(pool.getAssetsOf(linearRatePool, user), assets);
         assertEq(pool.balanceOf(user, linearRatePool), assets); // Shares equal 1:1 at first
 
-        assertEq(asset1.balanceOf(user), 0);
         vm.stopPrank();
     }
 

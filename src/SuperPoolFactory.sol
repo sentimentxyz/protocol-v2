@@ -7,7 +7,6 @@ pragma solidity ^0.8.24;
 
 // contracts
 import {SuperPool} from "./SuperPool.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /*//////////////////////////////////////////////////////////////
                         SuperPoolFactory
@@ -17,12 +16,24 @@ contract SuperPoolFactory {
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
+    // all superpools from this factory point to a single impl
+    address public immutable POOL;
 
     /*//////////////////////////////////////////////////////////////
                                 Events
     //////////////////////////////////////////////////////////////*/
 
     event SuperPoolDeployed(address indexed owner, address superPool, string name, string symbol);
+
+    /*//////////////////////////////////////////////////////////////
+                             Constructor
+    //////////////////////////////////////////////////////////////*/
+
+    constructor(address _pool) {
+        // each factory is associated with an immutable superpool impl. initally all instances share
+        // the same implementation but they can be upgraded individually, if needed
+        POOL = _pool;
+    }
 
     /*//////////////////////////////////////////////////////////////
                           External Functions
@@ -36,14 +47,16 @@ contract SuperPoolFactory {
         uint256 superPoolCap,
         string calldata name,
         string calldata symbol
-    ) external {
+    ) external returns (address) {
         // deploy a new superpool as a transparent proxy pointing to the impl for this factory
-        SuperPool superPool = new SuperPool(asset, feeRecipient, fee, superPoolCap, name, symbol);
+        SuperPool superPool = new SuperPool(POOL, asset, feeRecipient, fee, superPoolCap, name, symbol);
 
         // transfer superpool ownership to specified owner
         superPool.transferOwnership(owner);
 
         // log superpool creation
         emit SuperPoolDeployed(owner, address(superPool), name, symbol);
+
+        return address(superPool);
     }
 }

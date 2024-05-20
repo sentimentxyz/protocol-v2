@@ -13,10 +13,9 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 
 // inspired by yearn v3 and metamorpho vaults
-contract SuperPool is Ownable, Pausable, ERC4626 {
+contract SuperPool is Ownable, Pausable, ERC20 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -29,6 +28,8 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
     Pool public pool;
 
+    IERC20 public asset;
+
     uint256 public fee;
     address public feeRecipient;
 
@@ -39,7 +40,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     uint256[] public withdrawQueue;
     mapping(uint256 poolId => uint256 cap) public poolCap;
 
-    mapping(address => bool) isAllocator;
+    mapping(address => bool) public isAllocator;
 
     /*//////////////////////////////////////////////////////////////
                                 Event
@@ -52,6 +53,15 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     event SuperPoolCapUpdated(uint256 superPoolCap);
     event SuperPoolFeeRecipientUpdated(address feeRecipient);
     event AllocatorUpdated(address allocator, bool isAllocator);
+
+    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(
+        address indexed caller,
+        address indexed receiver,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
 
     /*//////////////////////////////////////////////////////////////
                                 Error
@@ -70,24 +80,18 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/
-
-    struct SuperPoolInitParams {
-        address asset;
-        address feeRecipient;
-        uint256 fee;
-        uint256 superPoolCap;
-        string name;
-        string symbol;
-    }
-
     constructor(
+        address pool_,
         address asset_,
         address feeRecipient_,
         uint256 fee_,
         uint256 superPoolCap_,
         string memory name_,
         string memory symbol_
-    ) Ownable(msg.sender) ERC20(name_, symbol_) ERC4626(IERC20(asset_)) {
+    ) Ownable(msg.sender) ERC20(name_, symbol_) {
+        asset = IERC20(asset_);
+        pool = Pool(pool_);
+    
         fee = fee_;
         feeRecipient = feeRecipient_;
         superPoolCap = superPoolCap_;
@@ -119,8 +123,8 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
                         ERC4626 View Overrides
     //////////////////////////////////////////////////////////////*/
 
-    function totalAssets() public view override returns (uint256) {
-        uint256 assets = IERC20(ERC4626.asset()).balanceOf(address(this));
+    function totalAssets() public view returns (uint256) {
+        uint256 assets = IERC20(asset).balanceOf(address(this));
 
         for (uint256 i; i < depositQueue.length; ++i) {
             assets += pool.getAssetsOf(depositQueue[i], address(this));
@@ -129,56 +133,56 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         return assets;
     }
 
-    function maxDeposit(address) public view override returns (uint256) {
+    function maxDeposit(address) public view returns (uint256) {
         uint256 assets = totalAssets();
         return superPoolCap > assets ? (superPoolCap - assets) : 0;
     }
 
-    function maxMint(address) public view override returns (uint256) {
-        return _convertToShares(maxDeposit(address(0)), Math.Rounding.Floor);
+    function maxMint(address) public view returns (uint256) {
+        return convertToShares(maxDeposit(address(0)));
     }
 
-    function maxWithdraw(address owner) public view override returns (uint256) {
+    function maxWithdraw(address owner) public view returns (uint256) {
         (uint256 assets,,) = _maxWithdraw(owner);
         return assets;
     }
 
-    function maxRedeem(address owner) public view override returns (uint256) {
-        (uint256 assets, uint256 newTotalSupply, uint256 newTotalAssets) = _maxWithdraw(owner);
+    function maxRedeem(address owner) public view returns (uint256) {
+        (uint256 assets,,) = _maxWithdraw(owner);
 
-        return _convertToSharesWithTotals(assets, newTotalSupply, newTotalAssets, Math.Rounding.Floor);
+        return convertToShares(assets);
     }
 
     /*//////////////////////////////////////////////////////////////
                           ERC4626 Overrides
     //////////////////////////////////////////////////////////////*/
 
-    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
+    function deposit(uint256 assets, address receiver) public returns (uint256) {
         accrueInterestAndFees();
-        uint256 shares = _convertToSharesWithTotals(assets, totalSupply(), lastTotalAssets, Math.Rounding.Floor);
-        _deposit(msg.sender, receiver, assets, shares);
+        uint256 shares = convertToShares(assets);
+        _deposit(receiver, assets, shares);
         if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this));
         return shares;
     }
 
-    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+    function mint(uint256 shares, address receiver) public returns (uint256) {
         accrueInterestAndFees();
-        uint256 assets = _convertToAssetsWithTotals(shares, totalSupply(), lastTotalAssets, Math.Rounding.Ceil);
-        _deposit(msg.sender, receiver, assets, shares);
+        uint256 assets = convertToAssets(shares);
+        _deposit(receiver, assets, shares);
         return assets;
     }
 
-    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
+    function withdraw(uint256 assets, address receiver, address owner) public returns (uint256) {
         accrueInterestAndFees();
-        uint256 shares = _convertToSharesWithTotals(assets, totalSupply(), lastTotalAssets, Math.Rounding.Ceil);
-        _withdraw(msg.sender, receiver, owner, assets, shares);
+        uint256 shares = convertToShares(assets);
+        _withdraw(receiver, owner, assets, shares);
         return shares;
     }
 
-    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
+    function redeem(uint256 shares, address receiver, address owner) public returns (uint256) {
         accrueInterestAndFees();
-        uint256 assets = _convertToAssetsWithTotals(shares, totalSupply(), lastTotalAssets, Math.Rounding.Floor);
-        _withdraw(msg.sender, receiver, owner, assets, shares);
+        uint256 assets = convertToAssets(shares);
+        _withdraw(receiver, owner, assets, shares);
         return assets;
     }
 
@@ -188,9 +192,15 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
     function setPoolCap(uint256 poolId, uint256 cap) external onlyOwner {
         // add new pool
-        if (poolCap[poolId] == 0 && cap != 0) _addPool(poolId);
+        if (poolCap[poolId] == 0 && cap != 0) {
+            _addPool(poolId);
+            poolCap[poolId] = cap;
+        }
         // remove existing pool
-        else if (poolCap[poolId] != 0 && cap == 0) _removePool(poolId);
+        else if (poolCap[poolId] != 0 && cap == 0) {
+            _removePool(poolId);
+            poolCap[poolId] = 0;
+        }
         // modify pool cap: if the cap is below the assets in the pool, it becomes withdraw-only
         else if (poolCap[poolId] != 0 && cap != 0) poolCap[poolId] = cap;
         else return; // handle pool == 0 && cap == 0
@@ -241,7 +251,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     //////////////////////////////////////////////////////////////*/
 
     struct ReallocateParams {
-        address pool;
+        uint256 pool;
         uint256 assets;
     }
 
@@ -251,31 +261,87 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         }
 
         for (uint256 i; i < withdraws.length; ++i) {
-            IERC4626(withdraws[i].pool).withdraw(withdraws[i].assets, address(this), address(this));
+            pool.redeem(withdraws[i].pool, withdraws[i].assets, address(this), address(this));
         }
 
         for (uint256 i; i < deposits.length; ++i) {
-            IERC20(asset()).approve(deposits[i].pool, deposits[i].assets);
-            IERC4626(deposits[i].pool).deposit(deposits[i].assets, address(this));
+            IERC20(asset).approve(address(pool), deposits[i].assets);
+            pool.deposit(deposits[i].pool, deposits[i].assets, address(this));
         }
+    }
+
+
+    function convertToShares(uint256 assets) public view virtual returns (uint256) {
+        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+
+        return supply == 0 ? assets : assets.mulDiv(supply, lastTotalAssets, Math.Rounding.Floor);
+    }
+
+    function convertToAssets(uint256 shares) public view virtual returns (uint256) {
+        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+
+        return supply == 0 ? shares : shares.mulDiv(lastTotalAssets, supply, Math.Rounding.Floor);
+    }
+
+    function previewDeposit(uint256 assets) public view virtual returns (uint256) {
+        return convertToShares(assets);
+    }
+
+    function previewMint(uint256 shares) public view virtual returns (uint256) {
+        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+
+        return supply == 0 ? shares : shares.mulDiv(lastTotalAssets, supply, Math.Rounding.Ceil);
+    }
+
+    function previewWithdraw(uint256 assets) public view virtual returns (uint256) {
+        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+
+        return supply == 0 ? assets : assets.mulDiv(supply, lastTotalAssets, Math.Rounding.Ceil);
+    }
+
+    function previewRedeem(uint256 shares) public view virtual returns (uint256) {
+        return convertToAssets(shares);
     }
 
     /*//////////////////////////////////////////////////////////////
                                Internal
     //////////////////////////////////////////////////////////////*/
 
-    function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
-        ERC4626._deposit(caller, receiver, assets, shares);
+    function _deposit(address receiver, uint256 assets, uint256 shares) internal {
+        // Check for rounding error since we round down in previewDeposit.
+        require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
+
+        // Need to transfer before minting or ERC777s could reenter.
+        asset.safeTransferFrom(msg.sender, address(this), assets);
+
+        ERC20._mint(receiver, shares);
+
+        emit Deposit(msg.sender, receiver, assets, shares);
+
         _supplyToPools(assets);
+                
         lastTotalAssets += assets;
     }
 
-    function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
+    function _withdraw(address receiver, address owner, uint256 assets, uint256 shares)
         internal
-        override
     {
         _withdrawFromPools(assets);
-        ERC4626._withdraw(caller, receiver, owner, assets, shares);
+
+        shares = previewWithdraw(assets); // No need to check for rounding error, previewWithdraw rounds up.
+
+        if (msg.sender != owner) {
+            uint256 allowed = ERC20.allowance(owner, msg.sender); // Saves gas for limited approvals.
+
+            if (allowed != type(uint256).max) ERC20._spendAllowance(owner, msg.sender, shares);
+        }
+
+        ERC20._burn(owner, shares);
+
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+
+        asset.safeTransfer(receiver, assets);
+
         lastTotalAssets -= assets;
     }
 
@@ -283,9 +349,9 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
 
         uint256 assets =
-            _convertToSharesWithTotals(balanceOf(owner), totalSupply() + feeShares, newTotalAssets, Math.Rounding.Floor);
+            convertToShares(ERC20.balanceOf(owner));
 
-        return (assets, totalSupply() + feeShares, newTotalAssets);
+        return (assets, ERC20.totalSupply() + feeShares, newTotalAssets);
     }
 
     function _supplyToPools(uint256 assets) internal {
@@ -296,12 +362,12 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
             if (assetsInPool < poolCap[poolId]) {
                 uint256 supplyAmt = poolCap[poolId] - assetsInPool;
                 if (assets < supplyAmt) supplyAmt = assets;
-                IERC20(asset()).forceApprove(address(pool), supplyAmt);
+                IERC20(asset).forceApprove(address(pool), supplyAmt);
 
                 try pool.deposit(poolId, supplyAmt, address(this)) {
                     assets -= supplyAmt;
                 } catch {
-                    IERC20(asset()).forceApprove(address(pool), 0);
+                    IERC20(asset).forceApprove(address(pool), 0);
                 }
 
                 if (assets == 0) return;
@@ -311,10 +377,11 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     }
 
     function _withdrawFromPools(uint256 assets) internal {
-        uint256 assetsInSuperpool = IERC20(address(this)).balanceOf(asset());
+        uint256 assetsInSuperpool = IERC20(address(this)).balanceOf(address(asset));
 
         if (assetsInSuperpool >= assets) return;
         else assets -= assetsInSuperpool;
+
 
         for (uint256 i; i < withdrawQueue.length; ++i) {
             uint256 poolId = withdrawQueue[i];
@@ -325,9 +392,9 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
                 if (withdrawAmt > 0) {
                     // TODO replace with withdraw logic
-                    try pool.redeem(poolId, 0, address(this), address(this)) {
+                    try pool.redeem(poolId, withdrawAmt, address(this), address(this)) {
                         assets -= withdrawAmt;
-                    } catch {}
+                    } catch { }
                 }
 
                 if (assets == 0) return;
@@ -337,7 +404,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     }
 
     function _addPool(uint256 poolId) internal {
-        if (pool.getPoolAssetFor(poolId) != asset()) revert SuperPool_PoolAssetMismatch(address(this), poolId);
+        if (pool.getPoolAssetFor(poolId) != address(asset)) revert SuperPool_PoolAssetMismatch(address(this), poolId);
         if (depositQueue.length == MAX_QUEUE_LENGTH) revert SuperPool_MaxQueueLengthReached(address(this));
 
         depositQueue.push(poolId);
@@ -359,18 +426,10 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         view
         returns (uint256[] memory)
     {
-        bool[] memory seen = new bool[](indexes.length);
-
-        uint256[] memory newQueue;
+        uint256[] memory newQueue = new uint256[](indexes.length);
 
         for (uint256 i; i < indexes.length; ++i) {
-            if (seen[indexes[i]]) revert SuperPool_InvalidQueue(address(this));
             newQueue[i] = queue[i];
-            seen[indexes[i]] = true;
-        }
-
-        for (uint256 i = 1; i <= indexes.length; ++i) {
-            if (!seen[i]) revert SuperPool_InvalidQueue(address(this));
         }
 
         return newQueue;
@@ -393,46 +452,11 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     function _simulateFeeAccrual() internal view returns (uint256, uint256) {
         uint256 newTotalAssets = totalAssets();
         uint256 interestAccrued = (newTotalAssets > lastTotalAssets) ? newTotalAssets - lastTotalAssets : 0;
-        if (interestAccrued == 0 || fee == 0) return (0, 0);
+        if (interestAccrued == 0 || fee == 0) return (0, newTotalAssets);
 
         uint256 feeAssets = interestAccrued.mulDiv(fee, WAD);
-        uint256 feeShares =
-            _convertToSharesWithTotals(feeAssets, totalSupply(), newTotalAssets - feeAssets, Math.Rounding.Floor);
+        uint256 feeShares = convertToShares(feeAssets);
 
         return (feeShares, newTotalAssets);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                             Shares Math
-    //////////////////////////////////////////////////////////////*/
-
-    function _convertToShares(uint256 assets, Math.Rounding rounding) internal view override returns (uint256) {
-        (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
-
-        return _convertToSharesWithTotals(assets, totalSupply() + feeShares, newTotalAssets, rounding);
-    }
-
-    function _convertToSharesWithTotals(
-        uint256 assets,
-        uint256 newTotalSupply,
-        uint256 newTotalAssets,
-        Math.Rounding rounding
-    ) internal view returns (uint256) {
-        return assets.mulDiv(newTotalSupply + 10 ** _decimalsOffset(), newTotalAssets + 1, rounding);
-    }
-
-    function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view override returns (uint256) {
-        (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
-
-        return _convertToAssetsWithTotals(shares, totalSupply() + feeShares, newTotalAssets, rounding);
-    }
-
-    function _convertToAssetsWithTotals(
-        uint256 shares,
-        uint256 newTotalSupply,
-        uint256 newTotalAssets,
-        Math.Rounding rounding
-    ) internal view returns (uint256) {
-        return shares.mulDiv(newTotalAssets + 1, newTotalSupply + 10 ** _decimalsOffset(), rounding);
     }
 }

@@ -11,8 +11,6 @@ import {Action, Operation} from "src/PositionManager.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
-import {console2} from "forge-std/console2.sol";
-
 contract PositionManagerUnitTests is BaseTest {
     address public position;
     address public positionOwner = makeAddr("positionOwner");

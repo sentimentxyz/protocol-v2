@@ -84,6 +84,7 @@ contract RiskModuleUnitTests is BaseTest {
         riskEngine.rejectLtvUpdate(linearRatePool, address(asset1));
 
         assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
+
     }
 
     function testNoLTVUpdate(address asset) public {

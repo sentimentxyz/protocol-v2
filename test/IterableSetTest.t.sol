@@ -26,6 +26,10 @@ contract IterableSetTest is Test {
         if (unique) {
             assert(addressSet.length() == els.length);
             assert(keccak256(abi.encode(addressSet.getElements())) == keccak256(abi.encode(els)));
+
+            for (uint256 i = 0; i < els.length; ++i) {
+                assertEq(addressSet.getByIdx(i), els[i]);
+            }
         }
 
         for (uint256 i = 0; i < els.length; i++) {
@@ -50,6 +54,10 @@ contract IterableSetTest is Test {
         if (unique) {
             assert(uint256Set.length() == els.length);
             assert(keccak256(abi.encode(uint256Set.getElements())) == keccak256(abi.encode(els)));
+
+            for (uint256 i = 0; i < els.length; ++i) {
+                assertEq(uint256Set.getByIdx(i), els[i]);
+            }
         }
 
         for (uint256 i = 0; i < els.length; i++) {

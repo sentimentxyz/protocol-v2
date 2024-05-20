@@ -128,7 +128,7 @@ library IterableSet {
         // fetch number of elements in set
         uint256 len = self.elements.length;
 
-        // no need to replace elements if the element to be removed is already at the end
+        // if element to be removed is not at the end, replace it with the last element
         if (toRemoveIdx != len - 1) {
             // fetch value of current last element
             address lastElem = self.elements[len - 1];

@@ -55,7 +55,7 @@ contract SuperPoolFactory {
         superPool.transferOwnership(owner);
 
         // log superpool creation
-        emit SuperPoolDeployed(owner, address(superPool), params.name, params.symbol);
+        emit SuperPoolDeployed(owner, address(superPool), name, symbol);
 
         return address(superPool);
     }

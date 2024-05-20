@@ -9,16 +9,13 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IterableSet} from "./lib/IterableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ERC20 } from "lib/solmate/src/tokens/ERC20.sol";
-import { Owned } from "lib/solmate/src/auth/Owned.sol";
 //contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 
 // inspired by yearn v3 and metamorpho vaults
-contract SuperPool is Ownable, Pausable, ERC4626 {
+contract SuperPool is Ownable, Pausable, ERC20 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -30,6 +27,8 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     uint256 public constant MAX_QUEUE_LENGTH = 8;
 
     Pool public pool;
+
+    IERC20 public asset;
 
     uint256 public fee;
     address public feeRecipient;
@@ -82,6 +81,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
                               Initialize
     //////////////////////////////////////////////////////////////*/
     constructor(
+        address pool_,
         address asset_,
         address feeRecipient_,
         uint256 fee_,
@@ -89,8 +89,8 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         string memory name_,
         string memory symbol_
     ) Ownable(msg.sender) ERC20(name_, symbol_) {
-        asset = IERC20(params.asset);
-        pool = Pool(_pool);
+        asset = IERC20(asset_);
+        pool = Pool(pool_);
     
         fee = fee_;
         feeRecipient = feeRecipient_;
@@ -272,13 +272,13 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
 
 
     function convertToShares(uint256 assets) public view virtual returns (uint256) {
-        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
+        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
 
         return supply == 0 ? assets : assets.mulDiv(supply, lastTotalAssets, Math.Rounding.Floor);
     }
 
     function convertToAssets(uint256 shares) public view virtual returns (uint256) {
-        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
+        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
 
         return supply == 0 ? shares : shares.mulDiv(lastTotalAssets, supply, Math.Rounding.Floor);
     }
@@ -288,13 +288,13 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
     }
 
     function previewMint(uint256 shares) public view virtual returns (uint256) {
-        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
+        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
 
         return supply == 0 ? shares : shares.mulDiv(lastTotalAssets, supply, Math.Rounding.Ceil);
     }
 
     function previewWithdraw(uint256 assets) public view virtual returns (uint256) {
-        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
+        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
 
         return supply == 0 ? assets : assets.mulDiv(supply, lastTotalAssets, Math.Rounding.Ceil);
     }
@@ -314,7 +314,7 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         // Need to transfer before minting or ERC777s could reenter.
         asset.safeTransferFrom(msg.sender, address(this), assets);
 
-        _mint(receiver, shares);
+        ERC20._mint(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
 
@@ -331,12 +331,12 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         shares = previewWithdraw(assets); // No need to check for rounding error, previewWithdraw rounds up.
 
         if (msg.sender != owner) {
-            uint256 allowed = allowance[owner][msg.sender]; // Saves gas for limited approvals.
+            uint256 allowed = ERC20.allowance(owner, msg.sender); // Saves gas for limited approvals.
 
-            if (allowed != type(uint256).max) allowance[owner][msg.sender] = allowed - shares;
+            if (allowed != type(uint256).max) ERC20._spendAllowance(owner, msg.sender, shares);
         }
 
-        _burn(owner, shares);
+        ERC20._burn(owner, shares);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
@@ -349,9 +349,9 @@ contract SuperPool is Ownable, Pausable, ERC4626 {
         (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
 
         uint256 assets =
-            convertToShares(balanceOf[owner]);
+            convertToShares(ERC20.balanceOf(owner));
 
-        return (assets, totalSupply + feeShares, newTotalAssets);
+        return (assets, ERC20.totalSupply() + feeShares, newTotalAssets);
     }
 
     function _supplyToPools(uint256 assets) internal {

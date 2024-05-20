@@ -13,16 +13,7 @@ contract SuperPoolUnitTests is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        SuperPool.SuperPoolInitParams memory params = SuperPool.SuperPoolInitParams({
-            asset: address(asset1),
-            feeRecipient: feeTo,
-            fee: 0.01 ether,
-            superPoolCap: 1_000_000 ether,
-            name: "test",
-            symbol: "test"
-        });
-        
-        superPool = SuperPool(superPoolFactory.deploy(poolOwner, params));
+        superPool = SuperPool(superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test"));
     }
 
     function testInitSuperPoolFactory() public {
@@ -31,16 +22,7 @@ contract SuperPoolUnitTests is BaseTest {
     }
 
     function testInitSuperPool() public {
-        SuperPool.SuperPoolInitParams memory params = SuperPool.SuperPoolInitParams({
-            asset: address(asset1),
-            feeRecipient: feeTo,
-            fee: 0.01 ether,
-            superPoolCap: 1_000_000 ether,
-            name: "test",
-            symbol: "test"
-        });
-
-        SuperPool randomPoolRaw = new SuperPool(address(pool), params);
+        SuperPool randomPoolRaw = new SuperPool(address(pool), address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test");
 
         assertEq(address(randomPoolRaw.asset()), address(asset1));
         assertEq(randomPoolRaw.feeRecipient(), feeTo);
@@ -53,16 +35,7 @@ contract SuperPoolUnitTests is BaseTest {
     function testDeployAPoolFromFactory() public {
         address feeRecipient = makeAddr("FeeRecipient");
 
-        SuperPool.SuperPoolInitParams memory params = SuperPool.SuperPoolInitParams({
-            asset: address(asset1),
-            feeRecipient: feeRecipient,
-            fee: 0,
-            superPoolCap: 0,
-            name: "test",
-            symbol: "test"
-        });
-
-        address deployed = superPoolFactory.deploy(poolOwner, params);
+        address deployed = superPoolFactory.deploy(poolOwner, address(asset1), feeRecipient, 0, 0, "test", "test");
 
         assert(deployed != address(0));
         SuperPool _superPool = SuperPool(deployed);

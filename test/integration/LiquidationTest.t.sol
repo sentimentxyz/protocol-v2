@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {BaseTest} from "../BaseTest.t.sol";
+import {PositionManager} from "src/PositionManager.sol";
 import {RiskModule} from "src/RiskModule.sol";
 import {DebtData, AssetData, Action} from "src/PositionManager.sol";
 import {ZeroOracle} from "src/oracle/ZeroOracle.sol";
@@ -59,12 +60,6 @@ contract LiquidationIntTest is BaseTest {
         assertEq(totalDebtValue, 1e18);
         assertEq(minReqAssetValue, 2e18);
 
-        // modify asset2 price from 1eth to 0.1eth
-        FixedPriceOracle pointOneEthOracle = new FixedPriceOracle(0.1e18);
-        vm.prank(protocolOwner);
-        riskEngine.setOracle(address(asset2), address(pointOneEthOracle));
-        assertFalse(riskEngine.isPositionHealthy(position));
-
         // construct liquidator data
         DebtData memory debtData = DebtData({poolId: fixedRatePool, asset: address(asset1), amt: 1e18});
         DebtData[] memory debts = new DebtData[](1);
@@ -75,8 +70,30 @@ contract LiquidationIntTest is BaseTest {
         assets[0] = asset1Data;
         assets[1] = asset2Data;
 
-        // liquidate
+        // attempt to liquidate before price moves
         asset1.mint(liquidator, 10e18);
+        vm.startPrank(liquidator);
+        asset1.approve(address(positionManager), 1e18);
+        vm.expectRevert(abi.encodeWithSelector(PositionManager.PositionManager_LiquidateHealthyPosition.selector, position));
+        positionManager.liquidate(position, debts, assets);
+        vm.stopPrank();
+
+        // modify asset2 price from 1eth to 0.1eth
+        FixedPriceOracle pointOneEthOracle = new FixedPriceOracle(0.1e18);
+        vm.prank(protocolOwner);
+        riskEngine.setOracle(address(asset2), address(pointOneEthOracle));
+        assertFalse(riskEngine.isPositionHealthy(position));
+
+        // attempt a valid liquidation with the wrong asset data
+        vm.startPrank(liquidator);
+        DebtData memory falseDebtData = DebtData({poolId: fixedRatePool, asset: address(asset2), amt: 1e18});
+        debts[0] = falseDebtData;
+        vm.expectRevert(abi.encodeWithSelector(PositionManager.PositionManager_InvalidDebtData.selector, address(asset2), address(asset1)));
+        positionManager.liquidate(position, debts, assets);
+        debts[0] = debtData;
+        vm.stopPrank();
+
+        // liquidate
         vm.startPrank(liquidator);
         asset1.approve(address(positionManager), 1e18);
         positionManager.liquidate(position, debts, assets);

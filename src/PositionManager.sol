@@ -401,17 +401,20 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // position must breach risk thresholds before liquidation
         if (riskEngine.isPositionHealthy(position)) revert PositionManager_LiquidateHealthyPosition(position);
 
+        // validate assets and pools are correct 
+        for (uint256 i; i < debt.length; ++i) {
+            // verify that the asset being repaid is actually the pool asset
+            if (debt[i].asset != pool.getPoolAssetFor(debt[i].poolId)) {
+                revert PositionManager_InvalidDebtData(debt[i].asset, pool.getPoolAssetFor(debt[i].poolId));
+            }
+        }
+
         // verify that the liquidator seized by the liquidator is within liquidiation discount
         riskEngine.validateLiquidation(debt, collat);
 
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator
         for (uint256 i; i < debt.length; ++i) {
-            // verify that the asset being repaid is actually the pool asset
-            if (debt[i].asset != pool.getPoolAssetFor(debt[i].poolId)) {
-                revert PositionManager_InvalidDebtData(debt[i].asset, pool.getPoolAssetFor(debt[i].poolId));
-            }
-
             // transfer debt asset from the liquidator to the pool
             IERC20(debt[i].asset).transferFrom(msg.sender, address(pool), debt[i].amt);
 

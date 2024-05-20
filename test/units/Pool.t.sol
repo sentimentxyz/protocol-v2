@@ -372,4 +372,24 @@ contract PoolUnitTests is BaseTest {
         vm.prank(sender);
         pool.rejectRateModelUpdate(linearRatePool);
     }
+
+    function testPoolLiquidityIsNotShared() public {
+        vm.startPrank(user);
+
+        asset1.mint(user, 200 ether);
+        asset1.approve(address(pool), 200 ether);
+
+        pool.deposit(linearRatePool, 100 ether, user);
+        pool.deposit(fixedRatePool, 100 ether, user);
+        vm.stopPrank();
+
+        vm.prank(registry.addressFor(SENTIMENT_POSITION_MANAGER_KEY));
+        pool.borrow(linearRatePool, user, 50 ether);
+
+        vm.startPrank(user);
+
+        vm.expectRevert();
+        pool.redeem(linearRatePool, 100 ether, user, user);
+
+    }
 }

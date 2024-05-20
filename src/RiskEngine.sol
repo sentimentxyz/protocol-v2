@@ -12,13 +12,14 @@ import {Position} from "./Position.sol";
 import {DebtData, AssetData} from "./PositionManager.sol";
 import {RiskModule} from "./RiskModule.sol";
 // contracts
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import { Owned } from "lib/solmate/src/auth/Owned.sol";
+
 
 /*//////////////////////////////////////////////////////////////
                             RiskEngine
 //////////////////////////////////////////////////////////////*/
 
-contract RiskEngine is Ownable {
+contract RiskEngine is Owned(msg.sender) {
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
@@ -85,7 +86,7 @@ contract RiskEngine is Ownable {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address registry_, uint256 minLtv_, uint256 maxLtv_) Ownable(msg.sender) {
+    constructor(address registry_, uint256 minLtv_, uint256 maxLtv_) {
         registry = Registry(registry_);
         minLtv = minLtv_;
         maxLtv = maxLtv_;

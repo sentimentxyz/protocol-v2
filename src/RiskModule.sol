@@ -8,12 +8,11 @@ import {Registry} from "./Registry.sol";
 import {RiskEngine} from "./RiskEngine.sol";
 import {IOracle} from "./interfaces/IOracle.sol";
 import {DebtData, AssetData} from "./PositionManager.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// libraries
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import { ERC20 } from "lib/solmate/src/tokens/ERC20.sol";
+import { FixedPointMathLib } from "lib/solmate/src/utils/FixedPointMathLib.sol";
 
 contract RiskModule {
-    using Math for uint256;
+    using FixedPointMathLib for uint256;
 
     uint256 public constant VERSION = 1;
 
@@ -87,7 +86,7 @@ contract RiskModule {
         }
 
         // max asset value that can be seized by the liquidator
-        uint256 maxSeizedAssetValue = debtRepaidValue.mulDiv((1e18 + LIQUIDATION_DISCOUNT), 1e18);
+        uint256 maxSeizedAssetValue = debtRepaidValue.mulDivDown((1e18 + LIQUIDATION_DISCOUNT), 1e18);
 
         if (assetSeizedValue > maxSeizedAssetValue) {
             revert RiskModule_SeizedTooMuch(assetSeizedValue, maxSeizedAssetValue);
@@ -121,7 +120,7 @@ contract RiskModule {
 
     function getAssetValue(address position, address asset) public view returns (uint256) {
         IOracle oracle = IOracle(riskEngine.getOracleFor(asset));
-        uint256 amt = IERC20(asset).balanceOf(position);
+        uint256 amt = ERC20(asset).balanceOf(position);
         return oracle.getValueInEth(asset, amt);
     }
 
@@ -180,7 +179,7 @@ contract RiskModule {
         for (uint256 i; i < positionAssetData.length; ++i) {
             // positionAssetData[i] stores weight of positionAsset[i]
             // wt of positionAsset[i] = (value of positionAsset[i]) / (total position assets value)
-            positionAssetData[i] = positionAssetData[i].mulDiv(1e18, totalAssetValue);
+            positionAssetData[i] = positionAssetData[i].mulDivDown(1e18, totalAssetValue);
         }
 
         return (totalAssetValue, positionAssets, positionAssetData);
@@ -204,7 +203,7 @@ contract RiskModule {
                 // debt is weighted in proportion to value of position assets. if your position
                 // consists of 60% A and 40% B, then 60% of the debt is assigned to be backed by A
                 // and 40% by B. this is iteratively computed for each pool the position borrows from
-                minReqAssetValue += debtValuleForPool[i].mulDiv(wt[j], ltv, Math.Rounding.Ceil);
+                minReqAssetValue += debtValuleForPool[i].mulDivUp(wt[j], ltv);
             }
         }
 

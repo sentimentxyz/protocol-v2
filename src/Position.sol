@@ -3,13 +3,14 @@ pragma solidity ^0.8.24;
 
 // types
 import {Pool} from "./Pool.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC20 } from "lib/solmate/src/tokens/ERC20.sol";
+import { SafeTransferLib } from "lib/solmate/src/utils/SafeTransferLib.sol";
+
 // libraries
 import {IterableSet} from "./lib/IterableSet.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract Position {
-    using SafeERC20 for IERC20;
+    using SafeTransferLib for ERC20;
     using IterableSet for IterableSet.AddressSet;
     using IterableSet for IterableSet.Uint256Set;
 
@@ -53,7 +54,7 @@ contract Position {
     function approve(address token, address spender, uint256 amt) external onlyPositionManager {
         // handle tokens with non-standard return values using forceApprove
         // handle tokens that force setting approval to zero first using forceApprove
-        IERC20(token).forceApprove(spender, amt);
+        ERC20(token).approve(spender, amt);
     }
 
     // transfer assets from a position to a given external contract
@@ -61,7 +62,7 @@ contract Position {
     // any additional checks must be implemented on the position manager
     function transfer(address to, address asset, uint256 amt) external onlyPositionManager {
         // handle tokens with non-standard return values using safeTransfer
-        IERC20(asset).safeTransfer(to, amt);
+        ERC20(asset).safeTransfer(to, amt);
     }
 
     // intereact with external contracts and arbitrary calldata

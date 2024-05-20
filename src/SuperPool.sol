@@ -3,21 +3,21 @@ pragma solidity ^0.8.24;
 
 // types
 import {Pool} from "./Pool.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { ERC20 } from "lib/solmate/src/tokens/ERC20.sol";
+import { ERC4626 } from "lib/solmate/src/tokens/ERC4626.sol";
+
 // libraries
 import {IterableSet} from "./lib/IterableSet.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-//contracts
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { SafeTransferLib } from "lib/solmate/src/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "lib/solmate/src/utils/FixedPointMathLib.sol";
+import { Owned } from "lib/solmate/src/auth/Owned.sol";
+
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 // inspired by yearn v3 and metamorpho vaults
-contract SuperPool is Ownable, Pausable, ERC20 {
-    using Math for uint256;
-    using SafeERC20 for IERC20;
+contract SuperPool is Owned(msg.sender), Pausable, ERC20 {
+    using FixedPointMathLib for uint256;
+    using SafeTransferLib for ERC20;
 
     /*//////////////////////////////////////////////////////////////
                                Storage
@@ -28,7 +28,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
 
     Pool public pool;
 
-    IERC20 public asset;
+    ERC20 public asset;
 
     uint256 public fee;
     address public feeRecipient;
@@ -88,8 +88,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         uint256 superPoolCap_,
         string memory name_,
         string memory symbol_
-    ) Ownable(msg.sender) ERC20(name_, symbol_) {
-        asset = IERC20(asset_);
+    ) ERC20(name_, symbol_, 18) {
+        asset = ERC20(asset_);
         pool = Pool(pool_);
     
         fee = fee_;
@@ -124,7 +124,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     //////////////////////////////////////////////////////////////*/
 
     function totalAssets() public view returns (uint256) {
-        uint256 assets = IERC20(asset).balanceOf(address(this));
+        uint256 assets = ERC20(asset).balanceOf(address(this));
 
         for (uint256 i; i < depositQueue.length; ++i) {
             assets += pool.getAssetsOf(depositQueue[i], address(this));
@@ -256,7 +256,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     }
 
     function reallocate(ReallocateParams[] calldata withdraws, ReallocateParams[] calldata deposits) external {
-        if (!isAllocator[msg.sender] && msg.sender != Ownable.owner()) {
+        if (!isAllocator[msg.sender] && msg.sender != owner) {
             revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
         }
 
@@ -265,22 +265,22 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         }
 
         for (uint256 i; i < deposits.length; ++i) {
-            IERC20(asset).approve(address(pool), deposits[i].assets);
+            ERC20(asset).approve(address(pool), deposits[i].assets);
             pool.deposit(deposits[i].pool, deposits[i].assets, address(this));
         }
     }
 
 
     function convertToShares(uint256 assets) public view virtual returns (uint256) {
-        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
 
-        return supply == 0 ? assets : assets.mulDiv(supply, lastTotalAssets, Math.Rounding.Floor);
+        return supply == 0 ? assets : assets.mulDivDown(supply, lastTotalAssets);
     }
 
     function convertToAssets(uint256 shares) public view virtual returns (uint256) {
-        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
 
-        return supply == 0 ? shares : shares.mulDiv(lastTotalAssets, supply, Math.Rounding.Floor);
+        return supply == 0 ? shares : shares.mulDivDown(lastTotalAssets, supply);
     }
 
     function previewDeposit(uint256 assets) public view virtual returns (uint256) {
@@ -288,15 +288,15 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     }
 
     function previewMint(uint256 shares) public view virtual returns (uint256) {
-        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
 
-        return supply == 0 ? shares : shares.mulDiv(lastTotalAssets, supply, Math.Rounding.Ceil);
+        return supply == 0 ? shares : shares.mulDivUp(lastTotalAssets, supply);
     }
 
     function previewWithdraw(uint256 assets) public view virtual returns (uint256) {
-        uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
 
-        return supply == 0 ? assets : assets.mulDiv(supply, lastTotalAssets, Math.Rounding.Ceil);
+        return supply == 0 ? assets : assets.mulDivUp(supply, lastTotalAssets);
     }
 
     function previewRedeem(uint256 shares) public view virtual returns (uint256) {
@@ -331,9 +331,9 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         shares = previewWithdraw(assets); // No need to check for rounding error, previewWithdraw rounds up.
 
         if (msg.sender != owner) {
-            uint256 allowed = ERC20.allowance(owner, msg.sender); // Saves gas for limited approvals.
+            uint256 allowed = allowance[owner][msg.sender]; // Saves gas for limited approvals.
 
-            if (allowed != type(uint256).max) ERC20._spendAllowance(owner, msg.sender, shares);
+            if (allowed != type(uint256).max) allowance[owner][msg.sender] = allowed - shares;
         }
 
         ERC20._burn(owner, shares);
@@ -349,9 +349,9 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
 
         uint256 assets =
-            convertToShares(ERC20.balanceOf(owner));
+            convertToShares(balanceOf[owner]);
 
-        return (assets, ERC20.totalSupply() + feeShares, newTotalAssets);
+        return (assets, totalSupply + feeShares, newTotalAssets);
     }
 
     function _supplyToPools(uint256 assets) internal {
@@ -362,12 +362,12 @@ contract SuperPool is Ownable, Pausable, ERC20 {
             if (assetsInPool < poolCap[poolId]) {
                 uint256 supplyAmt = poolCap[poolId] - assetsInPool;
                 if (assets < supplyAmt) supplyAmt = assets;
-                IERC20(asset).forceApprove(address(pool), supplyAmt);
+                ERC20(asset).approve(address(pool), supplyAmt);
 
                 try pool.deposit(poolId, supplyAmt, address(this)) {
                     assets -= supplyAmt;
                 } catch {
-                    IERC20(asset).forceApprove(address(pool), 0);
+                    ERC20(asset).approve(address(pool), 0);
                 }
 
                 if (assets == 0) return;
@@ -377,7 +377,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     }
 
     function _withdrawFromPools(uint256 assets) internal {
-        uint256 assetsInSuperpool = IERC20(address(this)).balanceOf(address(asset));
+        uint256 assetsInSuperpool = ERC20(address(this)).balanceOf(address(asset));
 
         if (assetsInSuperpool >= assets) return;
         else assets -= assetsInSuperpool;
@@ -454,7 +454,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         uint256 interestAccrued = (newTotalAssets > lastTotalAssets) ? newTotalAssets - lastTotalAssets : 0;
         if (interestAccrued == 0 || fee == 0) return (0, newTotalAssets);
 
-        uint256 feeAssets = interestAccrued.mulDiv(fee, WAD);
+        uint256 feeAssets = interestAccrued.mulDivDown(fee, WAD);
         uint256 feeShares = convertToShares(feeAssets);
 
         return (feeShares, newTotalAssets);

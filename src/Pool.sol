@@ -4,18 +4,18 @@ pragma solidity ^0.8.24;
 // types
 import {Registry} from "./Registry.sol";
 import {IRateModel} from "./interfaces/IRateModel.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-// libraries
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-// contracts
-import {ERC6909} from "./lib/ERC6909.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Pool is Ownable, ERC6909 {
-    using Math for uint256;
-    using SafeERC20 for IERC20;
+import { ERC20 } from "lib/solmate/src/tokens/ERC20.sol";
+import { ERC4626 } from "lib/solmate/src/tokens/ERC4626.sol";
+import { ERC6909 } from "lib/solmate/src/tokens/ERC6909.sol";
+
+import { SafeTransferLib } from "lib/solmate/src/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "lib/solmate/src/utils/FixedPointMathLib.sol";
+import { Owned } from "lib/solmate/src/auth/Owned.sol";
+
+contract Pool is Owned(msg.sender), ERC6909 {
+    using FixedPointMathLib for uint256;
+    using SafeTransferLib for ERC20;
 
     /*//////////////////////////////////////////////////////////////
                                Structs
@@ -102,7 +102,7 @@ contract Pool is Ownable, ERC6909 {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address registry_, address feeRecipient_) Ownable(msg.sender) {
+    constructor(address registry_, address feeRecipient_) {
         feeRecipient = feeRecipient_;
         REGISTRY = Registry(registry_);
     }
@@ -139,12 +139,12 @@ contract Pool is Ownable, ERC6909 {
 
     function convertToShares(Uint128Pair memory pair, uint256 assets) public pure returns (uint256 shares) {
         if (pair.assets == 0) return assets;
-        shares = assets.mulDiv(pair.shares, pair.assets);
+        shares = assets.mulDivDown(pair.shares, pair.assets);
     }
 
     function convertToAssets(Uint128Pair memory pair, uint256 shares) public pure returns (uint256 assets) {
         if (pair.shares == 0) return shares;
-        assets = shares.mulDiv(pair.assets, pair.shares);
+        assets = shares.mulDivDown(pair.assets, pair.shares);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -163,7 +163,7 @@ contract Pool is Ownable, ERC6909 {
         require((shares = convertToShares(pool.totalAssets, assets)) != 0, "ZERO_SHARES");
 
         // Need to transfer before minting or ERC777s could reenter.
-        IERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
+        ERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
 
         _mint(receiver, poolId, shares);
 
@@ -188,7 +188,7 @@ contract Pool is Ownable, ERC6909 {
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
-        IERC20(pool.asset).safeTransfer(receiver, assets);
+        ERC20(pool.asset).safeTransfer(receiver, assets);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -208,13 +208,13 @@ contract Pool is Ownable, ERC6909 {
 
         if (interestAccrued != 0) {
             // [ROUND] floor fees in favor of pool lenders
-            uint256 feeAssets = interestAccrued.mulDiv(pool.interestFee, 1e18);
+            uint256 feeAssets = interestAccrued.mulDivDown(pool.interestFee, 1e18);
 
             // totalAssets() - feeAssets
             uint256 totalAssetExFees = pool.totalAssets.assets + interestAccrued - feeAssets;
 
             // [ROUND] round down in favor of pool lenders
-            uint256 feeShares = feeAssets.mulDiv(pool.totalAssets.shares, totalAssetExFees + 1);
+            uint256 feeShares = feeAssets.mulDivDown(pool.totalAssets.shares, totalAssetExFees + 1);
 
             _mint(feeRecipient, id, feeShares);
         }
@@ -262,14 +262,14 @@ contract Pool is Ownable, ERC6909 {
 
         // compute origination fee amt
         // [ROUND] origination fee is rounded down, in favor of the borrower
-        uint256 fee = amt.mulDiv(pool.originationFee, 1e18);
+        uint256 fee = amt.mulDivDown(pool.originationFee, 1e18);
 
         address asset = pool.asset;
         // send origination fee to owner
-        IERC20(asset).safeTransfer(feeRecipient, fee);
+        ERC20(asset).safeTransfer(feeRecipient, fee);
 
         // send borrowed assets to position
-        IERC20(asset).safeTransfer(position, amt - fee);
+        ERC20(asset).safeTransfer(position, amt - fee);
 
         emit Borrow(position, asset, amt);
     }

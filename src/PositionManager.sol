@@ -10,10 +10,10 @@ import {Pool} from "./Pool.sol";
 import {Registry} from "./Registry.sol";
 import {Position} from "./Position.sol";
 import {RiskEngine} from "./RiskEngine.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC20 } from "lib/solmate/src/tokens/ERC20.sol";
 // libraries
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { SafeTransferLib } from "lib/solmate/src/utils/SafeTransferLib.sol";
+import { FixedPointMathLib } from "lib/solmate/src/utils/FixedPointMathLib.sol";
 // contracts
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -73,8 +73,8 @@ struct Action {
 //////////////////////////////////////////////////////////////*/
 
 contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, PausableUpgradeable {
-    using Math for uint256;
-    using SafeERC20 for IERC20;
+    using FixedPointMathLib for uint256;
+    using SafeTransferLib for ERC20;
 
     /*//////////////////////////////////////////////////////////////
                                Storage
@@ -306,7 +306,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // asset -> address of token to be deposited
         // amt -> amount of asset to be deposited
         (address asset, uint256 amt) = abi.decode(data, (address, uint256));
-        IERC20(asset).safeTransferFrom(msg.sender, position, amt);
+        ERC20(asset).safeTransferFrom(msg.sender, position, amt);
 
         emit Deposit(position, msg.sender, asset, amt);
     }
@@ -413,7 +413,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             }
 
             // transfer debt asset from the liquidator to the pool
-            IERC20(debt[i].asset).transferFrom(msg.sender, address(pool), debt[i].amt);
+            ERC20(debt[i].asset).transferFrom(msg.sender, address(pool), debt[i].amt);
 
             // trigger pool repayment which assumes successful transfer of repaid assets
             pool.repay(debt[i].poolId, position, debt[i].amt);
@@ -426,7 +426,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         for (uint256 i; i < collat.length; ++i) {
             // compute fee amt
             // [ROUND] liquidation fee is rounded down, in favor of the liquidator
-            uint256 fee = liquidationFee.mulDiv(collat[i].amt, 1e18);
+            uint256 fee = liquidationFee.mulDivDown(collat[i].amt, 1e18);
 
             // transfer fee amt to protocol
             Position(position).transfer(owner(), collat[i].asset, fee);

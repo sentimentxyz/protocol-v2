@@ -48,6 +48,7 @@ contract BaseTest is Test {
     uint256 public linearRatePool;
     uint256 public fixedRatePool2;
     uint256 public linearRatePool2;
+    uint256 public alternateAssetPool;
 
     // keccak(SENTIMENT_POSITION_MANAGER_KEY)
     bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
@@ -140,9 +141,10 @@ contract BaseTest is Test {
 
         vm.startPrank(poolOwner);
         fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0, type(uint128).max);
-        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);
+        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0, type(uint128).max);
         fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0, 0, type(uint128).max);
         linearRatePool2 = pool.initializePool(poolOwner, address(asset1), linearRateModel2, 0, 0, type(uint128).max);
+        alternateAssetPool = pool.initializePool(poolOwner, address(asset2), fixedRateModel, 0, 0, type(uint128).max);
         vm.stopPrank(); 
     }
 

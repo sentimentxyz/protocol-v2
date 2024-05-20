@@ -30,6 +30,26 @@ contract SuperPoolUnitTests is BaseTest {
         assertEq(superPoolFactory.POOL(), address(pool));
     }
 
+    function testInitSuperPool() public {
+        SuperPool.SuperPoolInitParams memory params = SuperPool.SuperPoolInitParams({
+            asset: address(asset1),
+            feeRecipient: feeTo,
+            fee: 0.01 ether,
+            superPoolCap: 1_000_000 ether,
+            name: "test",
+            symbol: "test"
+        });
+
+        SuperPool randomPoolRaw = new SuperPool(address(pool), params);
+
+        assertEq(address(randomPoolRaw.asset()), address(asset1));
+        assertEq(randomPoolRaw.feeRecipient(), feeTo);
+        assertEq(randomPoolRaw.fee(), 0.01 ether);
+        assertEq(randomPoolRaw.superPoolCap(), 1_000_000 ether);
+        assertEq(randomPoolRaw.name(), "test");
+        assertEq(randomPoolRaw.symbol(), "test");
+    }
+
     function testDeployAPoolFromFactory() public {
         address feeRecipient = makeAddr("FeeRecipient");
 
@@ -65,6 +85,26 @@ contract SuperPoolUnitTests is BaseTest {
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
         assertEq(superPool.poolCap(linearRatePool), 100 ether);
+
+        vm.expectRevert(); // Cannot mix asset types when initializing pool types
+        superPool.setPoolCap(alternateAssetPool, 100 ether);
+
+        for (uint256 i; i < 7; i++) {
+            address linearRateModel = address(new LinearRateModel(2e18, 3e18));
+            uint256 linearPool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);  
+
+            superPool.setPoolCap(linearPool, 50 ether);
+        }
+
+        address newLinearModel = address(new LinearRateModel(2e18, 3e18));
+        uint256 lastLinearPool = pool.initializePool(poolOwner, address(asset1), newLinearModel, 0, 0, type(uint128).max);  
+
+        // Test call reverts when adding too many pools
+        vm.expectRevert();
+        superPool.setPoolCap(lastLinearPool, 50 ether);
+
+        // Call will return if double 0's are passed in
+        superPool.setPoolCap(0, 0);
     }
 
     function testRemovePoolFromSuperPool() public {
@@ -113,9 +153,28 @@ contract SuperPoolUnitTests is BaseTest {
         asset1.mint(user, 100 ether);
         asset1.approve(address(superPool), 100 ether);
 
-        superPool.deposit(100 ether, user);
+        uint256 expectedShares = superPool.previewDeposit(100 ether);
+        uint256 shares = superPool.deposit(100 ether, user);
+        assertEq(shares, expectedShares);
 
         assertEq(asset1.balanceOf(address(pool)), 100 ether);
+    }
+
+    function testTotalAssets(uint96 amount) public {
+        vm.assume(amount > 1e6);
+
+        vm.startPrank(poolOwner);
+        superPool.setPoolCap(linearRatePool, amount);
+        superPool.setPoolCap(fixedRatePool, amount);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        asset1.mint(user, amount);
+        asset1.approve(address(superPool), amount);
+        superPool.deposit(amount, user);
+        vm.stopPrank();
+
+        assertEq(superPool.totalAssets(), amount);
     }
 
     function testSimpleDepositIntoMultiplePools() public {
@@ -129,8 +188,10 @@ contract SuperPoolUnitTests is BaseTest {
         asset1.mint(user, 200 ether);
         asset1.approve(address(superPool), 200 ether);
 
-        // Shares and Assets 1:1 before interest is eanred
-        superPool.mint(200 ether, user);
+        // Shares and Assets 1:1 before interest is earned
+        uint256 expectedAssets = superPool.previewMint(200 ether);
+        uint256 assets = superPool.mint(200 ether, user);
+        assertEq(assets, expectedAssets);
 
         assertEq(asset1.balanceOf(address(pool)), 200 ether);
     }
@@ -317,8 +378,15 @@ contract SuperPoolUnitTests is BaseTest {
         SuperPool.ReallocateParams[] memory reAllocateDeposits = new SuperPool.ReallocateParams[](1);
         SuperPool.ReallocateParams[] memory reAllocateWithdrawals = new SuperPool.ReallocateParams[](1);
 
+        superPool.accrueInterestAndFees();
+
         reAllocateDeposits[0] = (SuperPool.ReallocateParams(fixedRatePool, 10 ether));
         reAllocateWithdrawals[0] = (SuperPool.ReallocateParams(linearRatePool, 10 ether));
+
+        vm.startPrank(user);
+        vm.expectRevert();
+        superPool.reallocate(reAllocateWithdrawals, reAllocateDeposits); // Regular user cannot reallocate
+        vm.stopPrank();
 
         vm.prank(poolOwner);
         superPool.reallocate(reAllocateWithdrawals, reAllocateDeposits);
@@ -377,10 +445,8 @@ contract SuperPoolUnitTests is BaseTest {
         superPool.setPoolCap(linearRatePool2, 50 ether);
         vm.stopPrank();
 
-        uint256[] memory newWrongWithdrawalOrder = new uint256[](3);
+        uint256[] memory newWrongWithdrawalOrder = new uint256[](1);
         newWrongWithdrawalOrder[0] = fixedRatePool;
-        newWrongWithdrawalOrder[1] = linearRatePool;
-        newWrongWithdrawalOrder[2] = fixedRatePool2;
         
         vm.expectRevert();
         superPool.reorderWithdrawQueue(newWrongWithdrawalOrder);
@@ -398,6 +464,57 @@ contract SuperPoolUnitTests is BaseTest {
         assertEq(superPool.withdrawQueue(1), linearRatePool);
         assertEq(superPool.withdrawQueue(2), fixedRatePool2);
         assertEq(superPool.withdrawQueue(3), linearRatePool2);
+    }
+
+    function testInterestEarnedOnTheUnderlingPool() public {
+        // 1. Setup a basic pool with an asset1
+        // 2. Add it to the superpool
+        // 3. Deposit assets into the pool
+        // 4. Borrow from an alternate account
+        // 5. accrueInterest
+        // 6. Attempt to withdraw all of the liquidity, and see the running out of the pool
+        vm.startPrank(poolOwner);
+        superPool.setPoolCap(fixedRatePool, 50 ether);
+        superPool.setPoolCap(linearRatePool, 50 ether);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        asset1.mint(user, 50 ether);
+        asset1.approve(address(superPool), 50 ether);
+
+        vm.expectRevert();
+        superPool.deposit(0, user);
+
+        superPool.deposit(50 ether, user);
+        vm.stopPrank();
+
+        vm.startPrank(Pool(pool).positionManager());
+        Pool(pool).borrow(linearRatePool, user, 35 ether);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 365 days);
+        vm.roll(block.number + 5_000_000);
+        pool.accrue(linearRatePool);
+
+        vm.startPrank(Pool(pool).positionManager());
+        uint256 borrowsOwed = pool.getBorrowsOf(linearRatePool, user);
+
+        asset1.mint(Pool(pool).positionManager(), borrowsOwed);
+        asset1.approve(address(pool), borrowsOwed);
+        Pool(pool).repay(linearRatePool, user, borrowsOwed);
+        vm.stopPrank();
+
+        superPool.accrueInterestAndFees();
+
+        vm.startPrank(user);
+        vm.expectRevert(); // Not enough liquidity
+        superPool.withdraw(40 ether, user, user);
+        vm.stopPrank();
+
+        vm.startPrank(poolOwner);
+        vm.expectRevert(); // Cant remove a pool with liquidity in it
+        superPool.setPoolCap(fixedRatePool, 0 ether);
+        vm.stopPrank();
     }
 
 }

@@ -84,7 +84,7 @@ contract SuperPool is ERC20, Owned(msg.sender) {
 
     IERC20 public immutable asset;
 
-    constructor( address _pool, SuperPoolInitParams memory params) ERC20(params.name, params.symbol, 18) {
+    constructor(address _pool, SuperPoolInitParams memory params) ERC20(params.name, params.symbol, 18) {
         asset = IERC20(params.asset);
         pool = Pool(_pool);
 
@@ -322,7 +322,8 @@ contract SuperPool is ERC20, Owned(msg.sender) {
         _mint(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
-                _supplyToPools(assets);
+        
+        _supplyToPools(assets);
                 
         lastTotalAssets += assets;
     }

@@ -6,10 +6,10 @@ import {Registry} from "src/Registry.sol";
 import {Position} from "src/Position.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 import {RiskModule} from "src/RiskModule.sol";
-import {PositionManager} from "src/PositionManager.sol";
 import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {SuperPoolFactory} from "src/SuperPoolFactory.sol";
+import {Action, Operation, PositionManager} from "src/PositionManager.sol";
 
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -36,9 +36,12 @@ contract BaseTest is Test {
     Pool public pool;
 
     address public user = makeAddr("user");
-    address public owner = makeAddr("owner");
+    address public lender = makeAddr("lender");
+    address public poolOwner = makeAddr("poolOwner");
 
-    MockERC20 public asset;
+    MockERC20 public asset1;
+    MockERC20 public asset2;
+
     uint256 public fixedRatePool;
     uint256 public linearRatePool;
 
@@ -73,7 +76,7 @@ contract BaseTest is Test {
             feeRecipient: address(this),
             minLtv: 0,
             maxLtv: 115792089237316195423570985008687907853269984665640564039457584007913129639935,
-            minDebt: 0,
+            minDebt: 0.03 ether,
             liquidationFee: 0,
             liquidationDiscount: 200000000000000000
         });
@@ -119,28 +122,50 @@ contract BaseTest is Test {
         riskEngine.updateFromRegistry();
         riskModule.updateFromRegistry();
 
-        asset = new MockERC20("Asset", "ASSET", 18);
+        asset1 = new MockERC20("Asset1", "ASSET1", 18);
+        asset2 = new MockERC20("Asset2", "ASSET2", 18);
 
-        address rateModel = address(new LinearRateModel(1e18, 2e18));
-        linearRatePool = pool.initializePool(protocolOwner, address(asset), rateModel, 0, 0);
+        pool.transferOwnership(params.owner);
+        registry.transferOwnership(params.owner);
+        riskEngine.transferOwnership(params.owner);
 
-        rateModel = address(new FixedRateModel(1e18));
-        fixedRatePool = pool.initializePool(protocolOwner, address(asset), rateModel, 0, 0);
+        address fixedRateModel = address(new FixedRateModel(1e18));
+        address linearRateModel = address(new LinearRateModel(1e18, 2e18));
+
+        vm.startPrank(poolOwner);
+        fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0, type(uint128).max);
+        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);
+        vm.stopPrank();
     }
-}
 
-contract RegistryTest is BaseTest {
-    function testInitializesRegistryCorrectly() public view {
-        assertEq(address(pool), registry.addressFor(SENTIMENT_POOL_KEY));
-        assertEq(address(riskEngine), registry.addressFor(SENTIMENT_RISK_ENGINE_KEY));
-        assertEq(address(positionManager), registry.addressFor(SENTIMENT_POSITION_MANAGER_KEY));
-        assertEq(address(positionBeacon), registry.addressFor(SENTIMENT_POSITION_BEACON_KEY));
-        assertEq(address(riskModule), registry.addressFor(SENTIMENT_RISK_MODULE_KEY));
+    function newPosition(address owner, bytes32 salt) internal view returns (address, Action memory) {
+        bytes memory data = abi.encode(owner, salt);
+        (address position,) = portfolioLens.predictAddress(owner, salt);
+        Action memory action = Action({op: Operation.NewPosition, data: data});
+        return (position, action);
+    }
 
-        assertEq(pool.positionManager(), address(positionManager));
+    function deposit(address asset, uint256 amt) internal pure returns (Action memory) {
+        bytes memory data = abi.encode(asset, amt);
+        Action memory action = Action({op: Operation.Deposit, data: data});
+        return action;
+    }
 
-        assertEq(address(positionManager.riskEngine()), address(riskEngine));
-        assertEq(address(positionManager.pool()), address(pool));
-        assertEq(address(positionManager.positionBeacon()), address(positionBeacon));
+    function addToken(address asset) internal pure returns (Action memory) {
+        bytes memory data = abi.encode(asset);
+        Action memory action = Action({op: Operation.AddToken, data: data});
+        return action;
+    }
+
+    function removeToken(address asset) internal pure returns (Action memory) {
+        bytes memory data = abi.encode(asset);
+        Action memory action = Action({op: Operation.RemoveToken, data: data});
+        return action;
+    }
+
+    function borrow(uint256 poolId, uint256 amt) internal pure returns (Action memory) {
+        bytes memory data = abi.encode(poolId, amt);
+        Action memory action = Action({op: Operation.Borrow, data: data});
+        return action;
     }
 }

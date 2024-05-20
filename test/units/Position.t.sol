@@ -11,44 +11,35 @@ import {Action, Operation} from "src/PositionManager.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
-contract PoolUnitTests is BaseTest {
-    address public positionOwner = makeAddr("positionOwner");
-    MockERC20 public collateral = new MockERC20("Collateral", "COL", 18);
-
-    FixedPriceOracle collateralOracle = new FixedPriceOracle(0.5e18);
-    FixedPriceOracle assetOracle = new FixedPriceOracle(10e18);
-
+contract PositionUnitTests is BaseTest {
     address public position;
+    address public positionOwner = makeAddr("positionOwner");
+    FixedPriceOracle asset1Oracle = new FixedPriceOracle(10e18);
+    FixedPriceOracle asset2Oracle = new FixedPriceOracle(0.5e18);
 
     function setUp() public override {
         super.setUp();
 
-        riskEngine.setOracle(address(collateral), address(collateralOracle));
-        riskEngine.setOracle(address(asset), address(assetOracle));
+        vm.startPrank(protocolOwner);
+        riskEngine.setOracle(address(asset1), address(asset1Oracle));
+        riskEngine.setOracle(address(asset2), address(asset2Oracle));
+        vm.stopPrank();
 
-        asset.mint(address(this), 10000 ether);
-        asset.approve(address(pool), 10000 ether);
+        asset1.mint(address(this), 10000 ether);
+        asset1.approve(address(pool), 10000 ether);
 
         pool.deposit(linearRatePool, 10000 ether, address(0x9));
 
-        bytes32 salt = bytes32(uint256(3492932942));
-        bytes memory data = abi.encode(positionOwner, salt);
-
-        (position,) = portfolioLens.predictAddress(positionOwner, salt);
-
-        Action memory action = Action({op: Operation.NewPosition, data: data});
-
         Action[] memory actions = new Action[](1);
-        actions[0] = action;
-
+        (position, actions[0]) = newPosition(positionOwner, bytes32(uint256(3492932942)));
         PositionManager(positionManager).processBatch(position, actions);
 
-        vm.startPrank(protocolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset));
+        vm.startPrank(poolOwner);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
 
-        riskEngine.requestLtvUpdate(linearRatePool, address(collateral), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(collateral));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
         vm.stopPrank();
     }
 
@@ -65,15 +56,15 @@ contract PoolUnitTests is BaseTest {
     function testCannotCallNonAuthorizedFunctions() public {
         address hacker = makeAddr("hacker");
         vm.startPrank(hacker);
-        
+
         vm.expectRevert();
-        Position(position).approve(address(collateral), hacker, 10000 ether);
+        Position(position).approve(address(asset2), hacker, 10000 ether);
 
         // So the call doesn't revert for a lack of balance
-        collateral.mint(address(position), 10000 ether);
+        asset2.mint(address(position), 10000 ether);
 
         vm.expectRevert();
-        Position(position).transfer(address(collateral), hacker, 10000 ether);
+        Position(position).transfer(address(asset2), hacker, 10000 ether);
 
         vm.expectRevert();
         Position(position).borrow(linearRatePool, 10000 ether);
@@ -82,10 +73,10 @@ contract PoolUnitTests is BaseTest {
         Position(position).repay(linearRatePool, 10000 ether);
 
         vm.expectRevert();
-        Position(position).addCollateralType(address(collateral));
+        Position(position).addCollateralType(address(asset2));
 
         vm.expectRevert();
-        Position(position).removeCollateralType(address(collateral));
+        Position(position).removeCollateralType(address(asset2));
 
         vm.expectRevert();
         Position(position).exec(address(0x0), bytes(""));

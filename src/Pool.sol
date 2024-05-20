@@ -18,32 +18,56 @@ contract Pool is Ownable, ERC6909 {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
-                               Storage
+                               Structs
     //////////////////////////////////////////////////////////////*/
-
-    uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
-    // registry key for position manager derived from keccak(SENTIMENT_POSITION_MANAGER_KEY)
-    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
-        0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
-
-    Registry public immutable REGISTRY;
-
-    // address that receives protocol fees
-    address public feeRecipient;
-
-    address public positionManager;
 
     struct RateModelUpdate {
         address rateModel;
         uint256 validAfter;
     }
 
-    RateModelUpdate public rateModelUpdate;
+    struct Uint128Pair {
+        uint128 assets;
+        uint128 shares;
+    }
+
+    struct PoolData {
+        address asset;
+        address rateModel;
+        uint128 poolCap;
+        uint128 lastUpdated;
+        uint128 interestFee;
+        uint128 originationFee;
+        bool isPaused;
+        Uint128Pair totalAssets;
+        Uint128Pair totalBorrows;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               Storage
+    //////////////////////////////////////////////////////////////*/
+
+    uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
+
+    // keccak(SENTIMENT_POSITION_MANAGER_KEY)
+    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
+        0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
+
+    Registry public immutable REGISTRY;
+
+    address public feeRecipient; // address that receives protocol fees
+    address public positionManager;
+
+    mapping(uint256 poolId => address poolOwner) public ownerOf;
+    mapping(uint256 poolId => PoolData data) public poolDataFor;
+    mapping(uint256 poolId => RateModelUpdate rateModelUpdate) public rateModelUpdateFor;
+    mapping(uint256 poolId => mapping(address position => uint256 borrowShares)) public borrowSharesOf;
 
     /*//////////////////////////////////////////////////////////////
                                 Events
     //////////////////////////////////////////////////////////////*/
 
+    event PoolPauseToggled(uint256 poolId, bool paused);
     event PoolCapSet(uint256 indexed poolId, uint128 poolCap);
     event PoolOwnerSet(uint256 indexed poolId, address owner);
     event RateModelUpdated(uint256 indexed poolId, address rateModel);
@@ -64,6 +88,7 @@ contract Pool is Ownable, ERC6909 {
     //////////////////////////////////////////////////////////////*/
 
     error Pool_AlreadyInitialized();
+    error Pool_PoolPaused(uint256 poolId);
     error Pool_NoRateModelUpdate(uint256 poolId);
     error Pool_PoolAlreadyInitialized(uint256 poolId);
     error Pool_ZeroSharesRepay(uint256 poolId, uint256 amt);
@@ -71,30 +96,11 @@ contract Pool is Ownable, ERC6909 {
     error Pool_ZeroSharesDeposit(uint256 poolId, uint256 amt);
     error Pool_OnlyPoolOwner(uint256 poolId, address sender);
     error Pool_OnlyPositionManager(uint256 poolId, address sender);
-    error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp);
+    error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/
-
-    struct Uint128Pair {
-        uint128 assets;
-        uint128 shares;
-    }
-
-    struct PoolData {
-        address asset;
-        address rateModel;
-        uint128 lastUpdated;
-        uint128 interestFee;
-        uint128 originationFee;
-        Uint128Pair totalAssets;
-        Uint128Pair totalBorrows;
-    }
-
-    mapping(uint256 poolId => address poolOwner) public ownerOf;
-    mapping(uint256 poolId => PoolData data) public poolDataFor;
-    mapping(uint256 poolId => mapping(address position => uint256 borrowShares)) public borrowSharesOf;
 
     constructor(address registry_, address feeRecipient_) Ownable(msg.sender) {
         feeRecipient = feeRecipient_;
@@ -144,8 +150,11 @@ contract Pool is Ownable, ERC6909 {
     /*//////////////////////////////////////////////////////////////
                           Lending Functionality
     //////////////////////////////////////////////////////////////*/
+
     function deposit(uint256 poolId, uint256 assets, address receiver) public returns (uint256 shares) {
         PoolData storage pool = poolDataFor[poolId];
+
+        if (pool.isPaused) revert Pool_PoolPaused(poolId);
 
         // update state to accrue interest since the last time accrue() was called
         //accrue(pool, poolId);
@@ -229,6 +238,8 @@ contract Pool is Ownable, ERC6909 {
     function borrow(uint256 poolId, address position, uint256 amt) external returns (uint256 borrowShares) {
         PoolData storage pool = poolDataFor[poolId];
 
+        if (pool.isPaused) revert Pool_PoolPaused(poolId);
+
         // revert if the caller is not the position manager
         if (msg.sender != positionManager) revert Pool_OnlyPositionManager(poolId, msg.sender);
 
@@ -300,23 +311,31 @@ contract Pool is Ownable, ERC6909 {
         return (borrowSharesOf[poolId][position] -= borrowShares);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                           Initialize Pool
+    //////////////////////////////////////////////////////////////*/
+
     function initializePool(
         address owner,
         address asset,
         address rateModel,
         uint128 interestFee,
-        uint128 originationFee
+        uint128 originationFee,
+        uint128 poolCap
     ) external returns (uint256 poolId) {
         poolId = uint256(keccak256(abi.encodePacked(owner, asset, rateModel, interestFee, originationFee)));
+
         if (ownerOf[poolId] != address(0)) revert Pool_PoolAlreadyInitialized(poolId);
         ownerOf[poolId] = owner;
 
         PoolData memory poolData = PoolData({
             asset: asset,
             rateModel: rateModel,
+            poolCap: poolCap,
             lastUpdated: uint128(block.timestamp),
             interestFee: interestFee,
             originationFee: originationFee,
+            isPaused: false,
             totalAssets: Uint128Pair(0, 0),
             totalBorrows: Uint128Pair(0, 0)
         });
@@ -324,5 +343,54 @@ contract Pool is Ownable, ERC6909 {
         poolDataFor[poolId] = poolData;
 
         emit PoolInitialized(poolId, owner, asset);
+        emit RateModelUpdated(poolId, rateModel);
+        emit InterestFeeSet(poolId, interestFee);
+        emit OriginationFeeSet(poolId, originationFee);
+        emit PoolCapSet(poolId, poolCap);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           Only Pool Owner
+    //////////////////////////////////////////////////////////////*/
+
+    function togglePause(uint256 poolId) external {
+        if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
+        PoolData storage pool = poolDataFor[poolId];
+        pool.isPaused = !pool.isPaused;
+        emit PoolPauseToggled(poolId, pool.isPaused);
+    }
+
+    function setPoolCap(uint256 poolId, uint128 poolCap) external {
+        if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
+        poolDataFor[poolId].poolCap = poolCap;
+        emit PoolCapSet(poolId, poolCap);
+    }
+
+    function requestRateModelUpdate(uint256 poolId, address rateModel) external {
+        if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
+        RateModelUpdate memory rateModelUpdate =
+            RateModelUpdate({rateModel: rateModel, validAfter: block.timestamp + TIMELOCK_DURATION});
+
+        rateModelUpdateFor[poolId] = rateModelUpdate;
+
+        emit RateModelUpdateRequested(poolId, rateModel);
+    }
+
+    function acceptRateModelUpdate(uint256 poolId) external {
+        if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
+        RateModelUpdate memory rateModelUpdate = rateModelUpdateFor[poolId];
+        if (rateModelUpdate.validAfter == 0) revert Pool_NoRateModelUpdate(poolId);
+        if (block.timestamp < rateModelUpdate.validAfter) {
+            revert Pool_TimelockPending(poolId, block.timestamp, rateModelUpdate.validAfter);
+        }
+        poolDataFor[poolId].rateModel = rateModelUpdate.rateModel;
+        delete rateModelUpdateFor[poolId];
+        emit RateModelUpdated(poolId, rateModelUpdate.rateModel);
+    }
+
+    function rejectRateModelUpdate(uint256 poolId) external {
+        if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
+        emit RateModelUpdateRejected(poolId, rateModelUpdateFor[poolId].rateModel);
+        delete rateModelUpdateFor[poolId];
     }
 }

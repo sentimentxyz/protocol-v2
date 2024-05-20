@@ -4,25 +4,26 @@ pragma solidity ^0.8.24;
 import "../BaseTest.t.sol";
 
 contract PoolUnitTests is BaseTest {
-    address poolOwner = makeAddr("poolOwner");
+    function setUp() public override {
+        super.setUp();
+    }
 
     function testIntializePool() public {
-        Pool newPool = new Pool(address(registry), makeAddr("feeRecipient"));
-
-        assertEq(newPool.feeRecipient(), makeAddr("feeRecipient"));
-        assertEq(address(newPool.REGISTRY()), address(registry));
+        // test constructor
+        Pool testPool = new Pool(address(registry), protocolOwner);
+        assertEq(address(testPool.REGISTRY()), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        uint256 id = pool.initializePool(address(0x05), address(asset), rateModel, 0, 0);
-        assertEq(rateModel, pool.getRateModelFor(id));
+        uint256 id = testPool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
+        assertEq(rateModel, testPool.getRateModelFor(id));
     }
 
     /// @dev Foundry "fails" keyword
     function testFailsDoubleInit() public {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
 
-        pool.initializePool(poolOwner, address(asset), rateModel, 0, 0);
-        pool.initializePool(poolOwner, address(asset), rateModel, 0, 0);
+        pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
+        pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
     }
 
     function testCannotFrontRunDeployment() public {
@@ -30,17 +31,17 @@ contract PoolUnitTests is BaseTest {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
 
         vm.prank(poolOwner);
-        uint256 id = pool.initializePool(poolOwner, address(asset), rateModel, 0, 0);
+        uint256 id = pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
 
         vm.prank(notPoolOwner);
-        uint256 id2 = pool.initializePool(notPoolOwner, address(asset), rateModel, 0, 0);
+        uint256 id2 = pool.initializePool(notPoolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
 
         assert(id != id2);
     }
 
     function testCannotDepositNothing() public {
         vm.startPrank(user);
-        asset.approve(address(pool), 0);
+        asset1.approve(address(pool), 0);
 
         vm.expectRevert("ZERO_SHARES");
         pool.deposit(linearRatePool, 0, user);
@@ -50,15 +51,27 @@ contract PoolUnitTests is BaseTest {
         vm.assume(assets > 0);
         vm.startPrank(user);
 
-        asset.mint(user, assets);
-        asset.approve(address(pool), assets);
+        asset1.mint(user, assets);
+        asset1.approve(address(pool), assets);
 
         pool.deposit(linearRatePool, assets, user);
 
         assertEq(pool.getAssetsOf(linearRatePool, user), assets);
         assertEq(pool.balanceOf(user, linearRatePool), assets); // Shares equal 1:1 at first
 
-        assertEq(asset.balanceOf(user), 0);
+        assertEq(asset1.balanceOf(user), 0);
+        vm.stopPrank();
+    }
+
+    function testDepositPausedPool(uint96 assets) public {
+        vm.assume(assets > 0);
+        vm.prank(poolOwner);
+        pool.togglePause(linearRatePool);
+        vm.startPrank(user);
+        asset1.mint(user, assets);
+        asset1.approve(address(pool), assets);
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_PoolPaused.selector, linearRatePool));
+        pool.deposit(linearRatePool, assets, user);
         vm.stopPrank();
     }
 
@@ -71,7 +84,7 @@ contract PoolUnitTests is BaseTest {
         assertEq(pool.getAssetsOf(linearRatePool, user), 0);
         assertEq(pool.balanceOf(user, linearRatePool), 0);
 
-        assertEq(asset.balanceOf(user), assets);
+        assertEq(asset1.balanceOf(user), assets);
     }
 
     function testCannotWithdrawOthersAssets(uint96 assets) public {
@@ -105,7 +118,7 @@ contract PoolUnitTests is BaseTest {
         assertEq(pool.getAssetsOf(linearRatePool, user), 0);
         assertEq(pool.balanceOf(user, linearRatePool), 0);
 
-        assertEq(asset.balanceOf(approvedUser), assets);
+        assertEq(asset1.balanceOf(approvedUser), assets);
     }
 
     function testOperatorCanManageOthersAssets(uint96 assets) public {
@@ -122,14 +135,15 @@ contract PoolUnitTests is BaseTest {
         assertEq(pool.getAssetsOf(linearRatePool, user), 0);
         assertEq(pool.balanceOf(user, linearRatePool), 0);
 
-        assertEq(asset.balanceOf(operator), assets);
+        assertEq(asset1.balanceOf(operator), assets);
     }
 
     function testOnlyPositionManagerCanBorrow() public {
         address notPositionManager = makeAddr("notPositionManager");
         vm.startPrank(notPositionManager);
-        // vm.expectRevert(abi.encodePacked(Pool.Pool_OnlyPositionManager.selector, linearRatePool, notPositionManager));
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(Pool.Pool_OnlyPositionManager.selector, linearRatePool, notPositionManager)
+        );
         pool.borrow(linearRatePool, notPositionManager, 100 ether);
     }
 
@@ -138,7 +152,7 @@ contract PoolUnitTests is BaseTest {
 
         vm.startPrank(registry.addressFor(SENTIMENT_POSITION_MANAGER_KEY));
 
-        vm.expectRevert(abi.encodePacked(Pool.Pool_ZeroSharesBorrow.selector, linearRatePool, uint256(0)));
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_ZeroSharesBorrow.selector, linearRatePool, uint256(0)));
         pool.borrow(linearRatePool, user, 0);
     }
 
@@ -152,17 +166,31 @@ contract PoolUnitTests is BaseTest {
         pool.borrow(linearRatePool, user, assets / 5);
 
         assertEq(pool.getAssetsOf(linearRatePool, user), assets);
-        assertApproxEqAbs(asset.balanceOf(address(pool)), assets * 4 / 5, 1);
-        assertApproxEqAbs(asset.balanceOf(user), assets / 5, 1);
+        assertApproxEqAbs(asset1.balanceOf(address(pool)), assets * 4 / 5, 1);
+        assertApproxEqAbs(asset1.balanceOf(user), assets / 5, 1);
 
         assertEq(pool.getBorrowsOf(linearRatePool, user), assets / 5);
         assertEq(pool.getTotalBorrows(linearRatePool), assets / 5);
     }
 
+    function testBorrowPausedPool(uint96 _assets) public {
+        vm.assume(_assets > 1_000);
+
+        testCanDepositAssets(_assets);
+
+        vm.prank(poolOwner);
+        pool.togglePause(linearRatePool);
+
+        uint256 assets = uint256(_assets);
+        vm.prank(registry.addressFor(SENTIMENT_POSITION_MANAGER_KEY));
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_PoolPaused.selector, linearRatePool));
+        pool.borrow(linearRatePool, user, assets / 5);
+    }
+
     function testTimeIncreasesDebt(uint96 assets) public {
         testBorrowWorksAsIntended(assets);
 
-        (,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
 
         uint256 time = block.timestamp + 1 days;
         vm.warp(time + 86400 * 7);
@@ -170,7 +198,7 @@ contract PoolUnitTests is BaseTest {
 
         pool.accrue(linearRatePool);
 
-        (,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
 
         assertEq(newTotalBorrows.shares, totalBorrows.shares);
         assertGt(newTotalBorrows.assets, totalBorrows.assets);
@@ -179,21 +207,21 @@ contract PoolUnitTests is BaseTest {
     function testCanWithdrawEarnedInterest(uint96 assets) public {
         testTimeIncreasesDebt(assets);
 
-        (,,,,,, Pool.Uint128Pair memory borrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, Pool.Uint128Pair memory borrows) = pool.poolDataFor(linearRatePool);
 
         assertGt(borrows.assets, borrows.shares);
 
         // Add some liquidity to the pool
         address user2 = makeAddr("user2");
         vm.startPrank(user2);
-        asset.mint(user2, assets);
-        asset.approve(address(pool), assets);
+        asset1.mint(user2, assets);
+        asset1.approve(address(pool), assets);
         pool.deposit(linearRatePool, assets, user2);
 
         vm.startPrank(user);
         pool.redeem(linearRatePool, pool.balanceOf(user, linearRatePool), user, user);
 
-        assertGt(asset.balanceOf(user), assets);
+        assertGt(asset1.balanceOf(user), assets);
     }
 
     function testRepayWorksAsIntended(uint96 assets) public {
@@ -208,10 +236,9 @@ contract PoolUnitTests is BaseTest {
         assertApproxEqAbs(pool.getTotalBorrows(linearRatePool), borrowed / 2, 1);
     }
 
-    function testConvertToSharesAndAssetsAreReversible(uint112 frac1, uint96 number) view public {
+    function testConvertToSharesAndAssetsAreReversible(uint112 frac1, uint96 number) public view {
         vm.assume(frac1 > 1e8);
         vm.assume(number > 0);
-
 
         Pool.Uint128Pair memory rebase = Pool.Uint128Pair(uint128(frac1) * 2, uint128(frac1));
 
@@ -238,5 +265,112 @@ contract PoolUnitTests is BaseTest {
         vm.startPrank(registry.addressFor(SENTIMENT_POSITION_MANAGER_KEY));
         vm.expectRevert();
         pool.repay(linearRatePool, user, 0);
+    }
+
+    function testOwnerCanPause() public {
+        (,,,,,, bool isPaused,,) = pool.poolDataFor(linearRatePool);
+        assertFalse(isPaused);
+
+        vm.prank(poolOwner);
+        pool.togglePause(linearRatePool);
+
+        (,,,,,, isPaused,,) = pool.poolDataFor(linearRatePool);
+        assertTrue(isPaused);
+    }
+
+    function testOnlyPoolOwnerCanPause(address sender) public {
+        vm.assume(sender != poolOwner);
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
+        vm.prank(sender);
+        pool.togglePause(linearRatePool);
+    }
+
+    function testOwnerCanSetCap(uint128 newPoolCap) public {
+        (,, uint128 poolCap,,,,,,) = pool.poolDataFor(linearRatePool);
+        assert(poolCap == type(uint128).max);
+
+        vm.prank(poolOwner);
+        pool.setPoolCap(linearRatePool, newPoolCap);
+
+        (,, poolCap,,,,,,) = pool.poolDataFor(linearRatePool);
+        assertEq(poolCap, newPoolCap);
+    }
+
+    function testOnlyPoolOwnerCanSetCap(address sender, uint128 poolCap) public {
+        vm.assume(sender != poolOwner);
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
+        vm.prank(sender);
+        pool.setPoolCap(linearRatePool, poolCap);
+    }
+
+    function testOwnerCanRequestRateModelUpdate(address newRateModel) public {
+        vm.prank(poolOwner);
+        pool.requestRateModelUpdate(linearRatePool, newRateModel);
+
+        (address rateModel,) = pool.rateModelUpdateFor(linearRatePool);
+        assertEq(rateModel, newRateModel);
+    }
+
+    function testOnlyOwnerCanRequestRateModelUpdate(address sender, address rateModel) public {
+        vm.assume(sender != poolOwner);
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
+        vm.prank(sender);
+        pool.requestRateModelUpdate(linearRatePool, rateModel);
+    }
+
+    function testRateModelUpdateTimelockWorks(address newRateModel) public {
+        testOwnerCanRequestRateModelUpdate(newRateModel);
+
+        (, uint256 validAfter) = pool.rateModelUpdateFor(linearRatePool);
+
+        vm.prank(poolOwner);
+        vm.expectRevert(
+            abi.encodeWithSelector(Pool.Pool_TimelockPending.selector, linearRatePool, block.timestamp, validAfter)
+        );
+        pool.acceptRateModelUpdate(linearRatePool);
+    }
+
+    function testOwnerCanAcceptRateModelUpdate(address newRateModel) public {
+        testOwnerCanRequestRateModelUpdate(newRateModel);
+        (, uint256 validAfter) = pool.rateModelUpdateFor(linearRatePool);
+        assertEq(validAfter, block.timestamp + pool.TIMELOCK_DURATION());
+
+        vm.warp(validAfter);
+        vm.prank(poolOwner);
+        pool.acceptRateModelUpdate(linearRatePool);
+
+        (, address rateModel,,,,,,,) = pool.poolDataFor(linearRatePool);
+        assertEq(rateModel, newRateModel);
+    }
+
+    function testOnlyOwnerCanAcceptRateModelUpdate(address sender) public {
+        vm.assume(sender != poolOwner);
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
+        vm.prank(sender);
+        pool.acceptRateModelUpdate(linearRatePool);
+    }
+
+    function testOwnerCanRejectModelUpdate(address newRateModel) public {
+        testOwnerCanRequestRateModelUpdate(newRateModel);
+
+        vm.prank(poolOwner);
+        pool.rejectRateModelUpdate(linearRatePool);
+
+        (address rateModel, uint256 validAfter) = pool.rateModelUpdateFor(linearRatePool);
+        assertEq(rateModel, address(0));
+        assertEq(validAfter, 0);
+    }
+
+    function testNoRateModelUpdate() public {
+        vm.prank(poolOwner);
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_NoRateModelUpdate.selector, linearRatePool));
+        pool.acceptRateModelUpdate(linearRatePool);
+    }
+
+    function testOnlyOwnerCanRejectModelUpdate(address sender) public {
+        vm.assume(sender != poolOwner);
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
+        vm.prank(sender);
+        pool.rejectRateModelUpdate(linearRatePool);
     }
 }

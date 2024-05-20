@@ -154,6 +154,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     error PositionManager_InvalidLiquidation(address position);
     error PositionManager_LiquidateHealthyPosition(address position);
     error PositionManager_InvalidDebtData(address asset, address poolAsset);
+    error PositionManager_ZeroAmountDeposit(address position, address asset);
     error PositionManager_OnlyPositionOwner(address position, address sender);
     error PositionManager_UnknownFuncSelector(address target, bytes4 selector);
     error PositionManager_OnlyPositionAuthorized(address position, address sender);
@@ -411,14 +412,14 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
                 revert PositionManager_InvalidDebtData(debt[i].asset, pool.getPoolAssetFor(debt[i].poolId));
             }
 
-            // update position to reflect repayment of debt by liquidator
-            Position(position).repay(debt[i].poolId, debt[i].amt);
-
             // transfer debt asset from the liquidator to the pool
             IERC20(debt[i].asset).transferFrom(msg.sender, address(pool), debt[i].amt);
 
             // trigger pool repayment which assumes successful transfer of repaid assets
             pool.repay(debt[i].poolId, position, debt[i].amt);
+
+            // update position to reflect repayment of debt by liquidator
+            Position(position).repay(debt[i].poolId, debt[i].amt);
         }
 
         // transfer position assets to the liqudiator and accrue protocol liquidation fees

@@ -14,7 +14,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // contracts
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 
-import { console } from "forge-std/console.sol";
+import {console} from "forge-std/console.sol";
 
 /*//////////////////////////////////////////////////////////////
                         PortfolioLens
@@ -105,7 +105,7 @@ contract PortfolioLens {
             uint256 borrows = POOL.getTotalBorrows(poolId);
             uint256 idleAmt; // TODO
 
-            DebtData({
+            debtData[i] = DebtData({
                 poolId: poolId,
                 asset: POOL.getPoolAssetFor(poolId),
                 amount: POOL.getBorrowsOf(poolId, position),

@@ -7,6 +7,7 @@ import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
 
 contract DeployLens is BaseScript {
     address pool;
+    address riskEngine;
     address positionManager;
     PortfolioLens portfolioLens;
     SuperPoolLens superPoolLens;
@@ -15,8 +16,8 @@ contract DeployLens is BaseScript {
         getParams();
 
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-        portfolioLens = new PortfolioLens(pool, positionManager);
-        superPoolLens = new SuperPoolLens(pool);
+        superPoolLens = new SuperPoolLens(pool, riskEngine);
+        portfolioLens = new PortfolioLens(pool, riskEngine, positionManager);
         vm.stopBroadcast();
     }
 
@@ -24,6 +25,7 @@ contract DeployLens is BaseScript {
         string memory config = getConfig();
 
         pool = vm.parseJsonAddress(config, "$.DeployLens.pool");
+        riskEngine = vm.parseJsonAddress(config, "$.DeployLens.riskEngine");
         positionManager = vm.parseJsonAddress(config, "$.DeployLens.positionManager");
     }
 }

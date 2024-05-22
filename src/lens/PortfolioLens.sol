@@ -8,6 +8,8 @@ pragma solidity ^0.8.24;
 // types
 import {Pool} from "../Pool.sol";
 import {Position} from "../Position.sol";
+import {RiskEngine} from "../RiskEngine.sol";
+import {IOracle} from "src/interfaces/IOracle.sol";
 import {PositionManager} from "../PositionManager.sol";
 import {IRateModel} from "src/interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -25,14 +27,16 @@ contract PortfolioLens {
                                Storage
     //////////////////////////////////////////////////////////////*/
     Pool public immutable POOL;
+    RiskEngine public immutable RISK_ENGINE;
     PositionManager public immutable POSITION_MANAGER;
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address pool_, address positionManager_) {
+    constructor(address pool_, address riskEngine_, address positionManager_) {
         POOL = Pool(pool_);
+        RISK_ENGINE = RiskEngine(riskEngine_);
         POSITION_MANAGER = PositionManager(positionManager_);
     }
     /*//////////////////////////////////////////////////////////////
@@ -42,12 +46,14 @@ contract PortfolioLens {
     struct AssetData {
         address asset;
         uint256 amount;
+        uint256 valueInEth;
     }
 
     struct DebtData {
         uint256 poolId;
         address asset;
         uint256 amount;
+        uint256 valueInEth;
         uint256 interestRate;
     }
 
@@ -90,7 +96,9 @@ contract PortfolioLens {
         AssetData[] memory assetData = new AssetData[](assets.length);
 
         for (uint256 i; i < assets.length; ++i) {
-            assetData[i] = AssetData({asset: assets[i], amount: IERC20(assets[i]).balanceOf(position)});
+            address asset = assets[i];
+            uint256 amount = IERC20(assets[i]).balanceOf(position);
+            assetData[i] = AssetData({asset: asset, amount: amount, valueInEth: _getValueInEth(asset, amount)});
         }
 
         return assetData;
@@ -102,14 +110,17 @@ contract PortfolioLens {
 
         for (uint256 i; i < debtPools.length; ++i) {
             uint256 poolId = debtPools[i];
-            uint256 borrows = POOL.getTotalBorrows(poolId);
-            uint256 idleAmt; // TODO
+            address poolAsset = POOL.getPoolAssetFor(poolId);
+            uint256 totalBorrows = POOL.getTotalBorrows(poolId);
+            uint256 borrowAmt = POOL.getBorrowsOf(poolId, position);
+            uint256 idleAmt = POOL.getTotalAssets(poolId) - totalBorrows;
 
             debtData[i] = DebtData({
                 poolId: poolId,
-                asset: POOL.getPoolAssetFor(poolId),
-                amount: POOL.getBorrowsOf(poolId, position),
-                interestRate: IRateModel(POOL.getRateModelFor(poolId)).getInterestRate(borrows, idleAmt)
+                asset: poolAsset,
+                amount: borrowAmt,
+                valueInEth: _getValueInEth(poolAsset, borrowAmt),
+                interestRate: IRateModel(POOL.getRateModelFor(poolId)).getInterestRate(totalBorrows, idleAmt)
             });
         }
 
@@ -127,5 +138,16 @@ contract PortfolioLens {
         );
 
         return (predictedAddress, predictedAddress.code.length == 0);
+    }
+
+    function _getValueInEth(address asset, uint256 amt) internal view returns (uint256) {
+        IOracle oracle = IOracle(RISK_ENGINE.getOracleFor(asset));
+
+        // oracles could revert, lens calls must not
+        try oracle.getValueInEth(asset, amt) returns (uint256 valueInEth) {
+            return valueInEth;
+        } catch {
+            return 0;
+        }
     }
 }

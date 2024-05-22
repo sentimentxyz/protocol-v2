@@ -134,6 +134,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         borrows = convertToAssets(totalBorrows, borrowSharesOf[poolId][position]);
     }
 
+    function getTotalAssets(uint256 poolId) public view returns (uint256) {
+        return poolDataFor[poolId].totalAssets.assets;
+    }
+
     function getTotalBorrows(uint256 poolId) public view returns (uint256) {
         return poolDataFor[poolId].totalBorrows.assets;
     }

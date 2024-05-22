@@ -119,8 +119,8 @@ contract BigTest is Test {
         positionBeacon = address(new UpgradeableBeacon(positionImpl, params.owner));
 
         // lens
-        superPoolLens = new SuperPoolLens(address(pool));
-        portfolioLens = new PortfolioLens(address(pool), address(positionManager));
+        superPoolLens = new SuperPoolLens(address(pool), address(riskEngine));
+        portfolioLens = new PortfolioLens(address(pool), address(riskEngine), address(positionManager));
 
         PositionManager(positionManager).transferOwnership(params.owner);
 

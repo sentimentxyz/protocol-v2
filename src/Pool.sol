@@ -89,8 +89,11 @@ contract Pool is Ownable, ERC6909 {
 
     error Pool_AlreadyInitialized();
     error Pool_PoolPaused(uint256 poolId);
+    error Pool_PoolCapExceeded(uint256 poolId);
     error Pool_NoRateModelUpdate(uint256 poolId);
+    error Pool_InsufficientLiquidity(uint256 poolId);
     error Pool_PoolAlreadyInitialized(uint256 poolId);
+    error Pool_ZeroAssetRedeem(uint256 poolId, uint256 shares);
     error Pool_ZeroSharesRepay(uint256 poolId, uint256 amt);
     error Pool_ZeroSharesBorrow(uint256 poolId, uint256 amt);
     error Pool_ZeroSharesDeposit(uint256 poolId, uint256 amt);
@@ -159,8 +162,10 @@ contract Pool is Ownable, ERC6909 {
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
 
-        // Check for rounding error since we round down in previewDeposit.
-        require((shares = convertToShares(pool.totalAssets, assets)) != 0, "ZERO_SHARES");
+        if (pool.totalAssets.assets + assets > pool.poolCap) revert Pool_PoolCapExceeded(poolId);
+
+        shares = convertToShares(pool.totalAssets, assets);
+        if (shares == 0) revert Pool_ZeroSharesDeposit(poolId, assets);
 
         // Need to transfer before minting or ERC777s could reenter.
         IERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
@@ -185,8 +190,9 @@ contract Pool is Ownable, ERC6909 {
         }
 
         // Check for rounding error since we round down in previewRedeem.
-        require((assets = convertToAssets(pool.totalAssets, shares)) != 0, "ZERO_ASSETS");
-        require(pool.totalAssets.assets - assets >= pool.totalBorrows.assets, "INSUFFICIENT_LIQUIDITY");
+        assets = convertToAssets(pool.totalAssets, shares);
+        if (assets == 0) revert Pool_ZeroAssetRedeem(poolId, shares);
+        if (pool.totalAssets.assets - pool.totalBorrows.assets >= assets) revert Pool_InsufficientLiquidity(poolId);
 
         pool.totalAssets.assets -= uint128(assets);
         pool.totalAssets.shares -= uint128(shares);

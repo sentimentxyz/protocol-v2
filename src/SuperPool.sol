@@ -364,11 +364,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                 if (assets < supplyAmt) supplyAmt = assets;
                 IERC20(asset).forceApprove(address(pool), supplyAmt);
 
-                try pool.deposit(poolId, supplyAmt, address(this)) {
-                    assets -= supplyAmt;
-                } catch {
-                    IERC20(asset).forceApprove(address(pool), 0);
-                }
+                pool.deposit(poolId, supplyAmt, address(this));
+                assets -= supplyAmt;
 
                 if (assets == 0) return;
             }
@@ -381,7 +378,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
 
         if (assetsInSuperpool >= assets) return;
         else assets -= assetsInSuperpool;
-
 
         for (uint256 i; i < withdrawQueue.length; ++i) {
             uint256 poolId = withdrawQueue[i];

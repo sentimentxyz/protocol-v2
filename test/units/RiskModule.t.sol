@@ -94,6 +94,7 @@ contract RiskModuleUnitTests is BaseTest {
         actions[2] = addToken(address(asset3));
         actions[3] = borrow(fixedRatePool, 1e18);
         actions[4] = addToken(address(asset1));
+        
         vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, fixedRatePool, asset3));
         positionManager.processBatch(position, actions);
         vm.stopPrank();

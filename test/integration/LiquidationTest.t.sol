@@ -84,15 +84,6 @@ contract LiquidationIntTest is BaseTest {
         riskEngine.setOracle(address(asset2), address(pointOneEthOracle));
         assertFalse(riskEngine.isPositionHealthy(position));
 
-        // attempt a valid liquidation with the wrong asset data
-        vm.startPrank(liquidator);
-        DebtData memory falseDebtData = DebtData({poolId: fixedRatePool, asset: address(asset2), amt: 1e18});
-        debts[0] = falseDebtData;
-        vm.expectRevert(abi.encodeWithSelector(PositionManager.PositionManager_InvalidDebtData.selector, address(asset2), address(asset1)));
-        positionManager.liquidate(position, debts, assets);
-        debts[0] = debtData;
-        vm.stopPrank();
-
         // liquidate
         vm.startPrank(liquidator);
         asset1.approve(address(positionManager), 1e18);

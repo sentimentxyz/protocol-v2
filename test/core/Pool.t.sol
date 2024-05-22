@@ -45,7 +45,7 @@ contract PoolUnitTests is BaseTest {
         vm.startPrank(user);
         asset1.approve(address(pool), 0);
 
-        vm.expectRevert("ZERO_SHARES");
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_ZeroSharesDeposit.selector, linearRatePool, 0));
         pool.deposit(linearRatePool, 0, user);
     }
 
@@ -101,7 +101,7 @@ contract PoolUnitTests is BaseTest {
     function testCannotWithdrawNoAssets() public {
         vm.startPrank(user);
 
-        vm.expectRevert("ZERO_ASSETS");
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_ZeroAssetRedeem.selector, linearRatePool, 0));
         pool.redeem(linearRatePool, 0, user, user);
     }
 

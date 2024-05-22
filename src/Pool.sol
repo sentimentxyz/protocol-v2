@@ -91,7 +91,6 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     error Pool_PoolPaused(uint256 poolId);
     error Pool_PoolCapExceeded(uint256 poolId);
     error Pool_NoRateModelUpdate(uint256 poolId);
-    error Pool_InsufficientLiquidity(uint256 poolId);
     error Pool_PoolAlreadyInitialized(uint256 poolId);
     error Pool_ZeroAssetRedeem(uint256 poolId, uint256 shares);
     error Pool_ZeroSharesRepay(uint256 poolId, uint256 amt);
@@ -99,6 +98,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     error Pool_ZeroSharesDeposit(uint256 poolId, uint256 amt);
     error Pool_OnlyPoolOwner(uint256 poolId, address sender);
     error Pool_OnlyPositionManager(uint256 poolId, address sender);
+    error Pool_InsufficientLiquidity(uint256 poolId, uint256 assets);
     error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
 
     /*//////////////////////////////////////////////////////////////
@@ -198,7 +198,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         // Check for rounding error since we round down in previewRedeem.
         assets = convertToAssets(pool.totalAssets, shares);
         if (assets == 0) revert Pool_ZeroAssetRedeem(poolId, shares);
-        if (pool.totalAssets.assets - assets >= pool.totalBorrows.assets) revert Pool_InsufficientLiquidity(poolId);
+
+        if (pool.totalAssets.assets - pool.totalBorrows.assets < assets) {
+            revert Pool_InsufficientLiquidity(poolId, assets);
+        }
 
         pool.totalAssets.assets -= uint128(assets);
         pool.totalAssets.shares -= uint128(shares);

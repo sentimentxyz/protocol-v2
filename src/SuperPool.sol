@@ -143,11 +143,25 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     }
 
     function maxWithdraw(address owner) public view returns (uint256 assets) {
-        assets = convertToAssets(ERC20.balanceOf(owner));
+        uint256 maxAssetsInPools;
+        for (uint256 i; i < depositQueue.length; ++i) {
+            maxAssetsInPools += pool.getAssetsOf(depositQueue[i], address(this));
+        }
+
+        uint256 userAssets = convertToAssets(ERC20.balanceOf(owner));
+
+        return maxAssetsInPools > userAssets ? userAssets : maxAssetsInPools;
     }
 
     function maxRedeem(address owner) public view returns (uint256) {
-        return ERC20.balanceOf(owner);
+        uint256 maxAssetsInPools;
+        for (uint256 i; i < depositQueue.length; ++i) {
+            maxAssetsInPools += pool.getAssetsOf(depositQueue[i], address(this));
+        }
+
+        uint256 maxSharesInPools = convertToShares(maxAssetsInPools);
+
+        return maxSharesInPools > ERC20.balanceOf(owner) ? ERC20.balanceOf(owner) : maxSharesInPools;
     }
 
     /*//////////////////////////////////////////////////////////////

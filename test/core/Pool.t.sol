@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract PoolUnitTests is BaseTest {
     function setUp() public override {
@@ -392,5 +393,18 @@ contract PoolUnitTests is BaseTest {
 
         vm.expectRevert();
         pool.redeem(linearRatePool, 100 ether, user, user);
+    }
+
+    function testOwnerCanSetRegistry(address newRegistry) public {
+        vm.prank(protocolOwner);
+        pool.setRegistry(newRegistry);
+        assertEq(pool.registry(), newRegistry);
+    }
+
+    function testOnlyOwnerCanSetRegistry(address sender, address newRegistry) public {
+        vm.assume(sender != protocolOwner);
+        vm.prank(sender);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, sender));
+        pool.setRegistry(newRegistry);
     }
 }

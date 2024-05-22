@@ -22,7 +22,6 @@ import {LinearRateModel} from "../../src/irm/LinearRateModel.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 
 import {Test} from "forge-std/Test.sol";
-import { console } from "forge-std/console.sol";
 
 contract BaseTest is Test {
     address public protocolOwner = makeAddr("protocolOwner");
@@ -272,8 +271,6 @@ contract BaseTest is Test {
         // 7. User should have profit from the borrowed amount
         vm.startPrank(user);
         superPool.accrueInterestAndFees();
-        console.log("maxWithdraw", superPool.maxWithdraw(user));
-        console.log("initialAmountCanBeWithdrawn", initialAmountCanBeWithdrawn);
         assertTrue(superPool.maxWithdraw(user) > initialAmountCanBeWithdrawn);
         vm.stopPrank();
     }

@@ -38,22 +38,24 @@ contract SuperPoolLens {
     }
 
     struct PoolDepositData {
-        uint256 poolId;
         address asset;
+        uint256 poolId;
         uint256 amount;
         uint256 valueInEth;
         uint256 interestRate;
     }
 
     struct UserDepositData {
+        address owner;
         uint256 interestRate;
         uint256 totalValueInEth;
         SuperPoolDepositData[] deposits;
     }
 
     struct SuperPoolDepositData {
-        address superPool;
+        address owner;
         address asset;
+        address superPool;
         uint256 amount;
         uint256 valueInEth;
         uint256 interestRate;
@@ -129,11 +131,16 @@ contract SuperPoolLens {
             // [ROUND] deposit weights are rounded up, in favor of the user
             weightedDeposit += (deposits[i].valueInEth).mulDiv(deposits[i].interestRate, 1e18, Math.Rounding.Ceil);
         }
+
+        // [ROUND] interestRate is rounded up, in favor of the user
+        uint256 interestRate =
+            (totalValueInEth != 0) ? weightedDeposit.mulDiv(1e18, totalValueInEth, Math.Rounding.Ceil) : 0;
+
         return UserDepositData({
+            owner: user,
             deposits: deposits,
             totalValueInEth: totalValueInEth,
-            // [ROUND] interestRate is rounded up, in favor of the user
-            interestRate: weightedDeposit.mulDiv(1e18, totalValueInEth, Math.Rounding.Ceil)
+            interestRate: interestRate
         });
     }
 
@@ -144,9 +151,10 @@ contract SuperPoolLens {
     {
         SuperPool superPool = SuperPool(_superPool);
         address asset = address(superPool.asset());
-        uint256 amount = superPool.previewRedeem(IERC20(asset).balanceOf(user));
+        uint256 amount = superPool.previewRedeem(superPool.balanceOf(user));
 
         return SuperPoolDepositData({
+            owner: user,
             asset: asset,
             amount: amount,
             superPool: _superPool,

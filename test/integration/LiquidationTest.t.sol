@@ -7,7 +7,7 @@ import {RiskModule} from "src/RiskModule.sol";
 import {DebtData, AssetData, Action} from "src/PositionManager.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
-contract LiquidationIntTest is BaseTest {
+contract LiquidationTest is BaseTest {
     address public position;
     address public liquidator = makeAddr("liquidator");
 

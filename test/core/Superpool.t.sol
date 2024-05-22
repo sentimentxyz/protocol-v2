@@ -3,17 +3,16 @@ pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
 
-import { console } from "forge-std/console.sol";
-
 contract SuperPoolUnitTests is BaseTest {
-
     SuperPool public superPool;
     address public feeTo = makeAddr("FeeTo");
 
     function setUp() public override {
         super.setUp();
 
-        superPool = SuperPool(superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test"));
+        superPool = SuperPool(
+            superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test")
+        );
     }
 
     function testInitSuperPoolFactory() public {
@@ -22,7 +21,8 @@ contract SuperPoolUnitTests is BaseTest {
     }
 
     function testInitSuperPool() public {
-        SuperPool randomPoolRaw = new SuperPool(address(pool), address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test");
+        SuperPool randomPoolRaw =
+            new SuperPool(address(pool), address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test");
 
         assertEq(address(randomPoolRaw.asset()), address(asset1));
         assertEq(randomPoolRaw.feeRecipient(), feeTo);
@@ -64,13 +64,15 @@ contract SuperPoolUnitTests is BaseTest {
 
         for (uint256 i; i < 7; i++) {
             address linearRateModel = address(new LinearRateModel(2e18, 3e18));
-            uint256 linearPool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);  
+            uint256 linearPool =
+                pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);
 
             superPool.setPoolCap(linearPool, 50 ether);
         }
 
         address newLinearModel = address(new LinearRateModel(2e18, 3e18));
-        uint256 lastLinearPool = pool.initializePool(poolOwner, address(asset1), newLinearModel, 0, 0, type(uint128).max);  
+        uint256 lastLinearPool =
+            pool.initializePool(poolOwner, address(asset1), newLinearModel, 0, 0, type(uint128).max);
 
         // Test call reverts when adding too many pools
         vm.expectRevert();
@@ -253,8 +255,6 @@ contract SuperPoolUnitTests is BaseTest {
 
         superPool.deposit(amt, user);
 
-        console.log("traces after here");
-
         uint256 expectedAssets = superPool.previewRedeem(amt / 2);
         uint256 assets = superPool.redeem(amt / 2, user, user);
         assertEq(assets, expectedAssets);
@@ -315,7 +315,7 @@ contract SuperPoolUnitTests is BaseTest {
         superPool.toggleAllocator(makeAddr("BadAllocator"));
     }
 
-    function invariantMaxDepositsStayConsistent() view public {
+    function invariantMaxDepositsStayConsistent() public view {
         uint256 maxDepositAssets = superPool.maxDeposit(user);
         uint256 maxDepositShares = superPool.maxMint(user);
 
@@ -363,7 +363,7 @@ contract SuperPoolUnitTests is BaseTest {
         superPool.deposit(1 ether, user);
     }
 
-    function invariantMaxWithdrawalsStayConsistent() view public {
+    function invariantMaxWithdrawalsStayConsistent() public view {
         uint256 maxWithdrawAssets = superPool.maxWithdraw(user);
         uint256 maxWithdrawShares = superPool.maxRedeem(user);
 
@@ -397,7 +397,7 @@ contract SuperPoolUnitTests is BaseTest {
         // 3. Lower the cap on FixedRatePool by 10 ether, raise it on LinearRatePool by the same
         // 4. ReAllocate
         // 5. Both users withdraw fully
-    
+
         vm.startPrank(poolOwner);
         superPool.setPoolCap(fixedRatePool, 50 ether);
         superPool.setPoolCap(linearRatePool, 50 ether);
@@ -564,6 +564,4 @@ contract SuperPoolUnitTests is BaseTest {
         superPool.setPoolCap(fixedRatePool, 0 ether);
         vm.stopPrank();
     }
-
 }
-

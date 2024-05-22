@@ -2,8 +2,8 @@
 pragma solidity ^0.8.24;
 
 import {BaseTest} from "../BaseTest.t.sol";
-import {Action, PositionManager} from "src/PositionManager.sol";
 import {PortfolioLens} from "src/lens/PortfolioLens.sol";
+import {Action, PositionManager} from "src/PositionManager.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
 
 contract PortfolioLensTest is BaseTest {
@@ -63,8 +63,8 @@ contract PortfolioLensTest is BaseTest {
 
     function testPortfolioData() public view {
         PortfolioLens.PortfolioData memory portfolioData = portfolioLens.getPortfolioData(positions);
-        assertEq(portfolioData.positions[0].position, position);
         assertEq(portfolioData.positions[0].owner, user);
+        assertEq(portfolioData.positions[0].position, position);
         _assertAssetData(portfolioData.positions[0].assets);
         _assertDebtData(portfolioData.positions[0].debts);
     }

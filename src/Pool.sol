@@ -157,13 +157,16 @@ contract Pool is Ownable, ERC6909 {
         if (pool.isPaused) revert Pool_PoolPaused(poolId);
 
         // update state to accrue interest since the last time accrue() was called
-        //accrue(pool, poolId);
+        accrue(pool, poolId);
 
         // Check for rounding error since we round down in previewDeposit.
         require((shares = convertToShares(pool.totalAssets, assets)) != 0, "ZERO_SHARES");
 
         // Need to transfer before minting or ERC777s could reenter.
         IERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
+
+        pool.totalAssets.assets += uint128(assets);
+        pool.totalAssets.shares += uint128(shares);
 
         _mint(receiver, poolId, shares);
 
@@ -183,6 +186,10 @@ contract Pool is Ownable, ERC6909 {
 
         // Check for rounding error since we round down in previewRedeem.
         require((assets = convertToAssets(pool.totalAssets, shares)) != 0, "ZERO_ASSETS");
+        require(pool.totalAssets.assets - assets >= pool.totalBorrows.assets, "INSUFFICIENT_LIQUIDITY");
+
+        pool.totalAssets.assets -= uint128(assets);
+        pool.totalAssets.shares -= uint128(shares);
 
         _burn(owner, poolId, shares);
 
@@ -210,17 +217,15 @@ contract Pool is Ownable, ERC6909 {
             // [ROUND] floor fees in favor of pool lenders
             uint256 feeAssets = interestAccrued.mulDiv(pool.interestFee, 1e18);
 
-            // totalAssets() - feeAssets
-            uint256 totalAssetExFees = pool.totalAssets.assets + interestAccrued - feeAssets;
-
             // [ROUND] round down in favor of pool lenders
-            uint256 feeShares = feeAssets.mulDiv(pool.totalAssets.shares, totalAssetExFees + 1);
+            uint256 feeShares = convertToShares(pool.totalAssets, feeAssets);
 
             _mint(feeRecipient, id, feeShares);
         }
 
         // update cached notional borrows to current borrow amount
         pool.totalBorrows.assets += uint128(interestAccrued);
+        pool.totalAssets.assets += uint128(interestAccrued);
 
         // store a timestamp for this accrue() call
         // used to compute the pending interest next time accrue() is called

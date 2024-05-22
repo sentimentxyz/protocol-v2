@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 import {Pool} from "src/Pool.sol";
 import {Registry} from "src/Registry.sol";
 import {Position} from "src/Position.sol";
-import {PositionManager} from "src/PositionManager.sol";
 import {RiskEngine} from "src/RiskEngine.sol";
 import {RiskModule} from "src/RiskModule.sol";
 import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
@@ -12,14 +11,15 @@ import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {SuperPoolFactory} from "src/SuperPoolFactory.sol";
 import {SuperPool} from "src/SuperPool.sol";
 import {Action, Operation, PositionManager} from "src/PositionManager.sol";
+import { FixedPriceOracle } from "../../src/oracle/FixedPriceOracle.sol";
 
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
-import {FixedRateModel} from "../src/irm/FixedRateModel.sol";
-import {LinearRateModel} from "../src/irm/LinearRateModel.sol";
+import {FixedRateModel} from "../../src/irm/FixedRateModel.sol";
+import {LinearRateModel} from "../../src/irm/LinearRateModel.sol";
 
-import {MockERC20} from "./mocks/MockERC20.sol";
+import {MockERC20} from "../mocks/MockERC20.sol";
 
 import {Test} from "forge-std/Test.sol";
 
@@ -66,6 +66,9 @@ contract BaseTest is Test {
     // keccak(SENTIMENT_RISK_MODULE_KEY)
     bytes32 public constant SENTIMENT_RISK_MODULE_KEY =
         0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
+
+    FixedPriceOracle asset1Oracle = new FixedPriceOracle(10e18);
+    FixedPriceOracle asset2Oracle = new FixedPriceOracle(1e18);
 
     struct DeployParams {
         address owner;
@@ -139,15 +142,34 @@ contract BaseTest is Test {
         address fixedRateModel = address(new FixedRateModel(1e18));
         address linearRateModel = address(new LinearRateModel(1e18, 2e18));
         address fixedRateModel2 = address(new FixedRateModel(2e18));
-        address linearRateModel2 = address(new LinearRateModel(2e18, 3e18));
+
+        vm.startPrank(protocolOwner);
+        riskEngine.setOracle(address(asset1), address(asset1Oracle));
+        riskEngine.setOracle(address(asset2), address(asset2Oracle));
+        vm.stopPrank();
 
         vm.startPrank(poolOwner);
-        fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0, type(uint128).max);
-        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0, type(uint128).max);
-        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0, 0, type(uint128).max);
-        linearRatePool2 = pool.initializePool(poolOwner, address(asset1), linearRateModel2, 0, 0, type(uint128).max);
-        alternateAssetPool = pool.initializePool(poolOwner, address(asset2), fixedRateModel, 0, 0, type(uint128).max);
+        fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0.1e18, 0.01e18, type(uint128).max);
+        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0.01e18, type(uint128).max);
+        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0.1e18, 0.01e18, type(uint128).max);
         vm.stopPrank(); 
+
+        vm.startPrank(poolOwner);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
+
+        riskEngine.requestLtvUpdate(fixedRatePool, address(asset1), 0.75e18);
+        riskEngine.acceptLtvUpdate(fixedRatePool, address(asset1));
+        riskEngine.requestLtvUpdate(fixedRatePool, address(asset2), 0.75e18);
+        riskEngine.acceptLtvUpdate(fixedRatePool, address(asset2));
+
+        riskEngine.requestLtvUpdate(fixedRatePool2, address(asset1), 0.75e18);
+        riskEngine.acceptLtvUpdate(fixedRatePool2, address(asset1));
+        riskEngine.requestLtvUpdate(fixedRatePool2, address(asset2), 0.75e18);
+        riskEngine.acceptLtvUpdate(fixedRatePool2, address(asset2));
+        vm.stopPrank();
     }
 
     function newPosition(address owner, bytes32 salt) internal view returns (address, Action memory) {
@@ -179,5 +201,77 @@ contract BaseTest is Test {
         bytes memory data = abi.encode(poolId, amt);
         Action memory action = Action({op: Operation.Borrow, data: data});
         return action;
+    }
+
+    function testMultiPoolProfitScenario() public {
+        // 1. Set up 3 pools with a 100 ether cap each
+        // 2. Make a SuperPool with the 3 pools
+        // 3. User fills up the pool
+        // 4. User2 borrows from 2 of the pools
+        // 5. Advance time
+        // 6. User2 repays the borrowed amount
+        // 7. User should have profit from the borrowed amount
+        // 8. feeTo should make money
+        address feeTo = makeAddr("feeTo");
+        SuperPool superPool = SuperPool(superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test"));
+
+
+        // 2. Make a SuperPool with the 3 pools
+        vm.startPrank(poolOwner);
+        superPool.setPoolCap(fixedRatePool, 100 ether);
+        superPool.setPoolCap(fixedRatePool2, 100 ether);
+        superPool.setPoolCap(linearRatePool, 100 ether);
+        vm.stopPrank();
+
+        // 3. User fills up the pool
+        vm.startPrank(user);
+        asset1.mint(user, 300 ether);
+        asset1.approve(address(superPool), 300 ether);
+        superPool.deposit(300 ether, user);
+
+        uint256 initialAmountCanBeWithdrawn = superPool.maxWithdraw(user);
+        vm.stopPrank();
+
+        // 4. User2 borrows from 2 of the pools
+        vm.startPrank(user2);
+        asset2.mint(user2, 300 ether);
+        asset2.approve(address(positionManager), 300 ether);
+
+        // Make a new position
+        (address position, Action memory _newPosition) = newPosition(user2, "test");
+        positionManager.process(position, _newPosition);
+
+        Action memory addNewCollateral = addToken(address(asset2));
+        Action memory depositCollateral = deposit(address(asset2), 300 ether);
+        Action memory borrowAct = borrow(fixedRatePool, 15 ether);
+
+        Action[] memory actions = new Action[](3);
+        actions[0] = addNewCollateral;
+        actions[1] = depositCollateral;
+        actions[2] = borrowAct;
+
+        positionManager.processBatch(position, actions);
+        vm.stopPrank();
+
+        // 5. Advance time
+        vm.warp(block.timestamp + 365 days);
+        vm.roll(block.number + (365 days / 12));
+
+        // 6. User2 repays the borrowed amount
+        vm.startPrank(user2);
+        pool.accrue(fixedRatePool);
+        uint256 debt = pool.getBorrowsOf(fixedRatePool, position);
+
+        asset1.mint(position, debt);
+
+        Action memory _repay = Action({op: Operation.Repay, data: abi.encode(fixedRatePool, debt)});
+        positionManager.process(position, _repay);
+        vm.stopPrank();
+
+        // 7. User should have profit from the borrowed amount
+        vm.startPrank(user);
+        superPool.accrueInterestAndFees();
+        assertTrue(superPool.maxWithdraw(user) > initialAmountCanBeWithdrawn);
+        vm.stopPrank();
     }
 }

@@ -142,15 +142,26 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         return convertToShares(maxDeposit(address(0)));
     }
 
-    function maxWithdraw(address owner) public view returns (uint256) {
-        (uint256 assets,,) = _maxWithdraw(owner);
-        return assets;
+    function maxWithdraw(address owner) public view returns (uint256 assets) {
+        uint256 maxAssetsInPools;
+        for (uint256 i; i < depositQueue.length; ++i) {
+            maxAssetsInPools += pool.getAssetsOf(depositQueue[i], address(this));
+        }
+
+        uint256 userAssets = convertToAssets(ERC20.balanceOf(owner));
+
+        return maxAssetsInPools > userAssets ? userAssets : maxAssetsInPools;
     }
 
     function maxRedeem(address owner) public view returns (uint256) {
-        (uint256 assets,,) = _maxWithdraw(owner);
+        uint256 maxAssetsInPools;
+        for (uint256 i; i < depositQueue.length; ++i) {
+            maxAssetsInPools += pool.getAssetsOf(depositQueue[i], address(this));
+        }
 
-        return convertToShares(assets);
+        uint256 maxSharesInPools = convertToShares(maxAssetsInPools);
+
+        return maxSharesInPools > ERC20.balanceOf(owner) ? ERC20.balanceOf(owner) : maxSharesInPools;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -160,8 +171,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     function deposit(uint256 assets, address receiver) public returns (uint256) {
         accrueInterestAndFees();
         uint256 shares = convertToShares(assets);
-        _deposit(receiver, assets, shares);
         if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this));
+        _deposit(receiver, assets, shares);
         return shares;
     }
 
@@ -308,9 +319,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     //////////////////////////////////////////////////////////////*/
 
     function _deposit(address receiver, uint256 assets, uint256 shares) internal {
-        // Check for rounding error since we round down in previewDeposit.
-        require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
-
         // Need to transfer before minting or ERC777s could reenter.
         asset.safeTransferFrom(msg.sender, address(this), assets);
 
@@ -345,15 +353,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         lastTotalAssets -= assets;
     }
 
-    function _maxWithdraw(address owner) internal view returns (uint256, uint256, uint256) {
-        (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
-
-        uint256 assets =
-            convertToShares(ERC20.balanceOf(owner));
-
-        return (assets, ERC20.totalSupply() + feeShares, newTotalAssets);
-    }
-
     function _supplyToPools(uint256 assets) internal {
         for (uint256 i; i < depositQueue.length; ++i) {
             uint256 poolId = depositQueue[i];
@@ -364,24 +363,22 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                 if (assets < supplyAmt) supplyAmt = assets;
                 IERC20(asset).forceApprove(address(pool), supplyAmt);
 
-                try pool.deposit(poolId, supplyAmt, address(this)) {
-                    assets -= supplyAmt;
-                } catch {
-                    IERC20(asset).forceApprove(address(pool), 0);
-                }
+                pool.deposit(poolId, supplyAmt, address(this));
+                assets -= supplyAmt;
 
                 if (assets == 0) return;
             }
         }
-        if (assets != 0) revert SuperPool_AllCapsReached(address(this));
+
+        // Will return early as soon as `assets == 0` or all deposit caps hit, if not will revert here        
+        revert SuperPool_AllCapsReached(address(this));
     }
 
     function _withdrawFromPools(uint256 assets) internal {
-        uint256 assetsInSuperpool = IERC20(address(this)).balanceOf(address(asset));
+        uint256 assetsInSuperpool = IERC20(address(asset)).balanceOf(address(this));
 
         if (assetsInSuperpool >= assets) return;
         else assets -= assetsInSuperpool;
-
 
         for (uint256 i; i < withdrawQueue.length; ++i) {
             uint256 poolId = withdrawQueue[i];
@@ -400,7 +397,9 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                 if (assets == 0) return;
             }
         }
-        if (assets != 0) revert SuperPool_NotEnoughLiquidity(address(this));
+        
+        // We explicitly check assets == 0, and if so return, otherwise we revert directly here
+        revert SuperPool_NotEnoughLiquidity(address(this));
     }
 
     function _addPool(uint256 poolId) internal {

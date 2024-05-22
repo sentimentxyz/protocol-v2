@@ -11,9 +11,9 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
 import {ERC6909} from "./lib/ERC6909.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract Pool is Ownable, ERC6909 {
+contract Pool is OwnableUpgradeable, ERC6909 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -53,7 +53,7 @@ contract Pool is Ownable, ERC6909 {
     bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
         0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
 
-    Registry public immutable REGISTRY;
+    Registry public REGISTRY;
 
     address public feeRecipient; // address that receives protocol fees
     address public positionManager;
@@ -105,7 +105,13 @@ contract Pool is Ownable, ERC6909 {
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address registry_, address feeRecipient_) Ownable(msg.sender) {
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address registry_, address feeRecipient_) public initializer {
+        OwnableUpgradeable.__Ownable_init(msg.sender);
+
         feeRecipient = feeRecipient_;
         REGISTRY = Registry(registry_);
     }
@@ -192,7 +198,7 @@ contract Pool is Ownable, ERC6909 {
         // Check for rounding error since we round down in previewRedeem.
         assets = convertToAssets(pool.totalAssets, shares);
         if (assets == 0) revert Pool_ZeroAssetRedeem(poolId, shares);
-        if (pool.totalAssets.assets - pool.totalBorrows.assets >= assets) revert Pool_InsufficientLiquidity(poolId);
+        if (pool.totalAssets.assets - assets >= pool.totalBorrows.assets) revert Pool_InsufficientLiquidity(poolId);
 
         pool.totalAssets.assets -= uint128(assets);
         pool.totalAssets.shares -= uint128(shares);

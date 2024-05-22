@@ -11,7 +11,7 @@ import {PortfolioLens} from "src/lens/PortfolioLens.sol";
 import {SuperPoolFactory} from "src/SuperPoolFactory.sol";
 import {SuperPool} from "src/SuperPool.sol";
 import {Action, Operation, PositionManager} from "src/PositionManager.sol";
-import { FixedPriceOracle } from "../../src/oracle/FixedPriceOracle.sol";
+import {FixedPriceOracle} from "../../src/oracle/FixedPriceOracle.sol";
 
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -26,6 +26,7 @@ import {Test} from "forge-std/Test.sol";
 contract BaseTest is Test {
     address public protocolOwner = makeAddr("protocolOwner");
 
+    address poolImpl;
     Registry public registry;
     SuperPoolFactory public superPoolFactory;
     PositionManager public positionManager;
@@ -99,7 +100,10 @@ contract BaseTest is Test {
         riskModule = new RiskModule(address(registry), params.minDebt, params.liquidationDiscount);
 
         // pool
-        pool = new Pool(address(registry), params.feeRecipient);
+        poolImpl = address(new Pool());
+        pool = Pool(address(new TransparentUpgradeableProxy(poolImpl, params.owner, new bytes(0))));
+        pool.initialize(address(registry), params.feeRecipient);
+        // pool = new Pool(address(registry), params.feeRecipient);
 
         // super pool
         superPoolFactory = new SuperPoolFactory(address(pool));
@@ -149,10 +153,13 @@ contract BaseTest is Test {
         vm.stopPrank();
 
         vm.startPrank(poolOwner);
-        fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0.1e18, 0.01e18, type(uint128).max);
-        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0.01e18, type(uint128).max);
-        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0.1e18, 0.01e18, type(uint128).max);
-        vm.stopPrank(); 
+        fixedRatePool =
+            pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0.1e18, 0.01e18, type(uint128).max);
+        linearRatePool =
+            pool.initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0.01e18, type(uint128).max);
+        fixedRatePool2 =
+            pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0.1e18, 0.01e18, type(uint128).max);
+        vm.stopPrank();
 
         vm.startPrank(poolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
@@ -213,8 +220,9 @@ contract BaseTest is Test {
         // 7. User should have profit from the borrowed amount
         // 8. feeTo should make money
         address feeTo = makeAddr("feeTo");
-        SuperPool superPool = SuperPool(superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test"));
-
+        SuperPool superPool = SuperPool(
+            superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test")
+        );
 
         // 2. Make a SuperPool with the 3 pools
         vm.startPrank(poolOwner);

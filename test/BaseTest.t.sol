@@ -26,6 +26,7 @@ import {Test} from "forge-std/Test.sol";
 contract BaseTest is Test {
     address public protocolOwner = makeAddr("protocolOwner");
 
+    address poolImpl;
     Registry public registry;
     SuperPoolFactory public superPoolFactory;
     PositionManager public positionManager;
@@ -96,7 +97,10 @@ contract BaseTest is Test {
         riskModule = new RiskModule(address(registry), params.minDebt, params.liquidationDiscount);
 
         // pool
-        pool = new Pool(address(registry), params.feeRecipient);
+        poolImpl = address(new Pool());
+        pool = Pool(address(new TransparentUpgradeableProxy(poolImpl, params.owner, new bytes(0))));
+        pool.initialize(address(registry), params.feeRecipient);
+        // pool = new Pool(address(registry), params.feeRecipient);
 
         // super pool
         superPoolFactory = new SuperPoolFactory(address(pool));
@@ -147,7 +151,7 @@ contract BaseTest is Test {
         fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0, 0, type(uint128).max);
         linearRatePool2 = pool.initializePool(poolOwner, address(asset1), linearRateModel2, 0, 0, type(uint128).max);
         alternateAssetPool = pool.initializePool(poolOwner, address(asset2), fixedRateModel, 0, 0, type(uint128).max);
-        vm.stopPrank(); 
+        vm.stopPrank();
     }
 
     function newPosition(address owner, bytes32 salt) internal view returns (address, Action memory) {

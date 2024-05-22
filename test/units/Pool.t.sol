@@ -10,7 +10,9 @@ contract PoolUnitTests is BaseTest {
 
     function testIntializePool() public {
         // test constructor
-        Pool testPool = new Pool(address(registry), protocolOwner);
+        address poolImpl = address(new Pool());
+        Pool testPool = Pool(address(new TransparentUpgradeableProxy(poolImpl, protocolOwner, new bytes(0))));
+        testPool.initialize(address(registry), address(0));
         assertEq(address(testPool.REGISTRY()), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
@@ -390,6 +392,5 @@ contract PoolUnitTests is BaseTest {
 
         vm.expectRevert();
         pool.redeem(linearRatePool, 100 ether, user, user);
-
     }
 }

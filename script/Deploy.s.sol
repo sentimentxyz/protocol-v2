@@ -38,6 +38,7 @@ contract Deploy is BaseScript {
     address public riskModule;
     // pool
     address public pool;
+    address public poolImpl;
     // position
     address public positionBeacon;
     // lens
@@ -59,7 +60,10 @@ contract Deploy is BaseScript {
         riskModule = address(new RiskModule(registry, params.minDebt, params.liquidationDiscount));
 
         // pool
-        pool = address(new Pool(registry, params.feeRecipient));
+        poolImpl = address(new Pool());
+        pool = address(new TransparentUpgradeableProxy(poolImpl, params.owner, new bytes(0)));
+        Pool(pool).initialize(registry, params.feeRecipient);
+        // pool = address(new Pool(registry, params.feeRecipient));
 
         // super pool
         superPoolFactory = address(new SuperPoolFactory(pool));

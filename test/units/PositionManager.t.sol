@@ -54,9 +54,6 @@ contract PositionManagerUnitTests is BaseTest {
         // registry
         registry = new Registry();
 
-        // pool
-        pool = new Pool(address(registry), address(this));
-
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl
         address beacon = address((new TransparentUpgradeableProxy(positionManagerImpl, positionOwner, new bytes(0))));
@@ -222,7 +219,13 @@ contract PositionManagerUnitTests is BaseTest {
 
         Action memory action = Action({op: Operation.Borrow, data: data});
 
-        vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, linearRatePool, 1195617383896327453986975830486113747254663961968));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RiskModule.RiskModule_UnsupportedAsset.selector,
+                linearRatePool,
+                1195617383896327453986975830486113747254663961968
+            )
+        );
         PositionManager(positionManager).process(position, action);
     }
 

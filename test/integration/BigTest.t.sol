@@ -23,7 +23,7 @@ import {MockERC20} from "../mocks/MockERC20.sol";
 
 import {Test} from "forge-std/Test.sol";
 
-contract BaseTest is Test {
+contract BigTest is Test {
     address public protocolOwner = makeAddr("protocolOwner");
 
     address poolImpl;

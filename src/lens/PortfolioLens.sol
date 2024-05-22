@@ -112,8 +112,8 @@ contract PortfolioLens {
             uint256 poolId = debtPools[i];
             address poolAsset = POOL.getPoolAssetFor(poolId);
             uint256 totalBorrows = POOL.getTotalBorrows(poolId);
-            uint256 borrowAmt = POOL.getBorrowsOf(poolId, position);
             uint256 idleAmt = POOL.getTotalAssets(poolId) - totalBorrows;
+            uint256 borrowAmt = POOL.getBorrowsOf(poolId, position);
 
             debtData[i] = DebtData({
                 poolId: poolId,

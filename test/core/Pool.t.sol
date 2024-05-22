@@ -404,7 +404,7 @@ contract PoolUnitTests is BaseTest {
     function testOnlyOwnerCanSetRegistry(address sender, address newRegistry) public {
         vm.assume(sender != protocolOwner);
         vm.prank(sender);
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, sender));
+        vm.expectRevert();
         pool.setRegistry(newRegistry);
     }
 

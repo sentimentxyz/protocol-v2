@@ -407,4 +407,19 @@ contract PoolUnitTests is BaseTest {
         vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, sender));
         pool.setRegistry(newRegistry);
     }
+
+    function testPoolCap(uint96 assets, uint96 newPoolCap) public {
+        vm.assume(assets > 0);
+        vm.assume(newPoolCap < assets);
+
+        vm.prank(poolOwner);
+        pool.setPoolCap(linearRatePool, newPoolCap);
+
+        vm.startPrank(user);
+        asset1.mint(user, assets);
+        asset1.approve(address(pool), assets);
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_PoolCapExceeded.selector, linearRatePool));
+        pool.deposit(linearRatePool, assets, user);
+        vm.stopPrank();
+    }
 }

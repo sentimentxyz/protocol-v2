@@ -76,8 +76,9 @@ contract RiskModule {
         uint256 debtRepaidValue;
         for (uint256 i; i < debt.length; ++i) {
             // PositionManger.liquidate() verifies that the asset belongs to the associated pool
-            IOracle oracle = IOracle(riskEngine.getOracleFor(debt[i].asset));
-            debtRepaidValue += oracle.getValueInEth(debt[i].asset, debt[i].amt);
+            address poolAsset = pool.getPoolAssetFor(debt[i].poolId);
+            IOracle oracle = IOracle(riskEngine.getOracleFor(poolAsset));
+            debtRepaidValue += oracle.getValueInEth(poolAsset, debt[i].amt);
         }
 
         uint256 assetSeizedValue;

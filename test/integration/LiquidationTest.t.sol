@@ -61,7 +61,7 @@ contract LiquidationIntTest is BaseTest {
         assertEq(minReqAssetValue, 2e18);
 
         // construct liquidator data
-        DebtData memory debtData = DebtData({poolId: fixedRatePool, asset: address(asset1), amt: 1e18});
+        DebtData memory debtData = DebtData({poolId: fixedRatePool, amt: 1e18});
         DebtData[] memory debts = new DebtData[](1);
         debts[0] = debtData;
         AssetData memory asset1Data = AssetData({asset: address(asset1), amt: 1e18});
@@ -128,7 +128,7 @@ contract LiquidationIntTest is BaseTest {
         assertFalse(riskEngine.isPositionHealthy(position));
 
         // construct liquidator data
-        DebtData memory debtData = DebtData({poolId: fixedRatePool, asset: address(asset1), amt: 0.1e18});
+        DebtData memory debtData = DebtData({poolId: fixedRatePool, amt: 0.1e18});
         DebtData[] memory debts = new DebtData[](1);
         debts[0] = debtData;
         AssetData memory asset1Data = AssetData({asset: address(asset1), amt: 1e18});

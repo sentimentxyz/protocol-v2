@@ -28,8 +28,6 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 struct DebtData {
     // poolId address for debt to be repaid
     uint256 poolId;
-    // debt asset for pool, utility param to avoid calling pool.asset()
-    address asset;
     // amount of debt to be repaid by the liqudiator
     // position manager assumes that this amount has already been approved
     uint256 amt;
@@ -415,8 +413,11 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator
         for (uint256 i; i < debt.length; ++i) {
+            // verify that the asset being repaid is actually the pool asset
+            address poolAsset = pool.getPoolAssetFor(debt[i].poolId);
+
             // transfer debt asset from the liquidator to the pool
-            IERC20(debt[i].asset).transferFrom(msg.sender, address(pool), debt[i].amt);
+            IERC20(poolAsset).transferFrom(msg.sender, address(pool), debt[i].amt);
 
             // trigger pool repayment which assumes successful transfer of repaid assets
             pool.repay(debt[i].poolId, position, debt[i].amt);

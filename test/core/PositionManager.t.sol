@@ -220,11 +220,7 @@ contract PositionManagerUnitTests is BaseTest {
         Action memory action = Action({op: Operation.Borrow, data: data});
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                RiskModule.RiskModule_UnsupportedAsset.selector,
-                linearRatePool,
-                1195617383896327453986975830486113747254663961968
-            )
+            abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, linearRatePool, address(asset2))
         );
         PositionManager(positionManager).process(position, action);
     }

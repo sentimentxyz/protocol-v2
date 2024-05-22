@@ -53,8 +53,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
         0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
 
-    Registry public REGISTRY;
-
+    address public registry;
     address public feeRecipient; // address that receives protocol fees
     address public positionManager;
 
@@ -67,6 +66,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
                                 Events
     //////////////////////////////////////////////////////////////*/
 
+    event RegistrySet(address registry);
     event PoolPauseToggled(uint256 poolId, bool paused);
     event PoolCapSet(uint256 indexed poolId, uint128 poolCap);
     event PoolOwnerSet(uint256 indexed poolId, address owner);
@@ -112,12 +112,12 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     function initialize(address registry_, address feeRecipient_) public initializer {
         OwnableUpgradeable.__Ownable_init(msg.sender);
 
+        registry = registry_;
         feeRecipient = feeRecipient_;
-        REGISTRY = Registry(registry_);
     }
 
     function updateFromRegistry() external {
-        positionManager = REGISTRY.addressFor(SENTIMENT_POSITION_MANAGER_KEY);
+        positionManager = Registry(registry).addressFor(SENTIMENT_POSITION_MANAGER_KEY);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -409,5 +409,14 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         emit RateModelUpdateRejected(poolId, rateModelUpdateFor[poolId].rateModel);
         delete rateModelUpdateFor[poolId];
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              Only Owner
+    //////////////////////////////////////////////////////////////*/
+
+    function setRegistry(address _registry) external onlyOwner {
+        registry = _registry;
+        emit RegistrySet(_registry);
     }
 }

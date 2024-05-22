@@ -120,6 +120,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     //////////////////////////////////////////////////////////////*/
 
     event BeaconSet(address beacon);
+    event RegistrySet(address registry);
     event RiskEngineSet(address riskEngine);
     event PoolFactorySet(address poolFactory);
     event LiquidationFeeSet(uint256 liquidationFee);
@@ -438,6 +439,11 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         positionBeacon = _positionBeacon;
 
         emit BeaconSet(_positionBeacon);
+    }
+
+    function setRegistry(address _registry) external onlyOwner {
+        registry = Registry(_registry);
+        emit RegistrySet(_registry);
     }
 
     /// @notice update the risk engine address

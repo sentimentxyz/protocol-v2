@@ -160,8 +160,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     function deposit(uint256 assets, address receiver) public returns (uint256) {
         accrueInterestAndFees();
         uint256 shares = convertToShares(assets);
-        _deposit(receiver, assets, shares);
         if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this));
+        _deposit(receiver, assets, shares);
         return shares;
     }
 
@@ -308,9 +308,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     //////////////////////////////////////////////////////////////*/
 
     function _deposit(address receiver, uint256 assets, uint256 shares) internal {
-        // Check for rounding error since we round down in previewDeposit.
-        require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
-
         // Need to transfer before minting or ERC777s could reenter.
         asset.safeTransferFrom(msg.sender, address(this), assets);
 
@@ -370,11 +367,13 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                 if (assets == 0) return;
             }
         }
-        if (assets != 0) revert SuperPool_AllCapsReached(address(this));
+
+        // Will return early as soon as `assets == 0` or all deposit caps hit, if not will revert here        
+        revert SuperPool_AllCapsReached(address(this));
     }
 
     function _withdrawFromPools(uint256 assets) internal {
-        uint256 assetsInSuperpool = IERC20(address(this)).balanceOf(address(asset));
+        uint256 assetsInSuperpool = IERC20(address(asset)).balanceOf(address(this));
 
         if (assetsInSuperpool >= assets) return;
         else assets -= assetsInSuperpool;
@@ -396,7 +395,9 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                 if (assets == 0) return;
             }
         }
-        if (assets != 0) revert SuperPool_NotEnoughLiquidity(address(this));
+        
+        // We explicitly check assets == 0, and if so return, otherwise we revert directly here
+        revert SuperPool_NotEnoughLiquidity(address(this));
     }
 
     function _addPool(uint256 poolId) internal {

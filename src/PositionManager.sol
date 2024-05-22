@@ -147,7 +147,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     error PositionManager_UnknownPool(uint256 poolId);
     error PositionManager_UnknownSpender(address spender);
     error PositionManager_UnknownContract(address target);
-    error PositionManager_UnknownOperation(uint256 operation);
     error PositionManager_HealthCheckFailed(address position);
     error PositionManager_InvalidLiquidation(address position);
     error PositionManager_LiquidateHealthyPosition(address position);
@@ -245,8 +244,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             addToken(position, action.data);
         } else if (action.op == Operation.RemoveToken) {
             removeToken(position, action.data);
-        } else {
-            revert PositionManager_UnknownOperation(uint256(action.op));
         }
     }
 

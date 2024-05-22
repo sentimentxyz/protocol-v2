@@ -217,17 +217,15 @@ contract Pool is Ownable, ERC6909 {
             // [ROUND] floor fees in favor of pool lenders
             uint256 feeAssets = interestAccrued.mulDiv(pool.interestFee, 1e18);
 
-            // totalAssets() - feeAssets
-            uint256 totalAssetExFees = pool.totalAssets.assets + interestAccrued - feeAssets;
-
             // [ROUND] round down in favor of pool lenders
-            uint256 feeShares = feeAssets.mulDiv(pool.totalAssets.shares, totalAssetExFees + 1);
+            uint256 feeShares = convertToShares(pool.totalAssets, feeAssets);
 
             _mint(feeRecipient, id, feeShares);
         }
 
         // update cached notional borrows to current borrow amount
         pool.totalBorrows.assets += uint128(interestAccrued);
+        pool.totalAssets.assets += uint128(interestAccrued);
 
         // store a timestamp for this accrue() call
         // used to compute the pending interest next time accrue() is called

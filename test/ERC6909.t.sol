@@ -359,7 +359,7 @@ contract ERC6909Test is Test {
         token.transferFrom(sender, receiver, id, amount);
     }
 
-    function testFailsTransferFromBalanceOverflow(
+    function testNegativeTransferFromBalanceOverflow(
         address sender,
         address receiver,
         uint256 id,
@@ -373,13 +373,14 @@ contract ERC6909Test is Test {
         vm.prank(sender);
         token.transferFrom(sender, receiver, id, amount);
 
-        token.mint(sender, id, overflowAmount);
+        try token.mint(sender, id, overflowAmount) {} catch { return; }
 
         vm.prank(sender);
+        vm.expectRevert();
         token.transferFrom(sender, receiver, id, overflowAmount);
     }
 
-    function testFailsTransferFromNotAuthorized(
+    function testNegativeTransferFromNotAuthorized(
         address sender,
         address receiver,
         uint256 id,
@@ -389,6 +390,7 @@ contract ERC6909Test is Test {
 
         token.mint(sender, id, amount);
 
+        vm.expectRevert();
         token.transferFrom(sender, receiver, id, amount);
     }
 }

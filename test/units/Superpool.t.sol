@@ -97,11 +97,11 @@ contract SuperPoolUnitTests is BaseTest {
         superPool.setPoolCap(linearRatePool2, 100 ether);
         superPool.setPoolCap(fixedRatePool2, 100 ether);
 
-        superPool.setPoolCap(fixedRatePool2, 0);
+        superPool.setPoolCap(linearRatePool2, 0);
 
         assertEq(superPool.getPoolCount(), 3);
         assertEq(superPool.pools().length, 3);
-        assertEq(superPool.poolCap(fixedRatePool2), 0);
+        assertEq(superPool.poolCap(linearRatePool2), 0);
     }
 
     function testCanModifyPoolCap() public {

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract PoolUnitTests is BaseTest {
     function setUp() public override {
@@ -10,8 +11,10 @@ contract PoolUnitTests is BaseTest {
 
     function testIntializePool() public {
         // test constructor
-        Pool testPool = new Pool(address(registry), protocolOwner);
-        assertEq(address(testPool.REGISTRY()), address(registry));
+        address poolImpl = address(new Pool());
+        Pool testPool = Pool(address(new TransparentUpgradeableProxy(poolImpl, protocolOwner, new bytes(0))));
+        testPool.initialize(address(registry), address(0));
+        assertEq(testPool.registry(), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
         uint256 id = testPool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
@@ -43,7 +46,7 @@ contract PoolUnitTests is BaseTest {
         vm.startPrank(user);
         asset1.approve(address(pool), 0);
 
-        vm.expectRevert("ZERO_SHARES");
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_ZeroSharesDeposit.selector, linearRatePool, 0));
         pool.deposit(linearRatePool, 0, user);
     }
 
@@ -99,7 +102,7 @@ contract PoolUnitTests is BaseTest {
     function testCannotWithdrawNoAssets() public {
         vm.startPrank(user);
 
-        vm.expectRevert("ZERO_ASSETS");
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_ZeroAssetRedeem.selector, linearRatePool, 0));
         pool.redeem(linearRatePool, 0, user, user);
     }
 
@@ -279,6 +282,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyPoolOwnerCanPause(address sender) public {
         vm.assume(sender != poolOwner);
+        vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.togglePause(linearRatePool);
@@ -297,6 +301,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyPoolOwnerCanSetCap(address sender, uint128 poolCap) public {
         vm.assume(sender != poolOwner);
+        vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.setPoolCap(linearRatePool, poolCap);
@@ -312,6 +317,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyOwnerCanRequestRateModelUpdate(address sender, address rateModel) public {
         vm.assume(sender != poolOwner);
+        vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.requestRateModelUpdate(linearRatePool, rateModel);
@@ -344,6 +350,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyOwnerCanAcceptRateModelUpdate(address sender) public {
         vm.assume(sender != poolOwner);
+        vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.acceptRateModelUpdate(linearRatePool);
@@ -390,6 +397,33 @@ contract PoolUnitTests is BaseTest {
 
         vm.expectRevert();
         pool.redeem(linearRatePool, 100 ether, user, user);
+    }
 
+    function testOwnerCanSetRegistry(address newRegistry) public {
+        vm.prank(protocolOwner);
+        pool.setRegistry(newRegistry);
+        assertEq(pool.registry(), newRegistry);
+    }
+
+    function testOnlyOwnerCanSetRegistry(address sender, address newRegistry) public {
+        vm.assume(sender != protocolOwner);
+        vm.prank(sender);
+        vm.expectRevert();
+        pool.setRegistry(newRegistry);
+    }
+
+    function testPoolCap(uint96 assets, uint96 newPoolCap) public {
+        vm.assume(assets > 0);
+        vm.assume(newPoolCap < assets);
+
+        vm.prank(poolOwner);
+        pool.setPoolCap(linearRatePool, newPoolCap);
+
+        vm.startPrank(user);
+        asset1.mint(user, assets);
+        asset1.approve(address(pool), assets);
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_PoolCapExceeded.selector, linearRatePool));
+        pool.deposit(linearRatePool, assets, user);
+        vm.stopPrank();
     }
 }

@@ -10,6 +10,7 @@ import {Action, Operation} from "src/PositionManager.sol";
 
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract PositionManagerUnitTests is BaseTest {
     address public position;
@@ -53,9 +54,6 @@ contract PositionManagerUnitTests is BaseTest {
     function testInitPositionManagerFromConstructor() public {
         // registry
         registry = new Registry();
-
-        // pool
-        pool = new Pool(address(registry), address(this));
 
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl
@@ -222,7 +220,9 @@ contract PositionManagerUnitTests is BaseTest {
 
         Action memory action = Action({op: Operation.Borrow, data: data});
 
-        vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, linearRatePool, 1195617383896327453986975830486113747254663961968));
+        vm.expectRevert(
+            abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, linearRatePool, address(asset2))
+        );
         PositionManager(positionManager).process(position, action);
     }
 
@@ -514,6 +514,19 @@ contract PositionManagerUnitTests is BaseTest {
 
         vm.expectRevert();
         PositionManager(positionManager).process(position, action);
+    }
+
+    function testCanSetRegistry(address newRegistry) public {
+        vm.prank(protocolOwner);
+        positionManager.setRegistry(newRegistry);
+        assertEq(address(positionManager.registry()), newRegistry);
+    }
+
+    function testOnlyOwnerCanSetRegistry(address sender, address newRegistry) public {
+        vm.assume(sender != protocolOwner);
+        vm.prank(sender);
+        vm.expectRevert();
+        positionManager.setRegistry(newRegistry);
     }
 }
 

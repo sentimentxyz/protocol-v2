@@ -24,8 +24,10 @@ import {MockERC20} from "./mocks/MockERC20.sol";
 import {Test} from "forge-std/Test.sol";
 
 contract BaseTest is Test {
+    address public proxyAdmin;
     address public protocolOwner = makeAddr("protocolOwner");
 
+    address poolImpl;
     Registry public registry;
     SuperPoolFactory public superPoolFactory;
     PositionManager public positionManager;
@@ -96,7 +98,10 @@ contract BaseTest is Test {
         riskModule = new RiskModule(address(registry), params.minDebt, params.liquidationDiscount);
 
         // pool
-        pool = new Pool(address(registry), params.feeRecipient);
+        poolImpl = address(new Pool());
+        pool = Pool(address(new TransparentUpgradeableProxy(poolImpl, params.owner, new bytes(0))));
+        pool.initialize(address(registry), params.feeRecipient);
+        // pool = new Pool(address(registry), params.feeRecipient);
 
         // super pool
         superPoolFactory = new SuperPoolFactory(address(pool));
@@ -112,8 +117,8 @@ contract BaseTest is Test {
         positionBeacon = address(new UpgradeableBeacon(positionImpl, params.owner));
 
         // lens
-        superPoolLens = new SuperPoolLens(address(pool));
-        portfolioLens = new PortfolioLens(address(pool), address(positionManager));
+        superPoolLens = new SuperPoolLens(address(pool), address(riskEngine));
+        portfolioLens = new PortfolioLens(address(pool), address(riskEngine), address(positionManager));
 
         PositionManager(positionManager).transferOwnership(params.owner);
 
@@ -135,6 +140,7 @@ contract BaseTest is Test {
         pool.transferOwnership(params.owner);
         registry.transferOwnership(params.owner);
         riskEngine.transferOwnership(params.owner);
+        proxyAdmin = address(this);
 
         address fixedRateModel = address(new FixedRateModel(1e18));
         address linearRateModel = address(new LinearRateModel(1e18, 2e18));
@@ -147,7 +153,7 @@ contract BaseTest is Test {
         fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0, 0, type(uint128).max);
         linearRatePool2 = pool.initializePool(poolOwner, address(asset1), linearRateModel2, 0, 0, type(uint128).max);
         alternateAssetPool = pool.initializePool(poolOwner, address(asset2), fixedRateModel, 0, 0, type(uint128).max);
-        vm.stopPrank(); 
+        vm.stopPrank();
     }
 
     function newPosition(address owner, bytes32 salt) internal view returns (address, Action memory) {

@@ -9,7 +9,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IterableSet} from "./lib/IterableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-//contracts
+// contracts
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
@@ -56,11 +56,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
 
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
     event Withdraw(
-        address indexed caller,
-        address indexed receiver,
-        address indexed owner,
-        uint256 assets,
-        uint256 shares
+        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
     /*//////////////////////////////////////////////////////////////
@@ -91,7 +87,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     ) Ownable(msg.sender) ERC20(name_, symbol_) {
         asset = IERC20(asset_);
         pool = Pool(pool_);
-    
+
         fee = fee_;
         feeRecipient = feeRecipient_;
         superPoolCap = superPoolCap_;
@@ -213,8 +209,11 @@ contract SuperPool is Ownable, Pausable, ERC20 {
             poolCap[poolId] = 0;
         }
         // modify pool cap: if the cap is below the assets in the pool, it becomes withdraw-only
-        else if (poolCap[poolId] != 0 && cap != 0) poolCap[poolId] = cap;
-        else return; // handle pool == 0 && cap == 0
+        else if (poolCap[poolId] != 0 && cap != 0) {
+            poolCap[poolId] = cap;
+        } else {
+            return;
+        } // handle pool == 0 && cap == 0
 
         emit PoolCapSet(poolId, cap);
     }
@@ -281,7 +280,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         }
     }
 
-
     function convertToShares(uint256 assets) public view virtual returns (uint256) {
         uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
 
@@ -327,13 +325,11 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         emit Deposit(msg.sender, receiver, assets, shares);
 
         _supplyToPools(assets);
-                
+
         lastTotalAssets += assets;
     }
 
-    function _withdraw(address receiver, address owner, uint256 assets, uint256 shares)
-        internal
-    {
+    function _withdraw(address receiver, address owner, uint256 assets, uint256 shares) internal {
         _withdrawFromPools(assets);
 
         shares = previewWithdraw(assets); // No need to check for rounding error, previewWithdraw rounds up.
@@ -369,9 +365,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                 if (assets == 0) return;
             }
         }
-
-        // Will return early as soon as `assets == 0` or all deposit caps hit, if not will revert here        
-        revert SuperPool_AllCapsReached(address(this));
     }
 
     function _withdrawFromPools(uint256 assets) internal {
@@ -391,13 +384,13 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                     // TODO replace with withdraw logic
                     try pool.redeem(poolId, withdrawAmt, address(this), address(this)) {
                         assets -= withdrawAmt;
-                    } catch { }
+                    } catch {}
                 }
 
                 if (assets == 0) return;
             }
         }
-        
+
         // We explicitly check assets == 0, and if so return, otherwise we revert directly here
         revert SuperPool_NotEnoughLiquidity(address(this));
     }

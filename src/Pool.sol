@@ -11,9 +11,9 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
 import {ERC6909} from "./lib/ERC6909.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract Pool is Ownable, ERC6909 {
+contract Pool is OwnableUpgradeable, ERC6909 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -53,8 +53,7 @@ contract Pool is Ownable, ERC6909 {
     bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
         0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
 
-    Registry public immutable REGISTRY;
-
+    address public registry;
     address public feeRecipient; // address that receives protocol fees
     address public positionManager;
 
@@ -67,6 +66,7 @@ contract Pool is Ownable, ERC6909 {
                                 Events
     //////////////////////////////////////////////////////////////*/
 
+    event RegistrySet(address registry);
     event PoolPauseToggled(uint256 poolId, bool paused);
     event PoolCapSet(uint256 indexed poolId, uint128 poolCap);
     event PoolOwnerSet(uint256 indexed poolId, address owner);
@@ -89,26 +89,35 @@ contract Pool is Ownable, ERC6909 {
 
     error Pool_AlreadyInitialized();
     error Pool_PoolPaused(uint256 poolId);
+    error Pool_PoolCapExceeded(uint256 poolId);
     error Pool_NoRateModelUpdate(uint256 poolId);
     error Pool_PoolAlreadyInitialized(uint256 poolId);
+    error Pool_ZeroAssetRedeem(uint256 poolId, uint256 shares);
     error Pool_ZeroSharesRepay(uint256 poolId, uint256 amt);
     error Pool_ZeroSharesBorrow(uint256 poolId, uint256 amt);
     error Pool_ZeroSharesDeposit(uint256 poolId, uint256 amt);
     error Pool_OnlyPoolOwner(uint256 poolId, address sender);
     error Pool_OnlyPositionManager(uint256 poolId, address sender);
+    error Pool_InsufficientLiquidity(uint256 poolId, uint256 assets);
     error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
 
     /*//////////////////////////////////////////////////////////////
                               Initialize
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address registry_, address feeRecipient_) Ownable(msg.sender) {
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address registry_, address feeRecipient_) public initializer {
+        OwnableUpgradeable.__Ownable_init(msg.sender);
+
+        registry = registry_;
         feeRecipient = feeRecipient_;
-        REGISTRY = Registry(registry_);
     }
 
     function updateFromRegistry() external {
-        positionManager = REGISTRY.addressFor(SENTIMENT_POSITION_MANAGER_KEY);
+        positionManager = Registry(registry).addressFor(SENTIMENT_POSITION_MANAGER_KEY);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -123,6 +132,10 @@ contract Pool is Ownable, ERC6909 {
     function getBorrowsOf(uint256 poolId, address position) public view returns (uint256 borrows) {
         Uint128Pair memory totalBorrows = poolDataFor[poolId].totalBorrows;
         borrows = convertToAssets(totalBorrows, borrowSharesOf[poolId][position]);
+    }
+
+    function getTotalAssets(uint256 poolId) public view returns (uint256) {
+        return poolDataFor[poolId].totalAssets.assets;
     }
 
     function getTotalBorrows(uint256 poolId) public view returns (uint256) {
@@ -159,8 +172,10 @@ contract Pool is Ownable, ERC6909 {
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
 
-        // Check for rounding error since we round down in previewDeposit.
-        require((shares = convertToShares(pool.totalAssets, assets)) != 0, "ZERO_SHARES");
+        if (pool.totalAssets.assets + assets > pool.poolCap) revert Pool_PoolCapExceeded(poolId);
+
+        shares = convertToShares(pool.totalAssets, assets);
+        if (shares == 0) revert Pool_ZeroSharesDeposit(poolId, assets);
 
         // Need to transfer before minting or ERC777s could reenter.
         IERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
@@ -185,8 +200,12 @@ contract Pool is Ownable, ERC6909 {
         }
 
         // Check for rounding error since we round down in previewRedeem.
-        require((assets = convertToAssets(pool.totalAssets, shares)) != 0, "ZERO_ASSETS");
-        require(pool.totalAssets.assets - assets >= pool.totalBorrows.assets, "INSUFFICIENT_LIQUIDITY");
+        assets = convertToAssets(pool.totalAssets, shares);
+        if (assets == 0) revert Pool_ZeroAssetRedeem(poolId, shares);
+
+        if (pool.totalAssets.assets - pool.totalBorrows.assets < assets) {
+            revert Pool_InsufficientLiquidity(poolId, assets);
+        }
 
         pool.totalAssets.assets -= uint128(assets);
         pool.totalAssets.shares -= uint128(shares);
@@ -397,5 +416,14 @@ contract Pool is Ownable, ERC6909 {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         emit RateModelUpdateRejected(poolId, rateModelUpdateFor[poolId].rateModel);
         delete rateModelUpdateFor[poolId];
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              Only Owner
+    //////////////////////////////////////////////////////////////*/
+
+    function setRegistry(address _registry) external onlyOwner {
+        registry = _registry;
+        emit RegistrySet(_registry);
     }
 }

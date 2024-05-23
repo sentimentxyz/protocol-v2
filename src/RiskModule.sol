@@ -200,6 +200,7 @@ contract RiskModule {
             for (uint256 j; j < positionAssets.length; ++j) {
                 uint256 ltv = riskEngine.ltvFor(debtPools[i], positionAssets[j]);
 
+                // revert with pool id and the asset that is not supported by the pool
                 if (ltv == 0) revert RiskModule_UnsupportedAsset(debtPools[i], positionAssets[j]);
 
                 // debt is weighted in proportion to value of position assets. if your position

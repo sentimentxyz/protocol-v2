@@ -120,6 +120,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     //////////////////////////////////////////////////////////////*/
 
     event BeaconSet(address beacon);
+    event RegistrySet(address registry);
     event RiskEngineSet(address riskEngine);
     event PoolFactorySet(address poolFactory);
     event LiquidationFeeSet(uint256 liquidationFee);
@@ -327,11 +328,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // if the passed amt is type(uint).max assume repayment of the entire debt
         uint256 amt = (_amt == type(uint256).max) ? pool.getBorrowsOf(poolId, position) : _amt;
 
-        // signals repayment to the position without making any changes in the pool
-        // since every position is structured differently
-        // we assume that any checks needed to validate repayment are implemented in the position
-        Position(position).repay(poolId, amt);
-
         // transfer assets to be repaid from the position to the given pool
         Position(position).transfer(address(pool), pool.getPoolAssetFor(poolId), amt);
 
@@ -339,8 +335,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         pool.repay(poolId, position, amt);
 
         // signals repayment to the position without making any changes in the pool
-        // since every position is structured differently
-        // we assume that any checks needed to validate repayment are implemented in the position
+        // any checks needed to validate repayment must be implemented in the position
         Position(position).repay(poolId, amt);
 
         emit Repay(position, msg.sender, poolId, amt);
@@ -444,6 +439,11 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         positionBeacon = _positionBeacon;
 
         emit BeaconSet(_positionBeacon);
+    }
+
+    function setRegistry(address _registry) external onlyOwner {
+        registry = Registry(_registry);
+        emit RegistrySet(_registry);
     }
 
     /// @notice update the risk engine address

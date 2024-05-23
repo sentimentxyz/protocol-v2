@@ -365,9 +365,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                 if (assets == 0) return;
             }
         }
-
-        // Will return early as soon as `assets == 0` or all deposit caps hit, if not will revert here
-        revert SuperPool_AllCapsReached(address(this));
     }
 
     function _withdrawFromPools(uint256 assets) internal {

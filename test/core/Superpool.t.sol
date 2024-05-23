@@ -228,7 +228,7 @@ contract SuperPoolUnitTests is BaseTest {
         assertEq(asset1.balanceOf(address(pool)), 200 ether);
     }
 
-    function testCannotDepositMoreThanPoolCap() public {
+    function testDepositMoreThanPoolCap() public {
         vm.startPrank(poolOwner);
         superPool.setPoolCap(linearRatePool, 50 ether);
         vm.stopPrank();
@@ -237,8 +237,8 @@ contract SuperPoolUnitTests is BaseTest {
         asset1.mint(user, 100 ether);
         asset1.approve(address(superPool), 100 ether);
 
-        vm.expectRevert();
         superPool.deposit(100 ether, user);
+        assertEq(asset1.balanceOf(address(superPool)), 50 ether);
     }
 
     function testPartialWithdrawal(uint96 amt) public {
@@ -348,7 +348,7 @@ contract SuperPoolUnitTests is BaseTest {
         assertGt(newMaxDepositShares, maxDepositShares);
     }
 
-    function testSupplyMoreThanPossibleWithCurrentPoolCaps() public {
+    function testSupplyMoreThanCurrentPoolCaps() public {
         vm.startPrank(poolOwner);
         superPool.setPoolCap(fixedRatePool, 100 ether);
         superPool.setPoolCap(linearRatePool, 100 ether);
@@ -359,8 +359,8 @@ contract SuperPoolUnitTests is BaseTest {
         asset1.approve(address(superPool), 201 ether);
         superPool.deposit(200 ether, user);
 
-        vm.expectRevert(abi.encodeWithSelector(SuperPool.SuperPool_AllCapsReached.selector, address(superPool)));
         superPool.deposit(1 ether, user);
+        assertEq(asset1.balanceOf(address(superPool)), 1 ether);
     }
 
     function invariantMaxWithdrawalsStayConsistent() public view {

@@ -8,6 +8,8 @@ pragma solidity ^0.8.24;
 // types
 import {Pool} from "../Pool.sol";
 import {SuperPool} from "../SuperPool.sol";
+import {RiskEngine} from "../RiskEngine.sol";
+import {IOracle} from "src/interfaces/IOracle.sol";
 import {IRateModel} from "../interfaces/IRateModel.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -30,34 +32,41 @@ contract SuperPoolLens {
         address asset;
         uint256 idleAssets;
         uint256 totalAssets;
+        uint256 valueInEth;
         uint256 interestRate;
         PoolDepositData[] deposits;
     }
 
     struct PoolDepositData {
-        uint256 poolId;
         address asset;
+        uint256 poolId;
         uint256 amount;
+        uint256 valueInEth;
         uint256 interestRate;
     }
 
     struct UserDepositData {
+        address owner;
         uint256 interestRate;
-        uint256 totalDeposits;
+        uint256 totalValueInEth;
         SuperPoolDepositData[] deposits;
     }
 
     struct SuperPoolDepositData {
-        address superPool;
+        address owner;
         address asset;
+        address superPool;
         uint256 amount;
+        uint256 valueInEth;
         uint256 interestRate;
     }
 
     Pool public immutable POOL;
+    RiskEngine public immutable RISK_ENGINE;
 
-    constructor(address pool_) {
+    constructor(address pool_, address riskEngine_) {
         POOL = Pool(pool_);
+        RISK_ENGINE = RiskEngine(riskEngine_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -74,12 +83,14 @@ contract SuperPoolLens {
         }
 
         address asset = address(superPool.asset());
+        uint256 totalAssets = superPool.totalAssets();
 
         return SuperPoolData({
             asset: asset,
             deposits: deposits,
             name: superPool.name(),
-            totalAssets: superPool.totalAssets(),
+            totalAssets: totalAssets,
+            valueInEth: _getValueInEth(asset, totalAssets),
             idleAssets: IERC20(asset).balanceOf(_superPool),
             interestRate: getSuperPoolInterestRate(_superPool)
         });
@@ -87,12 +98,14 @@ contract SuperPoolLens {
 
     function getPoolDepositData(address superPool, uint256 _poolId) public view returns (PoolDepositData memory) {
         address asset = POOL.getPoolAssetFor(_poolId);
+        uint256 amount = POOL.getAssetsOf(_poolId, superPool);
 
         return PoolDepositData({
-            poolId: _poolId,
             asset: asset,
-            interestRate: getPoolInterestRate(_poolId),
-            amount: POOL.getAssetsOf(_poolId, superPool)
+            amount: amount,
+            poolId: _poolId,
+            valueInEth: _getValueInEth(asset, amount),
+            interestRate: getPoolInterestRate(_poolId)
         });
     }
 
@@ -107,22 +120,27 @@ contract SuperPoolLens {
     {
         SuperPoolDepositData[] memory deposits = new SuperPoolDepositData[](superPools.length);
 
-        uint256 totalDeposits;
+        uint256 totalValueInEth;
         uint256 weightedDeposit;
 
         for (uint256 i; i < superPools.length; ++i) {
             deposits[i] = getSuperPoolDepositData(user, superPools[i]);
 
-            totalDeposits += deposits[i].amount;
+            totalValueInEth += deposits[i].valueInEth;
 
             // [ROUND] deposit weights are rounded up, in favor of the user
-            weightedDeposit += (deposits[i].amount).mulDiv(deposits[i].interestRate, 1e18, Math.Rounding.Ceil);
+            weightedDeposit += (deposits[i].valueInEth).mulDiv(deposits[i].interestRate, 1e18, Math.Rounding.Ceil);
         }
+
+        // [ROUND] interestRate is rounded up, in favor of the user
+        uint256 interestRate =
+            (totalValueInEth != 0) ? weightedDeposit.mulDiv(1e18, totalValueInEth, Math.Rounding.Ceil) : 0;
+
         return UserDepositData({
+            owner: user,
             deposits: deposits,
-            totalDeposits: totalDeposits,
-            // [ROUND] interestRate is rounded up, in favor of the user
-            interestRate: weightedDeposit.mulDiv(1e18, totalDeposits, Math.Rounding.Ceil)
+            totalValueInEth: totalValueInEth,
+            interestRate: interestRate
         });
     }
 
@@ -133,12 +151,15 @@ contract SuperPoolLens {
     {
         SuperPool superPool = SuperPool(_superPool);
         address asset = address(superPool.asset());
+        uint256 amount = superPool.previewRedeem(superPool.balanceOf(user));
 
         return SuperPoolDepositData({
-            superPool: _superPool,
+            owner: user,
             asset: asset,
-            interestRate: getSuperPoolInterestRate(_superPool),
-            amount: superPool.previewRedeem(IERC20(asset).balanceOf(user))
+            amount: amount,
+            superPool: _superPool,
+            valueInEth: _getValueInEth(asset, amount),
+            interestRate: getSuperPoolInterestRate(_superPool)
         });
     }
 
@@ -168,5 +189,16 @@ contract SuperPoolLens {
         }
 
         return weightedAssets / totalAssets;
+    }
+
+    function _getValueInEth(address asset, uint256 amt) internal view returns (uint256) {
+        IOracle oracle = IOracle(RISK_ENGINE.getOracleFor(asset));
+
+        // oracles could revert, lens calls must not
+        try oracle.getValueInEth(asset, amt) returns (uint256 valueInEth) {
+            return valueInEth;
+        } catch {
+            return 0;
+        }
     }
 }

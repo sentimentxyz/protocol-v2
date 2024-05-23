@@ -77,8 +77,8 @@ contract Deploy is BaseScript {
         positionBeacon = address(new Position(pool, positionManager));
 
         // lens
-        superPoolLens = address(new SuperPoolLens(pool));
-        portfolioLens = address(new PortfolioLens(pool, positionManager));
+        superPoolLens = address(new SuperPoolLens(pool, riskEngine));
+        portfolioLens = address(new PortfolioLens(pool, riskEngine, positionManager));
 
         // update from registry
         Pool(pool).updateFromRegistry();

@@ -3,8 +3,6 @@ pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
 
-import {console} from "forge-std/console.sol";
-
 contract SuperPoolUnitTests is BaseTest {
     SuperPool public superPool;
     address public feeTo = makeAddr("FeeTo");
@@ -256,8 +254,6 @@ contract SuperPoolUnitTests is BaseTest {
         asset1.approve(address(superPool), amt);
 
         superPool.deposit(amt, user);
-
-        console.log("traces after here");
 
         uint256 expectedAssets = superPool.previewRedeem(amt / 2);
         uint256 assets = superPool.redeem(amt / 2, user, user);

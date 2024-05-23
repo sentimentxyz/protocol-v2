@@ -24,6 +24,7 @@ import {MockERC20} from "./mocks/MockERC20.sol";
 import {Test} from "forge-std/Test.sol";
 
 contract BaseTest is Test {
+    address public proxyAdmin;
     address public protocolOwner = makeAddr("protocolOwner");
 
     address poolImpl;
@@ -116,8 +117,8 @@ contract BaseTest is Test {
         positionBeacon = address(new UpgradeableBeacon(positionImpl, params.owner));
 
         // lens
-        superPoolLens = new SuperPoolLens(address(pool));
-        portfolioLens = new PortfolioLens(address(pool), address(positionManager));
+        superPoolLens = new SuperPoolLens(address(pool), address(riskEngine));
+        portfolioLens = new PortfolioLens(address(pool), address(riskEngine), address(positionManager));
 
         PositionManager(positionManager).transferOwnership(params.owner);
 
@@ -139,6 +140,7 @@ contract BaseTest is Test {
         pool.transferOwnership(params.owner);
         registry.transferOwnership(params.owner);
         riskEngine.transferOwnership(params.owner);
+        proxyAdmin = address(this);
 
         address fixedRateModel = address(new FixedRateModel(1e18));
         address linearRateModel = address(new LinearRateModel(1e18, 2e18));

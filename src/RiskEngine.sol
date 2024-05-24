@@ -18,6 +18,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
                             RiskEngine
 //////////////////////////////////////////////////////////////*/
 
+/// @title RiskEngine
 contract RiskEngine is Ownable {
     /*//////////////////////////////////////////////////////////////
                                Storage

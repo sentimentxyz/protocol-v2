@@ -6,17 +6,17 @@ pragma solidity ^0.8.24;
 //////////////////////////////////////////////////////////////*/
 
 // types
-import {Pool} from "../Pool.sol";
-import {Position} from "../Position.sol";
-import {RiskEngine} from "../RiskEngine.sol";
-import {IOracle} from "src/interfaces/IOracle.sol";
-import {PositionManager} from "../PositionManager.sol";
-import {IRateModel} from "src/interfaces/IRateModel.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Pool } from "../Pool.sol";
+import { Position } from "../Position.sol";
+import { RiskEngine } from "../RiskEngine.sol";
+import { IOracle } from "src/interfaces/IOracle.sol";
+import { PositionManager } from "../PositionManager.sol";
+import { IRateModel } from "src/interfaces/IRateModel.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // contracts
-import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 
-import {console} from "forge-std/console.sol";
+import { console } from "forge-std/console.sol";
 
 /*//////////////////////////////////////////////////////////////
                         PortfolioLens
@@ -79,16 +79,11 @@ contract PortfolioLens {
             positionData[i] = getPositionData(positions[i]);
         }
 
-        return PortfolioData({positions: positionData});
+        return PortfolioData({ positions: positionData });
     }
 
     function getPositionData(address position) public view returns (PositionData memory) {
-        return PositionData({
-            position: position,
-            owner: POSITION_MANAGER.ownerOf(position),
-            assets: getAssetData(position),
-            debts: getDebtData(position)
-        });
+        return PositionData({ position: position, owner: POSITION_MANAGER.ownerOf(position), assets: getAssetData(position), debts: getDebtData(position) });
     }
 
     function getAssetData(address position) public view returns (AssetData[] memory) {
@@ -98,7 +93,7 @@ contract PortfolioLens {
         for (uint256 i; i < assets.length; ++i) {
             address asset = assets[i];
             uint256 amount = IERC20(assets[i]).balanceOf(position);
-            assetData[i] = AssetData({asset: asset, amount: amount, valueInEth: _getValueInEth(asset, amount)});
+            assetData[i] = AssetData({ asset: asset, amount: amount, valueInEth: _getValueInEth(asset, amount) });
         }
 
         return assetData;
@@ -130,12 +125,9 @@ contract PortfolioLens {
     function predictAddress(address owner, bytes32 salt) external view returns (address, bool) {
         salt = keccak256(abi.encodePacked(owner, salt));
 
-        bytes memory creationCode =
-            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(address(POSITION_MANAGER.positionBeacon()), ""));
+        bytes memory creationCode = abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(address(POSITION_MANAGER.positionBeacon()), ""));
 
-        address predictedAddress = address(
-            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), POSITION_MANAGER, salt, keccak256(creationCode)))))
-        );
+        address predictedAddress = address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), POSITION_MANAGER, salt, keccak256(creationCode))))));
 
         return (predictedAddress, predictedAddress.code.length == 0);
     }

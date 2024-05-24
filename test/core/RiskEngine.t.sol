@@ -2,14 +2,14 @@
 pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
-import {RiskEngine} from "src/RiskEngine.sol";
-import {FixedRateModel} from "../../src/irm/FixedRateModel.sol";
-import {LinearRateModel} from "../../src/irm/LinearRateModel.sol";
+import { RiskEngine } from "src/RiskEngine.sol";
+import { FixedRateModel } from "../../src/irm/FixedRateModel.sol";
+import { LinearRateModel } from "../../src/irm/LinearRateModel.sol";
 
-import {Action, Operation} from "src/PositionManager.sol";
+import { Action, Operation } from "src/PositionManager.sol";
 
-import {MockERC20} from "../mocks/MockERC20.sol";
-import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
+import { MockERC20 } from "../mocks/MockERC20.sol";
+import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract RiskModuleUnitTests is BaseTest {
     address public position;
@@ -25,10 +25,10 @@ contract RiskModuleUnitTests is BaseTest {
         riskEngine.setOracle(address(asset2), address(asset2Oracle));
         vm.stopPrank();
 
-        asset1.mint(address(this), 10000 ether);
-        asset1.approve(address(pool), 10000 ether);
+        asset1.mint(address(this), 10_000 ether);
+        asset1.approve(address(pool), 10_000 ether);
 
-        pool.deposit(linearRatePool, 10000 ether, address(0x9));
+        pool.deposit(linearRatePool, 10_000 ether, address(0x9));
     }
 
     function testRiskEngineInit() public {
@@ -84,7 +84,6 @@ contract RiskModuleUnitTests is BaseTest {
         riskEngine.rejectLtvUpdate(linearRatePool, address(asset1));
 
         assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
-
     }
 
     function testNoLTVUpdate(address asset) public {

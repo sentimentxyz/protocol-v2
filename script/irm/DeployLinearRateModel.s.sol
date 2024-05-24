@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
-import {LinearRateModel} from "src/irm/LinearRateModel.sol";
+import { LinearRateModel } from "src/irm/LinearRateModel.sol";
 
 contract DeployLinearRateModel is BaseScript {
     uint256 minRate;

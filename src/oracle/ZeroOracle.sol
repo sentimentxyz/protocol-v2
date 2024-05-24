@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 // types
-import {IOracle} from "../interfaces/IOracle.sol";
+import { IOracle } from "../interfaces/IOracle.sol";
 
 contract ZeroOracle is IOracle {
     function getValueInEth(address, uint256) external pure returns (uint256) {

@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Pool} from "src/Pool.sol";
-import {Registry} from "src/Registry.sol";
-import {Position} from "src/Position.sol";
-import {PositionManager} from "src/PositionManager.sol";
-import {RiskEngine} from "src/RiskEngine.sol";
-import {RiskModule} from "src/RiskModule.sol";
-import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
-import {PortfolioLens} from "src/lens/PortfolioLens.sol";
-import {SuperPoolFactory} from "src/SuperPoolFactory.sol";
-import {SuperPool} from "src/SuperPool.sol";
-import {Action, Operation, PositionManager} from "src/PositionManager.sol";
+import { Pool } from "src/Pool.sol";
+import { Registry } from "src/Registry.sol";
+import { Position } from "src/Position.sol";
+import { PositionManager } from "src/PositionManager.sol";
+import { RiskEngine } from "src/RiskEngine.sol";
+import { RiskModule } from "src/RiskModule.sol";
+import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
+import { PortfolioLens } from "src/lens/PortfolioLens.sol";
+import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
+import { SuperPool } from "src/SuperPool.sol";
+import { Action, Operation, PositionManager } from "src/PositionManager.sol";
 
-import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
-import {FixedRateModel} from "../src/irm/FixedRateModel.sol";
-import {LinearRateModel} from "../src/irm/LinearRateModel.sol";
+import { FixedRateModel } from "../src/irm/FixedRateModel.sol";
+import { LinearRateModel } from "../src/irm/LinearRateModel.sol";
 
-import {MockERC20} from "./mocks/MockERC20.sol";
+import { MockERC20 } from "./mocks/MockERC20.sol";
 
-import {Test} from "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 
 contract BaseTest is Test {
     address public proxyAdmin;
@@ -55,19 +55,15 @@ contract BaseTest is Test {
     uint256 public alternateAssetPool;
 
     // keccak(SENTIMENT_POSITION_MANAGER_KEY)
-    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
-        0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
+    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY = 0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
     // keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
     // keccak(SENTIMENT_RISK_ENGINE_KEY)
-    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
-        0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
+    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY = 0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
     // keccak(SENIMENT_POSITION_BEACON_KEY)
-    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
-        0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
+    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY = 0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
     // keccak(SENTIMENT_RISK_MODULE_KEY)
-    bytes32 public constant SENTIMENT_RISK_MODULE_KEY =
-        0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
+    bytes32 public constant SENTIMENT_RISK_MODULE_KEY = 0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
 
     struct DeployParams {
         address owner;
@@ -84,10 +80,10 @@ contract BaseTest is Test {
             owner: protocolOwner,
             feeRecipient: address(this),
             minLtv: 0,
-            maxLtv: 115792089237316195423570985008687907853269984665640564039457584007913129639935,
+            maxLtv: 115_792_089_237_316_195_423_570_985_008_687_907_853_269_984_665_640_564_039_457_584_007_913_129_639_935,
             minDebt: 0.03 ether,
             liquidationFee: 0,
-            liquidationDiscount: 200000000000000000
+            liquidationDiscount: 200_000_000_000_000_000
         });
 
         // registry
@@ -108,8 +104,7 @@ contract BaseTest is Test {
 
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl
-        positionManager =
-            PositionManager(address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0)))); // setup proxy
+        positionManager = PositionManager(address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0)))); // setup proxy
         PositionManager(positionManager).initialize(address(registry), params.liquidationFee);
 
         // position
@@ -159,31 +154,31 @@ contract BaseTest is Test {
     function newPosition(address owner, bytes32 salt) internal view returns (address, Action memory) {
         bytes memory data = abi.encode(owner, salt);
         (address position,) = portfolioLens.predictAddress(owner, salt);
-        Action memory action = Action({op: Operation.NewPosition, data: data});
+        Action memory action = Action({ op: Operation.NewPosition, data: data });
         return (position, action);
     }
 
     function deposit(address asset, uint256 amt) internal pure returns (Action memory) {
         bytes memory data = abi.encode(asset, amt);
-        Action memory action = Action({op: Operation.Deposit, data: data});
+        Action memory action = Action({ op: Operation.Deposit, data: data });
         return action;
     }
 
     function addToken(address asset) internal pure returns (Action memory) {
         bytes memory data = abi.encode(asset);
-        Action memory action = Action({op: Operation.AddToken, data: data});
+        Action memory action = Action({ op: Operation.AddToken, data: data });
         return action;
     }
 
     function removeToken(address asset) internal pure returns (Action memory) {
         bytes memory data = abi.encode(asset);
-        Action memory action = Action({op: Operation.RemoveToken, data: data});
+        Action memory action = Action({ op: Operation.RemoveToken, data: data });
         return action;
     }
 
     function borrow(uint256 poolId, uint256 amt) internal pure returns (Action memory) {
         bytes memory data = abi.encode(poolId, amt);
-        Action memory action = Action({op: Operation.Borrow, data: data});
+        Action memory action = Action({ op: Operation.Borrow, data: data });
         return action;
     }
 }

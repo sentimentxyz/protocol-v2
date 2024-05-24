@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
-import {RiskEngine} from "src/RiskEngine.sol";
+import { RiskEngine } from "src/RiskEngine.sol";
 
 contract SetOracle is BaseScript {
     address asset;

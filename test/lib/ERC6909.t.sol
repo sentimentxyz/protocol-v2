@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Test} from "forge-std/Test.sol";
-import {ERC6909} from "src/lib/ERC6909.sol";
+import { Test } from "forge-std/Test.sol";
+import { ERC6909 } from "src/lib/ERC6909.sol";
 
 contract MockERC6909 is ERC6909 {
     function mint(address receiver, uint256 id, uint256 amount) public {
@@ -193,9 +193,7 @@ contract ERC6909Test is Test {
         assertEq(token.allowance(address(this), spender, id), amount);
     }
 
-    function testTransfer(address sender, address receiver, uint256 id, uint256 mintAmount, uint256 transferAmount)
-        public
-    {
+    function testTransfer(address sender, address receiver, uint256 id, uint256 mintAmount, uint256 transferAmount) public {
         transferAmount = bound(transferAmount, 0, mintAmount);
 
         token.mint(sender, id, mintAmount);
@@ -211,13 +209,7 @@ contract ERC6909Test is Test {
         }
     }
 
-    function testTransferFromWithApproval(
-        address sender,
-        address receiver,
-        uint256 id,
-        uint256 mintAmount,
-        uint256 transferAmount
-    ) public {
+    function testTransferFromWithApproval(address sender, address receiver, uint256 id, uint256 mintAmount, uint256 transferAmount) public {
         transferAmount = bound(transferAmount, 0, mintAmount);
 
         token.mint(sender, id, mintAmount);
@@ -241,13 +233,7 @@ contract ERC6909Test is Test {
         }
     }
 
-    function testTransferFromWithInfiniteApproval(
-        address sender,
-        address receiver,
-        uint256 id,
-        uint256 mintAmount,
-        uint256 transferAmount
-    ) public {
+    function testTransferFromWithInfiniteApproval(address sender, address receiver, uint256 id, uint256 mintAmount, uint256 transferAmount) public {
         transferAmount = bound(transferAmount, 0, mintAmount);
 
         token.mint(sender, id, mintAmount);
@@ -267,13 +253,7 @@ contract ERC6909Test is Test {
         }
     }
 
-    function testTransferFromAsOperator(
-        address sender,
-        address receiver,
-        uint256 id,
-        uint256 mintAmount,
-        uint256 transferAmount
-    ) public {
+    function testTransferFromAsOperator(address sender, address receiver, uint256 id, uint256 mintAmount, uint256 transferAmount) public {
         transferAmount = bound(transferAmount, 0, mintAmount);
 
         token.mint(sender, id, mintAmount);
@@ -313,18 +293,14 @@ contract ERC6909Test is Test {
         token.transfer(receiver, id, overflowAmount);
     }
 
-    function testFailTransferFromBalanceUnderflow(address sender, address receiver, uint256 id, uint256 amount)
-        public
-    {
+    function testFailTransferFromBalanceUnderflow(address sender, address receiver, uint256 id, uint256 amount) public {
         amount = bound(amount, 1, type(uint256).max);
 
         vm.prank(sender);
         token.transferFrom(sender, receiver, id, amount);
     }
 
-    function testNegativeTransferFromBalanceOverflow(address sender, address receiver, uint256 id, uint256 amount)
-        public
-    {
+    function testNegativeTransferFromBalanceOverflow(address sender, address receiver, uint256 id, uint256 amount) public {
         amount = bound(amount, 1, type(uint256).max);
         uint256 overflowAmount = type(uint256).max - amount + 1;
 
@@ -333,7 +309,7 @@ contract ERC6909Test is Test {
         vm.prank(sender);
         token.transferFrom(sender, receiver, id, amount);
 
-        try token.mint(sender, id, overflowAmount) {}
+        try token.mint(sender, id, overflowAmount) { }
         catch {
             return;
         }
@@ -343,9 +319,7 @@ contract ERC6909Test is Test {
         token.transferFrom(sender, receiver, id, overflowAmount);
     }
 
-    function testNegativeTransferFromNotAuthorized(address sender, address receiver, uint256 id, uint256 amount)
-        public
-    {
+    function testNegativeTransferFromNotAuthorized(address sender, address receiver, uint256 id, uint256 amount) public {
         amount = bound(amount, 1, type(uint256).max);
 
         token.mint(sender, id, amount);

@@ -10,9 +10,7 @@ contract SuperPoolUnitTests is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        superPool = SuperPool(
-            superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test")
-        );
+        superPool = SuperPool(superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test"));
     }
 
     function testInitSuperPoolFactory() public {
@@ -21,8 +19,7 @@ contract SuperPoolUnitTests is BaseTest {
     }
 
     function testInitSuperPool() public {
-        SuperPool randomPoolRaw =
-            new SuperPool(address(pool), address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test");
+        SuperPool randomPoolRaw = new SuperPool(address(pool), address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test");
 
         assertEq(address(randomPoolRaw.asset()), address(asset1));
         assertEq(randomPoolRaw.feeRecipient(), feeTo);
@@ -64,15 +61,13 @@ contract SuperPoolUnitTests is BaseTest {
 
         for (uint256 i; i < 7; i++) {
             address linearRateModel = address(new LinearRateModel(2e18, 3e18));
-            uint256 linearPool =
-                pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);
+            uint256 linearPool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);
 
             superPool.setPoolCap(linearPool, 50 ether);
         }
 
         address newLinearModel = address(new LinearRateModel(2e18, 3e18));
-        uint256 lastLinearPool =
-            pool.initializePool(poolOwner, address(asset1), newLinearModel, 0, 0, type(uint128).max);
+        uint256 lastLinearPool = pool.initializePool(poolOwner, address(asset1), newLinearModel, 0, 0, type(uint128).max);
 
         // Test call reverts when adding too many pools
         vm.expectRevert();
@@ -152,6 +147,9 @@ contract SuperPoolUnitTests is BaseTest {
         vm.startPrank(user);
         vm.expectRevert(abi.encodeWithSelector(SuperPool.SuperPool_ZeroShareDeposit.selector, address(superPool)));
         superPool.deposit(0, user);
+
+        vm.expectRevert(abi.encodeWithSelector(SuperPool.SuperPool_ZeroAssetDeposit.selector, address(superPool)));
+        superPool.mint(0, user);
     }
 
     function testWithdrawalScenarios() public {

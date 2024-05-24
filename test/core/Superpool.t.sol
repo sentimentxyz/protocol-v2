@@ -418,7 +418,7 @@ contract SuperPoolUnitTests is BaseTest {
         SuperPool.ReallocateParams[] memory reAllocateDeposits = new SuperPool.ReallocateParams[](1);
         SuperPool.ReallocateParams[] memory reAllocateWithdrawals = new SuperPool.ReallocateParams[](1);
 
-        superPool.accrueInterestAndFees();
+        superPool.accrue();
 
         reAllocateDeposits[0] = (SuperPool.ReallocateParams(fixedRatePool, 10 ether));
         reAllocateWithdrawals[0] = (SuperPool.ReallocateParams(linearRatePool, 10 ether));
@@ -547,7 +547,7 @@ contract SuperPoolUnitTests is BaseTest {
         Pool(pool).repay(linearRatePool, user, borrowsOwed);
         vm.stopPrank();
 
-        superPool.accrueInterestAndFees();
+        superPool.accrue();
 
         vm.startPrank(user);
         vm.expectRevert(); // Not enough liquidity

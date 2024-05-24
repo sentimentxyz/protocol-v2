@@ -13,6 +13,10 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ERC6909} from "./lib/ERC6909.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
+/// @title RiskModule
+/// @author ruvaag <https://github.com/ruvaag>
+/// @author 0xSnarks <https://github.com/nhtyy>
+/// @author CopyPaste <https://github.com/ControlCplusControlV>
 contract Pool is OwnableUpgradeable, ERC6909 {
     using Math for uint256;
     using SafeERC20 for IERC20;
@@ -114,9 +118,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         registry = registry_;
         feeRecipient = feeRecipient_;
+        updateFromRegistry();
     }
 
-    function updateFromRegistry() external {
+    function updateFromRegistry() public {
         positionManager = Registry(registry).addressFor(SENTIMENT_POSITION_MANAGER_KEY);
     }
 
@@ -124,22 +129,33 @@ contract Pool is OwnableUpgradeable, ERC6909 {
                         Public View Functions
     //////////////////////////////////////////////////////////////*/
 
+    function getLiquidityOf(uint256 poolId) public view returns (uint256) {
+        uint256 pendingInterest = simulateAccrue(poolId);
+        return poolDataFor[poolId].totalAssets.assets + pendingInterest - poolDataFor[poolId].totalBorrows.assets;
+    }
+
     function getAssetsOf(uint256 poolId, address guy) public view returns (uint256 assets) {
+        uint256 pendingInterest = simulateAccrue(poolId);
         Uint128Pair memory totalAssets = poolDataFor[poolId].totalAssets;
+        totalAssets.assets += uint128(pendingInterest);
         assets = convertToAssets(totalAssets, balanceOf[guy][poolId]);
     }
 
     function getBorrowsOf(uint256 poolId, address position) public view returns (uint256 borrows) {
+        uint256 pendingInterest = simulateAccrue(poolId);
         Uint128Pair memory totalBorrows = poolDataFor[poolId].totalBorrows;
+        totalBorrows.assets += uint128(pendingInterest);
         borrows = convertToAssets(totalBorrows, borrowSharesOf[poolId][position]);
     }
 
     function getTotalAssets(uint256 poolId) public view returns (uint256) {
-        return poolDataFor[poolId].totalAssets.assets;
+        uint256 pendingInterest = simulateAccrue(poolId);
+        return poolDataFor[poolId].totalAssets.assets + pendingInterest;
     }
 
     function getTotalBorrows(uint256 poolId) public view returns (uint256) {
-        return poolDataFor[poolId].totalBorrows.assets;
+        uint256 pendingInterest = simulateAccrue(poolId);
+        return poolDataFor[poolId].totalBorrows.assets + pendingInterest;
     }
 
     function getRateModelFor(uint256 poolId) public view returns (address) {
@@ -224,6 +240,13 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     function accrue(uint256 id) external {
         PoolData storage pool = poolDataFor[id];
         accrue(pool, id);
+    }
+
+    function simulateAccrue(uint256 id) internal view returns (uint256 interestAccrued) {
+        PoolData storage pool = poolDataFor[id];
+        return IRateModel(pool.rateModel).interestAccrued(
+            pool.lastUpdated, pool.totalBorrows.assets, pool.totalAssets.assets
+        );
     }
 
     /// @notice update pool state to accrue interest since the last time accrue() was called

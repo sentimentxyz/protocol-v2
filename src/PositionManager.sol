@@ -70,6 +70,8 @@ struct Action {
                         Position Manager
 //////////////////////////////////////////////////////////////*/
 
+/// @title PositionManager
+/// @notice Handles the deployment and actual use of Positions against the Singleton Pool Contract
 contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     using Math for uint256;
     using SafeERC20 for IERC20;

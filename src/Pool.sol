@@ -228,7 +228,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
     /// @notice update pool state to accrue interest since the last time accrue() was called
     function accrue(PoolData storage pool, uint256 id) internal {
-        uint256 interestAccrued = IRateModel(pool.rateModel).interestAccrued(
+        uint256 interestAccrued = IRateModel(pool.rateModel).getInterestAccrued(
             pool.lastUpdated, pool.totalBorrows.assets, pool.totalAssets.assets
         );
 

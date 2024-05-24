@@ -6,7 +6,7 @@ pragma solidity ^0.8.24;
 //////////////////////////////////////////////////////////////*/
 
 // contracts
-import {SuperPool} from "./SuperPool.sol";
+import { SuperPool } from "./SuperPool.sol";
 
 /*//////////////////////////////////////////////////////////////
                         SuperPoolFactory
@@ -47,7 +47,10 @@ contract SuperPoolFactory {
         uint256 superPoolCap,
         string calldata name,
         string calldata symbol
-    ) external returns (address) {
+    )
+        external
+        returns (address)
+    {
         // deploy a new superpool as a transparent proxy pointing to the impl for this factory
         SuperPool superPool = new SuperPool(POOL, asset, feeRecipient, fee, superPoolCap, name, symbol);
 

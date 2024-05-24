@@ -2,15 +2,15 @@
 pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
-import {FixedRateModel} from "../../src/irm/FixedRateModel.sol";
-import {LinearRateModel} from "../../src/irm/LinearRateModel.sol";
-import {IOracle} from "src/interfaces/IOracle.sol";
+import { FixedRateModel } from "../../src/irm/FixedRateModel.sol";
+import { LinearRateModel } from "../../src/irm/LinearRateModel.sol";
+import { IOracle } from "src/interfaces/IOracle.sol";
 
-import {Action, Operation} from "src/PositionManager.sol";
+import { Action, Operation } from "src/PositionManager.sol";
 
-import {MockERC20} from "../mocks/MockERC20.sol";
-import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { MockERC20 } from "../mocks/MockERC20.sol";
+import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract PositionManagerUnitTests is BaseTest {
     address public position;
@@ -26,17 +26,17 @@ contract PositionManagerUnitTests is BaseTest {
         riskEngine.setOracle(address(asset2), address(asset2Oracle));
         vm.stopPrank();
 
-        asset1.mint(address(this), 10000 ether);
-        asset1.approve(address(pool), 10000 ether);
+        asset1.mint(address(this), 10_000 ether);
+        asset1.approve(address(pool), 10_000 ether);
 
-        pool.deposit(linearRatePool, 10000 ether, address(0x9));
+        pool.deposit(linearRatePool, 10_000 ether, address(0x9));
 
-        bytes32 salt = bytes32(uint256(3492932942));
+        bytes32 salt = bytes32(uint256(3_492_932_942));
         bytes memory data = abi.encode(positionOwner, salt);
 
         (position,) = portfolioLens.predictAddress(positionOwner, salt);
 
-        Action memory action = Action({op: Operation.NewPosition, data: data});
+        Action memory action = Action({ op: Operation.NewPosition, data: data });
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -74,12 +74,12 @@ contract PositionManagerUnitTests is BaseTest {
     }
 
     function testInitializePosition() public {
-        bytes32 salt = bytes32(uint256(43534853));
+        bytes32 salt = bytes32(uint256(43_534_853));
         bytes memory data = abi.encode(positionOwner, salt);
 
         (address expectedAddress,) = portfolioLens.predictAddress(positionOwner, salt);
 
-        Action memory action = Action({op: Operation.NewPosition, data: data});
+        Action memory action = Action({ op: Operation.NewPosition, data: data });
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -95,9 +95,9 @@ contract PositionManagerUnitTests is BaseTest {
     }
 
     function testInitializeIncorrectPosition() public {
-        bytes32 salt = bytes32(uint256(43534853));
+        bytes32 salt = bytes32(uint256(43_534_853));
         bytes memory data = abi.encode(positionOwner, salt);
-        Action memory action = Action({op: Operation.NewPosition, data: data});
+        Action memory action = Action({ op: Operation.NewPosition, data: data });
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -112,7 +112,7 @@ contract PositionManagerUnitTests is BaseTest {
     function testAddAndRemoveCollateralTypes() public {
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(address(asset2));
-        Action memory action = Action({op: Operation.AddToken, data: data});
+        Action memory action = Action({ op: Operation.AddToken, data: data });
 
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -122,7 +122,7 @@ contract PositionManagerUnitTests is BaseTest {
         assertEq(Position(position).getPositionAssets().length, 1);
         assertEq(Position(position).getPositionAssets()[0], address(asset2));
 
-        Action memory action2 = Action({op: Operation.RemoveToken, data: data});
+        Action memory action2 = Action({ op: Operation.RemoveToken, data: data });
 
         Action[] memory actions2 = new Action[](1);
         actions2[0] = action2;
@@ -145,9 +145,7 @@ contract PositionManagerUnitTests is BaseTest {
         PositionManager(positionManager).processBatch(position, actions);
 
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = riskEngine.getRiskData(position);
-        assertEq(
-            totalAssetValue, IOracle(riskEngine.getOracleFor(address(asset2))).getValueInEth(address(asset2), amount)
-        );
+        assertEq(totalAssetValue, IOracle(riskEngine.getOracleFor(address(asset2))).getValueInEth(address(asset2), amount));
         assertEq(totalDebtValue, 0);
         assertEq(minReqAssetValue, 0);
         assertEq(asset2.balanceOf(address(position)), amount);
@@ -160,7 +158,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(address(positionOwner), address(asset2), 50 ether);
-        Action memory action = Action({op: Operation.Transfer, data: data});
+        Action memory action = Action({ op: Operation.Transfer, data: data });
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
@@ -191,7 +189,7 @@ contract PositionManagerUnitTests is BaseTest {
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(linearRatePool, 2 ether);
 
-        Action memory action = Action({op: Operation.Borrow, data: data});
+        Action memory action = Action({ op: Operation.Borrow, data: data });
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
@@ -218,11 +216,9 @@ contract PositionManagerUnitTests is BaseTest {
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(linearRatePool, 2 ether);
 
-        Action memory action = Action({op: Operation.Borrow, data: data});
+        Action memory action = Action({ op: Operation.Borrow, data: data });
 
-        vm.expectRevert(
-            abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, linearRatePool, address(asset2))
-        );
+        vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, linearRatePool, address(asset2)));
         PositionManager(positionManager).process(position, action);
     }
 
@@ -244,7 +240,7 @@ contract PositionManagerUnitTests is BaseTest {
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(corruptPool, 2 ether);
 
-        Action memory action = Action({op: Operation.Borrow, data: data});
+        Action memory action = Action({ op: Operation.Borrow, data: data });
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
@@ -258,7 +254,7 @@ contract PositionManagerUnitTests is BaseTest {
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(linearRatePool, 1 ether);
 
-        Action memory action = Action({op: Operation.Repay, data: data});
+        Action memory action = Action({ op: Operation.Repay, data: data });
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
@@ -285,7 +281,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         asset1.mint(position, 5 ether);
 
-        Action memory action = Action({op: Operation.Repay, data: data});
+        Action memory action = Action({ op: Operation.Repay, data: data });
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
@@ -300,7 +296,7 @@ contract PositionManagerUnitTests is BaseTest {
         TestCallContract testContract = new TestCallContract(false);
 
         bytes memory data = abi.encodePacked(address(testContract), bytes4(keccak256("testCall()")));
-        Action memory action = Action({op: Operation.Exec, data: data});
+        Action memory action = Action({ op: Operation.Exec, data: data });
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
@@ -322,7 +318,7 @@ contract PositionManagerUnitTests is BaseTest {
         TestCallContract testContract = new TestCallContract(true);
 
         bytes memory data = abi.encodePacked(address(testContract), bytes4(keccak256("testCall()")));
-        Action memory action = Action({op: Operation.Exec, data: data});
+        Action memory action = Action({ op: Operation.Exec, data: data });
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
@@ -345,7 +341,7 @@ contract PositionManagerUnitTests is BaseTest {
         TestCallContract testContract = new TestCallContract(false);
 
         bytes memory data = abi.encodePacked(address(testContract), bytes4(keccak256("testCall()")));
-        Action memory action = Action({op: Operation.Exec, data: data});
+        Action memory action = Action({ op: Operation.Exec, data: data });
 
         vm.startPrank(positionOwner);
         vm.expectRevert();
@@ -446,7 +442,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(spender, address(asset2), 100 ether);
-        Action memory action = Action({op: Operation.Approve, data: data});
+        Action memory action = Action({ op: Operation.Approve, data: data });
 
         vm.expectRevert();
         PositionManager(positionManager).process(position, action);
@@ -473,7 +469,7 @@ contract PositionManagerUnitTests is BaseTest {
     function testToggleAuth() public {
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(address(asset2));
-        Action memory action = Action({op: Operation.AddToken, data: data});
+        Action memory action = Action({ op: Operation.AddToken, data: data });
 
         PositionManager(positionManager).process(position, action);
 
@@ -482,7 +478,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         vm.startPrank(newOwner);
         data = abi.encode(address(asset1));
-        action = Action({op: Operation.AddToken, data: data});
+        action = Action({ op: Operation.AddToken, data: data });
 
         vm.expectRevert();
         PositionManager(positionManager).process(position, action);
@@ -505,7 +501,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(linearRatePool, 1000 ether);
-        Action memory action = Action({op: Operation.Borrow, data: data});
+        Action memory action = Action({ op: Operation.Borrow, data: data });
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
-import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
+import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract DeployFixedPriceOracle is BaseScript {
     uint256 price;

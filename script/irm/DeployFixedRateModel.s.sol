@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
-import {FixedRateModel} from "src/irm/FixedRateModel.sol";
+import { FixedRateModel } from "src/irm/FixedRateModel.sol";
 
 contract DeployFixedRateModel is BaseScript {
     uint256 rate;

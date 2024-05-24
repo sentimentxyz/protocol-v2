@@ -6,13 +6,13 @@ pragma solidity ^0.8.24;
 //////////////////////////////////////////////////////////////*/
 
 // types
-import {Pool} from "./Pool.sol";
-import {Registry} from "./Registry.sol";
-import {Position} from "./Position.sol";
-import {DebtData, AssetData} from "./PositionManager.sol";
-import {RiskModule} from "./RiskModule.sol";
+import { Pool } from "./Pool.sol";
+import { Registry } from "./Registry.sol";
+import { Position } from "./Position.sol";
+import { DebtData, AssetData } from "./PositionManager.sol";
+import { RiskModule } from "./RiskModule.sol";
 // contracts
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /*//////////////////////////////////////////////////////////////
                             RiskEngine
@@ -27,8 +27,7 @@ contract RiskEngine is Ownable {
     // keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
     // keccak(SENTIMENT_RISK_MODULE_KEY)
-    bytes32 public constant SENTIMENT_RISK_MODULE_KEY =
-        0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
+    bytes32 public constant SENTIMENT_RISK_MODULE_KEY = 0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
 
     struct LtvUpdate {
         uint256 ltv;
@@ -141,8 +140,8 @@ contract RiskEngine is Ownable {
 
         LtvUpdate memory ltvUpdate;
         // only modification and removal of previously set ltvs require a timelock
-        if (ltvFor[poolId][asset] == 0) ltvUpdate = LtvUpdate({ltv: ltv, validAfter: block.timestamp});
-        else ltvUpdate = LtvUpdate({ltv: ltv, validAfter: block.timestamp + TIMELOCK_DURATION});
+        if (ltvFor[poolId][asset] == 0) ltvUpdate = LtvUpdate({ ltv: ltv, validAfter: block.timestamp });
+        else ltvUpdate = LtvUpdate({ ltv: ltv, validAfter: block.timestamp + TIMELOCK_DURATION });
 
         ltvUpdateFor[poolId][asset] = ltvUpdate;
 

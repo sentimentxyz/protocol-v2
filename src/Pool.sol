@@ -2,16 +2,16 @@
 pragma solidity ^0.8.24;
 
 // types
-import {Registry} from "./Registry.sol";
-import {IRateModel} from "./interfaces/IRateModel.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { Registry } from "./Registry.sol";
+import { IRateModel } from "./interfaces/IRateModel.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
-import {ERC6909} from "./lib/ERC6909.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { ERC6909 } from "./lib/ERC6909.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /// @title Pool
 contract Pool is OwnableUpgradeable, ERC6909 {
@@ -51,8 +51,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
 
     // keccak(SENTIMENT_POSITION_MANAGER_KEY)
-    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
-        0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
+    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY = 0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
 
     address public registry;
     address public feeRecipient; // address that receives protocol fees
@@ -80,9 +79,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     event Borrow(address indexed position, address indexed asset, uint256 amount);
     event PoolInitialized(uint256 indexed poolId, address indexed owner, address indexed asset);
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
-    event Withdraw(
-        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
-    );
+    event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
 
     /*//////////////////////////////////////////////////////////////
                                 Errors
@@ -245,9 +242,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     function simulateAccrue(PoolData storage pool) internal view returns (uint256 interestAccrued) {
-        return IRateModel(pool.rateModel).interestAccrued(
-            pool.lastUpdated, pool.totalBorrows.assets, pool.totalAssets.assets
-        );
+        return IRateModel(pool.rateModel).interestAccrued(pool.lastUpdated, pool.totalBorrows.assets, pool.totalAssets.assets);
     }
 
     /// @notice update pool state to accrue interest since the last time accrue() was called
@@ -368,7 +363,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         uint128 interestFee,
         uint128 originationFee,
         uint128 poolCap
-    ) external returns (uint256 poolId) {
+    )
+        external
+        returns (uint256 poolId)
+    {
         poolId = uint256(keccak256(abi.encodePacked(owner, asset, rateModel, interestFee, originationFee)));
 
         if (ownerOf[poolId] != address(0)) revert Pool_PoolAlreadyInitialized(poolId);
@@ -414,8 +412,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
     function requestRateModelUpdate(uint256 poolId, address rateModel) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
-        RateModelUpdate memory rateModelUpdate =
-            RateModelUpdate({rateModel: rateModel, validAfter: block.timestamp + TIMELOCK_DURATION});
+        RateModelUpdate memory rateModelUpdate = RateModelUpdate({ rateModel: rateModel, validAfter: block.timestamp + TIMELOCK_DURATION });
 
         rateModelUpdateFor[poolId] = rateModelUpdate;
 

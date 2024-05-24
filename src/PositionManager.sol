@@ -6,19 +6,19 @@ pragma solidity ^0.8.24;
 //////////////////////////////////////////////////////////////*/
 
 // types
-import {Pool} from "./Pool.sol";
-import {Registry} from "./Registry.sol";
-import {Position} from "./Position.sol";
-import {RiskEngine} from "./RiskEngine.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Pool } from "./Pool.sol";
+import { Registry } from "./Registry.sol";
+import { Position } from "./Position.sol";
+import { RiskEngine } from "./RiskEngine.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
-import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 /*//////////////////////////////////////////////////////////////
                             Structs
@@ -81,11 +81,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     // keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
     // keccak(SENTIMENT_RISK_ENGINE_KEY)
-    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
-        0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
+    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY = 0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
     // keccak(SENIMENT_POSITION_BEACON_KEY)
-    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
-        0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
+    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY = 0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
 
     Registry public registry;
 
@@ -134,12 +132,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     event Repay(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
     event Borrow(address indexed position, address indexed caller, uint256 indexed poolId, uint256 amount);
     event Exec(address indexed position, address indexed caller, address indexed target, bytes4 functionSelector);
-    event Transfer(
-        address indexed position, address indexed caller, address indexed target, address asset, uint256 amount
-    );
-    event Approve(
-        address indexed position, address indexed caller, address indexed spender, address asset, uint256 amount
-    );
+    event Transfer(address indexed position, address indexed caller, address indexed target, address asset, uint256 amount);
+    event Approve(address indexed position, address indexed caller, address indexed spender, address asset, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
                                 Errors
@@ -260,7 +254,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         salt = keccak256(abi.encodePacked(owner, salt));
 
         // create2 a new position as a beacon proxy
-        address position = address(new BeaconProxy{salt: salt}(positionBeacon, ""));
+        address position = address(new BeaconProxy{ salt: salt }(positionBeacon, ""));
 
         // update position owner
         ownerOf[position] = owner;

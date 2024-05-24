@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
-import {ZeroOracle} from "src/oracle/ZeroOracle.sol";
+import { ZeroOracle } from "src/oracle/ZeroOracle.sol";
 
 contract DeployZeroOracle is Script {
     ZeroOracle oracle;

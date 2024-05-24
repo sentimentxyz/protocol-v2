@@ -2,15 +2,15 @@
 pragma solidity ^0.8.24;
 
 // types
-import {Pool} from "./Pool.sol";
-import {Position} from "./Position.sol";
-import {Registry} from "./Registry.sol";
-import {RiskEngine} from "./RiskEngine.sol";
-import {IOracle} from "./interfaces/IOracle.sol";
-import {DebtData, AssetData} from "./PositionManager.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Pool } from "./Pool.sol";
+import { Position } from "./Position.sol";
+import { Registry } from "./Registry.sol";
+import { RiskEngine } from "./RiskEngine.sol";
+import { IOracle } from "./interfaces/IOracle.sol";
+import { DebtData, AssetData } from "./PositionManager.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract RiskModule {
     using Math for uint256;
@@ -20,8 +20,7 @@ contract RiskModule {
     // keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
     // keccak(SENTIMENT_RISK_ENGINE_KEY)
-    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
-        0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
+    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY = 0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
 
     uint256 public immutable MIN_DEBT;
     uint256 public immutable LIQUIDATION_DISCOUNT;
@@ -58,16 +57,13 @@ contract RiskModule {
     }
 
     function getRiskData(address position) public view returns (uint256, uint256, uint256) {
-        (uint256 totalAssetValue, address[] memory positionAssets, uint256[] memory positionAssetWeight) =
-            _getPositionAssetData(position);
+        (uint256 totalAssetValue, address[] memory positionAssets, uint256[] memory positionAssetWeight) = _getPositionAssetData(position);
 
-        (uint256 totalDebtValue, uint256[] memory debtPools, uint256[] memory debtValueForPool) =
-            _getPositionDebtData(position);
+        (uint256 totalDebtValue, uint256[] memory debtPools, uint256[] memory debtValueForPool) = _getPositionDebtData(position);
 
         if (totalDebtValue == 0) return (totalAssetValue, 0, 0);
 
-        uint256 minReqAssetValue =
-            _getMinReqAssetValue(debtPools, debtValueForPool, positionAssets, positionAssetWeight);
+        uint256 minReqAssetValue = _getMinReqAssetValue(debtPools, debtValueForPool, positionAssets, positionAssetWeight);
 
         return (totalAssetValue, totalDebtValue, minReqAssetValue);
     }
@@ -141,11 +137,7 @@ contract RiskModule {
                                Internal
     //////////////////////////////////////////////////////////////*/
 
-    function _getPositionDebtData(address position)
-        internal
-        view
-        returns (uint256, uint256[] memory, uint256[] memory)
-    {
+    function _getPositionDebtData(address position) internal view returns (uint256, uint256[] memory, uint256[] memory) {
         uint256 totalDebtValue;
         uint256[] memory debtPools = Position(position).getDebtPools();
         uint256[] memory debtValueForPool = new uint256[](debtPools.length);
@@ -159,11 +151,7 @@ contract RiskModule {
         return (totalDebtValue, debtPools, debtValueForPool);
     }
 
-    function _getPositionAssetData(address position)
-        internal
-        view
-        returns (uint256, address[] memory, uint256[] memory)
-    {
+    function _getPositionAssetData(address position) internal view returns (uint256, address[] memory, uint256[] memory) {
         uint256 totalAssetValue;
 
         address[] memory positionAssets = Position(position).getPositionAssets();
@@ -192,7 +180,11 @@ contract RiskModule {
         uint256[] memory debtValuleForPool,
         address[] memory positionAssets,
         uint256[] memory wt
-    ) internal view returns (uint256) {
+    )
+        internal
+        view
+        returns (uint256)
+    {
         uint256 minReqAssetValue;
 
         // O(pools.len * positionAssets.len)

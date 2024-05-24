@@ -6,9 +6,9 @@ pragma solidity ^0.8.24;
 //////////////////////////////////////////////////////////////*/
 
 // types
-import {IRateModel} from "../interfaces/IRateModel.sol";
+import { IRateModel } from "../interfaces/IRateModel.sol";
 // libraries
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /*//////////////////////////////////////////////////////////////
                         LinearRateModel
@@ -61,9 +61,7 @@ contract LinearRateModel is IRateModel {
         // rateFactor = time delta * apr / secs_per_year
         // rate is scaled but time delta and seconds_per_year are not scaled, to preserve precision
         // [ROUND] rateFactor is rounded up, in favor of the protocol
-        uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(
-            getInterestRate(borrows, idleAmt), SECONDS_PER_YEAR, Math.Rounding.Ceil
-        );
+        uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(getInterestRate(borrows, idleAmt), SECONDS_PER_YEAR, Math.Rounding.Ceil);
 
         // interest accrued = borrows * rateFactor
         // [ROUND] interest accrued is rounded up, in favor of the protocol

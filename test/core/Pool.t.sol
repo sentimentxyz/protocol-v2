@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract PoolUnitTests is BaseTest {
     function setUp() public override {
@@ -143,9 +143,7 @@ contract PoolUnitTests is BaseTest {
     function testOnlyPositionManagerCanBorrow() public {
         address notPositionManager = makeAddr("notPositionManager");
         vm.startPrank(notPositionManager);
-        vm.expectRevert(
-            abi.encodeWithSelector(Pool.Pool_OnlyPositionManager.selector, linearRatePool, notPositionManager)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPositionManager.selector, linearRatePool, notPositionManager));
         pool.borrow(linearRatePool, notPositionManager, 100 ether);
     }
 
@@ -159,7 +157,7 @@ contract PoolUnitTests is BaseTest {
     }
 
     function testBorrowWorksAsIntended(uint96 _assets) public {
-        vm.assume(_assets > 1_000);
+        vm.assume(_assets > 1000);
         testCanDepositAssets(_assets);
 
         uint256 assets = uint256(_assets);
@@ -176,7 +174,7 @@ contract PoolUnitTests is BaseTest {
     }
 
     function testBorrowPausedPool(uint96 _assets) public {
-        vm.assume(_assets > 1_000);
+        vm.assume(_assets > 1000);
 
         testCanDepositAssets(_assets);
 
@@ -195,8 +193,8 @@ contract PoolUnitTests is BaseTest {
         (,,,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
 
         uint256 time = block.timestamp + 1 days;
-        vm.warp(time + 86400 * 7);
-        vm.roll(block.number + ((86400 * 7) / 2));
+        vm.warp(time + 86_400 * 7);
+        vm.roll(block.number + ((86_400 * 7) / 2));
 
         pool.accrue(linearRatePool);
 
@@ -329,9 +327,7 @@ contract PoolUnitTests is BaseTest {
         (, uint256 validAfter) = pool.rateModelUpdateFor(linearRatePool);
 
         vm.prank(poolOwner);
-        vm.expectRevert(
-            abi.encodeWithSelector(Pool.Pool_TimelockPending.selector, linearRatePool, block.timestamp, validAfter)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_TimelockPending.selector, linearRatePool, block.timestamp, validAfter));
         pool.acceptRateModelUpdate(linearRatePool);
     }
 

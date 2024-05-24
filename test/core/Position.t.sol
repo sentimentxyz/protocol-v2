@@ -3,13 +3,13 @@ pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
 
-import {FixedRateModel} from "../../src/irm/FixedRateModel.sol";
-import {LinearRateModel} from "../../src/irm/LinearRateModel.sol";
+import { FixedRateModel } from "../../src/irm/FixedRateModel.sol";
+import { LinearRateModel } from "../../src/irm/LinearRateModel.sol";
 
-import {Action, Operation} from "src/PositionManager.sol";
+import { Action, Operation } from "src/PositionManager.sol";
 
-import {MockERC20} from "../mocks/MockERC20.sol";
-import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
+import { MockERC20 } from "../mocks/MockERC20.sol";
+import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract PositionUnitTests is BaseTest {
     address public position;
@@ -25,13 +25,13 @@ contract PositionUnitTests is BaseTest {
         riskEngine.setOracle(address(asset2), address(asset2Oracle));
         vm.stopPrank();
 
-        asset1.mint(address(this), 10000 ether);
-        asset1.approve(address(pool), 10000 ether);
+        asset1.mint(address(this), 10_000 ether);
+        asset1.approve(address(pool), 10_000 ether);
 
-        pool.deposit(linearRatePool, 10000 ether, address(0x9));
+        pool.deposit(linearRatePool, 10_000 ether, address(0x9));
 
         Action[] memory actions = new Action[](1);
-        (position, actions[0]) = newPosition(positionOwner, bytes32(uint256(3492932942)));
+        (position, actions[0]) = newPosition(positionOwner, bytes32(uint256(3_492_932_942)));
         PositionManager(positionManager).processBatch(position, actions);
 
         vm.startPrank(poolOwner);
@@ -58,19 +58,19 @@ contract PositionUnitTests is BaseTest {
         vm.startPrank(hacker);
 
         vm.expectRevert();
-        Position(position).approve(address(asset2), hacker, 10000 ether);
+        Position(position).approve(address(asset2), hacker, 10_000 ether);
 
         // So the call doesn't revert for a lack of balance
-        asset2.mint(address(position), 10000 ether);
+        asset2.mint(address(position), 10_000 ether);
 
         vm.expectRevert();
-        Position(position).transfer(address(asset2), hacker, 10000 ether);
+        Position(position).transfer(address(asset2), hacker, 10_000 ether);
 
         vm.expectRevert();
-        Position(position).borrow(linearRatePool, 10000 ether);
+        Position(position).borrow(linearRatePool, 10_000 ether);
 
         vm.expectRevert();
-        Position(position).repay(linearRatePool, 10000 ether);
+        Position(position).repay(linearRatePool, 10_000 ether);
 
         vm.expectRevert();
         Position(position).addCollateralType(address(asset2));
@@ -93,10 +93,10 @@ contract PositionUnitTests is BaseTest {
         Position(position).addCollateralType(address(vm.addr(6)));
 
         for (uint256 i = 1; i < 6; i++) {
-            Position(position).borrow(i, 10000 ether);
+            Position(position).borrow(i, 10_000 ether);
         }
 
         vm.expectRevert();
-        Position(position).borrow(6, 10000 ether);
+        Position(position).borrow(6, 10_000 ether);
     }
 }

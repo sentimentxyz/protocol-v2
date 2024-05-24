@@ -48,11 +48,7 @@ contract MockERC20 {
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        uint8 _decimals
-    ) {
+    constructor(string memory _name, string memory _symbol, uint8 _decimals) {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
@@ -65,7 +61,7 @@ contract MockERC20 {
                                ERC20 LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function approve(address spender, uint256 amount) public  returns (bool) {
+    function approve(address spender, uint256 amount) public returns (bool) {
         allowance[msg.sender][spender] = amount;
 
         emit Approval(msg.sender, spender, amount);
@@ -73,7 +69,7 @@ contract MockERC20 {
         return true;
     }
 
-    function transfer(address to, uint256 amount) public  returns (bool) {
+    function transfer(address to, uint256 amount) public returns (bool) {
         balanceOf[msg.sender] -= amount;
 
         // Cannot overflow because the sum of all user
@@ -87,11 +83,7 @@ contract MockERC20 {
         return true;
     }
 
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) public  returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) public returns (bool) {
         uint256 allowed = allowance[from][msg.sender]; // Saves gas for limited approvals.
 
         if (allowed != type(uint256).max) allowance[from][msg.sender] = allowed - amount;
@@ -113,15 +105,7 @@ contract MockERC20 {
                              EIP-2612 LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function permit(
-        address owner,
-        address spender,
-        uint256 value,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) public  {
+    function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) public {
         require(deadline >= block.timestamp, "PERMIT_DEADLINE_EXPIRED");
 
         // Unchecked because the only math done is incrementing
@@ -134,9 +118,7 @@ contract MockERC20 {
                         DOMAIN_SEPARATOR(),
                         keccak256(
                             abi.encode(
-                                keccak256(
-                                    "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
-                                ),
+                                keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
                                 owner,
                                 spender,
                                 value,
@@ -159,28 +141,27 @@ contract MockERC20 {
         emit Approval(owner, spender, value);
     }
 
-    function DOMAIN_SEPARATOR() public view  returns (bytes32) {
+    function DOMAIN_SEPARATOR() public view returns (bytes32) {
         return block.chainid == INITIAL_CHAIN_ID ? INITIAL_DOMAIN_SEPARATOR : computeDomainSeparator();
     }
 
-    function computeDomainSeparator() internal view  returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                    keccak256(bytes(name)),
-                    keccak256("1"),
-                    block.chainid,
-                    address(this)
-                )
-            );
+    function computeDomainSeparator() internal view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes(name)),
+                keccak256("1"),
+                block.chainid,
+                address(this)
+            )
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
                         TEST MINT/BURN LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function mint(address to, uint256 amount) public  {
+    function mint(address to, uint256 amount) public {
         totalSupply += amount;
 
         // Cannot overflow because the sum of all user
@@ -192,7 +173,7 @@ contract MockERC20 {
         emit Transfer(address(0), to, amount);
     }
 
-    function burn(address from, uint256 amount) public  {
+    function burn(address from, uint256 amount) public {
         balanceOf[from] -= amount;
 
         // Cannot underflow because a user's balance

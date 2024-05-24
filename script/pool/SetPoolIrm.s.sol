@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
-import {Pool} from "src/Pool.sol";
+import { Pool } from "src/Pool.sol";
 
 contract SetPoolIrm is BaseScript {
     address pool;

@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
+/// @title Registry
 contract Registry is Ownable {
     event AddressSet(bytes32 indexed key, address addr);
 

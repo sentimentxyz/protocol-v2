@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
-import {ChainlinkEthOracle} from "src/oracle/ChainlinkEthOracle.sol";
+import { ChainlinkEthOracle } from "src/oracle/ChainlinkEthOracle.sol";
 
 contract SetClEthFeed is BaseScript {
     address feed;

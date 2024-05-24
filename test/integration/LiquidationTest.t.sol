@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {BaseTest} from "../BaseTest.t.sol";
-import {PositionManager} from "src/PositionManager.sol";
-import {RiskModule} from "src/RiskModule.sol";
-import {DebtData, AssetData, Action} from "src/PositionManager.sol";
-import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
+import { BaseTest } from "../BaseTest.t.sol";
+import { PositionManager } from "src/PositionManager.sol";
+import { RiskModule } from "src/RiskModule.sol";
+import { DebtData, AssetData, Action } from "src/PositionManager.sol";
+import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract LiquidationTest is BaseTest {
     address public position;
@@ -60,11 +60,11 @@ contract LiquidationTest is BaseTest {
         assertEq(minReqAssetValue, 2e18);
 
         // construct liquidator data
-        DebtData memory debtData = DebtData({poolId: fixedRatePool, amt: 1e18});
+        DebtData memory debtData = DebtData({ poolId: fixedRatePool, amt: 1e18 });
         DebtData[] memory debts = new DebtData[](1);
         debts[0] = debtData;
-        AssetData memory asset1Data = AssetData({asset: address(asset1), amt: 1e18});
-        AssetData memory asset2Data = AssetData({asset: address(asset2), amt: 1e18});
+        AssetData memory asset1Data = AssetData({ asset: address(asset1), amt: 1e18 });
+        AssetData memory asset2Data = AssetData({ asset: address(asset2), amt: 1e18 });
         AssetData[] memory assets = new AssetData[](2);
         assets[0] = asset1Data;
         assets[1] = asset2Data;
@@ -73,9 +73,7 @@ contract LiquidationTest is BaseTest {
         asset1.mint(liquidator, 10e18);
         vm.startPrank(liquidator);
         asset1.approve(address(positionManager), 1e18);
-        vm.expectRevert(
-            abi.encodeWithSelector(PositionManager.PositionManager_LiquidateHealthyPosition.selector, position)
-        );
+        vm.expectRevert(abi.encodeWithSelector(PositionManager.PositionManager_LiquidateHealthyPosition.selector, position));
         positionManager.liquidate(position, debts, assets);
         vm.stopPrank();
 
@@ -120,11 +118,11 @@ contract LiquidationTest is BaseTest {
         assertFalse(riskEngine.isPositionHealthy(position));
 
         // construct liquidator data
-        DebtData memory debtData = DebtData({poolId: fixedRatePool, amt: 0.1e18});
+        DebtData memory debtData = DebtData({ poolId: fixedRatePool, amt: 0.1e18 });
         DebtData[] memory debts = new DebtData[](1);
         debts[0] = debtData;
-        AssetData memory asset1Data = AssetData({asset: address(asset1), amt: 1e18});
-        AssetData memory asset2Data = AssetData({asset: address(asset2), amt: 1e18});
+        AssetData memory asset1Data = AssetData({ asset: address(asset1), amt: 1e18 });
+        AssetData memory asset2Data = AssetData({ asset: address(asset2), amt: 1e18 });
         AssetData[] memory assets = new AssetData[](2);
         assets[0] = asset1Data;
         assets[1] = asset2Data;

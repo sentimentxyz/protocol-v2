@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
-import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
+import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
 
 contract SuperPoolData is BaseScript {
     function run() public view {

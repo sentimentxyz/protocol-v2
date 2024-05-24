@@ -2,11 +2,11 @@
 pragma solidity ^0.8.24;
 
 // types
-import {Pool} from "./Pool.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Pool } from "./Pool.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
-import {IterableSet} from "./lib/IterableSet.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IterableSet } from "./lib/IterableSet.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract Position {
     using SafeERC20 for IERC20;

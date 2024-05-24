@@ -2,17 +2,17 @@
 pragma solidity ^0.8.24;
 
 // types
-import {Pool} from "./Pool.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { Pool } from "./Pool.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
-import {IterableSet} from "./lib/IterableSet.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IterableSet } from "./lib/IterableSet.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // contracts
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 
 // inspired by yearn v3 and metamorpho vaults
 contract SuperPool is Ownable, Pausable, ERC20 {
@@ -55,9 +55,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     event AllocatorUpdated(address allocator, bool isAllocator);
 
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
-    event Withdraw(
-        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
-    );
+    event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
 
     /*//////////////////////////////////////////////////////////////
                                 Error
@@ -84,7 +82,10 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         uint256 superPoolCap_,
         string memory name_,
         string memory symbol_
-    ) Ownable(msg.sender) ERC20(name_, symbol_) {
+    )
+        Ownable(msg.sender)
+        ERC20(name_, symbol_)
+    {
         asset = IERC20(asset_);
         pool = Pool(pool_);
 
@@ -384,7 +385,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                     // TODO replace with withdraw logic
                     try pool.redeem(poolId, withdrawAmt, address(this), address(this)) {
                         assets -= withdrawAmt;
-                    } catch {}
+                    } catch { }
                 }
 
                 if (assets == 0) return;
@@ -413,11 +414,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         emit PoolRemoved(poolId);
     }
 
-    function _reorderQueue(uint256[] storage queue, uint256[] calldata indexes)
-        internal
-        view
-        returns (uint256[] memory)
-    {
+    function _reorderQueue(uint256[] storage queue, uint256[] calldata indexes) internal view returns (uint256[] memory) {
         uint256[] memory newQueue = new uint256[](indexes.length);
 
         for (uint256 i; i < indexes.length; ++i) {

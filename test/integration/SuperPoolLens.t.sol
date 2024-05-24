@@ -2,9 +2,9 @@
 pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
-import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
-import {FixedPriceOracle} from "src/oracle/FixedPriceOracle.sol";
-import {console2} from "forge-std/console2.sol";
+import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
+import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract SuperPoolLensTests is BaseTest {
     SuperPool public superPool1;
@@ -23,14 +23,10 @@ contract SuperPoolLensTests is BaseTest {
         riskEngine.setOracle(address(asset2), address(oneEthOracle)); // 1 asset2 = 1 eth
         vm.stopPrank();
 
-        superPool1 = SuperPool(
-            superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "TEST1", "TEST1")
-        );
+        superPool1 = SuperPool(superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "TEST1", "TEST1"));
         superPoolList.push(address(superPool1));
 
-        superPool2 = SuperPool(
-            superPoolFactory.deploy(poolOwner, address(asset2), feeTo, 0.01 ether, 1_000_000 ether, "TEST2", "TEST2")
-        );
+        superPool2 = SuperPool(superPoolFactory.deploy(poolOwner, address(asset2), feeTo, 0.01 ether, 1_000_000 ether, "TEST2", "TEST2"));
         superPoolList.push(address(superPool2));
 
         vm.startPrank(poolOwner);
@@ -93,8 +89,7 @@ contract SuperPoolLensTests is BaseTest {
     }
 
     function testPoolDepositData() public view {
-        SuperPoolLens.PoolDepositData memory poolDepositData =
-            superPoolLens.getPoolDepositData(address(superPool1), fixedRatePool);
+        SuperPoolLens.PoolDepositData memory poolDepositData = superPoolLens.getPoolDepositData(address(superPool1), fixedRatePool);
 
         assertEq(poolDepositData.asset, address(asset1));
         assertEq(poolDepositData.poolId, fixedRatePool);
@@ -104,8 +99,7 @@ contract SuperPoolLensTests is BaseTest {
     }
 
     function testSuperPoolDepositData() public view {
-        SuperPoolLens.SuperPoolDepositData memory superPoolDepositData =
-            superPoolLens.getSuperPoolDepositData(user, address(superPool1));
+        SuperPoolLens.SuperPoolDepositData memory superPoolDepositData = superPoolLens.getSuperPoolDepositData(user, address(superPool1));
 
         assertEq(superPoolDepositData.owner, user);
         assertEq(superPoolDepositData.asset, address(asset1));
@@ -143,9 +137,7 @@ contract SuperPoolLensTests is BaseTest {
     }
 
     function testEmptySuperPoolInterestRate() public {
-        SuperPool superPool3 = SuperPool(
-            superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "TEST3", "TEST3")
-        );
+        SuperPool superPool3 = SuperPool(superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "TEST3", "TEST3"));
 
         assertEq(superPoolLens.getSuperPoolInterestRate(address(superPool3)), 0);
     }

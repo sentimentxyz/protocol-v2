@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
-import {ChainlinkUsdOracle} from "src/oracle/ChainlinkUsdOracle.sol";
+import { ChainlinkUsdOracle } from "src/oracle/ChainlinkUsdOracle.sol";
 
 contract DeployChainlinkUsdOracle is BaseScript {
     address owner;

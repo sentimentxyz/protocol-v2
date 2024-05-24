@@ -6,15 +6,15 @@ pragma solidity ^0.8.24;
 //////////////////////////////////////////////////////////////*/
 
 // types
-import {Pool} from "../Pool.sol";
-import {SuperPool} from "../SuperPool.sol";
-import {RiskEngine} from "../RiskEngine.sol";
-import {IOracle} from "src/interfaces/IOracle.sol";
-import {IRateModel} from "../interfaces/IRateModel.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { Pool } from "../Pool.sol";
+import { SuperPool } from "../SuperPool.sol";
+import { RiskEngine } from "../RiskEngine.sol";
+import { IOracle } from "src/interfaces/IOracle.sol";
+import { IRateModel } from "../interfaces/IRateModel.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // libraries
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /*//////////////////////////////////////////////////////////////
                         SuperPoolLens
@@ -113,11 +113,7 @@ contract SuperPoolLens {
                               User View
     //////////////////////////////////////////////////////////////*/
 
-    function getUserDepositData(address user, address[] calldata superPools)
-        public
-        view
-        returns (UserDepositData memory)
-    {
+    function getUserDepositData(address user, address[] calldata superPools) public view returns (UserDepositData memory) {
         SuperPoolDepositData[] memory deposits = new SuperPoolDepositData[](superPools.length);
 
         uint256 totalValueInEth;
@@ -133,22 +129,12 @@ contract SuperPoolLens {
         }
 
         // [ROUND] interestRate is rounded up, in favor of the user
-        uint256 interestRate =
-            (totalValueInEth != 0) ? weightedDeposit.mulDiv(1e18, totalValueInEth, Math.Rounding.Ceil) : 0;
+        uint256 interestRate = (totalValueInEth != 0) ? weightedDeposit.mulDiv(1e18, totalValueInEth, Math.Rounding.Ceil) : 0;
 
-        return UserDepositData({
-            owner: user,
-            deposits: deposits,
-            totalValueInEth: totalValueInEth,
-            interestRate: interestRate
-        });
+        return UserDepositData({ owner: user, deposits: deposits, totalValueInEth: totalValueInEth, interestRate: interestRate });
     }
 
-    function getSuperPoolDepositData(address user, address _superPool)
-        public
-        view
-        returns (SuperPoolDepositData memory)
-    {
+    function getSuperPoolDepositData(address user, address _superPool) public view returns (SuperPoolDepositData memory) {
         SuperPool superPool = SuperPool(_superPool);
         address asset = address(superPool.asset());
         uint256 amount = superPool.previewRedeem(superPool.balanceOf(user));

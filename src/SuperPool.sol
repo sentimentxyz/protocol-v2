@@ -15,10 +15,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 /// @title SuperPool
-/// @author ruvaag <https://github.com/ruvaag>
-/// @author 0xSnarks <https://github.com/nhtyy>
-/// @author CopyPaste <https://github.com/ControlCplusControlV>
-/// @notice A Aggregator of underlying pools on a single interface
+/// @notice Aggregator of underlying pools compliant with ERC4626
 contract SuperPool is Ownable, Pausable, ERC20 {
     using Math for uint256;
     using SafeERC20 for IERC20;
@@ -62,7 +59,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     event SuperPoolCapUpdated(uint256 superPoolCap);
     event SuperPoolFeeRecipientUpdated(address feeRecipient);
     event AllocatorUpdated(address allocator, bool isAllocator);
-
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
     event Withdraw(
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
@@ -131,8 +127,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Accrues interest and fees for the SuperPool
-    function accrueInterestAndFees() public {
-        (uint256 feeShares, uint256 newTotalAssets) = _simulateFeeAccrual();
+    function accrue() public {
+        (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
         if (feeShares != 0) ERC20._mint(feeRecipient, feeShares);
         lastTotalAssets = newTotalAssets;
     }
@@ -193,7 +189,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param receiver The address to receive the shares
     /// @return shares The amount of shares minted
     function deposit(uint256 assets, address receiver) public returns (uint256 shares) {
-        accrueInterestAndFees();
+        accrue();
         shares = convertToShares(assets);
         if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this));
         _deposit(receiver, assets, shares);
@@ -204,7 +200,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param receiver The address to receive the shares
     /// @return assets The amount of assets deposited
     function mint(uint256 shares, address receiver) public returns (uint256 assets) {
-        accrueInterestAndFees();
+        accrue();
         assets = convertToAssets(shares);
         if (assets == 0) revert SuperPool_ZeroAssetDeposit(address(this));
         _deposit(receiver, assets, shares);
@@ -216,7 +212,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param owner The address to withdraw the assets from
     /// @return shares The amount of shares burned
     function withdraw(uint256 assets, address receiver, address owner) public returns (uint256 shares) {
-        accrueInterestAndFees();
+        accrue();
         shares = convertToShares(assets);
         _withdraw(receiver, owner, assets, shares);
     }
@@ -227,7 +223,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param owner The address to redeem the shares from
     /// @return assets The amount of assets redeemed
     function redeem(uint256 shares, address receiver, address owner) public returns (uint256 assets) {
-        accrueInterestAndFees();
+        accrue();
         assets = convertToAssets(shares);
         _withdraw(receiver, owner, assets, shares);
     }
@@ -284,7 +280,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @notice Sets the fee for the SuperPool
     /// @param _fee The fee, out of 1e18, to be taken from interest earned
     function setFee(uint256 _fee) external onlyOwner {
-        accrueInterestAndFees();
+        accrue();
 
         fee = _fee;
 
@@ -302,7 +298,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @notice Sets the address which fees are sent to
     /// @param _feeRecipient The new address to recieve fees
     function setFeeRecipient(address _feeRecipient) external onlyOwner {
-        accrueInterestAndFees();
+        accrue();
 
         feeRecipient = _feeRecipient;
 
@@ -533,7 +529,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
 
     /// @dev Internal function to simulate the accrual of fees
     /// @return (feeShares, newTotalAssets) The amount of shares accrued and the new total assets
-    function _simulateFeeAccrual() internal view returns (uint256, uint256) {
+    function simulateAccrue() internal view returns (uint256, uint256) {
         uint256 newTotalAssets = totalAssets();
         uint256 interestAccrued = (newTotalAssets > lastTotalAssets) ? newTotalAssets - lastTotalAssets : 0;
         if (interestAccrued == 0 || fee == 0) return (0, newTotalAssets);

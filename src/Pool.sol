@@ -13,10 +13,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ERC6909} from "./lib/ERC6909.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-/// @title RiskModule
-/// @author ruvaag <https://github.com/ruvaag>
-/// @author 0xSnarks <https://github.com/nhtyy>
-/// @author CopyPaste <https://github.com/ControlCplusControlV>
+/// @title Pool
 contract Pool is OwnableUpgradeable, ERC6909 {
     using Math for uint256;
     using SafeERC20 for IERC20;
@@ -130,32 +127,37 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     //////////////////////////////////////////////////////////////*/
 
     function getLiquidityOf(uint256 poolId) public view returns (uint256) {
-        uint256 pendingInterest = simulateAccrue(poolId);
-        return poolDataFor[poolId].totalAssets.assets + pendingInterest - poolDataFor[poolId].totalBorrows.assets;
+        PoolData storage pool = poolDataFor[poolId];
+        uint256 pendingInterest = simulateAccrue(pool);
+        return pool.totalAssets.assets + pendingInterest - pool.totalBorrows.assets;
     }
 
     function getAssetsOf(uint256 poolId, address guy) public view returns (uint256 assets) {
-        uint256 pendingInterest = simulateAccrue(poolId);
-        Uint128Pair memory totalAssets = poolDataFor[poolId].totalAssets;
+        PoolData storage pool = poolDataFor[poolId];
+        uint256 pendingInterest = simulateAccrue(pool);
+        Uint128Pair memory totalAssets = pool.totalAssets;
         totalAssets.assets += uint128(pendingInterest);
         assets = convertToAssets(totalAssets, balanceOf[guy][poolId]);
     }
 
     function getBorrowsOf(uint256 poolId, address position) public view returns (uint256 borrows) {
-        uint256 pendingInterest = simulateAccrue(poolId);
-        Uint128Pair memory totalBorrows = poolDataFor[poolId].totalBorrows;
+        PoolData storage pool = poolDataFor[poolId];
+        uint256 pendingInterest = simulateAccrue(pool);
+        Uint128Pair memory totalBorrows = pool.totalBorrows;
         totalBorrows.assets += uint128(pendingInterest);
         borrows = convertToAssets(totalBorrows, borrowSharesOf[poolId][position]);
     }
 
     function getTotalAssets(uint256 poolId) public view returns (uint256) {
-        uint256 pendingInterest = simulateAccrue(poolId);
-        return poolDataFor[poolId].totalAssets.assets + pendingInterest;
+        PoolData storage pool = poolDataFor[poolId];
+        uint256 pendingInterest = simulateAccrue(pool);
+        return pool.totalAssets.assets + pendingInterest;
     }
 
     function getTotalBorrows(uint256 poolId) public view returns (uint256) {
-        uint256 pendingInterest = simulateAccrue(poolId);
-        return poolDataFor[poolId].totalBorrows.assets + pendingInterest;
+        PoolData storage pool = poolDataFor[poolId];
+        uint256 pendingInterest = simulateAccrue(pool);
+        return pool.totalBorrows.assets + pendingInterest;
     }
 
     function getRateModelFor(uint256 poolId) public view returns (address) {
@@ -242,8 +244,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         accrue(pool, id);
     }
 
-    function simulateAccrue(uint256 id) internal view returns (uint256 interestAccrued) {
-        PoolData storage pool = poolDataFor[id];
+    function simulateAccrue(PoolData storage pool) internal view returns (uint256 interestAccrued) {
         return IRateModel(pool.rateModel).interestAccrued(
             pool.lastUpdated, pool.totalBorrows.assets, pool.totalAssets.assets
         );
@@ -251,9 +252,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
     /// @notice update pool state to accrue interest since the last time accrue() was called
     function accrue(PoolData storage pool, uint256 id) internal {
-        uint256 interestAccrued = IRateModel(pool.rateModel).interestAccrued(
-            pool.lastUpdated, pool.totalBorrows.assets, pool.totalAssets.assets
-        );
+        uint256 interestAccrued = simulateAccrue(pool);
 
         if (interestAccrued != 0) {
             // [ROUND] floor fees in favor of pool lenders

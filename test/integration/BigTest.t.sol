@@ -278,7 +278,7 @@ contract BigTest is Test {
 
         // 7. User should have profit from the borrowed amount
         vm.startPrank(user);
-        superPool.accrueInterestAndFees();
+        superPool.accrue();
         assertTrue(superPool.maxWithdraw(user) > initialAmountCanBeWithdrawn);
         vm.stopPrank();
     }

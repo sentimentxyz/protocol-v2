@@ -12,40 +12,65 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // libraries
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
+/// @title RiskModule
 contract RiskModule {
     using Math for uint256;
 
-    uint256 public constant VERSION = 1;
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
 
-    // keccak(SENTIMENT_POOL_KEY)
+    /// @dev keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
-    // keccak(SENTIMENT_RISK_ENGINE_KEY)
+    /// @dev keccak(SENTIMENT_RISK_ENGINE_KEY)
     bytes32 public constant SENTIMENT_RISK_ENGINE_KEY = 0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
-
+    /// @notice The minimum amount of debt that must be held by a position
     uint256 public immutable MIN_DEBT;
+    /// @notice The discount on assets when liquidating, out of 1e18
     uint256 public immutable LIQUIDATION_DISCOUNT;
-
+    /// @notice The updateable registry as a part of the 2step initialization process
     Registry public immutable REGISTRY;
-
+    /// @notice The Singleton Pool Contract
     Pool public pool;
+    /// @notice The risk engine in charge of tracking liquidations
     RiskEngine public riskEngine;
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
 
     error RiskModule_ZeroAssetsWithDebt(address position);
     error RiskModule_UnsupportedAsset(uint256 pool, address asset);
     error RiskModule_DebtTooLow(address position, uint256 debtValue);
     error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
 
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Constructor for Risk Module, which should be registered with the RiskEngine
+    /// @param registry_ The address of the registry contract
+    /// @param minDebt_ The minimum amount of debt that must be held by a position
+    /// @param liquidationDiscount_ The discount on assets when liquidating, out of 1e18
     constructor(address registry_, uint256 minDebt_, uint256 liquidationDiscount_) {
         REGISTRY = Registry(registry_);
         MIN_DEBT = minDebt_;
         LIQUIDATION_DISCOUNT = liquidationDiscount_;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                           EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Updates the pool and risk engine from the registry
     function updateFromRegistry() external {
         pool = Pool(REGISTRY.addressFor(SENTIMENT_POOL_KEY));
         riskEngine = RiskEngine(REGISTRY.addressFor(SENTIMENT_RISK_ENGINE_KEY));
     }
 
+    /// @notice Evaluates if a position is healthy based on the debt and asset values
+    /// @param position The address of the position to evaluate
+    /// @return bool Whether the position can be liquidated
     function isPositionHealthy(address position) external view returns (bool) {
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = getRiskData(position);
 
@@ -56,6 +81,11 @@ contract RiskModule {
         return totalAssetValue >= minReqAssetValue;
     }
 
+    /// @notice Gets the risk data for a position
+    /// @param position The address of the position to get the risk data for
+    /// @return totalAssetValue The total asset value of the position
+    /// @return totalDebtValue The total debt value of the position
+    /// @return minReqAssetValue The minimum required asset value for the position to be healthy
     function getRiskData(address position) public view returns (uint256, uint256, uint256) {
         (uint256 totalAssetValue, address[] memory positionAssets, uint256[] memory positionAssetWeight) = _getPositionAssetData(position);
 
@@ -68,6 +98,9 @@ contract RiskModule {
         return (totalAssetValue, totalDebtValue, minReqAssetValue);
     }
 
+    /// @notice Used by the RiskEngine to verify liquidations are correct
+    /// @param debt The debt data for the position
+    /// @param positionAsset The asset data for the position
     function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata positionAsset) external view {
         uint256 debtRepaidValue;
         for (uint256 i; i < debt.length; ++i) {
@@ -95,12 +128,19 @@ contract RiskModule {
                           Position Debt Math
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Gets the debt value for a pool in ETH
+    /// @param position The address of the position to get the debt value for
+    /// @param poolId The id of the pool to get the debt value for
+    /// @return The debt value for the pool, in Ether
     function getDebtValueForPool(address position, uint256 poolId) public view returns (uint256) {
         address asset = pool.getPoolAssetFor(poolId);
         IOracle oracle = IOracle(riskEngine.getOracleFor(asset));
         return oracle.getValueInEth(asset, pool.getBorrowsOf(poolId, position));
     }
 
+    /// @notice Gets the total debt value for a position in ETH
+    /// @param position The address of the position to get the total debt value for
+    /// @return The total debt value for the position, in ETH
     function getTotalDebtValue(address position) public view returns (uint256) {
         uint256[] memory debtPools = Position(position).getDebtPools();
 

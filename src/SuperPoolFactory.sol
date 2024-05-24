@@ -8,30 +8,34 @@ pragma solidity ^0.8.24;
 // contracts
 import { SuperPool } from "./SuperPool.sol";
 
-/*//////////////////////////////////////////////////////////////
-                        SuperPoolFactory
-//////////////////////////////////////////////////////////////*/
-
+/// @title SuperPoolFactory
+/// @notice Factory for creating SuperPools, which act as aggregators over individual pools
 contract SuperPoolFactory {
     /*//////////////////////////////////////////////////////////////
                                Storage
     //////////////////////////////////////////////////////////////*/
-    // all superpools from this factory point to a single impl
+
+    /// @notice All Pools exist on the Singleton Pool Contract, which is fixed per factory
     address public immutable POOL;
 
     /*//////////////////////////////////////////////////////////////
                                 Events
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice An event for indexing the creation of a new superpool
+    /// @custom:field owner - The owner of the superpool
+    /// @custom:field superPool - The address of the superpool
+    /// @custom:field name - The name of the superpool
+    /// @custom:field symbol - The symbol of the superpool
     event SuperPoolDeployed(address indexed owner, address superPool, string name, string symbol);
 
     /*//////////////////////////////////////////////////////////////
                              Constructor
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Constructor for the SuperPoolFactory
+    /// @param _pool The address of the pool contract
     constructor(address _pool) {
-        // each factory is associated with an immutable superpool impl. initally all instances share
-        // the same implementation but they can be upgraded individually, if needed
         POOL = _pool;
     }
 
@@ -39,6 +43,16 @@ contract SuperPoolFactory {
                           External Functions
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Deploy a new SuperPool
+    /// @param owner Owner of the SuperPool, and tasked with allocation and adjusting Pool Caps
+    /// @param asset The asset to be deposited in the SuperPool
+    /// @param feeRecipient The address to initially receive the fee
+    /// @param fee The fee, out of 1e18, taken from interest earned
+    /// @param superPoolCap The maximum amount of assets that can be deposited in the SuperPool
+    /// @param name The name of the SuperPool
+    /// @param symbol The symbol of the SuperPool
+    ///
+    /// @return newPool The address of the newly deployed SuperPool
     function deploy(
         address owner,
         address asset,
@@ -49,7 +63,7 @@ contract SuperPoolFactory {
         string calldata symbol
     )
         external
-        returns (address)
+        returns (address newPool)
     {
         // deploy a new superpool as a transparent proxy pointing to the impl for this factory
         SuperPool superPool = new SuperPool(POOL, asset, feeRecipient, fee, superPoolCap, name, symbol);

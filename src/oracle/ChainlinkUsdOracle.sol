@@ -73,7 +73,7 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
     }
 
     /// @inheritdoc IOracle
-    function getValueInEth(address asset, uint256 amt) external view returns (uint256) {
+    function getValueInEth(address asset, uint256 amt) external view returns (uint256 valueInEth) {
         _checkSequencerFeed();
 
         uint256 ethUsdPrice = _getPriceWithSanityChecks(ETH);

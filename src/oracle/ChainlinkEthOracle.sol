@@ -66,7 +66,7 @@ contract ChainlinkEthOracle is Ownable, IOracle {
     }
 
     /// @inheritdoc IOracle
-    function getValueInEth(address asset, uint256 amt) external view returns (uint256) {
+    function getValueInEth(address asset, uint256 amt) external view returns (uint256 valueInEth) {
         _checkSequencerFeed();
 
         // [ROUND] price is rounded down. this is used for both debt and asset math, neutral effect.

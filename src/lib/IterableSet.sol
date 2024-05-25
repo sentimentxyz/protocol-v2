@@ -5,181 +5,144 @@ pragma solidity ^0.8.24;
                             IterableSet
 //////////////////////////////////////////////////////////////*/
 
-// custom impl for an iterable address set
+/// @title IterableSet
+/// @notice Iterable set library for address and uint256 types
 library IterableSet {
     /*//////////////////////////////////////////////////////////////
-                            Storage Struct
+                             Address Set
     //////////////////////////////////////////////////////////////*/
 
-    // storage struct for iterable set
+    /// @title AddressSet
+    /// @notice Storage struct for iterable address set
     struct AddressSet {
-        // list of elements in the set
-        address[] elements;
-        // idxOf[element] is the one-indexed location of a particular element in self.elements
-        // idxOf[element] = index of key in self.elements + 1
-        // idxOf[element] = 0 denotes that element is not present in the map
+        address[] elements; // list of elements in the set
+        // idxOf indexing scheme:
+        // idxOf[element] = index of key in self.elements + 1 OR in other words
+        // idxOf[element] = one-indexed location of a particular element in self.elements
+        // idxOf[element] = 0 denotes that an element is not present in the set
         mapping(address elem => uint256 idx) idxOf;
     }
 
-    // storage struct for iterable set
-    struct Uint256Set {
-        // list of elements in the set
-        uint256[] elements;
-        // idxOf[element] is the one-indexed location of a particular element in self.elements
-        // idxOf[element] = index of key in self.elements + 1
-        // idxOf[element] = 0 denotes that element is not present in the map
-        mapping(uint256 elem => uint256 idx) idxOf;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            View Functions
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice check if the set contains a give element
+    /// @notice Check if the set contains a given element
     function contains(AddressSet storage self, address elem) internal view returns (bool) {
-        // since idxOf[element] = 0 denotes that element is not present in the map
-        // any other value implies that the element is in the set
-        return self.idxOf[elem] > 0;
+        return self.idxOf[elem] > 0; // idxOf[element] = 0 denotes that element is not in the set
     }
 
-    /// @notice check if the set contains a give element
-    function contains(Uint256Set storage self, uint256 elem) internal view returns (bool) {
-        // since idxOf[element] = 0 denotes that element is not present in the map
-        // any other value implies that the element is in the set
-        return self.idxOf[elem] > 0;
-    }
-
-    /// @notice fetch element by index
-    /// @dev zero-indexed queries. set does not preserve order after inserts and removals
+    /// @notice Fetch element from set by index
+    /// @dev Zero-indexed query to the elements array. Set does not preserve order after removals
     function getByIdx(AddressSet storage self, uint256 idx) internal view returns (address) {
         return self.elements[idx];
     }
 
-    /// @notice fetch element by index
-    /// @dev zero-indexed queries. set does not preserve order after inserts and removals
-    function getByIdx(Uint256Set storage self, uint256 idx) internal view returns (uint256) {
-        return self.elements[idx];
-    }
-
-    /// @notice fetch all elements in the set
-    /// @dev set does not preserve order after inserts and deletes
+    /// @notice Fetch all elements in the set
+    /// @dev Set does not preserve order after removals
     function getElements(AddressSet storage self) internal view returns (address[] memory) {
         return self.elements;
     }
 
-    /// @notice fetch all elements in the set
-    /// @dev set does not preserve order after inserts and deletes
-    function getElements(Uint256Set storage self) internal view returns (uint256[] memory) {
-        return self.elements;
-    }
-
-    /// @notice fetch the number of elements in the set
+    /// @notice Fetch the number of elements in the set
     function length(AddressSet storage self) internal view returns (uint256) {
         return self.elements.length;
     }
 
-    /// @notice fetch the number of elements in the set
-    function length(Uint256Set storage self) internal view returns (uint256) {
-        return self.elements.length;
-    }
+    // insertion: the element is pushed to the end of self.elements and idxOf is updated accordingly
 
-    /*//////////////////////////////////////////////////////////////
-                       State Mutating Functions
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice add element to set
-    /// @dev no-op if element already exists
+    /// @notice Insert an element into the set
+    /// @dev No-op if element already exists
     function insert(AddressSet storage self, address elem) internal {
-        // return silently if element is already in the set
-        if (self.idxOf[elem] != 0) return;
-
-        // push elem to the end of self.elements
+        if (self.idxOf[elem] != 0) return; // no-op if element is already in the set
         self.elements.push(elem);
-
-        // update idx of elem in the index mapping
         self.idxOf[elem] = self.elements.length;
     }
 
-    /// @notice add element to set
-    /// @dev no-op if element already exists
-    function insert(Uint256Set storage self, uint256 elem) internal {
-        // return silently if element is already in the set
-        if (self.idxOf[elem] != 0) return;
+    // removal: replace it with the current last element, update idxOf and call pop()
+    // if the element to be removed is the last element, simply update idxOf and call pop()
 
-        // push elem to the end of self.elements
-        self.elements.push(elem);
-
-        // update idx of elem in the index mapping
-        self.idxOf[elem] = self.elements.length;
-    }
-
-    /// @notice remove element from set
-    /// @dev no-op if element does not exist
+    /// @notice Remove element from set
+    /// @dev No-op if element is not in the set
     function remove(AddressSet storage self, address elem) internal {
-        // return silently if the elem is not in the set
-        if (self.idxOf[elem] == 0) return;
+        if (self.idxOf[elem] == 0) return; // no-op if element is not in the set
 
-        // to remove an element, replace it with the current last element, update idxOf and call pop()
-        // if the element to be removed is the last element, simply update idxOf and call pop()
-
-        // idx of element to be removed
-        uint256 toRemoveIdx = self.idxOf[elem] - 1;
-
-        // fetch number of elements in set
+        uint256 toRemoveIdx = self.idxOf[elem] - 1; // idx of element to be removed
         uint256 len = self.elements.length;
 
         // if element to be removed is not at the end, replace it with the last element
         if (toRemoveIdx != len - 1) {
-            // fetch value of current last element
             address lastElem = self.elements[len - 1];
-
-            // overwrite the element to be removed with the last element
             self.elements[toRemoveIdx] = lastElem;
-
-            // update idx of last element to idx of the removed element
             self.idxOf[lastElem] = toRemoveIdx + 1; // idxOf mapping is 1-indexed
         }
 
-        // set idxOf of the removed element to zero
-        // idxOf[element] = 0 denotes that element is not present in the map anymore
-        self.idxOf[elem] = 0;
-
-        // pop the elements array to reduce its length by 1 effectively deleting elem
-        self.elements.pop();
+        self.idxOf[elem] = 0; // idxOf[elem] = 0 denotes that it is no longer in the set
+        self.elements.pop(); // pop self.elements array effectively deleting elem
     }
 
-    /// @notice remove element from set
-    /// @dev no-op if element does not exist
+    /*//////////////////////////////////////////////////////////////
+                             Uint256 Set
+    //////////////////////////////////////////////////////////////*/
+
+    /// @title Uint256Set
+    /// @notice Storage struct for iterable uint256 set
+    struct Uint256Set {
+        uint256[] elements; // list of elements in the set
+        // idxOf indexing scheme:
+        // idxOf[element] = index of key in self.elements + 1 OR in other words
+        // idxOf[element] = one-indexed location of a particular element in self.elements
+        // idxOf[element] = 0, if element is not present in the set
+        mapping(uint256 elem => uint256 idx) idxOf;
+    }
+
+    /// @notice Check if the set contains a give element
+    function contains(Uint256Set storage self, uint256 elem) internal view returns (bool) {
+        return self.idxOf[elem] > 0; // idxOf[element] = 0 denotes that element is not in the set
+    }
+
+    /// @notice Fetch element from set by index
+    /// @dev Zero-indexed query to the elements array. Set does not preserve order after removals
+    function getByIdx(Uint256Set storage self, uint256 idx) internal view returns (uint256) {
+        return self.elements[idx];
+    }
+
+    /// @notice Fetch all elements in the set
+    /// @dev Set does not preserve order after removals
+    function getElements(Uint256Set storage self) internal view returns (uint256[] memory) {
+        return self.elements;
+    }
+
+    /// @notice Fetch the number of elements in the set
+    function length(Uint256Set storage self) internal view returns (uint256) {
+        return self.elements.length;
+    }
+
+    // insertion: the element is pushed to the end of self.elements and idxOf is updated accordingly
+
+    /// @notice Insert an element into the set
+    /// @dev No-op if element already exists
+    function insert(Uint256Set storage self, uint256 elem) internal {
+        if (self.idxOf[elem] != 0) return; // no-op if element is already in the set
+        self.elements.push(elem);
+        self.idxOf[elem] = self.elements.length;
+    }
+
+    // removal: replace it with the current last element, update idxOf and call pop()
+    // if the element to be removed is the last element, simply update idxOf and call pop()
+
+    /// @notice Remove element from set
+    /// @dev No-op if element does not exist
     function remove(Uint256Set storage self, uint256 elem) internal {
-        // return silently if the elem is not in the set
-        if (self.idxOf[elem] == 0) return;
+        if (self.idxOf[elem] == 0) return; // no-op if element is not in the set
 
-        // to remove an element, replace it with the current last element, update idxOf and call pop()
-        // if the element to be removed is the last element, simply update idxOf and call pop()
-
-        // idx of element to be removed
-        uint256 toRemoveIdx = self.idxOf[elem] - 1;
-
-        // fetch number of elements in set
+        uint256 toRemoveIdx = self.idxOf[elem] - 1; // idx of element to be removed
         uint256 len = self.elements.length;
 
-        // no need to replace elements if the element to be removed is already at the end
+        // if element to be removed is not at the end, replace it with the last element
         if (toRemoveIdx != len - 1) {
-            // fetch value of current last element
             uint256 lastElem = self.elements[len - 1];
-
-            // overwrite the element to be removed with the last element
             self.elements[toRemoveIdx] = lastElem;
-
-            // update idx of last element to idx of the removed element
             self.idxOf[lastElem] = toRemoveIdx + 1; // idxOf mapping is 1-indexed
         }
 
-        // set idxOf of the removed element to zero
-        // idxOf[element] = 0 denotes that element is not present in the map anymore
-        self.idxOf[elem] = 0;
-
-        // pop the elements array to reduce its length by 1 effectively deleting elem
-        self.elements.pop();
+        self.idxOf[elem] = 0; // idxOf[elem] = 0 denotes that it is no longer in the set
+        self.elements.pop(); // pop self.elements array effectively deleting elem
     }
 }

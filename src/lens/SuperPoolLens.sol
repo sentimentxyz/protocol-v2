@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 /*//////////////////////////////////////////////////////////////
-                            Imports
+                        SuperPoolLens
 //////////////////////////////////////////////////////////////*/
 
 // types
@@ -13,78 +13,57 @@ import { IOracle } from "src/interfaces/IOracle.sol";
 import { IRateModel } from "../interfaces/IRateModel.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
 // libraries
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
-/*//////////////////////////////////////////////////////////////
-                        SuperPoolLens
-//////////////////////////////////////////////////////////////*/
-
+/// @title SuperPoolLens
+/// @notice View-only utility contract to fetch SuperPool data
 contract SuperPoolLens {
     using Math for uint256;
 
-    /*//////////////////////////////////////////////////////////////
-                             Data Structs
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Address to the protocol's pool instance
+    Pool public immutable POOL;
 
+    /// @notice Address to the protocol's risk engine instance
+    RiskEngine public immutable RISK_ENGINE;
+
+    /// @param pool Address to the protocol's pool instance
+    /// @param riskEngine Address to the protocol's risk engine instance
+    constructor(address pool, address riskEngine) {
+        POOL = Pool(pool);
+        RISK_ENGINE = RiskEngine(riskEngine);
+    }
+
+    /// @title SuperPoolData
+    /// @notice Comprehensive data container for SuperPool state including individual pool
+    ///         deposits and aggregate data
     struct SuperPoolData {
         string name;
         address asset;
-        uint256 idleAssets;
+        uint256 idleAssets; // amount of assets that are yet to be deposited to underlying pools
         uint256 totalAssets;
         uint256 valueInEth;
-        uint256 interestRate;
+        uint256 interestRate; // weighted yield rate from underlying pool deposits
         PoolDepositData[] deposits;
     }
 
-    struct PoolDepositData {
-        address asset;
-        uint256 poolId;
-        uint256 amount;
-        uint256 valueInEth;
-        uint256 interestRate;
-    }
-
-    struct UserDepositData {
-        address owner;
-        uint256 interestRate;
-        uint256 totalValueInEth;
-        SuperPoolDepositData[] deposits;
-    }
-
-    struct SuperPoolDepositData {
-        address owner;
-        address asset;
-        address superPool;
-        uint256 amount;
-        uint256 valueInEth;
-        uint256 interestRate;
-    }
-
-    Pool public immutable POOL;
-    RiskEngine public immutable RISK_ENGINE;
-
-    constructor(address pool_, address riskEngine_) {
-        POOL = Pool(pool_);
-        RISK_ENGINE = RiskEngine(riskEngine_);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            SuperPool View
-    //////////////////////////////////////////////////////////////*/
-
-    function getSuperPoolData(address _superPool) external view returns (SuperPoolData memory) {
+    /// @notice Fetch current state for a given SuperPool
+    /// @param _superPool Address of the super pool
+    /// @return superPoolData Comprehensive current state data for the given super pool
+    function getSuperPoolData(address _superPool) external view returns (SuperPoolData memory superPoolData) {
         SuperPool superPool = SuperPool(_superPool);
-        uint256[] memory pools = superPool.pools();
+        uint256[] memory pools = superPool.pools(); // fetch underlying pools for given super pool
 
+        // fetch data for each underlying pool
         PoolDepositData[] memory deposits = new PoolDepositData[](pools.length);
         for (uint256 i; i < pools.length; ++i) {
             deposits[i] = getPoolDepositData(_superPool, pools[i]);
         }
 
+        // aggregate data from underlying pools
         address asset = address(superPool.asset());
         uint256 totalAssets = superPool.totalAssets();
-
         return SuperPoolData({
             asset: asset,
             deposits: deposits,
@@ -96,31 +75,54 @@ contract SuperPoolLens {
         });
     }
 
-    function getPoolDepositData(address superPool, uint256 _poolId) public view returns (PoolDepositData memory) {
-        address asset = POOL.getPoolAssetFor(_poolId);
-        uint256 amount = POOL.getAssetsOf(_poolId, superPool);
+    /// @title PoolDepositData
+    /// @notice Generic data container for SuperPool deposits associated with a particular pool
+    struct PoolDepositData {
+        address asset;
+        uint256 poolId;
+        uint256 amount; // amount of assets deposited from the super pool into this pool
+        uint256 valueInEth;
+        uint256 interestRate;
+    }
+
+    /// @notice Fetch data for SuperPool deposits in a given pool
+    /// @param superPool Address of the super pool
+    /// @param poolId Id for the underlying pool
+    /// @return poolDepositData Current data for deposits to `poolId` from the `superPool`
+    function getPoolDepositData(address superPool, uint256 poolId) public view returns (PoolDepositData memory poolDepositData) {
+        address asset = POOL.getPoolAssetFor(poolId);
+        uint256 amount = POOL.getAssetsOf(poolId, superPool);
 
         return PoolDepositData({
             asset: asset,
             amount: amount,
-            poolId: _poolId,
+            poolId: poolId,
             valueInEth: _getValueInEth(asset, amount),
-            interestRate: getPoolInterestRate(_poolId)
+            interestRate: getPoolInterestRate(poolId)
         });
     }
 
-    /*//////////////////////////////////////////////////////////////
-                              User View
-    //////////////////////////////////////////////////////////////*/
+    /// @title UserMultiDepositData
+    /// @notice Container for a user's deposits across multiple super pools
+    struct UserMultiDepositData {
+        address owner;
+        uint256 interestRate;
+        uint256 totalValueInEth;
+        UserDepositData[] deposits; // individual super pool deposit data for given user
+    }
 
-    function getUserDepositData(address user, address[] calldata superPools) public view returns (UserDepositData memory) {
-        SuperPoolDepositData[] memory deposits = new SuperPoolDepositData[](superPools.length);
+    /// @notice Fetch the current data for a given user's deposits across multiple super pools
+    /// @param user Address of the user
+    /// @param superPools List of SuperPool addresses to fetch data
+    /// @return userMultiDepositData Current deposit data for `user` across each super pool
+    function getUserMultiDepositData(address user, address[] calldata superPools) public view returns (UserMultiDepositData memory userMultiDepositData) {
+        UserDepositData[] memory deposits = new UserDepositData[](superPools.length);
 
         uint256 totalValueInEth;
         uint256 weightedDeposit;
 
         for (uint256 i; i < superPools.length; ++i) {
-            deposits[i] = getSuperPoolDepositData(user, superPools[i]);
+            deposits[i] = getUserDepositData(user, superPools[i]);
 
             totalValueInEth += deposits[i].valueInEth;
 
@@ -131,15 +133,30 @@ contract SuperPoolLens {
         // [ROUND] interestRate is rounded up, in favor of the user
         uint256 interestRate = (totalValueInEth != 0) ? weightedDeposit.mulDiv(1e18, totalValueInEth, Math.Rounding.Ceil) : 0;
 
-        return UserDepositData({ owner: user, deposits: deposits, totalValueInEth: totalValueInEth, interestRate: interestRate });
+        return UserMultiDepositData({ owner: user, deposits: deposits, totalValueInEth: totalValueInEth, interestRate: interestRate });
     }
 
-    function getSuperPoolDepositData(address user, address _superPool) public view returns (SuperPoolDepositData memory) {
+    /// @title UserDepositData
+    /// @notice Container for a user's deposit in a single SuperPool
+    struct UserDepositData {
+        address owner;
+        address asset;
+        address superPool;
+        uint256 amount;
+        uint256 valueInEth;
+        uint256 interestRate;
+    }
+
+    /// @notice Fetch a particular user's deposit data for a given super pool
+    /// @param user Address of the user
+    /// @param _superPool Address of the superPool
+    /// @return userDepositData Current user deposit data for the given super pool
+    function getUserDepositData(address user, address _superPool) public view returns (UserDepositData memory userDepositData) {
         SuperPool superPool = SuperPool(_superPool);
         address asset = address(superPool.asset());
         uint256 amount = superPool.previewRedeem(superPool.balanceOf(user));
 
-        return SuperPoolDepositData({
+        return UserDepositData({
             owner: user,
             asset: asset,
             amount: amount,
@@ -149,19 +166,20 @@ contract SuperPoolLens {
         });
     }
 
-    /*//////////////////////////////////////////////////////////////
-                         Interest Rates View
-    //////////////////////////////////////////////////////////////*/
-
-    function getPoolInterestRate(uint256 _poolId) public view returns (uint256) {
-        uint256 borrows = POOL.getTotalBorrows(_poolId);
-        uint256 idleAmt; // TODO
-        IRateModel irm = IRateModel(POOL.getRateModelFor(_poolId));
-
-        return irm.getInterestRate(borrows, idleAmt);
+    /// @notice Fetch current borrow interest rate for a given pool
+    /// @param poolId Id of the underlying pool
+    /// @return interestRate current interest rate for the given pool
+    function getPoolInterestRate(uint256 poolId) public view returns (uint256 interestRate) {
+        uint256 totalBorrows = POOL.getTotalBorrows(poolId);
+        uint256 idleAssetAmt = POOL.getTotalAssets(poolId) - totalBorrows;
+        IRateModel irm = IRateModel(POOL.getRateModelFor(poolId));
+        return irm.getInterestRate(totalBorrows, idleAssetAmt);
     }
 
-    function getSuperPoolInterestRate(address _superPool) public view returns (uint256) {
+    /// @notice Fetch the weighted interest yield for a given super pool
+    /// @param _superPool Address of the super pool
+    /// @return interestRate current weighted interest yield for the given super pool
+    function getSuperPoolInterestRate(address _superPool) public view returns (uint256 interestRate) {
         SuperPool superPool = SuperPool(_superPool);
         uint256 totalAssets = superPool.totalAssets();
 
@@ -177,10 +195,11 @@ contract SuperPoolLens {
         return weightedAssets / totalAssets;
     }
 
+    /// @dev Compute the ETH value scaled to 18 decimals for a given amount of an asset
     function _getValueInEth(address asset, uint256 amt) internal view returns (uint256) {
         IOracle oracle = IOracle(RISK_ENGINE.getOracleFor(asset));
 
-        // oracles could revert, lens calls must not
+        // oracles could revert, but lens calls must not
         try oracle.getValueInEth(asset, amt) returns (uint256 valueInEth) {
             return valueInEth;
         } catch {

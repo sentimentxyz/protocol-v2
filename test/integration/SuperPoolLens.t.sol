@@ -99,36 +99,36 @@ contract SuperPoolLensTests is BaseTest {
     }
 
     function testSuperPoolDepositData() public view {
-        SuperPoolLens.SuperPoolDepositData memory superPoolDepositData = superPoolLens.getSuperPoolDepositData(user, address(superPool1));
+        SuperPoolLens.UserDepositData memory userDepositData = superPoolLens.getUserDepositData(user, address(superPool1));
 
-        assertEq(superPoolDepositData.owner, user);
-        assertEq(superPoolDepositData.asset, address(asset1));
-        assertEq(superPoolDepositData.superPool, address(superPool1));
-        assertEq(superPoolDepositData.amount, uint256(50e18));
-        assertEq(superPoolDepositData.valueInEth, uint256(50e18));
-        assertEq(superPoolDepositData.interestRate, uint256(1e18));
+        assertEq(userDepositData.owner, user);
+        assertEq(userDepositData.asset, address(asset1));
+        assertEq(userDepositData.superPool, address(superPool1));
+        assertEq(userDepositData.amount, uint256(50e18));
+        assertEq(userDepositData.valueInEth, uint256(50e18));
+        assertEq(userDepositData.interestRate, uint256(1e18));
     }
 
     function testUserDepositData() public view {
-        SuperPoolLens.UserDepositData memory userDepositData = superPoolLens.getUserDepositData(user, superPoolList);
+        SuperPoolLens.UserMultiDepositData memory userMultiDepositData = superPoolLens.getUserMultiDepositData(user, superPoolList);
 
-        assertEq(userDepositData.owner, user);
-        assertEq(userDepositData.totalValueInEth, uint256(100e18));
-        assertEq(userDepositData.interestRate, uint256(1e18));
+        assertEq(userMultiDepositData.owner, user);
+        assertEq(userMultiDepositData.totalValueInEth, uint256(100e18));
+        assertEq(userMultiDepositData.interestRate, uint256(1e18));
 
-        assertEq(userDepositData.deposits[0].owner, user);
-        assertEq(userDepositData.deposits[0].asset, address(asset1));
-        assertEq(userDepositData.deposits[0].superPool, address(superPool1));
-        assertEq(userDepositData.deposits[0].amount, uint256(50e18));
-        assertEq(userDepositData.deposits[0].valueInEth, uint256(50e18));
-        assertEq(userDepositData.deposits[0].interestRate, uint256(1e18));
+        assertEq(userMultiDepositData.deposits[0].owner, user);
+        assertEq(userMultiDepositData.deposits[0].asset, address(asset1));
+        assertEq(userMultiDepositData.deposits[0].superPool, address(superPool1));
+        assertEq(userMultiDepositData.deposits[0].amount, uint256(50e18));
+        assertEq(userMultiDepositData.deposits[0].valueInEth, uint256(50e18));
+        assertEq(userMultiDepositData.deposits[0].interestRate, uint256(1e18));
 
-        assertEq(userDepositData.deposits[1].owner, user);
-        assertEq(userDepositData.deposits[1].asset, address(asset2));
-        assertEq(userDepositData.deposits[1].superPool, address(superPool2));
-        assertEq(userDepositData.deposits[0].amount, uint256(50e18));
-        assertEq(userDepositData.deposits[0].valueInEth, uint256(50e18));
-        assertEq(userDepositData.deposits[0].interestRate, uint256(1e18));
+        assertEq(userMultiDepositData.deposits[1].owner, user);
+        assertEq(userMultiDepositData.deposits[1].asset, address(asset2));
+        assertEq(userMultiDepositData.deposits[1].superPool, address(superPool2));
+        assertEq(userMultiDepositData.deposits[0].amount, uint256(50e18));
+        assertEq(userMultiDepositData.deposits[0].valueInEth, uint256(50e18));
+        assertEq(userMultiDepositData.deposits[0].interestRate, uint256(1e18));
     }
 
     function testSuperPoolInterestRate() public view {

@@ -2,69 +2,68 @@
 pragma solidity ^0.8.24;
 
 /*//////////////////////////////////////////////////////////////
-                            Imports
-//////////////////////////////////////////////////////////////*/
-
-// types
-import { IRateModel } from "../interfaces/IRateModel.sol";
-// libraries
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-
-/*//////////////////////////////////////////////////////////////
                         LinearRateModel
 //////////////////////////////////////////////////////////////*/
 
+import { IRateModel } from "../interfaces/IRateModel.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+
+/// @title LinearRateModel
+/// @notice Rate model implementation with a bounded linear rate curve
 contract LinearRateModel is IRateModel {
     using Math for uint256;
 
-    /*//////////////////////////////////////////////////////////////
-                               Storage
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Number of seconds in a year as per the rate model
+    uint256 public constant SECONDS_PER_YEAR = 31_557_600; // 1 year = 365.25 days
 
-    uint256 public immutable MIN_RATE; // 18 decimal scaled APR
-    uint256 public immutable MAX_RATE; // 18 decimal scaled APR
-    uint256 immutable RATE_DIFF; // MAX_RATE - MIN_RATE
-    uint256 constant SECONDS_PER_YEAR = 31_557_600; // 1 year = 365.25 days
+    /// @notice Minimum interest rate bound scaled to 18 decimals
+    uint256 public immutable MIN_RATE;
 
-    /*//////////////////////////////////////////////////////////////
-                              Initialize
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Maximum interest rate bound scaled to 18 decimals
+    uint256 public immutable MAX_RATE;
 
+    /// @dev Internal utility constant equivalent to MAX_RATE - MIN_RATE
+    uint256 internal immutable RATE_DIFF;
+
+    /// @param minRate Minimum interest rate bound scaled to 18 decimals
+    /// @param maxRate Maximum interest rate bound scaled to 18 decimals
     constructor(uint256 minRate, uint256 maxRate) {
         assert(maxRate > minRate);
+
         MIN_RATE = minRate;
         MAX_RATE = maxRate;
         RATE_DIFF = maxRate - minRate;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                            View Functions
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Compute the amount of interest accrued since the last interest update
+    /// @param lastUpdated Timestamp of the last interest update
+    /// @param totalBorrows Total amount of assets borrowed from the pool
+    /// @param idleAssetAmt Total amount of idle liquidity in the pool
+    /// @return interestAccrued Amount of interest accrued since the last interest update
+    ///         denominated in terms of the given asset
+    function getInterestAccrued(uint256 lastUpdated, uint256 totalBorrows, uint256 idleAssetAmt) external view returns (uint256 interestAccrued) {
+        // [ROUND] rateFactor is rounded up, in favor of the protocol
+        // rateFactor = time delta * apr / secs_per_year
+        uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(getInterestRate(totalBorrows, idleAssetAmt), SECONDS_PER_YEAR, Math.Rounding.Ceil);
 
-    function getInterestRate(uint256 borrows, uint256 idleAmt) public view returns (uint256) {
-        uint256 totalAssets = borrows + idleAmt;
-
-        // util = borrows / (borrows + idleAmt)
-        // [ROUND] pool utilisation is rounded up, in favor of the protocol
-        uint256 util = (totalAssets == 0) ? 0 : borrows.mulDiv(1e18, totalAssets, Math.Rounding.Ceil);
-
-        // interest rate = MIN_RATE + util * (MAX_RATE - MIN_RATE)
-        // [ROUND] interest rate is rounded up, in favor of the protocol
-        return MIN_RATE + util.mulDiv(RATE_DIFF, 1e18, Math.Rounding.Ceil);
+        // [ROUND] interest accrued is rounded up, in favor of the protocol
+        // interestAccrued = borrows * rateFactor
+        return totalBorrows.mulDiv(rateFactor, 1e18, Math.Rounding.Ceil);
     }
 
-    /// @notice calculates the interest accrued since the last update
-    /// @param lastUpdated the timestamp of the last update
-    /// @param borrows the total amount of borrows
-    /// @return interest accrued since the last update
-    function interestAccrued(uint256 lastUpdated, uint256 borrows, uint256 idleAmt) external view returns (uint256) {
-        // rateFactor = time delta * apr / secs_per_year
-        // rate is scaled but time delta and seconds_per_year are not scaled, to preserve precision
-        // [ROUND] rateFactor is rounded up, in favor of the protocol
-        uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(getInterestRate(borrows, idleAmt), SECONDS_PER_YEAR, Math.Rounding.Ceil);
+    /// @notice Fetch the instantaneous borrow interest rate for a given pool state
+    /// @param totalBorrows Total amount of assets borrowed from the pool
+    /// @param idleAssetAmt Total amount of idle liquidity in the pool
+    /// @return interestRate Instantaneous interest rate for the given pool state, scaled by 18 decimals
+    function getInterestRate(uint256 totalBorrows, uint256 idleAssetAmt) public view returns (uint256 interestRate) {
+        uint256 totalAssets = totalBorrows + idleAssetAmt;
 
-        // interest accrued = borrows * rateFactor
-        // [ROUND] interest accrued is rounded up, in favor of the protocol
-        return borrows.mulDiv(rateFactor, 1e18, Math.Rounding.Ceil);
+        // [ROUND] pool utilisation is rounded up, in favor of the protocol
+        // util = totalBorrows / (totalBorrows + idleAssetAmt)
+        uint256 util = (totalAssets == 0) ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Ceil);
+
+        // [ROUND] interest rate is rounded up, in favor of the protocol
+        // interest rate = MIN_RATE + util * (MAX_RATE - MIN_RATE)
+        return MIN_RATE + util.mulDiv(RATE_DIFF, 1e18, Math.Rounding.Ceil);
     }
 }

@@ -92,8 +92,8 @@ contract RiskModule {
 
     /// @notice Used to validate liquidator data and value of assets seized
     /// @param debt The debt data for the position
-    /// @param positionAsset The asset data for the position
-    function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata positionAsset) external view {
+    /// @param positionAssets The asset data for the position
+    function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata positionAssets) external view {
         uint256 debtRepaidValue;
         for (uint256 i; i < debt.length; ++i) {
             // PositionManger.liquidate() verifies that the asset belongs to the associated pool
@@ -103,9 +103,9 @@ contract RiskModule {
         }
 
         uint256 assetSeizedValue;
-        for (uint256 i; i < positionAsset.length; ++i) {
-            IOracle oracle = IOracle(riskEngine.getOracleFor(positionAsset[i].asset));
-            assetSeizedValue += oracle.getValueInEth(positionAsset[i].asset, positionAsset[i].amt);
+        for (uint256 i; i < positionAssets.length; ++i) {
+            IOracle oracle = IOracle(riskEngine.getOracleFor(positionAssets[i].asset));
+            assetSeizedValue += oracle.getValueInEth(positionAssets[i].asset, positionAssets[i].amt);
         }
 
         // max asset value that can be seized by the liquidator

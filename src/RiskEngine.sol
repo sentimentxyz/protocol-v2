@@ -120,8 +120,8 @@ contract RiskEngine is Ownable {
     }
 
     /// @notice Valid liquidator data and value of assets seized
-    function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata collat) external view {
-        riskModule.validateLiquidation(debt, collat);
+    function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata positionAssets) external view {
+        riskModule.validateLiquidation(debt, positionAssets);
     }
 
     /// @notice Fetch risk-associated data for a given position

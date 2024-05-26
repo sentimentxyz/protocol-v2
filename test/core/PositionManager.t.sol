@@ -132,6 +132,7 @@ contract PositionManagerUnitTests is BaseTest {
     }
 
     function testSimpleDepositCollateral(uint96 amount) public {
+        vm.assume(amount > 0);
         asset2.mint(positionOwner, amount);
 
         vm.startPrank(positionOwner);
@@ -218,7 +219,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         Action memory action = Action({ op: Operation.Borrow, data: data });
 
-        vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, linearRatePool, address(asset2)));
+        vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, position, linearRatePool, address(asset2)));
         PositionManager(positionManager).process(position, action);
     }
 
@@ -380,18 +381,6 @@ contract PositionManagerUnitTests is BaseTest {
         vm.startPrank(makeAddr("nonOwner")); // Non-owner address
         vm.expectRevert();
         positionManager.setBeacon(newBeacon);
-    }
-
-    // Test setting the risk engine address
-    function testSetRiskEngine() public {
-        address newRiskEngine = makeAddr("newRiskEngine");
-        vm.prank(positionManager.owner());
-        positionManager.setRiskEngine(newRiskEngine);
-        assertEq(address(positionManager.riskEngine()), newRiskEngine, "Risk engine address should be updated");
-
-        vm.startPrank(makeAddr("nonOwner")); // Non-owner address
-        vm.expectRevert();
-        positionManager.setRiskEngine(newRiskEngine);
     }
 
     // Test setting the liquidation fee

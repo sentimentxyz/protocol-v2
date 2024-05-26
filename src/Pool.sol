@@ -454,7 +454,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         emit PoolCapSet(poolId, poolCap);
     }
 
-    /// @notice Modify pool interest rate model via a timelocked request
+    /// @notice Propose a interest rate model update for a pool
     function requestRateModelUpdate(uint256 poolId, address rateModel) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         RateModelUpdate memory rateModelUpdate = RateModelUpdate({ rateModel: rateModel, validAfter: block.timestamp + TIMELOCK_DURATION });
@@ -464,7 +464,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         emit RateModelUpdateRequested(poolId, rateModel);
     }
 
-    /// @notice Modify pending interest rate model changes for a pool
+    /// @notice Apply a pending interest rate model change for a pool
     function acceptRateModelUpdate(uint256 poolId) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         RateModelUpdate memory rateModelUpdate = rateModelUpdateFor[poolId];
@@ -477,7 +477,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         emit RateModelUpdated(poolId, rateModelUpdate.rateModel);
     }
 
-    /// @notice Reject pending interest rate model changes for a pool
+    /// @notice Reject pending interest rate model update
     function rejectRateModelUpdate(uint256 poolId) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         emit RateModelUpdateRejected(poolId, rateModelUpdateFor[poolId].rateModel);

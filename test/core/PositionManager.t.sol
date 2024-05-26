@@ -31,15 +31,8 @@ contract PositionManagerUnitTests is BaseTest {
 
         pool.deposit(linearRatePool, 10_000 ether, address(0x9));
 
-        bytes32 salt = bytes32(uint256(3_492_932_942));
-        bytes memory data = abi.encode(positionOwner, salt);
-
-        (position,) = portfolioLens.predictAddress(positionOwner, salt);
-
-        Action memory action = Action({ op: Operation.NewPosition, data: data });
-
         Action[] memory actions = new Action[](1);
-        actions[0] = action;
+        (position, actions[0]) = newPosition(positionOwner, bytes32(uint256(3_492_932_942)));
 
         PositionManager(positionManager).processBatch(position, actions);
 
@@ -74,15 +67,9 @@ contract PositionManagerUnitTests is BaseTest {
     }
 
     function testInitializePosition() public {
-        bytes32 salt = bytes32(uint256(43_534_853));
-        bytes memory data = abi.encode(positionOwner, salt);
-
-        (address expectedAddress,) = portfolioLens.predictAddress(positionOwner, salt);
-
-        Action memory action = Action({ op: Operation.NewPosition, data: data });
-
+        address expectedAddress;
         Action[] memory actions = new Action[](1);
-        actions[0] = action;
+        (expectedAddress, actions[0]) = newPosition(positionOwner, bytes32(uint256(43_534_853)));
 
         PositionManager(positionManager).processBatch(expectedAddress, actions);
 
@@ -111,21 +98,17 @@ contract PositionManagerUnitTests is BaseTest {
 
     function testAddAndRemoveCollateralTypes() public {
         vm.startPrank(positionOwner);
-        bytes memory data = abi.encode(address(asset2));
-        Action memory action = Action({ op: Operation.AddToken, data: data });
 
         Action[] memory actions = new Action[](1);
-        actions[0] = action;
+        actions[0] = addToken(address(asset2));
 
         PositionManager(positionManager).processBatch(position, actions);
 
         assertEq(Position(position).getPositionAssets().length, 1);
         assertEq(Position(position).getPositionAssets()[0], address(asset2));
 
-        Action memory action2 = Action({ op: Operation.RemoveToken, data: data });
-
         Action[] memory actions2 = new Action[](1);
-        actions2[0] = action2;
+        actions2[0] = removeToken(address(asset2));
 
         PositionManager(positionManager).processBatch(position, actions2);
         assertEq(Position(position).getPositionAssets().length, 0);
@@ -158,16 +141,16 @@ contract PositionManagerUnitTests is BaseTest {
         testSimpleDepositCollateral(100 ether);
 
         vm.startPrank(positionOwner);
-        bytes memory data = abi.encode(address(positionOwner), address(asset2), 50 ether);
-        Action memory action = Action({ op: Operation.Transfer, data: data });
+        // bytes memory data = abi.encode(address(positionOwner), address(asset2), 50 ether);
+        // Action memory action = Action({ op: Operation.Transfer, data: data });
         Action[] memory actions = new Action[](1);
-        actions[0] = action;
+        actions[0] = transfer(positionOwner, address(asset2), 50 ether);
 
         vm.expectRevert();
         PositionManager(positionManager).processBatch(position, actions);
 
         vm.expectRevert();
-        PositionManager(positionManager).process(position, action);
+        PositionManager(positionManager).process(position, actions[0]);
         vm.stopPrank();
 
         vm.prank(positionManager.owner());
@@ -180,7 +163,7 @@ contract PositionManagerUnitTests is BaseTest {
         assertEq(asset2.balanceOf(positionOwner), initialCollateral + 50 ether);
 
         initialCollateral = asset2.balanceOf(positionOwner);
-        PositionManager(positionManager).process(position, action);
+        PositionManager(positionManager).process(position, actions[0]);
         assertEq(asset2.balanceOf(positionOwner), initialCollateral + 50 ether);
     }
 
@@ -430,8 +413,7 @@ contract PositionManagerUnitTests is BaseTest {
         address spender = makeAddr("spender");
 
         vm.startPrank(positionOwner);
-        bytes memory data = abi.encode(spender, address(asset2), 100 ether);
-        Action memory action = Action({ op: Operation.Approve, data: data });
+        Action memory action = approve(spender, address(asset2), 100 ether);
 
         vm.expectRevert();
         PositionManager(positionManager).process(position, action);
@@ -457,8 +439,7 @@ contract PositionManagerUnitTests is BaseTest {
 
     function testToggleAuth() public {
         vm.startPrank(positionOwner);
-        bytes memory data = abi.encode(address(asset2));
-        Action memory action = Action({ op: Operation.AddToken, data: data });
+        Action memory action = addToken(address(asset2));
 
         PositionManager(positionManager).process(position, action);
 
@@ -466,8 +447,7 @@ contract PositionManagerUnitTests is BaseTest {
         vm.stopPrank();
 
         vm.startPrank(newOwner);
-        data = abi.encode(address(asset1));
-        action = Action({ op: Operation.AddToken, data: data });
+        action = addToken(address(asset1));
 
         vm.expectRevert();
         PositionManager(positionManager).process(position, action);

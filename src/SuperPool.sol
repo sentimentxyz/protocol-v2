@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            SuperPool
+//////////////////////////////////////////////////////////////*/
+
 // types
 import { Pool } from "./Pool.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
 // libraries
 import { IterableSet } from "./lib/IterableSet.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 // contracts
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -19,10 +25,6 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 contract SuperPool is Ownable, Pausable, ERC20 {
     using Math for uint256;
     using SafeERC20 for IERC20;
-
-    /*//////////////////////////////////////////////////////////////
-                               Storage
-    //////////////////////////////////////////////////////////////*/
 
     /// @notice The denominator for fixed point number calculations
     uint256 constant WAD = 1e18;
@@ -49,32 +51,40 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @notice The addresses that are allowed to reallocate assets
     mapping(address user => bool isAllocator) public isAllocator;
 
-    /*//////////////////////////////////////////////////////////////
-                                Event
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Pool added to the deposit and withdraw queue
     event PoolAdded(uint256 poolId);
+    /// @notice Pool removed from the deposit and withdraw queue
     event PoolRemoved(uint256 poolId);
+    /// @notice SuperPool fee was updated
     event SuperPoolFeeUpdated(uint256 fee);
+    /// @notice Asset cap for an underlying pool was updated
     event PoolCapSet(uint256 poolId, uint256 cap);
+    /// @notice SuperPool aggregate deposit asset cap was updated
     event SuperPoolCapUpdated(uint256 superPoolCap);
+    /// @notice SuperPool fee recipient was updated
     event SuperPoolFeeRecipientUpdated(address feeRecipient);
+    /// @notice Allocator status for a given address was updated
     event AllocatorUpdated(address allocator, bool isAllocator);
+    /// @notice Assets were deposited to the SuperPool
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
+    /// @notice Assets were withdrawn from the SuperPool
     event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
 
-    /*//////////////////////////////////////////////////////////////
-                                Error
-    //////////////////////////////////////////////////////////////*/
-
-    error SuperPool_InvalidQueue(address superPool);
-    error SuperPool_AllCapsReached(address superPool);
-    error SuperPool_ZeroShareDeposit(address superpool);
-    error SuperPool_ZeroAssetDeposit(address superpool);
+    /// @notice Attempt to deposit zero shares worth of assets to the pool
+    error SuperPool_ZeroShareDeposit(address superpool, uint256 assets);
+    /// @notice Attempt to mint zero asset worth of shares from the pool
+    error SuperPool_ZeroAssetDeposit(address superpool, uint256 shares);
+    /// @notice Insufficient Liquidity to service withdrawal
     error SuperPool_NotEnoughLiquidity(address superPool);
+    /// @notice Reordered queue length does not match current queue length
     error SuperPool_QueueLengthMismatch(address superPool);
+    /// @notice Number of pools in the queue exceeds MAX_QUEUE_LENGTH
     error SuperPool_MaxQueueLengthReached(address superPool);
+    /// @notice Underlying pool asset does not match Super Pool asset
     error SuperPool_PoolAssetMismatch(address superPool, uint256 poolId);
+    /// @notice Attempt to remove underlying pool with non-zero deposits
     error SuperPool_NonZeroPoolBalance(address superPool, uint256 poolId);
+    /// @notice Function access is restricted to pool owners and allocators
     error SuperPool_OnlyAllocatorOrOwner(address superPool, address sender);
 
     /*//////////////////////////////////////////////////////////////
@@ -109,60 +119,47 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         superPoolCap = superPoolCap_;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                               External
-    //////////////////////////////////////////////////////////////*/
-
-    /// @return The pool ids in the deposit queue
+    /// @notice Fetch list of pool ids in the deposit and withdraw queue
     function pools() external view returns (uint256[] memory) {
         return depositQueue;
     }
 
-    /// @return The number of pools where assets are being lent out
+    /// @notice Fetch number of pools in the deposit and withdraw queue
     function getPoolCount() external view returns (uint256) {
         return depositQueue.length;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                Public
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Accrues interest and fees for the SuperPool
+    /// @notice Accrue interest and fees for the SuperPool
     function accrue() public {
         (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
         if (feeShares != 0) ERC20._mint(feeRecipient, feeShares);
         lastTotalAssets = newTotalAssets;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        ERC4626 View Overrides
-    //////////////////////////////////////////////////////////////*/
-
-    /// @return _totalAssets The total amount of assets under control of the SuperPool
-    function totalAssets() public view returns (uint256 _totalAssets) {
+    /// @notice Fetch the total amount of assets under control of the SuperPool
+    function totalAssets() public view returns (uint256) {
         uint256 assets = IERC20(asset).balanceOf(address(this));
 
         for (uint256 i; i < depositQueue.length; ++i) {
             assets += pool.getAssetsOf(depositQueue[i], address(this));
         }
 
-        _totalAssets = assets;
+        return assets;
     }
 
-    /// @return assets maxDeposit The maximum amount of assets that can be deposited in the SuperPool
-    function maxDeposit(address) public view returns (uint256 assets) {
+    /// @notice Fetch the maximum amount of assets that can be deposited in the SuperPool
+    function maxDeposit(address) public view returns (uint256) {
         uint256 _totalAssets = totalAssets();
         return superPoolCap > _totalAssets ? (superPoolCap - _totalAssets) : 0;
     }
 
-    /// @return shares The maximum amount of shares that can be minted from the SuperPool
-    function maxMint(address) public view returns (uint256 shares) {
+    /// @notice Fetch the maximum amount of shares that can be minted from the SuperPool
+    function maxMint(address) public view returns (uint256) {
         return convertToShares(maxDeposit(address(0)));
     }
 
-    /// @param owner The address to check the maximum withdraw amount for
-    /// @return assets The maximum amount of assets that can be withdrawn from the SuperPool
-    function maxWithdraw(address owner) public view returns (uint256 assets) {
+    /// @notice Fetch the maximum amount of assets that can be withdrawn by a depositor
+    function maxWithdraw(address owner) public view returns (uint256) {
         uint256 totalLiquidity;
         for (uint256 i; i < depositQueue.length; ++i) {
             totalLiquidity += pool.getLiquidityOf(depositQueue[i]);
@@ -175,15 +172,10 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         return totalLiquidity > userAssets ? userAssets : totalLiquidity;
     }
 
-    /// @param owner The address to check the maximum redeem amount for
-    /// @return shares The maximum amount of shares that can be redeemed from the SuperPool
-    function maxRedeem(address owner) public view returns (uint256 shares) {
+    /// @notice Fetch the maximum amount of shares that can be redeemed by a depositor
+    function maxRedeem(address owner) public view returns (uint256) {
         return convertToShares(maxWithdraw(owner));
     }
-
-    /*//////////////////////////////////////////////////////////////
-                          ERC4626 Overrides
-    //////////////////////////////////////////////////////////////*/
 
     /// @notice Deposits assets into the SuperPool
     /// @param assets The amount of assets to deposit
@@ -192,7 +184,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     function deposit(uint256 assets, address receiver) public returns (uint256 shares) {
         accrue();
         shares = convertToShares(assets);
-        if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this));
+        if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this), assets);
         _deposit(receiver, assets, shares);
     }
 
@@ -203,7 +195,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     function mint(uint256 shares, address receiver) public returns (uint256 assets) {
         accrue();
         assets = convertToAssets(shares);
-        if (assets == 0) revert SuperPool_ZeroAssetDeposit(address(this));
+        if (assets == 0) revert SuperPool_ZeroAssetDeposit(address(this), shares);
         _deposit(receiver, assets, shares);
     }
 
@@ -229,12 +221,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         _withdraw(receiver, owner, assets, shares);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                              Only Owner
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Sets the cap of a pool
-    /// @notice If the cap is set below the assets in the pool, it becomes withdraw-only
+    /// @notice Modify the maximum amount of assets that can be deposited to an underlying pool
+    /// @dev If the cap is set below the assets in the pool, it becomes withdraw-only
     /// @param poolId The id of the pool to set the cap for
     /// @param cap The cap of the pool, 0 to remove the cap
     function setPoolCap(uint256 poolId, uint256 cap) external onlyOwner {
@@ -271,20 +259,17 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     }
 
     /// @notice Toggles whether or not an address is able to call reallocate
-    /// @param _allocator The address to toggle for
-    function toggleAllocator(address _allocator) external onlyOwner {
-        isAllocator[_allocator] = !isAllocator[_allocator];
-
-        emit AllocatorUpdated(_allocator, isAllocator[_allocator]);
+    /// @param allocator The address to toggle allocator status for
+    function toggleAllocator(address allocator) external onlyOwner {
+        isAllocator[allocator] = !isAllocator[allocator];
+        emit AllocatorUpdated(allocator, isAllocator[allocator]);
     }
 
     /// @notice Sets the fee for the SuperPool
     /// @param _fee The fee, out of 1e18, to be taken from interest earned
     function setFee(uint256 _fee) external onlyOwner {
         accrue();
-
         fee = _fee;
-
         emit SuperPoolFeeUpdated(_fee);
     }
 
@@ -292,7 +277,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param _superPoolCap The cap of the SuperPool
     function setSuperpoolCap(uint256 _superPoolCap) external onlyOwner {
         superPoolCap = _superPoolCap;
-
         emit SuperPoolCapUpdated(_superPoolCap);
     }
 
@@ -300,9 +284,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param _feeRecipient The new address to recieve fees
     function setFeeRecipient(address _feeRecipient) external onlyOwner {
         accrue();
-
         feeRecipient = _feeRecipient;
-
         emit SuperPoolFeeRecipientUpdated(_feeRecipient);
     }
 
@@ -318,7 +300,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         uint256 assets;
     }
 
-    /// @notice Reallocates assets between pools
+    /// @notice Reallocate assets between underlying pools
     /// @param withdraws A list of poolIds, and the amount to withdraw from them
     /// @param deposits A list of poolIds, and the amount to deposit to them
     function reallocate(ReallocateParams[] calldata withdraws, ReallocateParams[] calldata deposits) external {
@@ -378,7 +360,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                                Internal
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deposits assets into the SuperPool
+    /// @dev Internal function to process ERC4626 deposits and mints
     /// @param receiver The address to receive the shares
     /// @param assets The amount of assets to deposit
     /// @param shares The amount of shares to mint, should be equivalent to assets
@@ -395,7 +377,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         lastTotalAssets += assets;
     }
 
-    /// @notice Withdraws assets from the SuperPool
+    /// @dev Internal function to process ERC4626 withdrawals and redemptions
     /// @param receiver The address to receive the assets
     /// @param owner The address to withdraw the assets from
     /// @param assets The amount of assets to withdraw

@@ -1,37 +1,58 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                                Pool
+//////////////////////////////////////////////////////////////*/
+
 // types
 import { Registry } from "./Registry.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
 // libraries
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 // contracts
 import { ERC6909 } from "./lib/ERC6909.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /// @title Pool
+/// @notice Singleton pool for all pools that superpools lend to and positions borrow from
 contract Pool is OwnableUpgradeable, ERC6909 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
-    /*//////////////////////////////////////////////////////////////
-                               Structs
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Timelock delay for pool rate model modification
+    uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
 
-    struct RateModelUpdate {
-        address rateModel;
-        uint256 validAfter;
-    }
+    /// @notice Registry key hash for the Sentiment position manager
+    /// @dev keccak(SENTIMENT_POSITION_MANAGER_KEY)
+    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY = 0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
 
+    /// @notice Sentiment registry
+    address public registry;
+    /// @notice Sentiment fee receiver
+    address public feeRecipient;
+    /// @notice Sentiment position manager
+    address public positionManager;
+
+    /// @notice Fetch the owner for a given pool id
+    mapping(uint256 poolId => address poolOwner) public ownerOf;
+    /// @notice Fetch debt owed by a given position for a particular pool, denominated in borrow shares
+    mapping(uint256 poolId => mapping(address position => uint256 borrowShares)) public borrowSharesOf;
+
+    /// @title Uint128Pair
+    /// @notice Store a value in terms of both notional assets and shares using a pair of Uint128s
     struct Uint128Pair {
         uint128 assets;
         uint128 shares;
     }
 
+    /// @title PoolData
+    /// @notice Pool config and state container
     struct PoolData {
         address asset;
         address rateModel;
@@ -44,141 +65,158 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         Uint128Pair totalBorrows;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                               Storage
-    //////////////////////////////////////////////////////////////*/
-
-    uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
-
-    // keccak(SENTIMENT_POSITION_MANAGER_KEY)
-    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY = 0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
-
-    address public registry;
-    address public feeRecipient; // address that receives protocol fees
-    address public positionManager;
-
-    mapping(uint256 poolId => address poolOwner) public ownerOf;
+    /// @notice Fetch pool config and state for a given pool id
     mapping(uint256 poolId => PoolData data) public poolDataFor;
+
+    /// @title RateModelUpdate
+    /// @notice Utility struct to store pending pool rate model updates
+    struct RateModelUpdate {
+        address rateModel;
+        uint256 validAfter;
+    }
+
+    /// @notice Fetch pending rate model updates for a given pool id
     mapping(uint256 poolId => RateModelUpdate rateModelUpdate) public rateModelUpdateFor;
-    mapping(uint256 poolId => mapping(address position => uint256 borrowShares)) public borrowSharesOf;
 
-    /*//////////////////////////////////////////////////////////////
-                                Events
-    //////////////////////////////////////////////////////////////*/
-
+    /// @notice Registry address was set
     event RegistrySet(address registry);
+    /// @notice Paused state of a pool was toggled
     event PoolPauseToggled(uint256 poolId, bool paused);
+    /// @notice Asset cap for a pool was set
     event PoolCapSet(uint256 indexed poolId, uint128 poolCap);
+    /// @notice Owner for a pool was set
     event PoolOwnerSet(uint256 indexed poolId, address owner);
+    /// @notice Rate model for a pool was updated
     event RateModelUpdated(uint256 indexed poolId, address rateModel);
+    /// @notice Interest fee for a pool was updated
     event InterestFeeSet(uint256 indexed poolId, uint128 interestFee);
+    /// @notice Origination fee for a pool was updated
     event OriginationFeeSet(uint256 indexed poolId, uint128 originationFee);
+    /// @notice Pending rate model update for a pool was rejected
     event RateModelUpdateRejected(uint256 indexed poolId, address rateModel);
+    /// @notice Rate model update for a pool was proposed
     event RateModelUpdateRequested(uint256 indexed poolId, address rateModel);
-    event Repay(address indexed position, address indexed asset, uint256 amount);
-    event Borrow(address indexed position, address indexed asset, uint256 amount);
+    /// @notice New pool was initialized
     event PoolInitialized(uint256 indexed poolId, address indexed owner, address indexed asset);
+    /// @notice Assets were deposited to a pool
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
+    /// @notice Debt was repaid from a position to a pool
+    event Repay(address indexed position, uint256 indexed poolId, address indexed asset, uint256 amount);
+    /// @notice Assets were borrowed from a position to a pool
+    event Borrow(address indexed position, uint256 indexed poolId, address indexed asset, uint256 amount);
+    /// @notice Assets were withdrawn from a pool
     event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
 
-    /*//////////////////////////////////////////////////////////////
-                                Errors
-    //////////////////////////////////////////////////////////////*/
-
-    error Pool_AlreadyInitialized();
+    /// @notice Pool is paused
     error Pool_PoolPaused(uint256 poolId);
+    /// @notice Pool deposits exceed asset cap
     error Pool_PoolCapExceeded(uint256 poolId);
+    /// @notice No pending rate model update for the pool
     error Pool_NoRateModelUpdate(uint256 poolId);
+    /// @notice Attempt to initialize an already existing pool
     error Pool_PoolAlreadyInitialized(uint256 poolId);
+    /// @notice Attempt to redeem zero asset worth of shares from the pool
     error Pool_ZeroAssetRedeem(uint256 poolId, uint256 shares);
+    /// @notice Attempt to repay zero shares worth of assets to the pool
     error Pool_ZeroSharesRepay(uint256 poolId, uint256 amt);
+    /// @notice Attempt to borrow zero shares worth of assets from the pool
     error Pool_ZeroSharesBorrow(uint256 poolId, uint256 amt);
+    /// @notice Attempt to deposit zero shares worth of assets to the pool
     error Pool_ZeroSharesDeposit(uint256 poolId, uint256 amt);
+    /// @notice Function access restricted only to the pool owner
     error Pool_OnlyPoolOwner(uint256 poolId, address sender);
+    /// @notice Function access restricted only to Sentiment Position Manager
     error Pool_OnlyPositionManager(uint256 poolId, address sender);
-    error Pool_InsufficientLiquidity(uint256 poolId, uint256 assets);
+    /// @notice Insufficient pool liquidity to service withdrawal
+    error Pool_InsufficientLiquidity(uint256 poolId, uint256 assetsInPool, uint256 assets);
+    /// @notice Rate model timelock delay has not been completed
     error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
-
-    /*//////////////////////////////////////////////////////////////
-                              Initialize
-    //////////////////////////////////////////////////////////////*/
 
     constructor() {
         _disableInitializers();
     }
 
+    /// @notice Initializer for TransparentUpgradeableProxy
+    /// @param registry_ Sentiment Registry
+    /// @param feeRecipient_ Sentiment fee receiver
     function initialize(address registry_, address feeRecipient_) public initializer {
         OwnableUpgradeable.__Ownable_init(msg.sender);
-
         registry = registry_;
         feeRecipient = feeRecipient_;
         updateFromRegistry();
     }
 
+    /// @notice Fetch and update module addreses from the registry
     function updateFromRegistry() public {
         positionManager = Registry(registry).addressFor(SENTIMENT_POSITION_MANAGER_KEY);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        Public View Functions
-    //////////////////////////////////////////////////////////////*/
-
+    /// @notice Fetch amount of liquid assets currently held in a given pool
     function getLiquidityOf(uint256 poolId) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 pendingInterest = simulateAccrue(pool);
         return pool.totalAssets.assets + pendingInterest - pool.totalBorrows.assets;
     }
 
-    function getAssetsOf(uint256 poolId, address guy) public view returns (uint256 assets) {
+    /// @notice Fetch pool asset balance for depositor to a pool
+    function getAssetsOf(uint256 poolId, address guy) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 pendingInterest = simulateAccrue(pool);
         Uint128Pair memory totalAssets = pool.totalAssets;
         totalAssets.assets += uint128(pendingInterest);
-        assets = convertToAssets(totalAssets, balanceOf[guy][poolId]);
+        return convertToAssets(totalAssets, balanceOf[guy][poolId]);
     }
 
-    function getBorrowsOf(uint256 poolId, address position) public view returns (uint256 borrows) {
+    /// @notice Fetch debt owed by a position to a given pool
+    function getBorrowsOf(uint256 poolId, address position) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 pendingInterest = simulateAccrue(pool);
         Uint128Pair memory totalBorrows = pool.totalBorrows;
         totalBorrows.assets += uint128(pendingInterest);
-        borrows = convertToAssets(totalBorrows, borrowSharesOf[poolId][position]);
+        return convertToAssets(totalBorrows, borrowSharesOf[poolId][position]);
     }
 
+    /// @notice Fetch the total amount of assets currently deposited in a pool
     function getTotalAssets(uint256 poolId) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 pendingInterest = simulateAccrue(pool);
         return pool.totalAssets.assets + pendingInterest;
     }
 
+    /// @notice Fetch total amount of debt owed to a given pool id
     function getTotalBorrows(uint256 poolId) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 pendingInterest = simulateAccrue(pool);
         return pool.totalBorrows.assets + pendingInterest;
     }
 
-    function getRateModelFor(uint256 poolId) public view returns (address) {
+    /// @notice Fetch current rate model for a given pool id
+    function getRateModelFor(uint256 poolId) public view returns (address rateModel) {
         return poolDataFor[poolId].rateModel;
     }
 
+    /// @notice Fetch the debt asset address for a given pool
     function getPoolAssetFor(uint256 poolId) public view returns (address) {
         return poolDataFor[poolId].asset;
     }
 
+    /// @notice Fetch equivalent shares amount for given assets
     function convertToShares(Uint128Pair memory pair, uint256 assets) public pure returns (uint256 shares) {
         if (pair.assets == 0) return assets;
         shares = assets.mulDiv(pair.shares, pair.assets);
     }
 
+    /// @notice Fetch equivalent asset amount for given shares
     function convertToAssets(Uint128Pair memory pair, uint256 shares) public pure returns (uint256 assets) {
         if (pair.shares == 0) return shares;
         assets = shares.mulDiv(pair.assets, pair.shares);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                          Lending Functionality
-    //////////////////////////////////////////////////////////////*/
-
+    /// @notice Deposit assets to a pool
+    /// @param poolId Pool id
+    /// @param assets Amount of assets to be deposited
+    /// @param receiver Address to deposit assets on behalf of
+    /// @return shares Amount of pool deposit shares minted
     function deposit(uint256 poolId, uint256 assets, address receiver) public returns (uint256 shares) {
         PoolData storage pool = poolDataFor[poolId];
 
@@ -203,6 +241,12 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
+    /// @notice Redeem assets from a pool
+    /// @param poolId Pool id
+    /// @param shares Amount of shares to be redeemed
+    /// @param receiver Address that receives redeemed assets
+    /// @param owner Address to redeem on behalf of
+    /// @return assets Amount of assets redeemed from the pool
     function redeem(uint256 poolId, uint256 shares, address receiver, address owner) public returns (uint256 assets) {
         PoolData storage pool = poolDataFor[poolId];
 
@@ -218,8 +262,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         assets = convertToAssets(pool.totalAssets, shares);
         if (assets == 0) revert Pool_ZeroAssetRedeem(poolId, shares);
 
-        if (pool.totalAssets.assets - pool.totalBorrows.assets < assets) {
-            revert Pool_InsufficientLiquidity(poolId, assets);
+        uint256 assetsInPool = pool.totalAssets.assets - pool.totalBorrows.assets;
+        if (assetsInPool < assets) {
+            revert Pool_InsufficientLiquidity(poolId, assetsInPool, assets);
         }
 
         pool.totalAssets.assets -= uint128(assets);
@@ -232,10 +277,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         IERC20(pool.asset).safeTransfer(receiver, assets);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                             Pool Actions
-    //////////////////////////////////////////////////////////////*/
-
+    /// @notice Accrue interest and fees for a given pool
     function accrue(uint256 id) external {
         PoolData storage pool = poolDataFor[id];
         accrue(pool, id);
@@ -245,7 +287,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         return IRateModel(pool.rateModel).getInterestAccrued(pool.lastUpdated, pool.totalBorrows.assets, pool.totalAssets.assets);
     }
 
-    /// @notice update pool state to accrue interest since the last time accrue() was called
+    /// @dev update pool state to accrue interest since the last time accrue() was called
     function accrue(PoolData storage pool, uint256 id) internal {
         uint256 interestAccrued = simulateAccrue(pool);
 
@@ -271,8 +313,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         pool.lastUpdated = uint128(block.timestamp);
     }
 
-    /// @notice mint borrow shares and send borrowed assets to the borrowing position
-    /// @dev only callable by the position manager
+    /// @notice Mint borrow shares and send borrowed assets to the borrowing position
     /// @param position the position to mint shares to
     /// @param amt the amount of assets to borrow, denominated in notional asset units
     /// @return borrowShares the amount of shares minted
@@ -312,16 +353,17 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         // send borrowed assets to position
         IERC20(asset).safeTransfer(position, amt - fee);
 
-        emit Borrow(position, asset, amt);
+        emit Borrow(position, poolId, asset, amt);
     }
 
-    /// @notice repay borrow shares
-    /// @dev only callable by position manager, assume assets have already been sent to the pool
+    /// @notice Decrease position debt via repayment of debt and burn borrow shares
+    /// @dev Assumes assets have already been sent to the pool
     /// @param position the position for which debt is being repaid
     /// @param amt the notional amount of debt asset repaid
     /// @return remainingShares remaining debt in borrow shares owed by the position
     function repay(uint256 poolId, address position, uint256 amt) external returns (uint256 remainingShares) {
         PoolData storage pool = poolDataFor[poolId];
+
         // the only way to call repay() is through the position manager
         // PositionManager.repay() MUST transfer the assets to be repaid before calling Pool.repay()
         // this function assumes the transfer of assets was completed successfully
@@ -346,16 +388,20 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         pool.totalBorrows.assets -= uint128(amt);
         pool.totalBorrows.shares -= uint128(borrowShares);
 
-        emit Repay(position, pool.asset, amt);
+        emit Repay(position, poolId, pool.asset, amt);
 
         // return the remaining position debt, denominated in borrow shares
         return (borrowSharesOf[poolId][position] -= borrowShares);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                           Initialize Pool
-    //////////////////////////////////////////////////////////////*/
-
+    /// @notice Initialize a new pool
+    /// @param owner Pool owner
+    /// @param asset Pool debt asset
+    /// @param rateModel Pool interest rate model
+    /// @param interestFee Pool interest fee
+    /// @param originationFee Pool origination fee
+    /// @param poolCap Pool asset cap
+    /// @return poolId Pool id for initialized pool
     function initializePool(
         address owner,
         address asset,
@@ -393,10 +439,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         emit PoolCapSet(poolId, poolCap);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                           Only Pool Owner
-    //////////////////////////////////////////////////////////////*/
-
+    /// @notice Toggle paused state for a pool to restrict deposit and borrows
     function togglePause(uint256 poolId) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         PoolData storage pool = poolDataFor[poolId];
@@ -404,12 +447,14 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         emit PoolPauseToggled(poolId, pool.isPaused);
     }
 
+    /// @notice Update pool asset cap to restrict total amount of assets deposited
     function setPoolCap(uint256 poolId, uint128 poolCap) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         poolDataFor[poolId].poolCap = poolCap;
         emit PoolCapSet(poolId, poolCap);
     }
 
+    /// @notice Modify pool interest rate model via a timelocked request
     function requestRateModelUpdate(uint256 poolId, address rateModel) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         RateModelUpdate memory rateModelUpdate = RateModelUpdate({ rateModel: rateModel, validAfter: block.timestamp + TIMELOCK_DURATION });
@@ -419,6 +464,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         emit RateModelUpdateRequested(poolId, rateModel);
     }
 
+    /// @notice Modify pending interest rate model changes for a pool
     function acceptRateModelUpdate(uint256 poolId) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         RateModelUpdate memory rateModelUpdate = rateModelUpdateFor[poolId];
@@ -431,16 +477,15 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         emit RateModelUpdated(poolId, rateModelUpdate.rateModel);
     }
 
+    /// @notice Reject pending interest rate model changes for a pool
     function rejectRateModelUpdate(uint256 poolId) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         emit RateModelUpdateRejected(poolId, rateModelUpdateFor[poolId].rateModel);
         delete rateModelUpdateFor[poolId];
     }
 
-    /*//////////////////////////////////////////////////////////////
-                              Only Owner
-    //////////////////////////////////////////////////////////////*/
-
+    /// @notice Set protocol registry address
+    /// @param _registry Registry address
     function setRegistry(address _registry) external onlyOwner {
         registry = _registry;
         emit RegistrySet(_registry);

@@ -37,27 +37,20 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
     /// @notice Chainlink ETH/USD price feed
     IAggegregatorV3 public immutable ETH_USD_FEED;
 
-    /// @notice Emitted when a new USD-denomiated chainlink feed is associated with an asset
-    /// @param asset Address of asset being priced by the feed
-    /// @param feed Address of asset/usd chainlink feed
-    event FeedSet(address indexed asset, address feed);
-
     /// @notice Fetch the ETH-denominated price feed associated with a given asset
     /// @dev returns address(0) if there is no associated feed
     mapping(address asset => address feed) public priceFeedFor;
 
+    /// @notice New Usd-denomiated chainlink feed has been associated with an asset
+    event FeedSet(address indexed asset, address feed);
+
     /// @notice L2 sequencer is experiencing downtime
     error ChainlinkUsdOracle_SequencerDown();
-
     /// @notice L2 Sequencer has recently recovered from downtime and is in its grace period
     error ChainlinkUsdOracle_GracePeriodNotOver();
-
     /// @notice Last price update for `asset` was before the accepted stale price threshold
-    /// @param asset Address of stale priced asset
     error ChainlinkUsdOracle_StalePrice(address asset);
-
     /// @notice Latest price update for `asset` has a negative value
-    /// @param asset Address of negatively-priced asset
     error ChainlinkUsdOracle_NegativePrice(address asset);
 
     /// @param owner Oracle owner address

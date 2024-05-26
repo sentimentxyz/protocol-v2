@@ -37,23 +37,16 @@ contract ChainlinkEthOracle is Ownable, IOracle {
     /// @dev returns address(0) if there is no associated feed
     mapping(address asset => address feed) public priceFeedFor;
 
-    /// @notice Emitted when a new ETH-denomiated chainlink feed is associated with an asset
-    /// @param asset Address of asset being priced by the feed
-    /// @param feed Address of asset/eth chainlink feed
+    /// @notice An Eth-denomiated chainlink feed has been associated with an asset
     event FeedSet(address indexed asset, address feed);
 
     /// @notice L2 sequencer is experiencing downtime
     error ChainlinkEthOracle_SequencerDown();
-
     /// @notice L2 Sequencer has recently recovered from downtime and is in its grace period
     error ChainlinkEthOracle_GracePeriodNotOver();
-
     /// @notice Last price update for `asset` was before the accepted stale price threshold
-    /// @param asset Address of stale priced asset
     error ChainlinkEthOracle_StalePrice(address asset);
-
     /// @notice Latest price update for `asset` has a negative value
-    /// @param asset Address of negatively-priced asset
     error ChainlinkEthOracle_NegativePrice(address asset);
 
     /// @param owner Oracle owner address

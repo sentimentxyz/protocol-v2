@@ -244,7 +244,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         }
     }
 
-    /// @dev deterministically deploy a new beacon proxy representin a position
+    /// @dev deterministically deploy a new beacon proxy representing a position
     /// @dev the target field in the action is the new owner of the position
     function newPosition(address predictedAddress, bytes calldata data) internal whenNotPaused {
         // positionType -> position type of new position to be deployed
@@ -364,7 +364,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
         // register asset as collateral
         // any position-specific validation must be done within the position contract
-        Position(position).addCollateralType(asset);
+        Position(position).addToken(asset);
 
         emit AddToken(position, msg.sender, asset);
     }
@@ -374,7 +374,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address asset = abi.decode(data, (address));
 
         // deregister asset as collateral
-        Position(position).removeCollateralType(asset);
+        Position(position).removeToken(asset);
 
         emit RemoveToken(position, msg.sender, asset);
     }

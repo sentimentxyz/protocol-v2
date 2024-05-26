@@ -268,18 +268,21 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @dev Operate on a position by interaction with external contracts using arbitrary calldata
     function exec(address position, bytes calldata data) internal {
-        // data -> abi.encodePacked(address, bytes)
-        // target -> [0:20] contract address target to be called by the position
-        // calldata -> [20:] calldata to be executed on the target
-        // function selector -> [20:24]
+        // exec data is encodePacked (address, uint256, bytes)
+        // target -> [0:20] contract address to be called by the position
+        // value -> [20:52] the ether amount to be sent with the call
+        // function selector -> [52:56] function selector to be called on the target
+        // calldata -> [52:] represents the calldata including the func selector
+
         address target = address(bytes20(data[:20]));
-        bytes4 funcSelector = bytes4(data[20:24]);
+        uint256 value = uint256(bytes32(data[20:52]));
+        bytes4 funcSelector = bytes4(data[52:56]);
 
         if (!isKnownFunc[target][funcSelector]) {
             revert PositionManager_UnknownFuncSelector(target, funcSelector);
         }
 
-        Position(position).exec(target, data[20:]);
+        Position(position).exec(target, value, data[52:]);
         emit Exec(position, msg.sender, target, funcSelector);
     }
 

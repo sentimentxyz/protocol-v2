@@ -82,8 +82,8 @@ contract Position {
 
     /// @notice Intereact with external contracts using arbitrary calldata
     /// @dev Target and calldata is validated by the position manager
-    function exec(address target, bytes calldata data) external onlyPositionManager {
-        (bool success,) = target.call(data);
+    function exec(address target, uint256 value, bytes calldata data) external onlyPositionManager {
+        (bool success,) = target.call{ value: value }(data);
         if (!success) revert Position_ExecFailed(address(this), target);
     }
 

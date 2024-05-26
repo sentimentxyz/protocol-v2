@@ -279,7 +279,7 @@ contract PositionManagerUnitTests is BaseTest {
     function testSimpleExec() public {
         TestCallContract testContract = new TestCallContract(false);
 
-        bytes memory data = abi.encodePacked(address(testContract), bytes4(keccak256("testCall()")));
+        bytes memory data = abi.encodePacked(address(testContract), uint256(0), bytes4(keccak256("testCall()")));
         Action memory action = Action({ op: Operation.Exec, data: data });
         Action[] memory actions = new Action[](1);
         actions[0] = action;
@@ -324,7 +324,7 @@ contract PositionManagerUnitTests is BaseTest {
     function testExecNegativeCases() public {
         TestCallContract testContract = new TestCallContract(false);
 
-        bytes memory data = abi.encodePacked(address(testContract), bytes4(keccak256("testCall()")));
+        bytes memory data = abi.encodePacked(address(testContract), uint256(0), bytes4(keccak256("testCall()")));
         Action memory action = Action({ op: Operation.Exec, data: data });
 
         vm.startPrank(positionOwner);

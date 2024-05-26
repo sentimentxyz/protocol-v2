@@ -22,7 +22,8 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-// data for position debt to be repaid by the liquidator
+/// @title DebtData
+/// @notice Data struct for position debt to be repaid by the liquidator
 struct DebtData {
     // poolId address for debt to be repaid
     uint256 poolId;
@@ -31,7 +32,8 @@ struct DebtData {
     uint256 amt;
 }
 
-// data for collateral assets to be received by the liquidator
+/// @title AssetData
+/// @notice Data struct for collateral assets to be received by the liquidator
 struct AssetData {
     // token address
     address asset;
@@ -39,8 +41,9 @@ struct AssetData {
     uint256 amt;
 }
 
-// defines various operation types that can be applied to a position
-// every operation except NewPosition requires that the caller must be an authz caller or owner
+/// @title Operation
+/// @notice Operation type definitions that can be applied to a position
+/// @dev Every operation except NewPosition requires that the caller must be an authz caller or owner
 enum Operation {
     NewPosition, // create2 a new position with a given type, no auth needed
     // the following operations require msg.sender to be authorized
@@ -55,8 +58,9 @@ enum Operation {
 
 }
 
-// loosely defined data struct to create a common data container for all operation types
-// target and data are interpreted in different ways based on the operation type
+/// @title Action
+/// @notice Generic data struct to create a common data container for all operation types
+/// @dev target and data are interpreted in different ways based on the operation type
 struct Action {
     // operation type
     Operation op;

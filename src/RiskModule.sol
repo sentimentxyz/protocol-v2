@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            RiskModule
+//////////////////////////////////////////////////////////////*/
+
 // types
 import { Pool } from "./Pool.sol";
 import { Position } from "./Position.sol";
@@ -9,6 +13,7 @@ import { RiskEngine } from "./RiskEngine.sol";
 import { IOracle } from "./interfaces/IOracle.sol";
 import { DebtData, AssetData } from "./PositionManager.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 // libraries
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -16,37 +21,30 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 contract RiskModule {
     using Math for uint256;
 
-    /*//////////////////////////////////////////////////////////////
-                               CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
+    /// @notice Sentiment Registry Pool registry key hash
     /// @dev keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
+    /// @notice Sentiment Risk Engine registry key hash
     /// @dev keccak(SENTIMENT_RISK_ENGINE_KEY)
     bytes32 public constant SENTIMENT_RISK_ENGINE_KEY = 0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
+
     /// @notice The minimum amount of debt that must be held by a position
     uint256 public immutable MIN_DEBT;
     /// @notice The discount on assets when liquidating, out of 1e18
     uint256 public immutable LIQUIDATION_DISCOUNT;
     /// @notice The updateable registry as a part of the 2step initialization process
     Registry public immutable REGISTRY;
-    /// @notice The Singleton Pool Contract
+    /// @notice Sentiment Singleton Pool
     Pool public pool;
-    /// @notice The risk engine in charge of tracking liquidations
+    /// @notice Sentiment Risk Engine
     RiskEngine public riskEngine;
 
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    error RiskModule_ZeroAssetsWithDebt(address position);
-    error RiskModule_UnsupportedAsset(uint256 pool, address asset);
+    /// @notice Total debt owed by a position is non-zero and less than MIN_DEBT
     error RiskModule_DebtTooLow(address position, uint256 debtValue);
+    /// @notice Value of assets seized by the liquidator exceeds liquidation discount
     error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
-
-    /*//////////////////////////////////////////////////////////////
-                              CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Position contains an asset that is not supported by a pool that it borrows from
+    error RiskModule_UnsupportedAsset(address position, uint256 poolId, address asset);
 
     /// @notice Constructor for Risk Module, which should be registered with the RiskEngine
     /// @param registry_ The address of the registry contract
@@ -58,19 +56,13 @@ contract RiskModule {
         LIQUIDATION_DISCOUNT = liquidationDiscount_;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                           EXTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
     /// @notice Updates the pool and risk engine from the registry
     function updateFromRegistry() external {
         pool = Pool(REGISTRY.addressFor(SENTIMENT_POOL_KEY));
         riskEngine = RiskEngine(REGISTRY.addressFor(SENTIMENT_RISK_ENGINE_KEY));
     }
 
-    /// @notice Evaluates if a position is healthy based on the debt and asset values
-    /// @param position The address of the position to evaluate
-    /// @return bool Whether the position can be liquidated
+    /// @notice Evaluates whether a given position is healthy based on the debt and asset values
     function isPositionHealthy(address position) external view returns (bool) {
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = getRiskData(position);
 
@@ -81,7 +73,7 @@ contract RiskModule {
         return totalAssetValue >= minReqAssetValue;
     }
 
-    /// @notice Gets the risk data for a position
+    /// @notice Fetch risk-associated data for a given position
     /// @param position The address of the position to get the risk data for
     /// @return totalAssetValue The total asset value of the position
     /// @return totalDebtValue The total debt value of the position
@@ -93,12 +85,12 @@ contract RiskModule {
 
         if (totalDebtValue == 0) return (totalAssetValue, 0, 0);
 
-        uint256 minReqAssetValue = _getMinReqAssetValue(debtPools, debtValueForPool, positionAssets, positionAssetWeight);
+        uint256 minReqAssetValue = _getMinReqAssetValue(debtPools, debtValueForPool, positionAssets, positionAssetWeight, position);
 
         return (totalAssetValue, totalDebtValue, minReqAssetValue);
     }
 
-    /// @notice Used by the RiskEngine to verify liquidations are correct
+    /// @notice Used to validate liquidator data and value of assets seized
     /// @param debt The debt data for the position
     /// @param positionAsset The asset data for the position
     function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata positionAsset) external view {
@@ -124,23 +116,14 @@ contract RiskModule {
         }
     }
 
-    /*//////////////////////////////////////////////////////////////
-                          Position Debt Math
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Gets the debt value for a pool in ETH
-    /// @param position The address of the position to get the debt value for
-    /// @param poolId The id of the pool to get the debt value for
-    /// @return The debt value for the pool, in Ether
+    /// @notice Gets the ETH debt value a given position owes to a particular pool
     function getDebtValueForPool(address position, uint256 poolId) public view returns (uint256) {
         address asset = pool.getPoolAssetFor(poolId);
         IOracle oracle = IOracle(riskEngine.getOracleFor(asset));
         return oracle.getValueInEth(asset, pool.getBorrowsOf(poolId, position));
     }
 
-    /// @notice Gets the total debt value for a position in ETH
-    /// @param position The address of the position to get the total debt value for
-    /// @return The total debt value for the position, in ETH
+    /// @notice Gets the total debt owed by a position in ETH
     function getTotalDebtValue(address position) public view returns (uint256) {
         uint256[] memory debtPools = Position(position).getDebtPools();
 
@@ -152,16 +135,14 @@ contract RiskModule {
         return totalDebtValue;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                         Position Asset Math
-    //////////////////////////////////////////////////////////////*/
-
+    /// @notice Gets the ETH value for a particular asset in a given position
     function getAssetValue(address position, address asset) public view returns (uint256) {
         IOracle oracle = IOracle(riskEngine.getOracleFor(asset));
         uint256 amt = IERC20(asset).balanceOf(position);
         return oracle.getValueInEth(asset, amt);
     }
 
+    /// @notice Gets the total ETH value of assets in a position
     function getTotalAssetValue(address position) public view returns (uint256) {
         address[] memory positionAssets = Position(position).getPositionAssets();
 
@@ -172,10 +153,6 @@ contract RiskModule {
 
         return totalAssetValue;
     }
-
-    /*//////////////////////////////////////////////////////////////
-                               Internal
-    //////////////////////////////////////////////////////////////*/
 
     function _getPositionDebtData(address position) internal view returns (uint256, uint256[] memory, uint256[] memory) {
         uint256 totalDebtValue;
@@ -219,7 +196,8 @@ contract RiskModule {
         uint256[] memory debtPools,
         uint256[] memory debtValuleForPool,
         address[] memory positionAssets,
-        uint256[] memory wt
+        uint256[] memory wt,
+        address position
     )
         internal
         view
@@ -233,7 +211,7 @@ contract RiskModule {
                 uint256 ltv = riskEngine.ltvFor(debtPools[i], positionAssets[j]);
 
                 // revert with pool id and the asset that is not supported by the pool
-                if (ltv == 0) revert RiskModule_UnsupportedAsset(debtPools[i], positionAssets[j]);
+                if (ltv == 0) revert RiskModule_UnsupportedAsset(position, debtPools[i], positionAssets[j]);
 
                 // debt is weighted in proportion to value of position assets. if your position
                 // consists of 60% A and 40% B, then 60% of the debt is assigned to be backed by A

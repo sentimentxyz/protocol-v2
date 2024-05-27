@@ -79,7 +79,7 @@ contract PositionUnitTests is BaseTest {
         Position(position).removeToken(address(asset2));
 
         vm.expectRevert();
-        Position(position).exec(address(0x0), bytes(""));
+        Position(position).exec(address(0x0), 0, bytes(""));
     }
 
     function testCannotExceedPoolMaxLength() public {

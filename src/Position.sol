@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*//////////////////////////////////////////////////////////////
+                            Position
+//////////////////////////////////////////////////////////////*/
+
 import { Pool } from "./Pool.sol";
 import { IterableSet } from "./lib/IterableSet.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -12,25 +16,38 @@ contract Position {
     using IterableSet for IterableSet.AddressSet;
     using IterableSet for IterableSet.Uint256Set;
 
+    /// @notice Position implementation version
     uint256 public constant VERSION = 1;
 
+    /// @notice Maximum number of assets that a position can hold at once
     uint256 public constant MAX_ASSETS = 5;
+    /// @notice Maximum number of pools that a position can borrow from at once
     uint256 public constant MAX_DEBT_POOLS = 5;
 
+    /// @notice Sentiment Pool
     Pool public immutable POOL;
+    /// @notice Sentiment Position Manager
     address public immutable POSITION_MANAGER;
 
+    /// @dev Iterable uint256 set that stores pool ids with active borrows
     IterableSet.Uint256Set internal debtPools;
+    /// @dev Iterable address set that stores assets held by the position
     IterableSet.AddressSet internal positionAssets;
 
+    /// @notice Number of assets held by the position exceeds `MAX_ASSETS`
     error Position_MaxAssetsExceeded(address position);
+    /// @notice Number of pools with active borrows exceeds `MAX_DEBT_POOLS`
     error Position_MaxDebtPoolsExceeded(address position);
+    /// @notice Exec operation on the position returned false
     error Position_ExecFailed(address position, address target);
+    /// @notice Function access restricted to Sentiment Position Manager
     error Position_OnlyPositionManager(address position, address sender);
 
-    constructor(address pool_, address positionManager_) {
-        POOL = Pool(pool_);
-        POSITION_MANAGER = positionManager_;
+    /// @param pool Sentiment Singleton Pool
+    /// @param positionManager Sentiment Postion Manager
+    constructor(address pool, address positionManager) {
+        POOL = Pool(pool);
+        POSITION_MANAGER = positionManager;
     }
 
     modifier onlyPositionManager() {
@@ -38,52 +55,58 @@ contract Position {
         _;
     }
 
+    /// @notice Fetch list of pool ids with active borrows to the position
     function getDebtPools() external view returns (uint256[] memory) {
         return debtPools.getElements();
     }
 
+    /// @notice Fetch list of assets currently held by the position
     function getPositionAssets() external view returns (address[] memory) {
         return positionAssets.getElements();
     }
 
-    // approve an external contract to spend funds from the position
-    // this function can only be called by the position manager
-    // the position manager imposes additional checks on the spender
+    /// @notice Approve an external contract to spend funds from the position
+    /// @dev The position manager imposes additional checks that the spender is trusted
     function approve(address token, address spender, uint256 amt) external onlyPositionManager {
-        // handle tokens with non-standard return values using forceApprove
-        // handle tokens that force setting approval to zero first using forceApprove
+        // use forceApprove to handle tokens with non-standard return values
+        // and tokens that force setting allowance to zero before modification
         IERC20(token).forceApprove(spender, amt);
     }
 
-    // transfer assets from a position to a given external contract
-    // since this function can only be called by the position manager
-    // any additional checks must be implemented on the position manager
+    /// @notice Transfer assets from a position to a given external address
+    /// @dev Any additional checks must be implemented in the position manager
     function transfer(address to, address asset, uint256 amt) external onlyPositionManager {
         // handle tokens with non-standard return values using safeTransfer
         IERC20(asset).safeTransfer(to, amt);
     }
 
-    // intereact with external contracts and arbitrary calldata
-    // any target and calldata validation must be implementeed in the position manager
+    /// @notice Intereact with external contracts using arbitrary calldata
+    /// @dev Target and calldata is validated by the position manager
     function exec(address target, bytes calldata data) external onlyPositionManager {
         (bool success,) = target.call(data);
         if (!success) revert Position_ExecFailed(address(this), target);
     }
 
-    function addCollateralType(address asset) external onlyPositionManager {
+    /// @notice Add asset to the list of tokens currently held by the position
+    function addToken(address asset) external onlyPositionManager {
         positionAssets.insert(asset);
         if (positionAssets.length() > MAX_ASSETS) revert Position_MaxAssetsExceeded(address(this));
     }
 
-    function removeCollateralType(address asset) external onlyPositionManager {
+    /// @notice Remove asset from the list of tokens currrently held by the position
+    function removeToken(address asset) external onlyPositionManager {
         positionAssets.remove(asset);
     }
 
+    /// @notice Signal that the position has borrowed from a given pool
     function borrow(uint256 poolId, uint256) external onlyPositionManager {
         debtPools.insert(poolId);
         if (debtPools.length() > MAX_DEBT_POOLS) revert Position_MaxDebtPoolsExceeded(address(this));
     }
 
+    /// @notice Signal that the position has repaid debt to a given pool
+    /// @dev Position assumes that this is done after debt assets have been transferred and
+    ///      Pool.repay() has been called so the pool can be removed from `debtPools` as needed
     function repay(uint256 poolId, uint256) external onlyPositionManager {
         if (POOL.getBorrowsOf(poolId, address(this)) == 0) debtPools.remove(poolId);
     }

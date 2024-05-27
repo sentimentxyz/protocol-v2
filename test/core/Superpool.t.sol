@@ -145,7 +145,7 @@ contract SuperPoolUnitTests is BaseTest {
         vm.stopPrank();
 
         vm.startPrank(user);
-        vm.expectRevert(abi.encodeWithSelector(SuperPool.SuperPool_ZeroShareDeposit.selector, address(superPool)));
+        vm.expectRevert(abi.encodeWithSelector(SuperPool.SuperPool_ZeroShareDeposit.selector, address(superPool), 0));
         superPool.deposit(0, user);
     }
 

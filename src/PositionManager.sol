@@ -155,8 +155,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     error PositionManager_HealthCheckFailed(address position);
     /// @notice Cannot liquidate healthy position
     error PositionManager_LiquidateHealthyPosition(address position);
-    /// @notice Attempt to deposit zero assets to a position
-    error PositionManager_ZeroAmountDeposit(address position, address asset);
     /// @notice Function access restricted to position owner only
     error PositionManager_OnlyPositionOwner(address position, address sender);
     /// @notice Unknown target-function selector pair
@@ -249,84 +247,94 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @dev deterministically deploy a new beacon proxy representing a position
     /// @dev the target field in the action is the new owner of the position
     function newPosition(address predictedAddress, bytes calldata data) internal whenNotPaused {
-        // positionType -> position type of new position to be deployed
-        // owner -> owner to create the position on behalf of
-        // salt -> create2 salt for position
-        (address owner, bytes32 salt) = abi.decode(data, (address, bytes32));
+        // data -> abi.encodePacked(address, bytes32)
+        // owner -> [:20] owner to create the position on behalf of
+        // salt -> [20:52] create2 salt for position
+        address owner = address(bytes20(data[0:20]));
+        bytes32 salt = bytes32(data[20:52]);
 
-        // hash salt with owner to mitigate position creations being frontrun
+        // hash salt with owner to mitigate positions being frontrun
         salt = keccak256(abi.encodePacked(owner, salt));
-
         // create2 a new position as a beacon proxy
         address position = address(new BeaconProxy{ salt: salt }(positionBeacon, ""));
-
         // update position owner
         ownerOf[position] = owner;
-
         // owner is authzd by default
         isAuth[position][owner] = true;
-
+        // revert if predicted position address does not match deployed address
         if (position != predictedAddress) revert PositionManager_PredictedPositionMismatch(position, predictedAddress);
-
         emit PositionDeployed(position, msg.sender, owner);
     }
 
     /// @dev Operate on a position by interaction with external contracts using arbitrary calldata
     function exec(address position, bytes calldata data) internal {
-        // exec data is encodePacked (address, bytes)
-        // target -> first 20 bytes, contract address to be called by the position
-        // callData -> rest of the data, calldata to be executed on target
+        // data -> abi.encodePacked(address, bytes)
+        // target -> [0:20] contract address target to be called by the position
+        // calldata -> [20:] calldata to be executed on the target
+        // function selector -> [20:24]
         address target = address(bytes20(data[:20]));
-        if (!isKnownFunc[target][bytes4(data[20:24])]) {
-            revert PositionManager_UnknownFuncSelector(target, bytes4(data[20:24]));
-        }
-        Position(position).exec(target, data[20:]);
+        bytes4 funcSelector = bytes4(data[20:24]);
 
-        emit Exec(position, msg.sender, target, bytes4(data[20:24]));
+        if (!isKnownFunc[target][funcSelector]) {
+            revert PositionManager_UnknownFuncSelector(target, funcSelector);
+        }
+
+        Position(position).exec(target, data[20:]);
+        emit Exec(position, msg.sender, target, funcSelector);
     }
 
     /// @dev Transfer assets out of a position
     function transfer(address position, bytes calldata data) internal {
-        // recipient -> address that will receive the transferred tokens
-        // asset -> address of token to be transferred
-        // amt -> amount of asset to be transferred
-        (address recipient, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
+        // data -> abi.encodePacked(address, address, uint256)
+        // recipient -> [0:20] address that will receive the transferred tokens
+        // asset -> [20:40] address of token to be transferred
+        // amt -> [40:72] amount of asset to be transferred
+        address recipient = address(bytes20(data[0:20]));
+        address asset = address(bytes20(data[20:40]));
+        uint256 amt = uint256(bytes32(data[40:72]));
+
         if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
         Position(position).transfer(recipient, asset, amt);
-
         emit Transfer(position, msg.sender, recipient, asset, amt);
     }
 
     /// @dev Deposit assets from msg.sender to a position
     function deposit(address position, bytes calldata data) internal {
-        // depositor -> address to transfer the tokens from, must have approval
-        // asset -> address of token to be deposited
-        // amt -> amount of asset to be deposited
-        (address asset, uint256 amt) = abi.decode(data, (address, uint256));
+        // data -> abi.encodePacked(address, uint256)
+        // asset -> [0:20] address of token to be deposited
+        // amt -> [20: 52] amount of asset to be deposited
+        address asset = address(bytes20(data[0:20]));
+        uint256 amt = uint256(bytes32(data[20:52]));
+
         IERC20(asset).safeTransferFrom(msg.sender, position, amt);
-        if (amt == 0) revert PositionManager_ZeroAmountDeposit(position, asset);
         emit Deposit(position, msg.sender, asset, amt);
     }
 
     /// @dev Approve a spender to use assets from a position
     function approve(address position, bytes calldata data) internal {
-        // spender -> address to be approved
-        // asset -> address of token to be approves
-        // amt -> amount of asset to be approved
-        (address spender, address asset, uint256 amt) = abi.decode(data, (address, address, uint256));
+        // data -> abi.encodePacked(address, address, uint256)
+        // spender -> [0:20] address to be approved
+        // asset -> [20:40] address of token to be approves
+        // amt -> [40:72] amount of asset to be approved
+        address spender = address(bytes20(data[0:20]));
+        address asset = address(bytes20(data[20:40]));
+        uint256 amt = uint256(bytes32(data[40:72]));
+
         if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
         if (!isKnownAddress[spender]) revert PositionManager_UnknownSpender(spender);
-        Position(position).approve(asset, spender, amt);
 
+        Position(position).approve(asset, spender, amt);
         emit Approve(position, msg.sender, spender, asset, amt);
     }
 
     /// @dev Decrease position debt via repayment. To repay the entire debt set `_amt` to uint.max
     function repay(address position, bytes calldata data) internal {
-        // poolId -> pool that recieves the repaid debt
-        // amt -> notional amount to be repaid
+        // data -> abi.encodePacked(uint256, uint256)
+        // poolId -> [0:32] pool that recieves the repaid debt
+        // amt -> [32: 64] notional amount to be repaid
+        uint256 poolId = uint256(bytes32(data[0:32]));
+        uint256 _amt = uint256(bytes32(data[32:64]));
 
-        (uint256 poolId, uint256 _amt) = abi.decode(data, (uint256, uint256));
         // if the passed amt is type(uint).max assume repayment of the entire debt
         uint256 amt = (_amt == type(uint256).max) ? pool.getBorrowsOf(poolId, position) : _amt;
 
@@ -336,55 +344,48 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // trigger pool repayment which assumes successful transfer of repaid assets
         pool.repay(poolId, position, amt);
 
-        // signals repayment to the position without making any changes in the pool
+        // signals repayment to the position and removes the debt pool if completely paid off
         // any checks needed to validate repayment must be implemented in the position
         Position(position).repay(poolId, amt);
-
         emit Repay(position, msg.sender, poolId, amt);
     }
 
     /// @dev Increase position debt via borrowing
     function borrow(address position, bytes calldata data) internal whenNotPaused {
-        // decode data
-        // poolId -> pool to borrow from
-        // amt -> notional amount to be borrowed
-        (uint256 poolId, uint256 amt) = abi.decode(data, (uint256, uint256));
+        // data -> abi.encodePacked(uint256, uint256)
+        // poolId -> [0:32] pool to borrow from
+        // amt -> [32:64] notional amount to be borrowed
+        uint256 poolId = uint256(bytes32(data[0:32]));
+        uint256 amt = uint256(bytes32(data[32:64]));
 
         // revert if the given pool does not exist
         if (pool.ownerOf(poolId) == address(0)) revert PositionManager_UnknownPool(poolId);
-
-        // signals a borrow operation without any actual transfer of borrowed assets
-        // since every position type is structured differently
-        // we assume that the position implements any checks needed to validate the borrow
-        Position(position).borrow(poolId, amt);
 
         // transfer borrowed assets from given pool to position
         // trigger pool borrow and increase debt owed by the position
         pool.borrow(poolId, position, amt);
 
+        // signals a borrow operation without any actual transfer of borrowed assets
+        // any checks needed to validate the borrow must be implemented in the position
+        Position(position).borrow(poolId, amt);
         emit Borrow(position, msg.sender, poolId, amt);
     }
 
     /// @dev Add a token address to the set of position assets
     function addToken(address position, bytes calldata data) internal whenNotPaused {
-        // asset -> address of asset to be registered as collateral
-        address asset = abi.decode(data, (address));
-
-        // register asset as collateral
-        // any position-specific validation must be done within the position contract
-        Position(position).addToken(asset);
-
+        // data -> abi.encodePacked(address)
+        // asset -> [0:20] address of asset to be registered as collateral
+        address asset = address(bytes20(data[0:20]));
+        Position(position).addToken(asset); // validation should be in the position contract
         emit AddToken(position, msg.sender, asset);
     }
 
     /// @dev Remove a token address from the set of position assets
     function removeToken(address position, bytes calldata data) internal whenNotPaused {
+        // data -> abi.encodePacked(address)
         // asset -> address of asset to be deregistered as collateral
-        address asset = abi.decode(data, (address));
-
-        // deregister asset as collateral
+        address asset = address(bytes20(data[0:20]));
         Position(position).removeToken(asset);
-
         emit RemoveToken(position, msg.sender, asset);
     }
 

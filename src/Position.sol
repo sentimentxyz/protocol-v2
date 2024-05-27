@@ -99,6 +99,8 @@ contract Position {
     }
 
     /// @notice Signal that the position has borrowed from a given pool
+    /// @dev Position assumes that this is done after debt assets have been transferred and
+    ///      Pool.borrow() has already been called
     function borrow(uint256 poolId, uint256) external onlyPositionManager {
         debtPools.insert(poolId);
         if (debtPools.length() > MAX_DEBT_POOLS) revert Position_MaxDebtPoolsExceeded(address(this));

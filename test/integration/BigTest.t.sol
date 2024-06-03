@@ -111,7 +111,7 @@ contract BigTest is Test {
 
         // position
         address positionImpl = address(new Position(address(pool), address(positionManager)));
-        positionBeacon = address(new UpgradeableBeacon(positionImpl, params.owner));
+        positionBeacon = address(new UpgradeableBeacon(positionImpl));
 
         // lens
         superPoolLens = new SuperPoolLens(address(pool), address(riskEngine));

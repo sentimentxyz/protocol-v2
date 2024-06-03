@@ -238,7 +238,7 @@ contract RiskModule {
                 // debt is weighted in proportion to value of position assets. if your position
                 // consists of 60% A and 40% B, then 60% of the debt is assigned to be backed by A
                 // and 40% by B. this is iteratively computed for each pool the position borrows from
-                minReqAssetValue += debtValuleForPool[i].mulDiv(wt[j], ltv, Math.Rounding.Ceil);
+                minReqAssetValue += debtValuleForPool[i].mulDiv(wt[j], ltv, Math.Rounding.Up);
             }
         }
 

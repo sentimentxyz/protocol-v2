@@ -42,7 +42,7 @@ contract ChainlinkEthOracle is Ownable {
     error ChainlinkEthOracle_StalePrice(address asset);
     error ChainlinkEthOracle_NegativePrice(address asset);
 
-    constructor(address owner, address arbSeqFeed) Ownable(owner) {
+    constructor(address owner, address arbSeqFeed) Ownable() {
         ARB_SEQ_FEED = IAggegregatorV3(arbSeqFeed);
     }
 

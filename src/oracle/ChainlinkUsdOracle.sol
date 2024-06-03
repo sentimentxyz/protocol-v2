@@ -45,7 +45,7 @@ contract ChainlinkUsdOracle is Ownable {
     error ChainlinkUsdOracle_StalePrice(address asset);
     error ChainlinkUsdOracle_NegativePrice(address asset);
 
-    constructor(address owner, address arbSeqFeed, address ethUsdFeed) Ownable(owner) {
+    constructor(address owner, address arbSeqFeed, address ethUsdFeed) Ownable() {
         ARB_SEQ_FEED = IAggegregatorV3(arbSeqFeed);
         ETH_USD_FEED = IAggegregatorV3(ethUsdFeed);
         priceFeedFor[ETH] = ethUsdFeed;

@@ -9,7 +9,7 @@ contract Registry is Ownable {
 
     mapping(bytes32 key => address addr) public addressFor;
 
-    constructor() Ownable(msg.sender) { }
+    constructor() Ownable() { }
 
     function setAddress(bytes32 key, address addr) external onlyOwner {
         addressFor[key] = addr;

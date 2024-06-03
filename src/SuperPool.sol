@@ -12,7 +12,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 // contracts
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { Pausable } from "@openzeppelin/contracts/security/Pausable.sol";
 
 /// @title SuperPool
 /// @notice Aggregator of underlying pools compliant with ERC4626
@@ -98,7 +98,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         string memory name_,
         string memory symbol_
     )
-        Ownable(msg.sender)
+        Ownable()
         ERC20(name_, symbol_)
     {
         asset = IERC20(asset_);
@@ -342,7 +342,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     function convertToShares(uint256 assets) public view virtual returns (uint256 shares) {
         uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
 
-        shares = supply == 0 ? assets : assets.mulDiv(supply, lastTotalAssets, Math.Rounding.Floor);
+        shares = supply == 0 ? assets : assets.mulDiv(supply, lastTotalAssets, Math.Rounding.Down);
     }
 
     /// @notice Converts a share amount to an asset amount, as defined by ERC4626
@@ -351,7 +351,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     function convertToAssets(uint256 shares) public view virtual returns (uint256 assets) {
         uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
 
-        assets = supply == 0 ? shares : shares.mulDiv(lastTotalAssets, supply, Math.Rounding.Floor);
+        assets = supply == 0 ? shares : shares.mulDiv(lastTotalAssets, supply, Math.Rounding.Down);
     }
 
     function previewDeposit(uint256 assets) public view virtual returns (uint256) {
@@ -361,13 +361,13 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     function previewMint(uint256 shares) public view virtual returns (uint256) {
         uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
 
-        return supply == 0 ? shares : shares.mulDiv(lastTotalAssets, supply, Math.Rounding.Ceil);
+        return supply == 0 ? shares : shares.mulDiv(lastTotalAssets, supply, Math.Rounding.Up);
     }
 
     function previewWithdraw(uint256 assets) public view virtual returns (uint256) {
         uint256 supply = ERC20.totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
 
-        return supply == 0 ? assets : assets.mulDiv(supply, lastTotalAssets, Math.Rounding.Ceil);
+        return supply == 0 ? assets : assets.mulDiv(supply, lastTotalAssets, Math.Rounding.Up);
     }
 
     function previewRedeem(uint256 shares) public view virtual returns (uint256) {

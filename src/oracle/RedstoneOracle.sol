@@ -14,6 +14,10 @@ contract RedstoneCoreOracle is ArbitrumProdDataServiceConsumerBase, IOracle {
 
     uint256 internal constant THREE_MINUTES = 60 * 3;
 
+    // stale price threshold, prices older than this period are considered stale
+    // the oracle can misreport stale prices for feeds with longer hearbeats
+    uint256 public constant STALE_PRICE_THRESHOLD = 3600; // 1 hour
+
     address public immutable ASSET;
     uint256 public immutable ASSET_DECIMALS;
 
@@ -44,7 +48,7 @@ contract RedstoneCoreOracle is ArbitrumProdDataServiceConsumerBase, IOracle {
     function updatePrice() external {
         // values[0] -> price of ASSET/USD
         // values[1] -> price of ETH/USD
-        // we assume both values are scaled to 8 decimals
+        // values are scaled to 8 decimals
         uint256[] memory values = getOracleNumericValuesFromTxMsg(dataFeedIds);
 
         assetUsdPrice = values[0];
@@ -57,6 +61,8 @@ contract RedstoneCoreOracle is ArbitrumProdDataServiceConsumerBase, IOracle {
     }
 
     function getValueInEth(address, uint256 amt) external view returns (uint256 valueInEth) {
+        if (priceTimestamp < block.timestamp - STALE_PRICE_THRESHOLD) revert RedstoneCoreOracle_StalePrice(ASSET);
+
         // scale amt to 18 decimals
         if (ASSET_DECIMALS <= 18) {
             amt = amt * 10 ** (18 - ASSET_DECIMALS);

@@ -44,11 +44,11 @@ contract LinearRateModel is IRateModel {
     function getInterestAccrued(uint256 lastUpdated, uint256 totalBorrows, uint256 idleAssetAmt) external view returns (uint256 interestAccrued) {
         // [ROUND] rateFactor is rounded up, in favor of the protocol
         // rateFactor = time delta * apr / secs_per_year
-        uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(getInterestRate(totalBorrows, idleAssetAmt), SECONDS_PER_YEAR, Math.Rounding.Ceil);
+        uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(getInterestRate(totalBorrows, idleAssetAmt), SECONDS_PER_YEAR, Math.Rounding.Up);
 
         // [ROUND] interest accrued is rounded up, in favor of the protocol
         // interestAccrued = borrows * rateFactor
-        return totalBorrows.mulDiv(rateFactor, 1e18, Math.Rounding.Ceil);
+        return totalBorrows.mulDiv(rateFactor, 1e18, Math.Rounding.Up);
     }
 
     /// @notice Fetch the instantaneous borrow interest rate for a given pool state
@@ -60,10 +60,10 @@ contract LinearRateModel is IRateModel {
 
         // [ROUND] pool utilisation is rounded up, in favor of the protocol
         // util = totalBorrows / (totalBorrows + idleAssetAmt)
-        uint256 util = (totalAssets == 0) ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Ceil);
+        uint256 util = (totalAssets == 0) ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Up);
 
         // [ROUND] interest rate is rounded up, in favor of the protocol
         // interest rate = MIN_RATE + util * (MAX_RATE - MIN_RATE)
-        return MIN_RATE + util.mulDiv(RATE_DIFF, 1e18, Math.Rounding.Ceil);
+        return MIN_RATE + util.mulDiv(RATE_DIFF, 1e18, Math.Rounding.Up);
     }
 }

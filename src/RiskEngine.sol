@@ -89,7 +89,7 @@ contract RiskEngine is Ownable {
     /// @param registry_ Sentiment Registry
     /// @param minLtv_ Minimum LTV bound
     /// @param maxLtv_ Maximum LTV bound
-    constructor(address registry_, uint256 minLtv_, uint256 maxLtv_) Ownable(msg.sender) {
+    constructor(address registry_, uint256 minLtv_, uint256 maxLtv_) Ownable() {
         registry = Registry(registry_);
         minLtv = minLtv_;
         maxLtv = maxLtv_;

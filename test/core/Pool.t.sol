@@ -13,7 +13,7 @@ contract PoolUnitTests is BaseTest {
         // test constructor
         address poolImpl = address(new Pool());
         Pool testPool = Pool(address(new TransparentUpgradeableProxy(poolImpl, protocolOwner, new bytes(0))));
-        testPool.initialize(address(registry), address(0));
+        testPool.initialize(protocolOwner, address(registry), address(0));
         assertEq(testPool.registry(), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
@@ -280,7 +280,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyPoolOwnerCanPause(address sender) public {
         vm.assume(sender != poolOwner);
-        vm.assume(sender != proxyAdmin);
+        // vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.togglePause(linearRatePool);
@@ -299,7 +299,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyPoolOwnerCanSetCap(address sender, uint128 poolCap) public {
         vm.assume(sender != poolOwner);
-        vm.assume(sender != proxyAdmin);
+        // vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.setPoolCap(linearRatePool, poolCap);
@@ -315,7 +315,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyOwnerCanRequestRateModelUpdate(address sender, address rateModel) public {
         vm.assume(sender != poolOwner);
-        vm.assume(sender != proxyAdmin);
+        // vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.requestRateModelUpdate(linearRatePool, rateModel);
@@ -346,7 +346,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyOwnerCanAcceptRateModelUpdate(address sender) public {
         vm.assume(sender != poolOwner);
-        vm.assume(sender != proxyAdmin);
+        // vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.acceptRateModelUpdate(linearRatePool);

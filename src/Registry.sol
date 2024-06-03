@@ -15,7 +15,7 @@ contract Registry is Ownable {
     /// @notice Fetch registry address for a given key hash
     mapping(bytes32 key => address addr) public addressFor;
 
-    constructor() Ownable(msg.sender) { }
+    constructor() Ownable() { }
 
     /// @notice Update registry address for a given key hash
     /// @param key Registry key hash

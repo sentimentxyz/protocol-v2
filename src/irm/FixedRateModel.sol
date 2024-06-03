@@ -32,11 +32,11 @@ contract FixedRateModel is IRateModel {
     function getInterestAccrued(uint256 lastUpdated, uint256 totalBorrows, uint256) external view returns (uint256 interestAccrued) {
         // [ROUND] rateFactor is rounded up, in favor of the protocol
         // rateFactor = time delta * apr / secondsPerYear
-        uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(RATE, SECONDS_PER_YEAR, Math.Rounding.Ceil);
+        uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(RATE, SECONDS_PER_YEAR, Math.Rounding.Up);
 
         // [ROUND] interest accrued is rounded up, in favor of the protocol
         // interestAccrued = borrows * rateFactor
-        return totalBorrows.mulDiv(rateFactor, 1e18, Math.Rounding.Ceil);
+        return totalBorrows.mulDiv(rateFactor, 1e18, Math.Rounding.Up);
     }
 
     /// @notice Fetch the instantaneous borrow interest rate for a given pool state

@@ -137,10 +137,13 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     /// @notice Initializer for TransparentUpgradeableProxy
+    /// @param owner_ Pool owner
     /// @param registry_ Sentiment Registry
     /// @param feeRecipient_ Sentiment fee receiver
-    function initialize(address registry_, address feeRecipient_) public initializer {
-        OwnableUpgradeable.__Ownable_init(msg.sender);
+    function initialize(address owner_, address registry_, address feeRecipient_) public initializer {
+        OwnableUpgradeable.__Ownable_init();
+        _transferOwnership(owner_);
+
         registry = registry_;
         feeRecipient = feeRecipient_;
         updateFromRegistry();

@@ -62,7 +62,7 @@ contract Deploy is BaseScript {
         // pool
         poolImpl = address(new Pool());
         pool = address(new TransparentUpgradeableProxy(poolImpl, params.owner, new bytes(0)));
-        Pool(pool).initialize(registry, params.feeRecipient);
+        Pool(pool).initialize(params.owner, registry, params.feeRecipient);
         // pool = address(new Pool(registry, params.feeRecipient));
 
         // super pool
@@ -71,7 +71,7 @@ contract Deploy is BaseScript {
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl
         positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0))); // setup proxy
-        PositionManager(positionManager).initialize(registry, params.liquidationFee);
+        PositionManager(positionManager).initialize(params.owner, registry, params.liquidationFee);
 
         // position
         positionBeacon = address(new Position(pool, positionManager));

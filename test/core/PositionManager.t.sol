@@ -53,7 +53,7 @@ contract PositionManagerUnitTests is BaseTest {
         address beacon = address((new TransparentUpgradeableProxy(positionManagerImpl, positionOwner, new bytes(0))));
         positionManager = PositionManager(beacon); // setup proxy
 
-        PositionManager(positionManager).initialize(address(registry), 550);
+        PositionManager(positionManager).initialize(protocolOwner, address(registry), 550);
 
         registry.setAddress(SENTIMENT_POSITION_BEACON_KEY, beacon);
         registry.setAddress(SENTIMENT_POOL_KEY, address(pool));

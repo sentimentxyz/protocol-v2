@@ -56,17 +56,18 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
     /// @param owner Oracle owner address
     /// @param arbSeqFeed Chainlink arbitrum sequencer feed
     /// @param ethUsdFeed Chainlink ETH/USD price feed
-    constructor(address owner, address arbSeqFeed, address ethUsdFeed) Ownable(owner) {
+    constructor(address owner, address arbSeqFeed, address ethUsdFeed) Ownable() {
         ARB_SEQ_FEED = IAggegregatorV3(arbSeqFeed);
         ETH_USD_FEED = IAggegregatorV3(ethUsdFeed);
         priceFeedFor[ETH] = ethUsdFeed;
+
+        _transferOwnership(owner);
     }
 
     /// @notice Compute the equivalent ETH value for a given amount of a particular asset
     /// @param asset Address of the asset to be priced
     /// @param amt Amount of the given asset to be priced
-    /// @return valueInEth Equivalent ETH value for the given asset and amount, scaled by 18 decimals
-    function getValueInEth(address asset, uint256 amt) external view returns (uint256 valueInEth) {
+    function getValueInEth(address asset, uint256 amt) external view returns (uint256) {
         _checkSequencerFeed();
 
         uint256 ethUsdPrice = _getPriceWithSanityChecks(ETH);

@@ -73,24 +73,24 @@ contract PositionUnitTests is BaseTest {
         Position(position).repay(linearRatePool, 10_000 ether);
 
         vm.expectRevert();
-        Position(position).addCollateralType(address(asset2));
+        Position(position).addToken(address(asset2));
 
         vm.expectRevert();
-        Position(position).removeCollateralType(address(asset2));
+        Position(position).removeToken(address(asset2));
 
         vm.expectRevert();
-        Position(position).exec(address(0x0), bytes(""));
+        Position(position).exec(address(0x0), 0, bytes(""));
     }
 
     function testCannotExceedPoolMaxLength() public {
         vm.startPrank(address(positionManager));
 
         for (uint256 i = 1; i < 6; i++) {
-            Position(position).addCollateralType(address(vm.addr(i)));
+            Position(position).addToken(address(vm.addr(i)));
         }
 
         vm.expectRevert();
-        Position(position).addCollateralType(address(vm.addr(6)));
+        Position(position).addToken(address(vm.addr(6)));
 
         for (uint256 i = 1; i < 6; i++) {
             Position(position).borrow(i, 10_000 ether);

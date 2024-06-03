@@ -2,59 +2,46 @@
 pragma solidity ^0.8.24;
 
 /*//////////////////////////////////////////////////////////////
-                            Imports
-//////////////////////////////////////////////////////////////*/
-
-// types
-import { IRateModel } from "../interfaces/IRateModel.sol";
-// libraries
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-
-/*//////////////////////////////////////////////////////////////
                         FixedRateModel
 //////////////////////////////////////////////////////////////*/
 
+import { IRateModel } from "../interfaces/IRateModel.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+
+/// @title FixedRateModel
+/// @notice Rate model implementation with a fixed immutable rate
 contract FixedRateModel is IRateModel {
     using Math for uint256;
 
-    /*//////////////////////////////////////////////////////////////
-                               Storage
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Number of seconds in a year as per the rate model
+    uint256 public constant SECONDS_PER_YEAR = 31_557_600; // 1 year = 365.25 days
 
-    // 18 decimal scaled fixed APR
+    /// @notice Fixed interest rate for the rate model scaled to 18 decimals
     uint256 public immutable RATE;
 
-    // 1 year = 365.25 days
-    uint256 constant SECONDS_PER_YEAR = 31_557_600;
-
-    /*//////////////////////////////////////////////////////////////
-                              Initialize
-    //////////////////////////////////////////////////////////////*/
-
+    /// @param rate Fixed interest rate scaled to 18 decimals
     constructor(uint256 rate) {
-        // store fixed rate as immutable constant
         RATE = rate;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        Public View Functions
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice calculate the interest accrued since the last update
-    /// @param lastUpdated timestamp for the last update
-    /// @param borrows the total amount of borrows, denominated in notional asset units
-    /// @return interest notional amount of interest accrued since the last update
-    function interestAccrued(uint256 lastUpdated, uint256 borrows, uint256) external view returns (uint256 interest) {
-        // rateFactor = time delta * apr / secs_per_year
+    /// @notice Compute the amount of interest accrued since the last interest update
+    /// @param lastUpdated Timestamp of the last interest update
+    /// @param totalBorrows Total amount of assets borrowed from the pool
+    /// @return interestAccrued Amount of interest accrued since the last interest update
+    ///         denominated in terms of the given asset
+    function getInterestAccrued(uint256 lastUpdated, uint256 totalBorrows, uint256) external view returns (uint256 interestAccrued) {
         // [ROUND] rateFactor is rounded up, in favor of the protocol
+        // rateFactor = time delta * apr / secondsPerYear
         uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(RATE, SECONDS_PER_YEAR, Math.Rounding.Up);
 
-        // interest accrued = borrows * rateFactor
         // [ROUND] interest accrued is rounded up, in favor of the protocol
-        return borrows.mulDiv(rateFactor, 1e18, Math.Rounding.Up);
+        // interestAccrued = borrows * rateFactor
+        return totalBorrows.mulDiv(rateFactor, 1e18, Math.Rounding.Up);
     }
 
-    function getInterestRate(uint256, uint256) external view returns (uint256) {
+    /// @notice Fetch the instantaneous borrow interest rate for a given pool state
+    /// @return interestRate Instantaneous interest rate for the given pool state, scaled by 18 decimals
+    function getInterestRate(uint256, uint256) external view returns (uint256 interestRate) {
         return RATE;
     }
 }

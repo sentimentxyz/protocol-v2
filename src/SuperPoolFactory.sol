@@ -37,7 +37,7 @@ contract SuperPoolFactory {
     /// @param name The name of the SuperPool
     /// @param symbol The symbol of the SuperPool
     /// @return newPool The address of the newly deployed SuperPool
-    function deploy(
+    function deploySuperPool(
         address owner,
         address asset,
         address feeRecipient,

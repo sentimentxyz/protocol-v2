@@ -107,8 +107,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         _disableInitializers();
     }
 
-    function initialize(address registry_, address feeRecipient_) public initializer {
+    function initialize(address owner_, address registry_, address feeRecipient_) public initializer {
         OwnableUpgradeable.__Ownable_init();
+        _transferOwnership(owner_);
 
         registry = registry_;
         feeRecipient = feeRecipient_;

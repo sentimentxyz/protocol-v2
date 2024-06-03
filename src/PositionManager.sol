@@ -162,10 +162,11 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         _disableInitializers();
     }
 
-    function initialize(address _registry, uint256 _liquidationFee) public initializer {
+    function initialize(address owner_, address _registry, uint256 _liquidationFee) public initializer {
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         OwnableUpgradeable.__Ownable_init();
         PausableUpgradeable.__Pausable_init();
+        _transferOwnership(owner_);
 
         registry = Registry(_registry);
         liquidationFee = _liquidationFee;

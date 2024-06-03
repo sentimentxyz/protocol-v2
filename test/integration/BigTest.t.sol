@@ -24,6 +24,7 @@ import { MockERC20 } from "../mocks/MockERC20.sol";
 import { Test } from "forge-std/Test.sol";
 
 contract BigTest is Test {
+    address public proxyAdmin = makeAddr("proxyAdmin");
     address public protocolOwner = makeAddr("protocolOwner");
 
     address poolImpl;
@@ -63,12 +64,12 @@ contract BigTest is Test {
     bytes32 public constant SENTIMENT_POSITION_BEACON_KEY = 0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
     // keccak(SENTIMENT_RISK_MODULE_KEY)
     bytes32 public constant SENTIMENT_RISK_MODULE_KEY = 0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
-
     FixedPriceOracle asset1Oracle = new FixedPriceOracle(10e18);
     FixedPriceOracle asset2Oracle = new FixedPriceOracle(1e18);
 
     struct DeployParams {
         address owner;
+        address proxyAdmin;
         address feeRecipient;
         uint256 minLtv;
         uint256 maxLtv;
@@ -80,9 +81,10 @@ contract BigTest is Test {
     function setUp() public virtual {
         DeployParams memory params = DeployParams({
             owner: protocolOwner,
+            proxyAdmin: proxyAdmin,
             feeRecipient: address(this),
             minLtv: 0,
-            maxLtv: 115_792_089_237_316_195_423_570_985_008_687_907_853_269_984_665_640_564_039_457_584_007_913_129_639_935,
+            maxLtv: type(uint256).max,
             minDebt: 0.03 ether,
             liquidationFee: 0,
             liquidationDiscount: 200_000_000_000_000_000
@@ -93,21 +95,22 @@ contract BigTest is Test {
 
         // risk engine
         riskEngine = new RiskEngine(address(registry), params.minLtv, params.maxLtv);
+        riskEngine.transferOwnership(params.owner);
+
         riskModule = new RiskModule(address(registry), params.minDebt, params.liquidationDiscount);
 
         // pool
         poolImpl = address(new Pool());
-        pool = Pool(address(new TransparentUpgradeableProxy(poolImpl, params.owner, new bytes(0))));
-        pool.initialize(address(registry), params.feeRecipient);
-        // pool = new Pool(address(registry), params.feeRecipient);
+        bytes memory poolInitData = abi.encodeWithSelector(Pool.initialize.selector, params.owner, address(registry), params.feeRecipient);
+        pool = Pool(address(new TransparentUpgradeableProxy(poolImpl, proxyAdmin, poolInitData)));
 
         // super pool
         superPoolFactory = new SuperPoolFactory(address(pool));
 
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl
-        positionManager = PositionManager(address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0)))); // setup proxy
-        PositionManager(positionManager).initialize(address(registry), params.liquidationFee);
+        bytes memory posmgrInitData = abi.encodeWithSelector(PositionManager.initialize.selector, params.owner, address(registry), params.liquidationFee);
+        positionManager = PositionManager(address(new TransparentUpgradeableProxy(positionManagerImpl, proxyAdmin, posmgrInitData))); // setup proxy
 
         // position
         address positionImpl = address(new Position(address(pool), address(positionManager)));
@@ -117,14 +120,13 @@ contract BigTest is Test {
         superPoolLens = new SuperPoolLens(address(pool), address(riskEngine));
         portfolioLens = new PortfolioLens(address(pool), address(riskEngine), address(positionManager));
 
-        PositionManager(positionManager).transferOwnership(params.owner);
-
         // register
         registry.setAddress(SENTIMENT_POSITION_MANAGER_KEY, address(positionManager));
         registry.setAddress(SENTIMENT_POOL_KEY, address(pool));
         registry.setAddress(SENTIMENT_RISK_ENGINE_KEY, address(riskEngine));
         registry.setAddress(SENTIMENT_POSITION_BEACON_KEY, address(positionBeacon));
         registry.setAddress(SENTIMENT_RISK_MODULE_KEY, address(riskModule));
+        registry.transferOwnership(params.owner);
 
         pool.updateFromRegistry();
         positionManager.updateFromRegistry();
@@ -134,13 +136,18 @@ contract BigTest is Test {
         asset1 = new MockERC20("Asset1", "ASSET1", 18);
         asset2 = new MockERC20("Asset2", "ASSET2", 18);
 
-        pool.transferOwnership(params.owner);
-        registry.transferOwnership(params.owner);
-        riskEngine.transferOwnership(params.owner);
-
         address fixedRateModel = address(new FixedRateModel(1e18));
         address linearRateModel = address(new LinearRateModel(1e18, 2e18));
         address fixedRateModel2 = address(new FixedRateModel(2e18));
+        address linearRateModel2 = address(new LinearRateModel(2e18, 3e18));
+
+        vm.startPrank(poolOwner);
+        fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0, type(uint128).max);
+        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0, type(uint128).max);
+        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0, 0, type(uint128).max);
+        linearRatePool2 = pool.initializePool(poolOwner, address(asset1), linearRateModel2, 0, 0, type(uint128).max);
+        alternateAssetPool = pool.initializePool(poolOwner, address(asset2), fixedRateModel, 0, 0, type(uint128).max);
+        vm.stopPrank();
 
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(asset1), address(asset1Oracle));

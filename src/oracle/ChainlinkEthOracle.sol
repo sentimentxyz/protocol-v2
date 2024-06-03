@@ -44,6 +44,8 @@ contract ChainlinkEthOracle is Ownable {
 
     constructor(address owner, address arbSeqFeed) Ownable() {
         ARB_SEQ_FEED = IAggegregatorV3(arbSeqFeed);
+
+        _transferOwnership(owner);
     }
 
     function getValueInEth(address asset, uint256 amt) external view returns (uint256) {

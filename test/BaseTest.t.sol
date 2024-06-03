@@ -24,7 +24,7 @@ import { MockERC20 } from "./mocks/MockERC20.sol";
 import { Test } from "forge-std/Test.sol";
 
 contract BaseTest is Test {
-    address public proxyAdmin;
+    address public proxyAdmin = makeAddr("proxyAdmin");
     address public protocolOwner = makeAddr("protocolOwner");
 
     address poolImpl;
@@ -67,6 +67,7 @@ contract BaseTest is Test {
 
     struct DeployParams {
         address owner;
+        address proxyAdmin;
         address feeRecipient;
         uint256 minLtv;
         uint256 maxLtv;
@@ -78,9 +79,10 @@ contract BaseTest is Test {
     function setUp() public virtual {
         DeployParams memory params = DeployParams({
             owner: protocolOwner,
+            proxyAdmin: proxyAdmin,
             feeRecipient: address(this),
             minLtv: 0,
-            maxLtv: 115_792_089_237_316_195_423_570_985_008_687_907_853_269_984_665_640_564_039_457_584_007_913_129_639_935,
+            maxLtv: type(uint256).max,
             minDebt: 0.03 ether,
             liquidationFee: 0,
             liquidationDiscount: 200_000_000_000_000_000
@@ -91,21 +93,22 @@ contract BaseTest is Test {
 
         // risk engine
         riskEngine = new RiskEngine(address(registry), params.minLtv, params.maxLtv);
+        riskEngine.transferOwnership(params.owner);
+
         riskModule = new RiskModule(address(registry), params.minDebt, params.liquidationDiscount);
 
         // pool
         poolImpl = address(new Pool());
-        pool = Pool(address(new TransparentUpgradeableProxy(poolImpl, params.owner, new bytes(0))));
-        pool.initialize(address(registry), params.feeRecipient);
-        // pool = new Pool(address(registry), params.feeRecipient);
+        bytes memory poolInitData = abi.encodeWithSelector(Pool.initialize.selector, params.owner, address(registry), params.feeRecipient);
+        pool = Pool(address(new TransparentUpgradeableProxy(poolImpl, proxyAdmin, poolInitData)));
 
         // super pool
         superPoolFactory = new SuperPoolFactory(address(pool));
 
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl
-        positionManager = PositionManager(address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0)))); // setup proxy
-        PositionManager(positionManager).initialize(address(registry), params.liquidationFee);
+        bytes memory posmgrInitData = abi.encodeWithSelector(PositionManager.initialize.selector, params.owner, address(registry), params.liquidationFee);
+        positionManager = PositionManager(address(new TransparentUpgradeableProxy(positionManagerImpl, proxyAdmin, posmgrInitData))); // setup proxy
 
         // position
         address positionImpl = address(new Position(address(pool), address(positionManager)));
@@ -115,14 +118,13 @@ contract BaseTest is Test {
         superPoolLens = new SuperPoolLens(address(pool), address(riskEngine));
         portfolioLens = new PortfolioLens(address(pool), address(riskEngine), address(positionManager));
 
-        PositionManager(positionManager).transferOwnership(params.owner);
-
         // register
         registry.setAddress(SENTIMENT_POSITION_MANAGER_KEY, address(positionManager));
         registry.setAddress(SENTIMENT_POOL_KEY, address(pool));
         registry.setAddress(SENTIMENT_RISK_ENGINE_KEY, address(riskEngine));
         registry.setAddress(SENTIMENT_POSITION_BEACON_KEY, address(positionBeacon));
         registry.setAddress(SENTIMENT_RISK_MODULE_KEY, address(riskModule));
+        registry.transferOwnership(params.owner);
 
         pool.updateFromRegistry();
         positionManager.updateFromRegistry();
@@ -131,11 +133,6 @@ contract BaseTest is Test {
 
         asset1 = new MockERC20("Asset1", "ASSET1", 18);
         asset2 = new MockERC20("Asset2", "ASSET2", 18);
-
-        pool.transferOwnership(params.owner);
-        registry.transferOwnership(params.owner);
-        riskEngine.transferOwnership(params.owner);
-        proxyAdmin = address(this);
 
         address fixedRateModel = address(new FixedRateModel(1e18));
         address linearRateModel = address(new LinearRateModel(1e18, 2e18));

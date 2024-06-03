@@ -49,6 +49,8 @@ contract ChainlinkUsdOracle is Ownable {
         ARB_SEQ_FEED = IAggegregatorV3(arbSeqFeed);
         ETH_USD_FEED = IAggegregatorV3(ethUsdFeed);
         priceFeedFor[ETH] = ethUsdFeed;
+
+        _transferOwnership(owner);
     }
 
     function getValueInEth(address asset, uint256 amt) external view returns (uint256) {

@@ -3,8 +3,8 @@ pragma solidity ^0.8.24;
 
 import { BaseTest } from "../BaseTest.t.sol";
 import { PositionManager } from "src/PositionManager.sol";
+import { Action, AssetData, DebtData } from "src/PositionManager.sol";
 import { RiskModule } from "src/RiskModule.sol";
-import { DebtData, AssetData, Action } from "src/PositionManager.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract LiquidationTest is BaseTest {
@@ -73,7 +73,9 @@ contract LiquidationTest is BaseTest {
         asset1.mint(liquidator, 10e18);
         vm.startPrank(liquidator);
         asset1.approve(address(positionManager), 1e18);
-        vm.expectRevert(abi.encodeWithSelector(PositionManager.PositionManager_LiquidateHealthyPosition.selector, position));
+        vm.expectRevert(
+            abi.encodeWithSelector(PositionManager.PositionManager_LiquidateHealthyPosition.selector, position)
+        );
         positionManager.liquidate(position, debts, assets);
         vm.stopPrank();
 

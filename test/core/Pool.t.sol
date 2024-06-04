@@ -143,7 +143,9 @@ contract PoolUnitTests is BaseTest {
     function testOnlyPositionManagerCanBorrow() public {
         address notPositionManager = makeAddr("notPositionManager");
         vm.startPrank(notPositionManager);
-        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPositionManager.selector, linearRatePool, notPositionManager));
+        vm.expectRevert(
+            abi.encodeWithSelector(Pool.Pool_OnlyPositionManager.selector, linearRatePool, notPositionManager)
+        );
         pool.borrow(linearRatePool, notPositionManager, 100 ether);
     }
 
@@ -327,7 +329,9 @@ contract PoolUnitTests is BaseTest {
         (, uint256 validAfter) = pool.rateModelUpdateFor(linearRatePool);
 
         vm.prank(poolOwner);
-        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_TimelockPending.selector, linearRatePool, block.timestamp, validAfter));
+        vm.expectRevert(
+            abi.encodeWithSelector(Pool.Pool_TimelockPending.selector, linearRatePool, block.timestamp, validAfter)
+        );
         pool.acceptRateModelUpdate(linearRatePool);
     }
 

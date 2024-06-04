@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "../BaseTest.t.sol";
 import { FixedRateModel } from "../../src/irm/FixedRateModel.sol";
 import { LinearRateModel } from "../../src/irm/LinearRateModel.sol";
-import { IOracle } from "src/interfaces/IOracle.sol";
-
-import { Action, Operation } from "src/PositionManager.sol";
-
+import "../BaseTest.t.sol";
 import { MockERC20 } from "../mocks/MockERC20.sol";
-import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { Action, Operation } from "src/PositionManager.sol";
+import { IOracle } from "src/interfaces/IOracle.sol";
+import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract PositionManagerUnitTests is BaseTest {
     address public position;
@@ -129,7 +127,9 @@ contract PositionManagerUnitTests is BaseTest {
         PositionManager(positionManager).processBatch(position, actions);
 
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = riskEngine.getRiskData(position);
-        assertEq(totalAssetValue, IOracle(riskEngine.getOracleFor(address(asset2))).getValueInEth(address(asset2), amount));
+        assertEq(
+            totalAssetValue, IOracle(riskEngine.getOracleFor(address(asset2))).getValueInEth(address(asset2), amount)
+        );
         assertEq(totalDebtValue, 0);
         assertEq(minReqAssetValue, 0);
         assertEq(asset2.balanceOf(address(position)), amount);
@@ -202,7 +202,11 @@ contract PositionManagerUnitTests is BaseTest {
 
         Action memory action = Action({ op: Operation.Borrow, data: data });
 
-        vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, position, linearRatePool, address(asset2)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RiskModule.RiskModule_UnsupportedAsset.selector, position, linearRatePool, address(asset2)
+            )
+        );
         PositionManager(positionManager).process(position, action);
     }
 
@@ -504,9 +508,7 @@ contract TestCallContract {
     }
 
     function testCall() public {
-        if (revertOrNot) {
-            revert("Call Revert");
-        }
+        if (revertOrNot) revert("Call Revert");
         ping++;
     }
 }

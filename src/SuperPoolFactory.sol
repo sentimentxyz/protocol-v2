@@ -45,10 +45,7 @@ contract SuperPoolFactory {
         uint256 superPoolCap,
         string calldata name,
         string calldata symbol
-    )
-        external
-        returns (address newPool)
-    {
+    ) external returns (address newPool) {
         SuperPool superPool = new SuperPool(POOL, asset, feeRecipient, fee, superPoolCap, name, symbol);
         superPool.transferOwnership(owner);
         emit SuperPoolDeployed(owner, address(superPool), name, symbol);

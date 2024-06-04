@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { IterableSet } from "src/lib/IterableSet.sol";
 import { Test, console2 } from "forge-std/Test.sol";
+import { IterableSet } from "src/lib/IterableSet.sol";
 
 contract IterableSetTest is Test {
     IterableSet.AddressSet addressSet;
@@ -74,9 +74,7 @@ contract IterableSetTest is Test {
         address[] memory unique_els = new address[](els.length);
         uint256 counter = 0;
         for (uint256 i = 0; i < els.length; i++) {
-            if (includedAddr[els[i]]) {
-                continue;
-            }
+            if (includedAddr[els[i]]) continue;
             unique_els[counter] = els[i];
             includedAddr[els[i]] = true;
             counter++;
@@ -91,9 +89,7 @@ contract IterableSetTest is Test {
         uint256[] memory unique_els = new uint256[](els.length);
         uint256 counter = 0;
         for (uint256 i = 0; i < els.length; i++) {
-            if (includedUint[els[i]]) {
-                continue;
-            }
+            if (includedUint[els[i]]) continue;
             unique_els[counter] = els[i];
             includedUint[els[i]] = true;
             counter++;

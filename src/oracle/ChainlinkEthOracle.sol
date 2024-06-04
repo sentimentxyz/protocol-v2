@@ -6,14 +6,17 @@ pragma solidity ^0.8.24;
 //////////////////////////////////////////////////////////////*/
 
 import { IOracle } from "../interfaces/IOracle.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /// @title IAggregatorV3
 /// @notice Chainlink Aggregator v3 interface
 interface IAggegregatorV3 {
-    function latestRoundData() external view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
+    function latestRoundData()
+        external
+        view
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
 
     function decimals() external view returns (uint256);
 }

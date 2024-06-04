@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { Pool } from "src/Pool.sol";
-import { Registry } from "src/Registry.sol";
-import { Position } from "src/Position.sol";
-import { RiskEngine } from "src/RiskEngine.sol";
-import { RiskModule } from "src/RiskModule.sol";
-import { PositionManager } from "src/PositionManager.sol";
-import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
-import { PortfolioLens } from "src/lens/PortfolioLens.sol";
-import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
-
 import { BaseScript } from "./BaseScript.s.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import { Pool } from "src/Pool.sol";
+import { Position } from "src/Position.sol";
+import { PositionManager } from "src/PositionManager.sol";
+import { Registry } from "src/Registry.sol";
+import { RiskEngine } from "src/RiskEngine.sol";
+import { RiskModule } from "src/RiskModule.sol";
+import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
+import { PortfolioLens } from "src/lens/PortfolioLens.sol";
+import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
 
 struct DeployParams {
     address owner;
@@ -70,7 +69,8 @@ contract Deploy is BaseScript {
 
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl
-        positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0))); // setup proxy
+        positionManager = address(new TransparentUpgradeableProxy(positionManagerImpl, params.owner, new bytes(0))); // setup
+            // proxy
         PositionManager(positionManager).initialize(params.owner, registry, params.liquidationFee);
 
         // position

@@ -6,12 +6,15 @@ pragma solidity ^0.8.24;
 //////////////////////////////////////////////////////////////*/
 
 import { IOracle } from "../interfaces/IOracle.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 interface IAggegregatorV3 {
-    function latestRoundData() external view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
+    function latestRoundData()
+        external
+        view
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
 
     function decimals() external view returns (uint256);
 }
@@ -76,11 +79,8 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
         uint256 decimals = IERC20Metadata(asset).decimals();
 
         // [ROUND] price is rounded down. this is used for both debt and asset math, no effect
-        if (decimals <= 18) {
-            return (amt * 10 ** (18 - decimals)).mulDiv(uint256(assetUsdPrice), uint256(ethUsdPrice));
-        } else {
-            return (amt / (10 ** decimals - 18)).mulDiv(uint256(assetUsdPrice), uint256(ethUsdPrice));
-        }
+        if (decimals <= 18) return (amt * 10 ** (18 - decimals)).mulDiv(uint256(assetUsdPrice), uint256(ethUsdPrice));
+        else return (amt / (10 ** decimals - 18)).mulDiv(uint256(assetUsdPrice), uint256(ethUsdPrice));
     }
 
     /// @notice Set Chainlink ETH-denominated feed for an asset

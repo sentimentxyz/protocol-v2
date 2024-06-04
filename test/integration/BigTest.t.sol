@@ -1,27 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { Pool } from "src/Pool.sol";
-import { Registry } from "src/Registry.sol";
-import { Position } from "src/Position.sol";
-import { RiskEngine } from "src/RiskEngine.sol";
-import { RiskModule } from "src/RiskModule.sol";
-import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
-import { PortfolioLens } from "src/lens/PortfolioLens.sol";
-import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
-import { SuperPool } from "src/SuperPool.sol";
-import { Action, Operation, PositionManager } from "src/PositionManager.sol";
-import { FixedPriceOracle } from "../../src/oracle/FixedPriceOracle.sol";
-
-import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-
 import { FixedRateModel } from "../../src/irm/FixedRateModel.sol";
 import { LinearRateModel } from "../../src/irm/LinearRateModel.sol";
-
+import { FixedPriceOracle } from "../../src/oracle/FixedPriceOracle.sol";
 import { MockERC20 } from "../mocks/MockERC20.sol";
-
+import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { Test } from "forge-std/Test.sol";
+import { Pool } from "src/Pool.sol";
+import { Position } from "src/Position.sol";
+import { Action, Operation, PositionManager } from "src/PositionManager.sol";
+import { Registry } from "src/Registry.sol";
+import { RiskEngine } from "src/RiskEngine.sol";
+import { RiskModule } from "src/RiskModule.sol";
+import { SuperPool } from "src/SuperPool.sol";
+import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
+import { PortfolioLens } from "src/lens/PortfolioLens.sol";
+import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
 
 contract BigTest is Test {
     address public proxyAdmin = makeAddr("proxyAdmin");
@@ -55,15 +51,19 @@ contract BigTest is Test {
     uint256 public alternateAssetPool;
 
     // keccak(SENTIMENT_POSITION_MANAGER_KEY)
-    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY = 0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
+    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
+        0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
     // keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
     // keccak(SENTIMENT_RISK_ENGINE_KEY)
-    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY = 0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
+    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
+        0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
     // keccak(SENIMENT_POSITION_BEACON_KEY)
-    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY = 0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
+    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
+        0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
     // keccak(SENTIMENT_RISK_MODULE_KEY)
-    bytes32 public constant SENTIMENT_RISK_MODULE_KEY = 0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
+    bytes32 public constant SENTIMENT_RISK_MODULE_KEY =
+        0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
     FixedPriceOracle asset1Oracle = new FixedPriceOracle(10e18);
     FixedPriceOracle asset2Oracle = new FixedPriceOracle(1e18);
 
@@ -101,7 +101,8 @@ contract BigTest is Test {
 
         // pool
         poolImpl = address(new Pool());
-        bytes memory poolInitData = abi.encodeWithSelector(Pool.initialize.selector, params.owner, address(registry), params.feeRecipient);
+        bytes memory poolInitData =
+            abi.encodeWithSelector(Pool.initialize.selector, params.owner, address(registry), params.feeRecipient);
         pool = Pool(address(new TransparentUpgradeableProxy(poolImpl, proxyAdmin, poolInitData)));
 
         // super pool
@@ -109,8 +110,12 @@ contract BigTest is Test {
 
         // position manager
         positionManagerImpl = address(new PositionManager()); // deploy impl
-        bytes memory posmgrInitData = abi.encodeWithSelector(PositionManager.initialize.selector, params.owner, address(registry), params.liquidationFee);
-        positionManager = PositionManager(address(new TransparentUpgradeableProxy(positionManagerImpl, proxyAdmin, posmgrInitData))); // setup proxy
+        bytes memory posmgrInitData = abi.encodeWithSelector(
+            PositionManager.initialize.selector, params.owner, address(registry), params.liquidationFee
+        );
+        positionManager =
+            PositionManager(address(new TransparentUpgradeableProxy(positionManagerImpl, proxyAdmin, posmgrInitData))); // setup
+            // proxy
 
         // position
         address positionImpl = address(new Position(address(pool), address(positionManager)));
@@ -155,9 +160,12 @@ contract BigTest is Test {
         vm.stopPrank();
 
         vm.startPrank(poolOwner);
-        fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0.1e18, 0.01e18, type(uint128).max);
-        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0.01e18, type(uint128).max);
-        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0.1e18, 0.01e18, type(uint128).max);
+        fixedRatePool =
+            pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0.1e18, 0.01e18, type(uint128).max);
+        linearRatePool =
+            pool.initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0.01e18, type(uint128).max);
+        fixedRatePool2 =
+            pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0.1e18, 0.01e18, type(uint128).max);
         vm.stopPrank();
 
         vm.startPrank(poolOwner);
@@ -231,7 +239,9 @@ contract BigTest is Test {
         // 7. User should have profit from the borrowed amount
         // 8. feeTo should make money
         address feeTo = makeAddr("feeTo");
-        SuperPool superPool = SuperPool(superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test"));
+        SuperPool superPool = SuperPool(
+            superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test")
+        );
 
         // 2. Make a SuperPool with the 3 pools
         vm.startPrank(poolOwner);

@@ -7,20 +7,20 @@ pragma solidity ^0.8.24;
 
 // types
 import { Pool } from "./Pool.sol";
-import { Registry } from "./Registry.sol";
 import { Position } from "./Position.sol";
+import { Registry } from "./Registry.sol";
 import { RiskEngine } from "./RiskEngine.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // libraries
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // contracts
-import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 
 /// @title DebtData
 /// @notice Data struct for position debt to be repaid by the liquidator
@@ -77,9 +77,11 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     // keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
     // keccak(SENTIMENT_RISK_ENGINE_KEY)
-    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY = 0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
+    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
+        0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
     // keccak(SENIMENT_POSITION_BEACON_KEY)
-    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY = 0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
+    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
+        0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
 
     /// @notice Sentiment Singleton Pool
     Pool public pool;
@@ -141,9 +143,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @notice An external operation was executed on a position
     event Exec(address indexed position, address indexed caller, address indexed target, bytes4 functionSelector);
     /// @notice Assets were transferred out of a position
-    event Transfer(address indexed position, address indexed caller, address indexed target, address asset, uint256 amount);
+    event Transfer(
+        address indexed position, address indexed caller, address indexed target, address asset, uint256 amount
+    );
     /// @notice Approval was granted for assets belonging to a position
-    event Approve(address indexed position, address indexed caller, address indexed spender, address asset, uint256 amount);
+    event Approve(
+        address indexed position, address indexed caller, address indexed spender, address asset, uint256 amount
+    );
 
     /// @notice The pool a position is trying to borrow from does not exist
     error PositionManager_UnknownPool(uint256 poolId);
@@ -228,23 +234,14 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
         if (!isAuth[position][msg.sender]) revert PositionManager_OnlyPositionAuthorized(position, msg.sender);
 
-        if (action.op == Operation.Exec) {
-            exec(position, action.data);
-        } else if (action.op == Operation.Transfer) {
-            transfer(position, action.data);
-        } else if (action.op == Operation.Deposit) {
-            deposit(position, action.data);
-        } else if (action.op == Operation.Approve) {
-            approve(position, action.data);
-        } else if (action.op == Operation.Repay) {
-            repay(position, action.data);
-        } else if (action.op == Operation.Borrow) {
-            borrow(position, action.data);
-        } else if (action.op == Operation.AddToken) {
-            addToken(position, action.data);
-        } else if (action.op == Operation.RemoveToken) {
-            removeToken(position, action.data);
-        }
+        if (action.op == Operation.Exec) exec(position, action.data);
+        else if (action.op == Operation.Transfer) transfer(position, action.data);
+        else if (action.op == Operation.Deposit) deposit(position, action.data);
+        else if (action.op == Operation.Approve) approve(position, action.data);
+        else if (action.op == Operation.Repay) repay(position, action.data);
+        else if (action.op == Operation.Borrow) borrow(position, action.data);
+        else if (action.op == Operation.AddToken) addToken(position, action.data);
+        else if (action.op == Operation.RemoveToken) removeToken(position, action.data);
     }
 
     /// @dev deterministically deploy a new beacon proxy representing a position
@@ -281,9 +278,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         uint256 value = uint256(bytes32(data[20:52]));
         bytes4 funcSelector = bytes4(data[52:56]);
 
-        if (!isKnownFunc[target][funcSelector]) {
-            revert PositionManager_UnknownFuncSelector(target, funcSelector);
-        }
+        if (!isKnownFunc[target][funcSelector]) revert PositionManager_UnknownFuncSelector(target, funcSelector);
 
         Position(position).exec(target, value, data[52:]);
         emit Exec(position, msg.sender, target, funcSelector);
@@ -399,7 +394,11 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @param position Position address
     /// @param debt DebtData object for debts to be repaid
     /// @param positionAssets AssetData object for assets to be seized
-    function liquidate(address position, DebtData[] calldata debt, AssetData[] calldata positionAssets) external nonReentrant {
+    function liquidate(
+        address position,
+        DebtData[] calldata debt,
+        AssetData[] calldata positionAssets
+    ) external nonReentrant {
         // position must breach risk thresholds before liquidation
         if (riskEngine.isPositionHealthy(position)) revert PositionManager_LiquidateHealthyPosition(position);
 

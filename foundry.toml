@@ -1,39 +1,47 @@
 [profile.default]
-solc_version = '0.8.24'
 src = 'src'
 out = 'out'
 libs = ['lib']
-optimizer = true
-optimizer_runs = 1024
-bytecode_hash = "none"
-cbor_metadata = false
-sparse_mode = false
-build_info = true
-
+verbosity = 3
 via_ir = false
-fuzz_runs = 1_000_000
-deny_warnings = false
+optimizer = true
+sparse_mode = true
+cbor_metadata = false
+optimizer_runs = 1024
+deny_warnings = true
+bytecode_hash = "none"
+solc_version = '0.8.24'
+evm_version = 'shanghai'
+remappings = [
+    "forge-std/=lib/forge-std/src/",
+    "@redstone-oracles-monorepo/=lib/redstone-oracles-monorepo/",
+    "@openzeppelin/contracts=lib/openzeppelin-contracts/contracts",
+    "erc4626-tests/=lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/",
+    "ds-test/=lib/openzeppelin-contracts-upgradeable/lib/forge-std/lib/ds-test/src/",
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts",
+]
 
 [profile.default.optimizer_details]
-constantOptimizer = true
 yul = true
+constantOptimizer = true
 
 [profile.default.optimizer_details.yulDetails]
 stackAllocation = true
 
-[profile.ci]
-solc_version = '0.8.19'
-src = 'src'
-out = 'out'
-libs = ['lib']
-
+[profile.default.fuzz]
+runs = 1_000_000
 
 [fmt]
-line_length = 160
-bracket_spacing = true
-number_underscore = "thousands"
-wrap_comments = true
+tab_width = 4
+line_length = 120
 int_types = "long"
-multiline_func_header = "all"
+sort_imports = true
+ignore = ["libs/*"]
+wrap_comments = true
 quote_style = "double"
-ignore = ["libs/*","*.t.sol"]
+bracket_spacing = true
+override_spacing = false
+contract_new_lines = false
+number_underscore = "thousands"
+single_line_statement_blocks = "single"
+multiline_func_header = "params_first"

@@ -41,10 +41,16 @@ contract LinearRateModel is IRateModel {
     /// @param idleAssetAmt Total amount of idle liquidity in the pool
     /// @return interestAccrued Amount of interest accrued since the last interest update
     ///         denominated in terms of the given asset
-    function getInterestAccrued(uint256 lastUpdated, uint256 totalBorrows, uint256 idleAssetAmt) external view returns (uint256 interestAccrued) {
+    function getInterestAccrued(
+        uint256 lastUpdated,
+        uint256 totalBorrows,
+        uint256 idleAssetAmt
+    ) external view returns (uint256) {
         // [ROUND] rateFactor is rounded up, in favor of the protocol
         // rateFactor = time delta * apr / secs_per_year
-        uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(getInterestRate(totalBorrows, idleAssetAmt), SECONDS_PER_YEAR, Math.Rounding.Up);
+        uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(
+            getInterestRate(totalBorrows, idleAssetAmt), SECONDS_PER_YEAR, Math.Rounding.Up
+        );
 
         // [ROUND] interest accrued is rounded up, in favor of the protocol
         // interestAccrued = borrows * rateFactor
@@ -55,7 +61,7 @@ contract LinearRateModel is IRateModel {
     /// @param totalBorrows Total amount of assets borrowed from the pool
     /// @param idleAssetAmt Total amount of idle liquidity in the pool
     /// @return interestRate Instantaneous interest rate for the given pool state, scaled by 18 decimals
-    function getInterestRate(uint256 totalBorrows, uint256 idleAssetAmt) public view returns (uint256 interestRate) {
+    function getInterestRate(uint256 totalBorrows, uint256 idleAssetAmt) public view returns (uint256) {
         uint256 totalAssets = totalBorrows + idleAssetAmt;
 
         // [ROUND] pool utilisation is rounded up, in favor of the protocol

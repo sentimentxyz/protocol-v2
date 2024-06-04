@@ -8,12 +8,12 @@ pragma solidity ^0.8.24;
 // types
 import { Registry } from "./Registry.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // libraries
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // contracts
 import { ERC6909 } from "./lib/ERC6909.sol";
@@ -30,7 +30,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
     /// @notice Registry key hash for the Sentiment position manager
     /// @dev keccak(SENTIMENT_POSITION_MANAGER_KEY)
-    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY = 0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
+    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
+        0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
 
     /// @notice Sentiment registry
     address public registry;
@@ -105,7 +106,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @notice Assets were borrowed from a position to a pool
     event Borrow(address indexed position, uint256 indexed poolId, address indexed asset, uint256 amount);
     /// @notice Assets were withdrawn from a pool
-    event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(
+        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
+    );
 
     /// @notice Pool is paused
     error Pool_PoolPaused(uint256 poolId);
@@ -266,9 +269,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         if (assets == 0) revert Pool_ZeroAssetRedeem(poolId, shares);
 
         uint256 assetsInPool = pool.totalAssets.assets - pool.totalBorrows.assets;
-        if (assetsInPool < assets) {
-            revert Pool_InsufficientLiquidity(poolId, assetsInPool, assets);
-        }
+        if (assetsInPool < assets) revert Pool_InsufficientLiquidity(poolId, assetsInPool, assets);
 
         pool.totalAssets.assets -= uint128(assets);
         pool.totalAssets.shares -= uint128(shares);
@@ -287,7 +288,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     function simulateAccrue(PoolData storage pool) internal view returns (uint256 interestAccrued) {
-        return IRateModel(pool.rateModel).getInterestAccrued(pool.lastUpdated, pool.totalBorrows.assets, pool.totalAssets.assets);
+        return IRateModel(pool.rateModel).getInterestAccrued(
+            pool.lastUpdated, pool.totalBorrows.assets, pool.totalAssets.assets
+        );
     }
 
     /// @dev update pool state to accrue interest since the last time accrue() was called
@@ -412,10 +415,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         uint128 interestFee,
         uint128 originationFee,
         uint128 poolCap
-    )
-        external
-        returns (uint256 poolId)
-    {
+    ) external returns (uint256 poolId) {
         poolId = uint256(keccak256(abi.encodePacked(owner, asset, rateModel, interestFee, originationFee)));
 
         if (ownerOf[poolId] != address(0)) revert Pool_PoolAlreadyInitialized(poolId);
@@ -460,7 +460,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @notice Propose a interest rate model update for a pool
     function requestRateModelUpdate(uint256 poolId, address rateModel) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
-        RateModelUpdate memory rateModelUpdate = RateModelUpdate({ rateModel: rateModel, validAfter: block.timestamp + TIMELOCK_DURATION });
+        RateModelUpdate memory rateModelUpdate =
+            RateModelUpdate({ rateModel: rateModel, validAfter: block.timestamp + TIMELOCK_DURATION });
 
         rateModelUpdateFor[poolId] = rateModelUpdate;
 

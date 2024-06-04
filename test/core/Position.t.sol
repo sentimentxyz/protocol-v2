@@ -5,10 +5,8 @@ import "../BaseTest.t.sol";
 
 import { FixedRateModel } from "../../src/irm/FixedRateModel.sol";
 import { LinearRateModel } from "../../src/irm/LinearRateModel.sol";
-
-import { Action, Operation } from "src/PositionManager.sol";
-
 import { MockERC20 } from "../mocks/MockERC20.sol";
+import { Action, Operation } from "src/PositionManager.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract PositionUnitTests is BaseTest {

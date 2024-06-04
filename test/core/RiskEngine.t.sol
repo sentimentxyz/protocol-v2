@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "../BaseTest.t.sol";
-import { RiskEngine } from "src/RiskEngine.sol";
 import { FixedRateModel } from "../../src/irm/FixedRateModel.sol";
 import { LinearRateModel } from "../../src/irm/LinearRateModel.sol";
-
-import { Action, Operation } from "src/PositionManager.sol";
-
+import "../BaseTest.t.sol";
 import { MockERC20 } from "../mocks/MockERC20.sol";
+import { Action, Operation } from "src/PositionManager.sol";
+import { RiskEngine } from "src/RiskEngine.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract RiskModuleUnitTests is BaseTest {

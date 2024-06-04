@@ -14,7 +14,11 @@ interface IRateModel {
     /// @param idleAssetAmt Total amount of idle liquidity in the pool
     /// @return interestAccrued Amount of interest accrued since the last interest update
     ///         denominated in terms of the given asset
-    function getInterestAccrued(uint256 lastUpdated, uint256 totalBorrows, uint256 idleAssetAmt) external view returns (uint256 interestAccrued);
+    function getInterestAccrued(
+        uint256 lastUpdated,
+        uint256 totalBorrows,
+        uint256 idleAssetAmt
+    ) external view returns (uint256 interestAccrued);
 
     /// @notice Fetch the instantaneous borrow interest rate for a given pool state
     /// @param totalBorrows Total amount of assets borrowed from the pool

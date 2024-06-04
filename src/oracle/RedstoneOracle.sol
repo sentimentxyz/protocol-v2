@@ -60,15 +60,12 @@ contract RedstoneCoreOracle is ArbitrumProdDataServiceConsumerBase, IOracle {
         priceTimestamp = block.timestamp - THREE_MINUTES;
     }
 
-    function getValueInEth(address, uint256 amt) external view returns (uint256 valueInEth) {
+    function getValueInEth(address, uint256 amt) external view returns (uint256) {
         if (priceTimestamp < block.timestamp - STALE_PRICE_THRESHOLD) revert RedstoneCoreOracle_StalePrice(ASSET);
 
         // scale amt to 18 decimals
-        if (ASSET_DECIMALS <= 18) {
-            amt = amt * 10 ** (18 - ASSET_DECIMALS);
-        } else {
-            amt = amt / 10 ** (ASSET_DECIMALS - 18);
-        }
+        if (ASSET_DECIMALS <= 18) amt = amt * 10 ** (18 - ASSET_DECIMALS);
+        else amt = amt / 10 ** (ASSET_DECIMALS - 18);
 
         // [ROUND] price is rounded down
         return amt.mulDiv(assetUsdPrice, ethUsdPrice);

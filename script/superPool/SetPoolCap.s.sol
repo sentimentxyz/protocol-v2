@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { SuperPool } from "src/SuperPool.sol";
 import { BaseScript } from "../BaseScript.s.sol";
+import { SuperPool } from "src/SuperPool.sol";
 
 contract SetPoolCap is BaseScript {
     uint256 poolId;

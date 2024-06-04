@@ -7,18 +7,18 @@ pragma solidity ^0.8.24;
 
 // types
 import { Pool } from "./Pool.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // libraries
 import { IterableSet } from "./lib/IterableSet.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // contracts
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Pausable } from "@openzeppelin/contracts/security/Pausable.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /// @title SuperPool
 /// @notice Aggregator of underlying pools compliant with ERC4626
@@ -68,7 +68,9 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @notice Assets were deposited to the SuperPool
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
     /// @notice Assets were withdrawn from the SuperPool
-    event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(
+        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
+    );
 
     /// @notice Attempt to deposit zero shares worth of assets to the pool
     error SuperPool_ZeroShareDeposit(address superpool, uint256 assets);
@@ -107,10 +109,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         uint256 superPoolCap_,
         string memory name_,
         string memory symbol_
-    )
-        Ownable()
-        ERC20(name_, symbol_)
-    {
+    ) Ownable() ERC20(name_, symbol_) {
         asset = IERC20(asset_);
         pool = Pool(pool_);
 
@@ -479,7 +478,10 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param queue The queue to copy
     /// @param indexes The new order of the queue
     /// @return newQueue A memory copy of the new queue
-    function _reorderQueue(uint256[] storage queue, uint256[] calldata indexes) internal view returns (uint256[] memory newQueue) {
+    function _reorderQueue(
+        uint256[] storage queue,
+        uint256[] calldata indexes
+    ) internal view returns (uint256[] memory newQueue) {
         newQueue = new uint256[](indexes.length);
 
         for (uint256 i; i < indexes.length; ++i) {

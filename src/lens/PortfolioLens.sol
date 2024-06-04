@@ -8,11 +8,11 @@ pragma solidity ^0.8.24;
 // types
 import { Pool } from "../Pool.sol";
 import { Position } from "../Position.sol";
-import { RiskEngine } from "../RiskEngine.sol";
-import { IOracle } from "src/interfaces/IOracle.sol";
 import { PositionManager } from "../PositionManager.sol";
-import { IRateModel } from "src/interfaces/IRateModel.sol";
+import { RiskEngine } from "../RiskEngine.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IOracle } from "src/interfaces/IOracle.sol";
+import { IRateModel } from "src/interfaces/IRateModel.sol";
 
 // contracts
 import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
@@ -71,7 +71,12 @@ contract PortfolioLens {
     /// @param position Address of the position
     /// @return positionData Current position data for the given position
     function getPositionData(address position) public view returns (PositionData memory positionData) {
-        return PositionData({ position: position, owner: POSITION_MANAGER.ownerOf(position), assets: getAssetData(position), debts: getDebtData(position) });
+        return PositionData({
+            position: position,
+            owner: POSITION_MANAGER.ownerOf(position),
+            assets: getAssetData(position),
+            debts: getDebtData(position)
+        });
     }
 
     /// @title AssetData
@@ -146,9 +151,12 @@ contract PortfolioLens {
         // hash salt with owner to mitigate frontrun attacks
         salt = keccak256(abi.encodePacked(owner, salt));
 
-        bytes memory creationCode = abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(address(POSITION_MANAGER.positionBeacon()), ""));
+        bytes memory creationCode =
+            abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(address(POSITION_MANAGER.positionBeacon()), ""));
 
-        newPosition = address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), POSITION_MANAGER, salt, keccak256(creationCode))))));
+        newPosition = address(
+            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), POSITION_MANAGER, salt, keccak256(creationCode)))))
+        );
 
         return (newPosition, newPosition.code.length == 0);
     }

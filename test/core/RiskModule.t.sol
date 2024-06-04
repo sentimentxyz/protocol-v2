@@ -2,9 +2,9 @@
 pragma solidity ^0.8.24;
 
 import { BaseTest } from "../BaseTest.t.sol";
-import { RiskModule } from "src/RiskModule.sol";
-import { Action } from "src/PositionManager.sol";
 import { MockERC20 } from "../mocks/MockERC20.sol";
+import { Action } from "src/PositionManager.sol";
+import { RiskModule } from "src/RiskModule.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract RiskModuleUnitTests is BaseTest {
@@ -95,7 +95,9 @@ contract RiskModuleUnitTests is BaseTest {
         actions[3] = borrow(fixedRatePool, 1e18);
         actions[4] = addToken(address(asset1));
 
-        vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, position, fixedRatePool, asset3));
+        vm.expectRevert(
+            abi.encodeWithSelector(RiskModule.RiskModule_UnsupportedAsset.selector, position, fixedRatePool, asset3)
+        );
         positionManager.processBatch(position, actions);
         vm.stopPrank();
     }

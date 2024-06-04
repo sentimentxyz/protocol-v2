@@ -7,9 +7,9 @@ pragma solidity ^0.8.24;
 
 // types
 import { Pool } from "./Pool.sol";
-import { Registry } from "./Registry.sol";
 import { Position } from "./Position.sol";
-import { DebtData, AssetData } from "./PositionManager.sol";
+import { AssetData, DebtData } from "./PositionManager.sol";
+import { Registry } from "./Registry.sol";
 import { RiskModule } from "./RiskModule.sol";
 
 // contracts
@@ -24,7 +24,8 @@ contract RiskEngine is Ownable {
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
     /// @notice Sentiment Risk Module registry key hash
     /// @dev keccak(SENTIMENT_RISK_MODULE_KEY)
-    bytes32 public constant SENTIMENT_RISK_MODULE_KEY = 0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
+    bytes32 public constant SENTIMENT_RISK_MODULE_KEY =
+        0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
 
     /// @title LtvUpdate
     /// @notice Utility struct to store pending Pool LTV updates
@@ -161,9 +162,7 @@ contract RiskEngine is Ownable {
 
         if (ltvUpdate.validAfter == 0) revert RiskEngine_NoLtvUpdate(poolId, asset);
 
-        if (ltvUpdate.validAfter > block.timestamp) {
-            revert RiskEngine_LtvUpdateTimelocked(poolId, asset);
-        }
+        if (ltvUpdate.validAfter > block.timestamp) revert RiskEngine_LtvUpdateTimelocked(poolId, asset);
 
         ltvFor[poolId][asset] = ltvUpdate.ltv;
 

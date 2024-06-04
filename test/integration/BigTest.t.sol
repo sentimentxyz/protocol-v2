@@ -240,7 +240,9 @@ contract BigTest is Test {
         // 8. feeTo should make money
         address feeTo = makeAddr("feeTo");
         SuperPool superPool = SuperPool(
-            superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test")
+            superPoolFactory.deploySuperPool(
+                poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test"
+            )
         );
 
         // 2. Make a SuperPool with the 3 pools

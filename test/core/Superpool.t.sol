@@ -11,7 +11,9 @@ contract SuperPoolUnitTests is BaseTest {
         super.setUp();
 
         superPool = SuperPool(
-            superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test")
+            superPoolFactory.deploySuperPool(
+                poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test"
+            )
         );
     }
 
@@ -35,7 +37,8 @@ contract SuperPoolUnitTests is BaseTest {
     function testDeployAPoolFromFactory() public {
         address feeRecipient = makeAddr("FeeRecipient");
 
-        address deployed = superPoolFactory.deploy(poolOwner, address(asset1), feeRecipient, 0, 0, "test", "test");
+        address deployed =
+            superPoolFactory.deploySuperPool(poolOwner, address(asset1), feeRecipient, 0, 0, "test", "test");
 
         assert(deployed != address(0));
         SuperPool _superPool = SuperPool(deployed);

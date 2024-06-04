@@ -20,5 +20,5 @@ report.txt
 # script logs
 /script/log
 
-# remappings.txt
-remappings.txt
+# .DS_Store
+.DS_Store

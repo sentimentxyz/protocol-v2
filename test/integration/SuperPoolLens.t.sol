@@ -24,12 +24,16 @@ contract SuperPoolLensTests is BaseTest {
         vm.stopPrank();
 
         superPool1 = SuperPool(
-            superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "TEST1", "TEST1")
+            superPoolFactory.deploySuperPool(
+                poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "TEST1", "TEST1"
+            )
         );
         superPoolList.push(address(superPool1));
 
         superPool2 = SuperPool(
-            superPoolFactory.deploy(poolOwner, address(asset2), feeTo, 0.01 ether, 1_000_000 ether, "TEST2", "TEST2")
+            superPoolFactory.deploySuperPool(
+                poolOwner, address(asset2), feeTo, 0.01 ether, 1_000_000 ether, "TEST2", "TEST2"
+            )
         );
         superPoolList.push(address(superPool2));
 
@@ -145,7 +149,9 @@ contract SuperPoolLensTests is BaseTest {
 
     function testEmptySuperPoolInterestRate() public {
         SuperPool superPool3 = SuperPool(
-            superPoolFactory.deploy(poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "TEST3", "TEST3")
+            superPoolFactory.deploySuperPool(
+                poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "TEST3", "TEST3"
+            )
         );
 
         assertEq(superPoolLens.getSuperPoolInterestRate(address(superPool3)), 0);

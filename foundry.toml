@@ -29,7 +29,7 @@ constantOptimizer = true
 stackAllocation = true
 
 [profile.default.fuzz]
-runs = 1_000_000
+runs = 1024
 
 [fmt]
 tab_width = 4

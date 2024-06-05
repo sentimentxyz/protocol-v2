@@ -22,3 +22,6 @@ report.txt
 
 # .DS_Store
 .DS_Store
+
+# config
+script/config/**/config.json

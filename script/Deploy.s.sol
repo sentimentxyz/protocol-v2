@@ -114,14 +114,16 @@ contract Deploy is BaseScript {
     function fetchParams() internal view returns (DeployParams memory params) {
         string memory config = getConfig();
 
-        params.owner = vm.parseJsonAddress(config, "$.DeployParams.owner");
-        params.proxyAdmin = vm.parseJsonAddress(config, "$.DeployParams.proxyAdmin");
-        params.feeRecipient = vm.parseJsonAddress(config, "$.DeployParams.feeRecipient");
-        params.minLtv = vm.parseJsonUint(config, "$.DeployParams.minLtv");
-        params.maxLtv = vm.parseJsonUint(config, "$.DeployParams.maxLtv");
-        params.minDebt = vm.parseJsonUint(config, "$.DeployParams.minDebt");
-        params.liquidationFee = vm.parseJsonUint(config, "$.DeployParams.liquidationFee");
-        params.liquidationDiscount = vm.parseJsonUint(config, "$.DeployParams.liquidationDiscount");
+        params.owner = vm.parseJsonAddress(config, "$.Deploy.owner");
+        params.proxyAdmin = vm.parseJsonAddress(config, "$.Deploy.proxyAdmin");
+        params.feeRecipient = vm.parseJsonAddress(config, "$.Deploy.feeRecipient");
+        params.minLtv = vm.parseJsonUint(config, "$.Deploy.minLtv");
+        params.maxLtv = vm.parseJsonUint(config, "$.Deploy.maxLtv");
+        params.minDebt = vm.parseJsonUint(config, "$.Deploy.minDebt");
+        params.liquidationFee = vm.parseJsonUint(config, "$.Deploy.liquidationFee");
+        params.liquidationDiscount = vm.parseJsonUint(config, "$.Deploy.liquidationDiscount");
+
+        require(params.owner != params.proxyAdmin, "OWNER == PROXY_ADMIN");
     }
 
     function generateLogs() internal {

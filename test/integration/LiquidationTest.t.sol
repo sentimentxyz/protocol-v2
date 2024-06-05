@@ -2,17 +2,26 @@
 pragma solidity ^0.8.24;
 
 import { BaseTest } from "../BaseTest.t.sol";
+import { Pool } from "src/Pool.sol";
 import { PositionManager } from "src/PositionManager.sol";
 import { Action, AssetData, DebtData } from "src/PositionManager.sol";
+import { RiskEngine } from "src/RiskEngine.sol";
 import { RiskModule } from "src/RiskModule.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract LiquidationTest is BaseTest {
-    address public position;
+    Pool pool;
+    address position;
+    RiskEngine riskEngine;
+    PositionManager positionManager;
     address public liquidator = makeAddr("liquidator");
 
     function setUp() public override {
         super.setUp();
+
+        pool = protocol.pool();
+        riskEngine = protocol.riskEngine();
+        positionManager = protocol.positionManager();
 
         // ZeroOracle zeroOracle = new ZeroOracle();
         FixedPriceOracle oneEthOracle = new FixedPriceOracle(1e18);

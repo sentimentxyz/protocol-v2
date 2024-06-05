@@ -7,6 +7,11 @@ import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract SuperPoolLensTests is BaseTest {
+    Pool pool;
+    RiskEngine riskEngine;
+    SuperPoolLens superPoolLens;
+    SuperPoolFactory superPoolFactory;
+
     SuperPool public superPool1;
     SuperPool public superPool2;
     address public feeTo = makeAddr("FeeTo");
@@ -15,6 +20,11 @@ contract SuperPoolLensTests is BaseTest {
 
     function setUp() public override {
         super.setUp();
+
+        pool = protocol.pool();
+        riskEngine = protocol.riskEngine();
+        superPoolLens = protocol.superPoolLens();
+        superPoolFactory = protocol.superPoolFactory();
 
         FixedPriceOracle oneEthOracle = new FixedPriceOracle(1e18);
 

@@ -11,13 +11,35 @@ import { IOracle } from "src/interfaces/IOracle.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract PositionManagerUnitTests is BaseTest {
-    address public position;
+    // keccak(SENTIMENT_POOL_KEY)
+    bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
+    // keccak(SENTIMENT_RISK_ENGINE_KEY)
+    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
+        0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
+    // keccak(SENIMENT_POSITION_BEACON_KEY)
+    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
+        0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
+
+    Pool pool;
+    Registry registry;
+    address position;
+    RiskEngine riskEngine;
+    PositionManager positionManager;
+
     address public positionOwner = makeAddr("positionOwner");
     FixedPriceOracle asset1Oracle = new FixedPriceOracle(10e18);
     FixedPriceOracle asset2Oracle = new FixedPriceOracle(0.5e18);
 
     function setUp() public override {
         super.setUp();
+
+        asset1Oracle = new FixedPriceOracle(10e18);
+        asset2Oracle = new FixedPriceOracle(0.5e18);
+
+        pool = protocol.pool();
+        registry = protocol.registry();
+        riskEngine = protocol.riskEngine();
+        positionManager = protocol.positionManager();
 
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(asset1), address(asset1Oracle));
@@ -47,7 +69,7 @@ contract PositionManagerUnitTests is BaseTest {
         registry = new Registry();
 
         // position manager
-        positionManagerImpl = address(new PositionManager()); // deploy impl
+        address positionManagerImpl = address(new PositionManager()); // deploy impl
         address beacon = address((new TransparentUpgradeableProxy(positionManagerImpl, positionOwner, new bytes(0))));
         positionManager = PositionManager(beacon); // setup proxy
 

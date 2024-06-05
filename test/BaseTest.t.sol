@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import { Deploy } from "../script/Deploy.s.sol";
 import { FixedRateModel } from "../src/irm/FixedRateModel.sol";
 import { LinearRateModel } from "../src/irm/LinearRateModel.sol";
 import { MockERC20 } from "./mocks/MockERC20.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { Test } from "forge-std/Test.sol";
+import { console2 } from "forge-std/console2.sol";
 import { Pool } from "src/Pool.sol";
 import { Position } from "src/Position.sol";
 import { PositionManager } from "src/PositionManager.sol";
@@ -20,26 +22,12 @@ import { PortfolioLens } from "src/lens/PortfolioLens.sol";
 import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
 
 contract BaseTest is Test {
-    address public proxyAdmin = makeAddr("proxyAdmin");
-    address public protocolOwner = makeAddr("protocolOwner");
-
-    address poolImpl;
-    Registry public registry;
-    SuperPoolFactory public superPoolFactory;
-    PositionManager public positionManager;
-    address positionManagerImpl; // Shouldn't be called directly
-    RiskEngine public riskEngine;
-    RiskModule public riskModule;
-    PortfolioLens public portfolioLens;
-    SuperPoolLens public superPoolLens;
-    address public positionBeacon;
-    Pool public pool;
-
     address public user = makeAddr("user");
     address public user2 = makeAddr("user2");
-
     address public lender = makeAddr("lender");
     address public poolOwner = makeAddr("poolOwner");
+    address public proxyAdmin = makeAddr("proxyAdmin");
+    address public protocolOwner = makeAddr("protocolOwner");
 
     MockERC20 public asset1;
     MockERC20 public asset2;
@@ -50,34 +38,10 @@ contract BaseTest is Test {
     uint256 public linearRatePool2;
     uint256 public alternateAssetPool;
 
-    // keccak(SENTIMENT_POSITION_MANAGER_KEY)
-    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
-        0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
-    // keccak(SENTIMENT_POOL_KEY)
-    bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
-    // keccak(SENTIMENT_RISK_ENGINE_KEY)
-    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
-        0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
-    // keccak(SENIMENT_POSITION_BEACON_KEY)
-    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
-        0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
-    // keccak(SENTIMENT_RISK_MODULE_KEY)
-    bytes32 public constant SENTIMENT_RISK_MODULE_KEY =
-        0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
-
-    struct DeployParams {
-        address owner;
-        address proxyAdmin;
-        address feeRecipient;
-        uint256 minLtv;
-        uint256 maxLtv;
-        uint256 minDebt;
-        uint256 liquidationFee;
-        uint256 liquidationDiscount;
-    }
+    Deploy public protocol;
 
     function setUp() public virtual {
-        DeployParams memory params = DeployParams({
+        Deploy.DeployParams memory params = Deploy.DeployParams({
             owner: protocolOwner,
             proxyAdmin: proxyAdmin,
             feeRecipient: address(this),
@@ -88,53 +52,8 @@ contract BaseTest is Test {
             liquidationDiscount: 200_000_000_000_000_000
         });
 
-        // registry
-        registry = new Registry();
-
-        // risk engine
-        riskEngine = new RiskEngine(address(registry), params.minLtv, params.maxLtv);
-        riskEngine.transferOwnership(params.owner);
-
-        riskModule = new RiskModule(address(registry), params.minDebt, params.liquidationDiscount);
-
-        // pool
-        poolImpl = address(new Pool());
-        bytes memory poolInitData =
-            abi.encodeWithSelector(Pool.initialize.selector, params.owner, address(registry), params.feeRecipient);
-        pool = Pool(address(new TransparentUpgradeableProxy(poolImpl, proxyAdmin, poolInitData)));
-
-        // super pool
-        superPoolFactory = new SuperPoolFactory(address(pool));
-
-        // position manager
-        positionManagerImpl = address(new PositionManager()); // deploy impl
-        bytes memory posmgrInitData = abi.encodeWithSelector(
-            PositionManager.initialize.selector, params.owner, address(registry), params.liquidationFee
-        );
-        positionManager =
-            PositionManager(address(new TransparentUpgradeableProxy(positionManagerImpl, proxyAdmin, posmgrInitData))); // setup
-            // proxy
-
-        // position
-        address positionImpl = address(new Position(address(pool), address(positionManager)));
-        positionBeacon = address(new UpgradeableBeacon(positionImpl));
-
-        // lens
-        superPoolLens = new SuperPoolLens(address(pool), address(riskEngine));
-        portfolioLens = new PortfolioLens(address(pool), address(riskEngine), address(positionManager));
-
-        // register
-        registry.setAddress(SENTIMENT_POSITION_MANAGER_KEY, address(positionManager));
-        registry.setAddress(SENTIMENT_POOL_KEY, address(pool));
-        registry.setAddress(SENTIMENT_RISK_ENGINE_KEY, address(riskEngine));
-        registry.setAddress(SENTIMENT_POSITION_BEACON_KEY, address(positionBeacon));
-        registry.setAddress(SENTIMENT_RISK_MODULE_KEY, address(riskModule));
-        registry.transferOwnership(params.owner);
-
-        pool.updateFromRegistry();
-        positionManager.updateFromRegistry();
-        riskEngine.updateFromRegistry();
-        riskModule.updateFromRegistry();
+        protocol = new Deploy();
+        protocol.runWithParams(params);
 
         asset1 = new MockERC20("Asset1", "ASSET1", 18);
         asset2 = new MockERC20("Asset2", "ASSET2", 18);
@@ -145,17 +64,22 @@ contract BaseTest is Test {
         address linearRateModel2 = address(new LinearRateModel(2e18, 3e18));
 
         vm.startPrank(poolOwner);
-        fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0, type(uint128).max);
-        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0, type(uint128).max);
-        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), fixedRateModel2, 0, 0, type(uint128).max);
-        linearRatePool2 = pool.initializePool(poolOwner, address(asset1), linearRateModel2, 0, 0, type(uint128).max);
-        alternateAssetPool = pool.initializePool(poolOwner, address(asset2), fixedRateModel, 0, 0, type(uint128).max);
+        fixedRatePool =
+            protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0, type(uint128).max);
+        linearRatePool =
+            protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0, type(uint128).max);
+        fixedRatePool2 =
+            protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel2, 0, 0, type(uint128).max);
+        linearRatePool2 =
+            protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel2, 0, 0, type(uint128).max);
+        alternateAssetPool =
+            protocol.pool().initializePool(poolOwner, address(asset2), fixedRateModel, 0, 0, type(uint128).max);
         vm.stopPrank();
     }
 
     function newPosition(address owner, bytes32 salt) internal view returns (address, Action memory) {
         bytes memory data = abi.encodePacked(owner, salt);
-        (address position,) = portfolioLens.predictAddress(owner, salt);
+        (address position,) = protocol.portfolioLens().predictAddress(owner, salt);
         Action memory action = Action({ op: Operation.NewPosition, data: data });
         return (position, action);
     }

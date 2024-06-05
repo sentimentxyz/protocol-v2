@@ -10,13 +10,23 @@ import { Action, Operation } from "src/PositionManager.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract PositionUnitTests is BaseTest {
-    address public position;
-    address public positionOwner = makeAddr("positionOwner");
-    FixedPriceOracle asset1Oracle = new FixedPriceOracle(10e18);
-    FixedPriceOracle asset2Oracle = new FixedPriceOracle(0.5e18);
+    Pool pool;
+    address position;
+    RiskEngine riskEngine;
+    PositionManager positionManager;
+    address positionOwner = makeAddr("positionOwner");
+    FixedPriceOracle asset1Oracle;
+    FixedPriceOracle asset2Oracle;
 
     function setUp() public override {
         super.setUp();
+
+        asset1Oracle = new FixedPriceOracle(10e18);
+        asset2Oracle = new FixedPriceOracle(0.5e18);
+
+        pool = protocol.pool();
+        riskEngine = protocol.riskEngine();
+        positionManager = protocol.positionManager();
 
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(asset1), address(asset1Oracle));

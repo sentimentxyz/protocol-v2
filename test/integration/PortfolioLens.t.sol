@@ -2,16 +2,28 @@
 pragma solidity ^0.8.24;
 
 import { BaseTest } from "../BaseTest.t.sol";
+import { Pool } from "src/Pool.sol";
+import { PositionManager } from "src/PositionManager.sol";
 import { Action, PositionManager } from "src/PositionManager.sol";
+import { RiskEngine } from "src/RiskEngine.sol";
 import { PortfolioLens } from "src/lens/PortfolioLens.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract PortfolioLensTest is BaseTest {
-    address public position;
+    Pool pool;
+    address position;
+    RiskEngine riskEngine;
+    PortfolioLens portfolioLens;
+    PositionManager positionManager;
     address[] public positions;
 
     function setUp() public override {
         super.setUp();
+
+        pool = protocol.pool();
+        riskEngine = protocol.riskEngine();
+        portfolioLens = protocol.portfolioLens();
+        positionManager = protocol.positionManager();
 
         // ZeroOracle zeroOracle = new ZeroOracle();
         FixedPriceOracle oneEthOracle = new FixedPriceOracle(1e18);

@@ -5,8 +5,17 @@ import "../BaseTest.t.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract PoolUnitTests is BaseTest {
+    // keccak(SENTIMENT_POSITION_MANAGER_KEY)
+    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
+        0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
+
+    Pool pool;
+    Registry registry;
+
     function setUp() public override {
         super.setUp();
+        pool = protocol.pool();
+        registry = protocol.registry();
     }
 
     function testIntializePool() public {

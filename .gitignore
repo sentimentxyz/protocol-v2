@@ -18,7 +18,10 @@ docs/
 report.txt
 
 # script logs
-/script/log
+/script/logs
 
 # .DS_Store
 .DS_Store
+
+# config
+script/config/**/config.json

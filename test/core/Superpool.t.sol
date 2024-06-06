@@ -4,11 +4,17 @@ pragma solidity ^0.8.24;
 import "../BaseTest.t.sol";
 
 contract SuperPoolUnitTests is BaseTest {
-    SuperPool public superPool;
+    Pool pool;
+    SuperPool superPool;
+    SuperPoolFactory superPoolFactory;
+
     address public feeTo = makeAddr("FeeTo");
 
     function setUp() public override {
         super.setUp();
+
+        pool = protocol.pool();
+        superPoolFactory = protocol.superPoolFactory();
 
         superPool = SuperPool(
             superPoolFactory.deploySuperPool(
@@ -18,7 +24,7 @@ contract SuperPoolUnitTests is BaseTest {
     }
 
     function testInitSuperPoolFactory() public {
-        SuperPoolFactory superPoolFactory = new SuperPoolFactory(address(pool));
+        superPoolFactory = new SuperPoolFactory(address(pool));
         assertEq(superPoolFactory.POOL(), address(pool));
     }
 

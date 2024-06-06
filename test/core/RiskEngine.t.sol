@@ -10,13 +10,20 @@ import { RiskEngine } from "src/RiskEngine.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract RiskModuleUnitTests is BaseTest {
-    address public position;
-    address public positionOwner = makeAddr("positionOwner");
+    Pool pool;
+    address position;
+    Registry registry;
+    RiskEngine riskEngine;
+    address positionOwner = makeAddr("positionOwner");
     FixedPriceOracle asset1Oracle = new FixedPriceOracle(10e18);
     FixedPriceOracle asset2Oracle = new FixedPriceOracle(0.5e18);
 
     function setUp() public override {
         super.setUp();
+
+        pool = protocol.pool();
+        registry = protocol.registry();
+        riskEngine = protocol.riskEngine();
 
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(asset1), address(asset1Oracle));

@@ -3,16 +3,31 @@ pragma solidity ^0.8.24;
 
 import { BaseTest } from "../BaseTest.t.sol";
 import { MockERC20 } from "../mocks/MockERC20.sol";
+import { Pool } from "src/Pool.sol";
 import { Action } from "src/PositionManager.sol";
+import { PositionManager } from "src/PositionManager.sol";
+import { RiskEngine } from "src/RiskEngine.sol";
 import { RiskModule } from "src/RiskModule.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract RiskModuleUnitTests is BaseTest {
-    address public position;
-    FixedPriceOracle oneEthOracle = new FixedPriceOracle(1e18);
+    Pool pool;
+    address position;
+    RiskEngine riskEngine;
+    RiskModule riskModule;
+    PositionManager positionManager;
+
+    FixedPriceOracle oneEthOracle;
 
     function setUp() public override {
         super.setUp();
+
+        oneEthOracle = new FixedPriceOracle(1e18);
+
+        pool = protocol.pool();
+        riskEngine = protocol.riskEngine();
+        riskModule = protocol.riskModule();
+        positionManager = protocol.positionManager();
 
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(asset1), address(oneEthOracle)); // 1 asset1 = 1 eth

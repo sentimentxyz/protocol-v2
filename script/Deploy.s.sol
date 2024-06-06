@@ -45,6 +45,8 @@ contract Deploy is BaseScript {
         uint256 liquidationDiscount;
     }
 
+    DeployParams params;
+
     // keccak(SENTIMENT_POSITION_MANAGER_KEY)
     bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
         0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
@@ -61,13 +63,18 @@ contract Deploy is BaseScript {
         0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
 
     function run() public {
-        DeployParams memory params = fetchParams();
+        fetchParams();
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-        runWithParams(params);
+        _run();
         vm.stopBroadcast();
     }
 
-    function runWithParams(DeployParams memory params) public {
+    function runWithParams(DeployParams memory _params) public {
+        params = _params;
+        _run();
+    }
+
+    function _run() internal {
         // registry
         registry = new Registry();
         // risk
@@ -111,7 +118,7 @@ contract Deploy is BaseScript {
         if (block.chainid != 31_337) generateLogs();
     }
 
-    function fetchParams() internal view returns (DeployParams memory params) {
+    function fetchParams() internal {
         string memory config = getConfig();
 
         params.owner = vm.parseJsonAddress(config, "$.Deploy.owner");
@@ -129,25 +136,30 @@ contract Deploy is BaseScript {
     function generateLogs() internal {
         string memory obj = "Deploy";
 
-        // Registry
+        // deployed contracts
         vm.serializeAddress(obj, "registry", address(registry));
-        // SuperPool Factory
         vm.serializeAddress(obj, "superPoolFactory", address(superPoolFactory));
-        // Position Manager
         vm.serializeAddress(obj, "positionManagerImpl", address(positionManagerImpl));
         vm.serializeAddress(obj, "positionManager", address(positionManager));
-        // Risk
         vm.serializeAddress(obj, "riskEngine", address(riskEngine));
         vm.serializeAddress(obj, "riskModule", address(riskModule));
-        // Pool
         vm.serializeAddress(obj, "poolImpl", address(poolImpl));
         vm.serializeAddress(obj, "pool", address(pool));
-        // Position
         vm.serializeAddress(obj, "positionBeacon", address(positionBeacon));
-        // Lens
         vm.serializeAddress(obj, "superPoolLens", address(superPoolLens));
         vm.serializeAddress(obj, "portfolioLens", address(portfolioLens));
 
+        // deployment params
+        vm.serializeAddress(obj, "owner", params.owner);
+        vm.serializeAddress(obj, "proxyAdmin", params.proxyAdmin);
+        vm.serializeAddress(obj, "feeRecipient", params.feeRecipient);
+        vm.serializeUint(obj, "minLtv", params.minLtv);
+        vm.serializeUint(obj, "maxLtv", params.maxLtv);
+        vm.serializeUint(obj, "minDebt", params.minDebt);
+        vm.serializeUint(obj, "liquidationFee", params.liquidationFee);
+        vm.serializeUint(obj, "liquidationDiscount", params.liquidationDiscount);
+
+        // deployment details
         vm.serializeUint(obj, "chainId", block.chainid);
         string memory json = vm.serializeUint(obj, "timestamp", vm.getBlockTimestamp());
 

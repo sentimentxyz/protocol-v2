@@ -12,6 +12,10 @@ deny_warnings = true
 bytecode_hash = "none"
 solc_version = '0.8.24'
 evm_version = 'shanghai'
+fs_permissions = [
+    { access = "read", path = "./script/config" },
+    { "access" = "write", path = "./script/logs" },
+]
 remappings = [
     "forge-std/=lib/forge-std/src/",
     "@redstone-oracles-monorepo/=lib/redstone-oracles-monorepo/",
@@ -43,5 +47,5 @@ bracket_spacing = true
 override_spacing = false
 contract_new_lines = false
 number_underscore = "thousands"
-single_line_statement_blocks = "single"
 multiline_func_header = "params_first"
+single_line_statement_blocks = "single"

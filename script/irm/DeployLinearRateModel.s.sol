@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
+import { console2 } from "forge-std/console2.sol";
 import { LinearRateModel } from "src/irm/LinearRateModel.sol";
 
 contract DeployLinearRateModel is BaseScript {
@@ -15,6 +16,7 @@ contract DeployLinearRateModel is BaseScript {
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         rateModel = new LinearRateModel(minRate, maxRate);
+        console2.log("LinearRateModel: ", address(rateModel));
     }
 
     function getParams() internal {

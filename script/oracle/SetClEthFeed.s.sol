@@ -2,18 +2,20 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
+import { console2 } from "forge-std/console2.sol";
 import { ChainlinkEthOracle } from "src/oracle/ChainlinkEthOracle.sol";
 
 contract SetClEthFeed is BaseScript {
     address feed;
     address asset;
-    ChainlinkEthOracle clEthFeed;
+    ChainlinkEthOracle oracle;
 
     function run() public {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        clEthFeed.setFeed(asset, feed);
+        oracle.setFeed(asset, feed);
+        console2.log("SetClEthFeed: ", asset, feed);
     }
 
     function getParams() internal {
@@ -21,6 +23,6 @@ contract SetClEthFeed is BaseScript {
 
         feed = vm.parseJsonAddress(config, "$.SetClEthFeed.feed");
         asset = vm.parseJsonAddress(config, "$.SetClEthFeed.asset");
-        clEthFeed = ChainlinkEthOracle(vm.parseJsonAddress(config, "$.SetClEthFeed.asset"));
+        oracle = ChainlinkEthOracle(vm.parseJsonAddress(config, "$.SetClEthFeed.oracle"));
     }
 }

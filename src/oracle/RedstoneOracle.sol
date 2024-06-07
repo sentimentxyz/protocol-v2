@@ -4,12 +4,12 @@ pragma solidity ^0.8.24;
 // types
 import { IOracle } from "../interfaces/IOracle.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { ArbitrumProdDataServiceConsumerBase } from
-    "@redstone-oracles-monorepo/packages/evm-connector/contracts/data-services/ArbitrumProdDataServiceConsumerBase.sol";
+import { PrimaryProdDataServiceConsumerBase } from
+    "@redstone-oracles-monorepo/packages/evm-connector/contracts/data-services/PrimaryProdDataServiceConsumerBase.sol";
 // libraries
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract RedstoneCoreOracle is ArbitrumProdDataServiceConsumerBase, IOracle {
+contract RedstoneCoreOracle is PrimaryProdDataServiceConsumerBase, IOracle {
     using Math for uint256;
 
     uint256 internal constant THREE_MINUTES = 60 * 3;

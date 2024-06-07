@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
+import { console2 } from "forge-std/console2.sol";
 import { PortfolioLens } from "src/lens/PortfolioLens.sol";
 import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
 
@@ -19,6 +20,8 @@ contract DeployLens is BaseScript {
         superPoolLens = new SuperPoolLens(pool, riskEngine);
         portfolioLens = new PortfolioLens(pool, riskEngine, positionManager);
         vm.stopBroadcast();
+        console2.log("SuperPoolLens: ", address(superPoolLens));
+        console2.log("PortfolioLens: ", address(portfolioLens));
     }
 
     function getParams() internal {

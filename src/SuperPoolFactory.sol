@@ -36,7 +36,6 @@ contract SuperPoolFactory {
     /// @param superPoolCap The maximum amount of assets that can be deposited in the SuperPool
     /// @param name The name of the SuperPool
     /// @param symbol The symbol of the SuperPool
-    /// @return newPool The address of the newly deployed SuperPool
     function deploySuperPool(
         address owner,
         address asset,
@@ -45,7 +44,7 @@ contract SuperPoolFactory {
         uint256 superPoolCap,
         string calldata name,
         string calldata symbol
-    ) external returns (address newPool) {
+    ) external returns (address) {
         SuperPool superPool = new SuperPool(POOL, asset, feeRecipient, fee, superPoolCap, name, symbol);
         superPool.transferOwnership(owner);
         emit SuperPoolDeployed(owner, address(superPool), name, symbol);

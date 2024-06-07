@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
+import { console2 } from "forge-std/console2.sol";
 import { ChainlinkUsdOracle } from "src/oracle/ChainlinkUsdOracle.sol";
 
 contract SetClUsdFeed is BaseScript {
@@ -14,6 +15,7 @@ contract SetClUsdFeed is BaseScript {
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         oracle.setFeed(asset, feed);
+        console2.log("SetClUsdFeed: ", asset, feed);
     }
 
     function getParams() internal {

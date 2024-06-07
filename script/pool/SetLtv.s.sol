@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
+import { console2 } from "forge-std/console2.sol";
 import { RiskEngine } from "src/RiskEngine.sol";
 
 contract SetLtv is BaseScript {
@@ -14,9 +15,10 @@ contract SetLtv is BaseScript {
     function run() public {
         getParams();
 
+        require(ltv < 1e18, "LTV < 100%");
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         riskEngine.requestLtvUpdate(poolId, asset, ltv);
-        riskEngine.acceptLtvUpdate(poolId, asset);
+        console2.log("SetLtv: ", poolId, asset, ltv);
     }
 
     function getParams() internal {

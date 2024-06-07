@@ -438,7 +438,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                 uint256 withdrawAmt = (assetsInPool < assets) ? assetsInPool : assets;
 
                 if (withdrawAmt > 0) {
-                    // TODO replace with withdraw logic
                     try pool.redeem(poolId, withdrawAmt, address(this), address(this)) {
                         assets -= withdrawAmt;
                     } catch { }

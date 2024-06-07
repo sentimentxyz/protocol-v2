@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
+import { console2 } from "forge-std/console2.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract DeployFixedPriceOracle is BaseScript {
@@ -13,10 +14,10 @@ contract DeployFixedPriceOracle is BaseScript {
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         oracle = new FixedPriceOracle(price);
+        console2.log("FixedPriceOracle: ", address(oracle));
     }
 
     function getParams() internal {
-        string memory config = getConfig();
-        price = vm.parseJsonUint(config, "$.DeployFixedPriceOracle.price");
+        price = vm.parseJsonUint(getConfig(), "$.DeployFixedPriceOracle.price");
     }
 }

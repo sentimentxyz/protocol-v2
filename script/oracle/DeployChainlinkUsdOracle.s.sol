@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
+import { console2 } from "forge-std/console2.sol";
 import { ChainlinkUsdOracle } from "src/oracle/ChainlinkUsdOracle.sol";
 
 contract DeployChainlinkUsdOracle is BaseScript {
@@ -15,6 +16,7 @@ contract DeployChainlinkUsdOracle is BaseScript {
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         oracle = new ChainlinkUsdOracle(owner, arbSeqFeed, ethUsdFeed);
+        console2.log("ChainlinkUsdOracle: ", address(oracle));
     }
 
     function getParams() internal {

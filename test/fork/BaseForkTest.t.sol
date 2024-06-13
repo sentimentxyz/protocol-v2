@@ -25,7 +25,7 @@ contract BaseForkTest is Test {
 
     function getConfig() internal view returns (string memory) {
         string memory path = string.concat(
-            vm.projectRoot(), "/config/", vm.toString(block.chainid), "/", vm.envString("FORK_TEST_CONFIG"), ".json"
+            vm.projectRoot(), "/config/", vm.toString(block.chainid), "/", vm.envString("FORK_TEST_CONFIG")
         );
         return vm.readFile(path);
     }

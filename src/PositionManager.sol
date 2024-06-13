@@ -219,7 +219,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @param actions List of actions to process
     function processBatch(address position, Action[] calldata actions) external nonReentrant {
         // loop over actions and process them sequentially based on operation
-        for (uint256 i; i < actions.length; ++i) {
+        uint256 actionsLength = actions.length;
+        for (uint256 i; i < actionsLength; ++i) {
             _process(position, actions[i]);
         }
         // after all the actions are processed, the position should be within risk thresholds
@@ -407,7 +408,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator
-        for (uint256 i; i < debt.length; ++i) {
+        uint256 debtLength = debt.length;
+        for (uint256 i; i < debtLength; ++i) {
             // verify that the asset being repaid is actually the pool asset
             address poolAsset = pool.getPoolAssetFor(debt[i].poolId);
 
@@ -422,7 +424,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         }
 
         // transfer position assets to the liqudiator and accrue protocol liquidation fees
-        for (uint256 i; i < positionAssets.length; ++i) {
+        uint256 positionAssetsLength = positionAssets.length;
+        for (uint256 i; i < positionAssetsLength; ++i) {
             // compute fee amt
             // [ROUND] liquidation fee is rounded down, in favor of the liquidator
             uint256 fee = liquidationFee.mulDiv(positionAssets[i].amt, 1e18);

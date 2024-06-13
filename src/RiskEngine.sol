@@ -7,7 +7,6 @@ pragma solidity ^0.8.24;
 
 // types
 import { Pool } from "./Pool.sol";
-import { Position } from "./Position.sol";
 import { AssetData, DebtData } from "./PositionManager.sol";
 import { Registry } from "./Registry.sol";
 import { RiskModule } from "./RiskModule.sol";

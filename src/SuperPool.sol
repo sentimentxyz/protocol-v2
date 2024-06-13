@@ -7,11 +7,9 @@ pragma solidity ^0.8.24;
 
 // types
 import { Pool } from "./Pool.sol";
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // libraries
-import { IterableSet } from "./lib/IterableSet.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -27,11 +25,11 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     using SafeERC20 for IERC20;
 
     /// @notice The denominator for fixed point number calculations
-    uint256 constant WAD = 1e18;
+    uint256 internal constant WAD = 1e18;
     /// @notice The maximum length of the deposit and withdraw queues
     uint256 public constant MAX_QUEUE_LENGTH = 8;
     /// @notice The singleton pool contract associated with this superpool
-    Pool public immutable pool;
+    Pool public immutable POOL;
     /// @notice The asset that is deposited in the superpool, and in turns its underling pools
     IERC20 public asset;
     /// @notice The fee, out of 1e18, taken from interest earned
@@ -111,7 +109,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         string memory symbol_
     ) Ownable() ERC20(name_, symbol_) {
         asset = IERC20(asset_);
-        pool = Pool(pool_);
+        POOL = Pool(pool_);
 
         fee = fee_;
         feeRecipient = feeRecipient_;
@@ -139,8 +137,9 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     function totalAssets() public view returns (uint256) {
         uint256 assets = IERC20(asset).balanceOf(address(this));
 
-        for (uint256 i; i < depositQueue.length; ++i) {
-            assets += pool.getAssetsOf(depositQueue[i], address(this));
+        uint256 depositQueueLength = depositQueue.length;
+        for (uint256 i; i < depositQueueLength; ++i) {
+            assets += POOL.getAssetsOf(depositQueue[i], address(this));
         }
 
         return assets;
@@ -160,8 +159,9 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @notice Fetch the maximum amount of assets that can be withdrawn by a depositor
     function maxWithdraw(address owner) public view returns (uint256) {
         uint256 totalLiquidity;
-        for (uint256 i; i < depositQueue.length; ++i) {
-            totalLiquidity += pool.getLiquidityOf(depositQueue[i]);
+        uint256 depositQueueLength = depositQueue.length;
+        for (uint256 i; i < depositQueueLength; ++i) {
+            totalLiquidity += POOL.getLiquidityOf(depositQueue[i]);
         }
 
         totalLiquidity += asset.balanceOf(address(this));
@@ -295,7 +295,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @custom:field pool     The pool id
     /// @custom:field assets   The amount of tokens to {deposit, remove} during reallocation
     struct ReallocateParams {
-        uint256 pool;
+        uint256 poolId;
         uint256 assets;
     }
 
@@ -307,13 +307,15 @@ contract SuperPool is Ownable, Pausable, ERC20 {
             revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
         }
 
-        for (uint256 i; i < withdraws.length; ++i) {
-            pool.redeem(withdraws[i].pool, withdraws[i].assets, address(this), address(this));
+        uint256 withdrawsLength = withdraws.length;
+        for (uint256 i; i < withdrawsLength; ++i) {
+            POOL.redeem(withdraws[i].poolId, withdraws[i].assets, address(this), address(this));
         }
 
-        for (uint256 i; i < deposits.length; ++i) {
-            IERC20(asset).approve(address(pool), deposits[i].assets);
-            pool.deposit(deposits[i].pool, deposits[i].assets, address(this));
+        uint256 depositsLength = deposits.length;
+        for (uint256 i; i < depositsLength; ++i) {
+            IERC20(asset).approve(address(POOL), deposits[i].assets);
+            POOL.deposit(deposits[i].poolId, deposits[i].assets, address(this));
         }
     }
 
@@ -404,16 +406,17 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @dev Internal function to loop through all pools, depositing assets sequentially until the cap is reached
     /// @param assets The amount of assets to deposit
     function _supplyToPools(uint256 assets) internal {
-        for (uint256 i; i < depositQueue.length; ++i) {
+        uint256 depositQueueLength = depositQueue.length;
+        for (uint256 i; i < depositQueueLength; ++i) {
             uint256 poolId = depositQueue[i];
-            uint256 assetsInPool = pool.getAssetsOf(poolId, address(this));
+            uint256 assetsInPool = POOL.getAssetsOf(poolId, address(this));
 
             if (assetsInPool < poolCap[poolId]) {
                 uint256 supplyAmt = poolCap[poolId] - assetsInPool;
                 if (assets < supplyAmt) supplyAmt = assets;
-                IERC20(asset).forceApprove(address(pool), supplyAmt);
+                IERC20(asset).forceApprove(address(POOL), supplyAmt);
 
-                pool.deposit(poolId, supplyAmt, address(this));
+                POOL.deposit(poolId, supplyAmt, address(this));
                 assets -= supplyAmt;
 
                 if (assets == 0) return;
@@ -430,15 +433,16 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         if (assetsInSuperpool >= assets) return;
         else assets -= assetsInSuperpool;
 
-        for (uint256 i; i < withdrawQueue.length; ++i) {
+        uint256 withdrawQueueLength = withdrawQueue.length;
+        for (uint256 i; i < withdrawQueueLength; ++i) {
             uint256 poolId = withdrawQueue[i];
-            uint256 assetsInPool = pool.getAssetsOf(poolId, address(this));
+            uint256 assetsInPool = POOL.getAssetsOf(poolId, address(this));
 
             if (assetsInPool > 0) {
                 uint256 withdrawAmt = (assetsInPool < assets) ? assetsInPool : assets;
 
                 if (withdrawAmt > 0) {
-                    try pool.redeem(poolId, withdrawAmt, address(this), address(this)) {
+                    try POOL.redeem(poolId, withdrawAmt, address(this), address(this)) {
                         assets -= withdrawAmt;
                     } catch { }
                 }
@@ -454,7 +458,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @dev Internal function to add a pool to the SuperPool
     /// @param poolId The id of the pool to add
     function _addPool(uint256 poolId) internal {
-        if (pool.getPoolAssetFor(poolId) != address(asset)) revert SuperPool_PoolAssetMismatch(address(this), poolId);
+        if (POOL.getPoolAssetFor(poolId) != address(asset)) revert SuperPool_PoolAssetMismatch(address(this), poolId);
         if (depositQueue.length == MAX_QUEUE_LENGTH) revert SuperPool_MaxQueueLengthReached(address(this));
 
         depositQueue.push(poolId);
@@ -464,7 +468,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @dev Internal function to remove a pool from the SuperPool
     /// @param poolId The id of the pool to remove, cannot be removed if the pool has non-zero balance
     function _removePool(uint256 poolId) internal onlyOwner {
-        if (pool.getAssetsOf(poolId, address(this)) != 0) revert SuperPool_NonZeroPoolBalance(address(this), poolId);
+        if (POOL.getAssetsOf(poolId, address(this)) != 0) revert SuperPool_NonZeroPoolBalance(address(this), poolId);
 
         // gas intensive ops that shift the entire array to preserve order
         _removeFromQueue(depositQueue, poolId);
@@ -481,9 +485,10 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         uint256[] storage queue,
         uint256[] calldata indexes
     ) internal view returns (uint256[] memory newQueue) {
-        newQueue = new uint256[](indexes.length);
+        uint256 indexesLength = indexes.length;
+        newQueue = new uint256[](indexesLength);
 
-        for (uint256 i; i < indexes.length; ++i) {
+        for (uint256 i; i < indexesLength; ++i) {
             newQueue[i] = queue[i];
         }
 
@@ -495,13 +500,14 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param poolId The id of the pool to remove
     function _removeFromQueue(uint256[] storage queue, uint256 poolId) internal {
         uint256 toRemoveIdx;
-        for (uint256 i; i < queue.length; ++i) {
+        uint256 queueLength = queue.length;
+        for (uint256 i; i < queueLength; ++i) {
             if (queue[i] == poolId) {
                 toRemoveIdx = i;
                 break;
             }
         }
-        for (uint256 i = toRemoveIdx; i < queue.length - 1; ++i) {
+        for (uint256 i = toRemoveIdx; i < queueLength - 1; ++i) {
             queue[i] = queue[i + 1];
         }
         queue.pop();

@@ -51,7 +51,8 @@ contract PortfolioLens {
         PositionData[] memory positionData = new PositionData[](positions.length);
 
         // fetch data for each position
-        for (uint256 i; i < positions.length; ++i) {
+        uint256 positionsLength = positions.length;
+        for (uint256 i; i < positionsLength; ++i) {
             positionData[i] = getPositionData(positions[i]);
         }
 
@@ -95,8 +96,9 @@ contract PortfolioLens {
         address[] memory positionAssets = Position(position).getPositionAssets();
 
         // fetch data for each position asset
-        assetData = new AssetData[](positionAssets.length);
-        for (uint256 i; i < positionAssets.length; ++i) {
+        uint256 positionAssetsLength = positionAssets.length;
+        assetData = new AssetData[](positionAssetsLength);
+        for (uint256 i; i < positionAssetsLength; ++i) {
             address asset = positionAssets[i];
             uint256 amount = IERC20(positionAssets[i]).balanceOf(position);
             assetData[i] = AssetData({ asset: asset, amount: amount, valueInEth: _getValueInEth(asset, amount) });
@@ -122,8 +124,9 @@ contract PortfolioLens {
         uint256[] memory debtPools = Position(position).getDebtPools();
 
         // fetch debt data for each pool
-        debtData = new DebtData[](debtPools.length);
-        for (uint256 i; i < debtPools.length; ++i) {
+        uint256 debtPoolsLength = debtPools.length;
+        debtData = new DebtData[](debtPoolsLength);
+        for (uint256 i; i < debtPoolsLength; ++i) {
             uint256 poolId = debtPools[i];
             address poolAsset = POOL.getPoolAssetFor(poolId);
             uint256 totalBorrows = POOL.getTotalBorrows(poolId);

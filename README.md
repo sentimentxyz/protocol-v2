@@ -1,85 +1,69 @@
-## Foundry
+## Setup
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
-
-Foundry consists of:
-
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
+### Clone and Build
 
 ```shell
-$ forge build
+git clone https://github.com/sentimentxyz/protocol-v2.git
+forge b
 ```
 
 ### Test
 
 ```shell
-$ forge test
+forge t --force # recompile and run all tests
+forge t --nmt "Fork" # skip fork tests
+forge t --nmt "invariant" # skip invariant tests
+forge t --nmt "Fork|invariant" # skip both
 ```
 
-### Format
+Forked tests require a `FORK_TEST_CONFIG` param to be set in `.env` and valid params in the corresponding JSON config file.
 
-```shell
-$ forge fmt
+Sample `fork-test-config.json`:
+```json
+{
+    "minLtv": 0,
+    "liquidationFee": 0,
+    "owner": "0x000000000000000000000000000000000000dEaD",
+    "pool": "0x000000000000000000000000000000000000dEaD",
+    "positionManager": "0x000000000000000000000000000000000000dEaD",
+    "riskEngine": "0x000000000000000000000000000000000000dEaD",
+    "usdc": "0x000000000000000000000000000000000000dEaD",
+    "sender": "0x000000000000000000000000000000000000dEaD"
+}
 ```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
-
----
 
 ### Remappings
 
-Manually export forge remappings if the solidity lsp isn't able to detect imports from external libs
+Project remappings are defined in `foundry.toml`. If your LSP is unable to detect these, try copying them to
+`remappings.txt` and recompiling.
 
-```shell
-$ forge remappings > remappings.txt
+### Scripts
+
+Scripts requires the `SCRIPT_CONFIG` to be set in `.env` and a valid config file. For broadcasted transactions, the
+private key specified via `PRIVATE_KEY` in `.env` is used.
+
+`SCRIPT_CONFIG` points to a JSON file with multiple objects. Each object represents the name of the script which uses
+the paramaters specified by the object.
+
+Sample `script-config.json` with paramaters for `InitializePool.s.sol`:
+```json
+{
+    "InitializePool": {
+            "pool": "0x0000000000000000000000000000000000000000",
+            "owner": "0x0000000000000000000000000000000000000000",
+            "asset": "0x0000000000000000000000000000000000000000",
+            "rateModel": "0x0000000000000000000000000000000000000000",
+            "interestFee": 0,
+            "originationFee": 0,
+            "poolCap": 0 
+    }
+}
 ```
 
-### Coverage
-
-The script will attempt to install the prereqs if youre on a mac and its needed, otherwise you need to install `genhtml` and `lcov` yourself
-
-```shell
-$ chmod +x coverage.sh
-$ ./coverage.sh
+### .env
+Summarizing the above, the `.env` needs the following:
+```bash
+SCRIPT_CONFIG='<script-config>.json'
+FORK_TEST_CONFIG='<fork-test-config>.json'
+PRIVATE_KEY=<private-key-for-broadcast-txns>
 ```

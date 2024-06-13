@@ -97,7 +97,8 @@ contract RiskModule {
     /// @param positionAssets The asset data for the position
     function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata positionAssets) external view {
         uint256 debtRepaidValue;
-        for (uint256 i; i < debt.length; ++i) {
+        uint256 debtLength = debt.length;
+        for (uint256 i; i < debtLength; ++i) {
             // PositionManger.liquidate() verifies that the asset belongs to the associated pool
             address poolAsset = pool.getPoolAssetFor(debt[i].poolId);
             IOracle oracle = IOracle(riskEngine.getOracleFor(poolAsset));
@@ -105,7 +106,8 @@ contract RiskModule {
         }
 
         uint256 assetSeizedValue;
-        for (uint256 i; i < positionAssets.length; ++i) {
+        uint256 positionAssetsLength = positionAssets.length;
+        for (uint256 i; i < positionAssetsLength; ++i) {
             IOracle oracle = IOracle(riskEngine.getOracleFor(positionAssets[i].asset));
             assetSeizedValue += oracle.getValueInEth(positionAssets[i].asset, positionAssets[i].amt);
         }
@@ -130,7 +132,8 @@ contract RiskModule {
         uint256[] memory debtPools = Position(position).getDebtPools();
 
         uint256 totalDebtValue;
-        for (uint256 i; i < debtPools.length; ++i) {
+        uint256 debtPoolsLength = debtPools.length;
+        for (uint256 i; i < debtPoolsLength; ++i) {
             totalDebtValue += getDebtValueForPool(position, debtPools[i]);
         }
 
@@ -149,7 +152,8 @@ contract RiskModule {
         address[] memory positionAssets = Position(position).getPositionAssets();
 
         uint256 totalAssetValue;
-        for (uint256 i; i < positionAssets.length; ++i) {
+        uint256 positionAssetsLength = positionAssets.length;
+        for (uint256 i; i < positionAssetsLength; ++i) {
             totalAssetValue += getAssetValue(position, positionAssets[i]);
         }
 
@@ -165,7 +169,8 @@ contract RiskModule {
         uint256[] memory debtPools = Position(position).getDebtPools();
         uint256[] memory debtValueForPool = new uint256[](debtPools.length);
 
-        for (uint256 i; i < debtPools.length; ++i) {
+        uint256 debtPoolsLength = debtPools.length;
+        for (uint256 i; i < debtPoolsLength; ++i) {
             uint256 debt = getDebtValueForPool(position, debtPools[i]);
             debtValueForPool[i] = debt;
             totalDebtValue += debt;
@@ -182,9 +187,10 @@ contract RiskModule {
         uint256 totalAssetValue;
 
         address[] memory positionAssets = Position(position).getPositionAssets();
-        uint256[] memory positionAssetData = new uint256[](positionAssets.length);
+        uint256 positionAssetsLength = positionAssets.length;
+        uint256[] memory positionAssetData = new uint256[](positionAssetsLength);
 
-        for (uint256 i; i < positionAssets.length; ++i) {
+        for (uint256 i; i < positionAssetsLength; ++i) {
             uint256 assets = getAssetValue(position, positionAssets[i]);
             // positionAssetData[i] stores value of positionAssets[i] in eth
             positionAssetData[i] = assets;
@@ -193,7 +199,7 @@ contract RiskModule {
 
         if (totalAssetValue == 0) return (0, positionAssets, positionAssetData);
 
-        for (uint256 i; i < positionAssetData.length; ++i) {
+        for (uint256 i; i < positionAssetsLength; ++i) {
             // positionAssetData[i] stores weight of positionAsset[i]
             // wt of positionAsset[i] = (value of positionAsset[i]) / (total position assets value)
             positionAssetData[i] = positionAssetData[i].mulDiv(1e18, totalAssetValue);
@@ -212,8 +218,10 @@ contract RiskModule {
         uint256 minReqAssetValue;
 
         // O(pools.len * positionAssets.len)
-        for (uint256 i; i < debtPools.length; ++i) {
-            for (uint256 j; j < positionAssets.length; ++j) {
+        uint256 debtPoolsLength = debtPools.length;
+        uint256 positionAssetsLength = positionAssets.length;
+        for (uint256 i; i < debtPoolsLength; ++i) {
+            for (uint256 j; j < positionAssetsLength; ++j) {
                 uint256 ltv = riskEngine.ltvFor(debtPools[i], positionAssets[j]);
 
                 // revert with pool id and the asset that is not supported by the pool

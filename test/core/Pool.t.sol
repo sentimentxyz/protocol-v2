@@ -310,7 +310,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyPoolOwnerCanSetCap(address sender, uint128 poolCap) public {
         vm.assume(sender != poolOwner);
-        // vm.assume(sender != proxyAdmin);
+        vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.setPoolCap(linearRatePool, poolCap);

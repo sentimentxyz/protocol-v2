@@ -17,7 +17,7 @@ contract PositionForkTest is BaseForkTest {
         super.setUp();
     }
 
-    function testCreateNewPosition() public {
+    function testForkCreateNewPosition() public {
         Position position = _createNewPosition();
 
         assertEq(position.VERSION(), 1);
@@ -41,11 +41,11 @@ contract PositionForkTest is BaseForkTest {
         assertEq(positionAssets.length, 0);
     }
 
-    function testDepositUsdc() public {
+    function testForkDepositUsdc() public {
         _depositAssets("$.usdc", 100e6);
     }
 
-    function testDepositWeth() public {
+    function testForkDepositWeth() public {
         _depositAssets("$.weth", 10e18);
     }
 

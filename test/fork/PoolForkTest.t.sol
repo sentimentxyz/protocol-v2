@@ -10,11 +10,11 @@ contract PoolForkTest is BaseForkTest {
         super.setUp();
     }
 
-    function testUsdcPoolDepositWithdraw() public {
+    function testForkUsdcPoolDepositWithdraw() public {
         _depositAndWithdrawPool(100e6, "$.usdc", "$.usdc-1");
     }
 
-    function testWethPoolDepositWithdraw() public {
+    function testForkWethPoolDepositWithdraw() public {
         _depositAndWithdrawPool(10e18, "$.weth", "$.weth-1");
     }
 

@@ -10,7 +10,6 @@ import { Pool } from "../Pool.sol";
 import { RiskEngine } from "../RiskEngine.sol";
 import { SuperPool } from "../SuperPool.sol";
 import { IRateModel } from "../interfaces/IRateModel.sol";
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IOracle } from "src/interfaces/IOracle.sol";
 
@@ -56,8 +55,9 @@ contract SuperPoolLens {
         uint256[] memory pools = superPool.pools(); // fetch underlying pools for given super pool
 
         // fetch data for each underlying pool
-        PoolDepositData[] memory deposits = new PoolDepositData[](pools.length);
-        for (uint256 i; i < pools.length; ++i) {
+        uint256 poolsLength = pools.length;
+        PoolDepositData[] memory deposits = new PoolDepositData[](poolsLength);
+        for (uint256 i; i < poolsLength; ++i) {
             deposits[i] = getPoolDepositData(_superPool, pools[i]);
         }
 
@@ -127,7 +127,8 @@ contract SuperPoolLens {
         uint256 totalValueInEth;
         uint256 weightedDeposit;
 
-        for (uint256 i; i < superPools.length; ++i) {
+        uint256 superPoolsLength = superPools.length;
+        for (uint256 i; i < superPoolsLength; ++i) {
             deposits[i] = getUserDepositData(user, superPools[i]);
 
             totalValueInEth += deposits[i].valueInEth;
@@ -202,7 +203,8 @@ contract SuperPoolLens {
 
         uint256 weightedAssets;
         uint256[] memory pools = superPool.pools();
-        for (uint256 i; i < pools.length; ++i) {
+        uint256 poolsLength = pools.length;
+        for (uint256 i; i < poolsLength; ++i) {
             uint256 assets = POOL.getAssetsOf(pools[i], _superPool);
             weightedAssets += assets * getPoolInterestRate(pools[i]);
         }

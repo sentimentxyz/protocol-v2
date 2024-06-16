@@ -296,6 +296,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         uint256 amt = uint256(bytes32(data[40:72]));
 
         if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
+
+        // if the passed amt is type(uint).max assume transfer of the entire balance
+        if (amt == type(uint256).max) amt = IERC20(asset).balanceOf(position);
+
         Position(position).transfer(recipient, asset, amt);
         emit Transfer(position, msg.sender, recipient, asset, amt);
     }
@@ -325,6 +329,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
         if (!isKnownAddress[spender]) revert PositionManager_UnknownSpender(spender);
 
+        // if the passed amt is type(uint).max assume approval of the entire balance
+        if (amt == type(uint256).max) amt = IERC20(asset).balanceOf(position);
+
         Position(position).approve(asset, spender, amt);
         emit Approve(position, msg.sender, spender, asset, amt);
     }
@@ -335,10 +342,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // poolId -> [0:32] pool that recieves the repaid debt
         // amt -> [32: 64] notional amount to be repaid
         uint256 poolId = uint256(bytes32(data[0:32]));
-        uint256 _amt = uint256(bytes32(data[32:64]));
+        uint256 amt = uint256(bytes32(data[32:64]));
 
         // if the passed amt is type(uint).max assume repayment of the entire debt
-        uint256 amt = (_amt == type(uint256).max) ? pool.getBorrowsOf(poolId, position) : _amt;
+        if (amt == type(uint256).max) amt = pool.getBorrowsOf(poolId, position);
 
         // transfer assets to be repaid from the position to the given pool
         Position(position).transfer(address(pool), pool.getPoolAssetFor(poolId), amt);

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract SuperPoolUnitTests is BaseTest {
     Pool pool;
@@ -151,6 +152,7 @@ contract SuperPoolUnitTests is BaseTest {
         assertEq(shares, expectedShares);
 
         assertEq(asset1.balanceOf(address(pool)), 100 ether);
+        vm.stopPrank();
     }
 
     function testZeroShareDeposit() public {
@@ -165,28 +167,30 @@ contract SuperPoolUnitTests is BaseTest {
 
     function testWithdrawalScenarios() public {
         testSimpleDepositIntoSuperpool();
-        superPool.approve(user2, 10 ether);
+        uint256 shares = superPool.balanceOf(user);
+        uint256 assets = superPool.convertToAssets(shares);
 
-        vm.stopPrank();
+        vm.prank(user);
+        superPool.approve(user2, shares / 10);
 
         vm.startPrank(user2);
-        superPool.withdraw(10 ether, user2, user);
+        superPool.redeem(shares / 10, user2, user);
 
         vm.expectRevert();
-        superPool.withdraw(10 ether, user2, user);
+        superPool.withdraw(assets / 10, user2, user);
         vm.stopPrank();
 
         vm.prank(user);
         superPool.approve(user2, type(uint256).max);
 
         vm.prank(user2);
-        superPool.withdraw(50 ether, user2, user);
+        superPool.withdraw(assets / 2, user2, user);
 
         // coincidenal withdrawal can be covered without dipping into base pools
-        asset1.mint(address(superPool), 10 ether);
+        asset1.mint(address(superPool), assets / 10);
 
         vm.prank(user);
-        superPool.withdraw(10 ether, user, user);
+        superPool.withdraw(assets / 10, user, user);
     }
 
     function testWithdrawFromPausedPool() public {
@@ -229,11 +233,10 @@ contract SuperPoolUnitTests is BaseTest {
         asset1.mint(user, 200 ether);
         asset1.approve(address(superPool), 200 ether);
 
-        // Shares and Assets 1:1 before interest is earned
-        uint256 expectedAssets = superPool.previewMint(200 ether);
-        uint256 assets = superPool.mint(200 ether, user);
-        assertEq(assets, expectedAssets);
+        uint256 expectedShares = superPool.previewDeposit(200 ether);
+        uint256 shares = superPool.deposit(200 ether, user);
 
+        assertEq(shares, expectedShares);
         assertEq(asset1.balanceOf(address(pool)), 200 ether);
     }
 
@@ -262,10 +265,10 @@ contract SuperPoolUnitTests is BaseTest {
         asset1.mint(user, amt);
         asset1.approve(address(superPool), amt);
 
-        superPool.deposit(amt, user);
+        uint256 totalShares = superPool.deposit(amt, user);
 
-        uint256 expectedAssets = superPool.previewRedeem(amt / 2);
-        uint256 assets = superPool.redeem(amt / 2, user, user);
+        uint256 expectedAssets = superPool.previewRedeem(totalShares / 2);
+        uint256 assets = superPool.redeem(totalShares / 2, user, user);
         assertEq(assets, expectedAssets);
         assertEq(asset1.balanceOf(user), amt / 2);
 

@@ -421,7 +421,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             address poolAsset = pool.getPoolAssetFor(debt[i].poolId);
 
             // transfer debt asset from the liquidator to the pool
-            IERC20(poolAsset).transferFrom(msg.sender, address(pool), debt[i].amt);
+            IERC20(poolAsset).safeTransferFrom(msg.sender, address(pool), debt[i].amt);
 
             // trigger pool repayment which assumes successful transfer of repaid assets
             pool.repay(debt[i].poolId, position, debt[i].amt);

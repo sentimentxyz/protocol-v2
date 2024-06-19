@@ -485,7 +485,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         newQueue = new uint256[](indexesLength);
 
         for (uint256 i; i < indexesLength; ++i) {
-            newQueue[i] = queue[i];
+            newQueue[i] = queue[indexes[i]];
         }
 
         return newQueue;

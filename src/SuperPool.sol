@@ -405,16 +405,27 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         uint256 depositQueueLength = depositQueue.length;
         for (uint256 i; i < depositQueueLength; ++i) {
             uint256 poolId = depositQueue[i];
-            uint256 assetsInPool = POOL.getAssetsOf(poolId, address(this));
 
-            if (assetsInPool < poolCap[poolId]) {
-                uint256 supplyAmt = poolCap[poolId] - assetsInPool;
-                if (assets < supplyAmt) supplyAmt = assets;
+            // supplyAmt -> max amt of assets that can be deposited in the underlying pool while respecting the deposit
+            // caps set on (1) the superpool and (2) the underlying pool itself
+            uint256 supplyAmt = assets;
+
+            // if depositing all assets would breach the pool cap set by the superpool owner
+            // as in SuperPool.poolCap[poolId] deposit the max amount that respects the cap
+            uint256 assetsInPool = POOL.getAssetsOf(poolId, address(this)); // save an SLOAD
+            uint256 maxDepositForSuperPool = (assetsInPool >= poolCap[poolId]) ? 0 : poolCap[poolId] - assetsInPool;
+            if (maxDepositForSuperPool < supplyAmt) supplyAmt = maxDepositForSuperPool;
+
+            // if deposit breaches the global asset cap of the underlying pool set by its owner
+            // as in Pool.getPoolCap(poolId) deposit the max amount that respects the cap
+            uint256 maxDepositForBasePool = POOL.getPoolCap(poolId) - POOL.getTotalAssets(poolId);
+            if (maxDepositForBasePool < supplyAmt) supplyAmt = maxDepositForBasePool;
+
+            // deposit only if superpool and pool cap constraints are met
+            if (supplyAmt > 0) {
                 ASSET.forceApprove(address(POOL), supplyAmt);
-
                 POOL.deposit(poolId, supplyAmt, address(this));
                 assets -= supplyAmt;
-
                 if (assets == 0) return;
             }
         }

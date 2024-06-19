@@ -156,6 +156,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         positionManager = Registry(registry).addressFor(SENTIMENT_POSITION_MANAGER_KEY);
     }
 
+    function getPoolCap(uint256 poolId) public view returns (uint256) {
+        return uint256(poolDataFor[poolId].poolCap);
+    }
+
     /// @notice Fetch amount of liquid assets currently held in a given pool
     function getLiquidityOf(uint256 poolId) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];

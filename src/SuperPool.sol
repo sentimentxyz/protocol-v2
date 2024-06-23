@@ -356,10 +356,15 @@ contract SuperPool is Ownable, Pausable, ERC20 {
 
         uint256 depositsLength = deposits.length;
         for (uint256 i; i < depositsLength; ++i) {
+            uint256 poolCap = poolCapFor[deposits[i].poolId];
             // disallow deposits to pool not associated with this SuperPool
-            if (poolCapFor[deposits[i].poolId] == 0) revert SuperPool_PoolNotInQueue(deposits[i].poolId);
-            ASSET.approve(address(POOL), deposits[i].assets);
-            POOL.deposit(deposits[i].poolId, deposits[i].assets, address(this));
+            if (poolCap == 0) revert SuperPool_PoolNotInQueue(deposits[i].poolId);
+            // respect pool cap
+            uint256 assetsInPool = POOL.getAssetsOf(deposits[i].poolId, address(this));
+            if (assetsInPool + deposits[i].assets < poolCap) {
+                ASSET.approve(address(POOL), deposits[i].assets);
+                POOL.deposit(deposits[i].poolId, deposits[i].assets, address(this));
+            }
         }
     }
 

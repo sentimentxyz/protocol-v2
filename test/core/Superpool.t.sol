@@ -466,9 +466,9 @@ contract SuperPoolUnitTests is BaseTest {
         vm.stopPrank();
 
         uint256[] memory newWrongDepositOrder = new uint256[](3);
-        newWrongDepositOrder[0] = fixedRatePool;
-        newWrongDepositOrder[1] = linearRatePool;
-        newWrongDepositOrder[2] = fixedRatePool2;
+        newWrongDepositOrder[0] = 0;
+        newWrongDepositOrder[1] = 1;
+        newWrongDepositOrder[2] = 2;
         // newDepositOrder[3] = linearRatePool2;
 
         vm.expectRevert();
@@ -480,18 +480,18 @@ contract SuperPoolUnitTests is BaseTest {
         superPool.reorderDepositQueue(newWrongDepositOrder);
 
         uint256[] memory newDepositOrder = new uint256[](4);
-        newDepositOrder[0] = fixedRatePool;
-        newDepositOrder[1] = linearRatePool;
-        newDepositOrder[2] = fixedRatePool2;
-        newDepositOrder[3] = linearRatePool2;
+        newDepositOrder[0] = 3;
+        newDepositOrder[1] = 2;
+        newDepositOrder[2] = 1;
+        newDepositOrder[3] = 0;
 
         superPool.reorderDepositQueue(newDepositOrder);
         vm.stopPrank();
 
-        assertEq(superPool.depositQueue(0), fixedRatePool);
-        assertEq(superPool.depositQueue(1), linearRatePool);
-        assertEq(superPool.depositQueue(2), fixedRatePool2);
-        assertEq(superPool.depositQueue(3), linearRatePool2);
+        assertEq(superPool.depositQueue(3), fixedRatePool);
+        assertEq(superPool.depositQueue(2), linearRatePool);
+        assertEq(superPool.depositQueue(1), fixedRatePool2);
+        assertEq(superPool.depositQueue(0), linearRatePool2);
     }
 
     function testReorderWithdrawals() public {
@@ -503,7 +503,7 @@ contract SuperPoolUnitTests is BaseTest {
         vm.stopPrank();
 
         uint256[] memory newWrongWithdrawalOrder = new uint256[](100);
-        newWrongWithdrawalOrder[0] = fixedRatePool;
+        newWrongWithdrawalOrder[0] = 2;
 
         vm.expectRevert();
         superPool.reorderWithdrawQueue(newWrongWithdrawalOrder);
@@ -513,17 +513,17 @@ contract SuperPoolUnitTests is BaseTest {
         superPool.reorderWithdrawQueue(newWrongWithdrawalOrder);
 
         uint256[] memory newWithdrawalOrder = new uint256[](4);
-        newWithdrawalOrder[0] = fixedRatePool;
-        newWithdrawalOrder[1] = linearRatePool;
-        newWithdrawalOrder[2] = fixedRatePool2;
-        newWithdrawalOrder[3] = linearRatePool2;
+        newWithdrawalOrder[0] = 3;
+        newWithdrawalOrder[1] = 2;
+        newWithdrawalOrder[2] = 1;
+        newWithdrawalOrder[3] = 0;
 
         superPool.reorderWithdrawQueue(newWithdrawalOrder);
 
-        assertEq(superPool.withdrawQueue(0), fixedRatePool);
-        assertEq(superPool.withdrawQueue(1), linearRatePool);
-        assertEq(superPool.withdrawQueue(2), fixedRatePool2);
-        assertEq(superPool.withdrawQueue(3), linearRatePool2);
+        assertEq(superPool.withdrawQueue(3), fixedRatePool);
+        assertEq(superPool.withdrawQueue(2), linearRatePool);
+        assertEq(superPool.withdrawQueue(1), fixedRatePool2);
+        assertEq(superPool.withdrawQueue(0), linearRatePool2);
     }
 
     function testInterestEarnedOnTheUnderlingPool() public {

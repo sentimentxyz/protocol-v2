@@ -230,13 +230,13 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
 
+        // Need to transfer before or ERC777s could reenter, or bypass the pool cap
+        IERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
+
         if (pool.totalAssets.assets + assets > pool.poolCap) revert Pool_PoolCapExceeded(poolId);
 
         shares = convertToShares(pool.totalAssets, assets);
         if (shares == 0) revert Pool_ZeroSharesDeposit(poolId, assets);
-
-        // Need to transfer before minting or ERC777s could reenter.
-        IERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
 
         pool.totalAssets.assets += uint128(assets);
         pool.totalAssets.shares += uint128(shares);

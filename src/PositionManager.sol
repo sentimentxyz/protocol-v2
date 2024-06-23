@@ -413,6 +413,20 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // verify that the liquidator seized by the liquidator is within liquidiation discount
         riskEngine.validateLiquidation(debt, positionAssets);
 
+        // transfer position assets to the liqudiator and accrue protocol liquidation fees
+        uint256 positionAssetsLength = positionAssets.length;
+        for (uint256 i; i < positionAssetsLength; ++i) {
+            // compute fee amt
+            // [ROUND] liquidation fee is rounded down, in favor of the liquidator
+            uint256 fee = liquidationFee.mulDiv(positionAssets[i].amt, 1e18);
+
+            // transfer fee amt to protocol
+            Position(position).transfer(owner(), positionAssets[i].asset, fee);
+
+            // transfer difference to the liquidator
+            Position(position).transfer(msg.sender, positionAssets[i].asset, positionAssets[i].amt - fee);
+        }
+
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator
         uint256 debtLength = debt.length;
@@ -428,20 +442,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
             // update position to reflect repayment of debt by liquidator
             Position(position).repay(debt[i].poolId, debt[i].amt);
-        }
-
-        // transfer position assets to the liqudiator and accrue protocol liquidation fees
-        uint256 positionAssetsLength = positionAssets.length;
-        for (uint256 i; i < positionAssetsLength; ++i) {
-            // compute fee amt
-            // [ROUND] liquidation fee is rounded down, in favor of the liquidator
-            uint256 fee = liquidationFee.mulDiv(positionAssets[i].amt, 1e18);
-
-            // transfer fee amt to protocol
-            Position(position).transfer(owner(), positionAssets[i].asset, fee);
-
-            // transfer difference to the liquidator
-            Position(position).transfer(msg.sender, positionAssets[i].asset, positionAssets[i].amt - fee);
         }
 
         // position should be within risk thresholds after liqudiation

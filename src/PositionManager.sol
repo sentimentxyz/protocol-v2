@@ -81,7 +81,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
     // keccak(SENIMENT_POSITION_BEACON_KEY)
     bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
-        0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
+        0x6e7384c78b0e09fb848f35d00a7b14fc1ad10ae9b10117368146c0e09b6f2fa2;
 
     /// @notice Sentiment Singleton Pool
     Pool public pool;

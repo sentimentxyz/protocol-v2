@@ -73,6 +73,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
+    /// @notice Fee value is greater than 100%
+    error SuperPool_FeeTooHigh();
     /// @notice Attempt to deposit zero shares worth of assets to the pool
     error SuperPool_ZeroShareDeposit(address superpool, uint256 assets);
     /// @notice Attempt to mint zero asset worth of shares from the pool
@@ -111,6 +113,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         ASSET = IERC20(asset_);
         DECIMALS = _tryGetAssetDecimals(ASSET);
 
+        if (fee > 1e18) revert SuperPool_FeeTooHigh();
         fee = fee_;
         feeRecipient = feeRecipient_;
         superPoolCap = superPoolCap_;
@@ -305,8 +308,9 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     }
 
     /// @notice Sets the fee for the SuperPool
-    /// @param _fee The fee, out of 1e18, to be taken from interest earned
+    /// @param _fee The fee, out of 1e18 to be taken from interest earned
     function setFee(uint256 _fee) external onlyOwner {
+        if (fee > 1e18) revert SuperPool_FeeTooHigh();
         accrue();
         fee = _fee;
         emit SuperPoolFeeUpdated(_fee);

@@ -74,15 +74,13 @@ contract SuperPoolUnitTests is BaseTest {
 
         for (uint256 i; i < 7; i++) {
             address linearRateModel = address(new LinearRateModel(2e18, 3e18));
-            uint256 linearPool =
-                pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);
+            uint256 linearPool = pool.initializePool(poolOwner, address(asset1), linearRateModel, type(uint128).max);
 
             superPool.setPoolCap(linearPool, 50 ether);
         }
 
         address newLinearModel = address(new LinearRateModel(2e18, 3e18));
-        uint256 lastLinearPool =
-            pool.initializePool(poolOwner, address(asset1), newLinearModel, 0, 0, type(uint128).max);
+        uint256 lastLinearPool = pool.initializePool(poolOwner, address(asset1), newLinearModel, type(uint128).max);
 
         // Test call reverts when adding too many pools
         vm.expectRevert();

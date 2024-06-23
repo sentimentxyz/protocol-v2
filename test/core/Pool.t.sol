@@ -26,7 +26,7 @@ contract PoolUnitTests is BaseTest {
         assertEq(testPool.registry(), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        uint256 id = testPool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
+        uint256 id = testPool.initializePool(poolOwner, address(asset1), rateModel, type(uint128).max);
         assertEq(rateModel, testPool.getRateModelFor(id));
     }
 
@@ -34,8 +34,8 @@ contract PoolUnitTests is BaseTest {
     function testFailsDoubleInit() public {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
 
-        pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
-        pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
+        pool.initializePool(poolOwner, address(asset1), rateModel, type(uint128).max);
+        pool.initializePool(poolOwner, address(asset1), rateModel, type(uint128).max);
     }
 
     function testCannotFrontRunDeployment() public {
@@ -43,10 +43,10 @@ contract PoolUnitTests is BaseTest {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
 
         vm.prank(poolOwner);
-        uint256 id = pool.initializePool(poolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
+        uint256 id = pool.initializePool(poolOwner, address(asset1), rateModel, type(uint128).max);
 
         vm.prank(notPoolOwner);
-        uint256 id2 = pool.initializePool(notPoolOwner, address(asset1), rateModel, 0, 0, type(uint128).max);
+        uint256 id2 = pool.initializePool(notPoolOwner, address(asset1), rateModel, type(uint128).max);
 
         assert(id != id2);
     }

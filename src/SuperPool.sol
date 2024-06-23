@@ -73,6 +73,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
+    /// @notice Global asset cap for this SuperPool has been reached
+    error SuperPool_SuperPoolCapReached();
     /// @notice Attempt to deposit zero shares worth of assets to the pool
     error SuperPool_ZeroShareDeposit(address superpool, uint256 assets);
     /// @notice Attempt to mint zero asset worth of shares from the pool
@@ -327,10 +329,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         emit SuperPoolFeeRecipientUpdated(_feeRecipient);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                           Asset Allocation
-    //////////////////////////////////////////////////////////////*/
-
     /// @notice Struct to hold a pair of pool id, and the delta in balance
     /// @custom:field pool     The pool id
     /// @custom:field assets   The amount of tokens to {deposit, remove} during reallocation
@@ -359,10 +357,6 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         }
     }
 
-    /*//////////////////////////////////////////////////////////////
-                               Internal
-    //////////////////////////////////////////////////////////////*/
-
     function _convertToShares(uint256 assets, Math.Rounding rounding) public view virtual returns (uint256 shares) {
         shares = assets.mulDiv(totalSupply() + 10 ** DECIMALS, lastTotalAssets + 1, rounding);
     }
@@ -377,6 +371,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param shares The amount of shares to mint, should be equivalent to assets
 
     function _deposit(address receiver, uint256 assets, uint256 shares) internal {
+        // assume that lastTotalAssets are up to date
+        if (lastTotalAssets + assets > superPoolCap) revert SuperPool_SuperPoolCapReached();
         // Need to transfer before minting or ERC777s could reenter.
         ASSET.safeTransferFrom(msg.sender, address(this), assets);
         ERC20._mint(receiver, shares);

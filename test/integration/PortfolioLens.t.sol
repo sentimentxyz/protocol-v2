@@ -11,11 +11,11 @@ import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract PortfolioLensTest is BaseTest {
     Pool pool;
-    address position;
+    address payable position;
     RiskEngine riskEngine;
     PortfolioLens portfolioLens;
     PositionManager positionManager;
-    address[] public positions;
+    address payable[] public positions;
 
     function setUp() public override {
         super.setUp();

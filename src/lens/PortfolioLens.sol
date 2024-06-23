@@ -47,7 +47,11 @@ contract PortfolioLens {
     /// @notice Fetch current state for multiple positions at once
     /// @param positions Array of position addresses
     /// @return portfolioData Array of current position data for each given position
-    function getPortfolioData(address[] calldata positions) public view returns (PortfolioData memory portfolioData) {
+    function getPortfolioData(address payable[] calldata positions)
+        public
+        view
+        returns (PortfolioData memory portfolioData)
+    {
         PositionData[] memory positionData = new PositionData[](positions.length);
 
         // fetch data for each position
@@ -71,7 +75,7 @@ contract PortfolioLens {
     /// @notice Fetch current state for a given position
     /// @param position Address of the position
     /// @return positionData Current position data for the given position
-    function getPositionData(address position) public view returns (PositionData memory positionData) {
+    function getPositionData(address payable position) public view returns (PositionData memory positionData) {
         return PositionData({
             position: position,
             owner: POSITION_MANAGER.ownerOf(position),
@@ -92,7 +96,7 @@ contract PortfolioLens {
     /// @param position Address of the position
     /// @return assetData List of data for assets currently held by the given position
     /// @dev Could return values with zero amount if AddToken / RemoveToken has not been called
-    function getAssetData(address position) public view returns (AssetData[] memory assetData) {
+    function getAssetData(address payable position) public view returns (AssetData[] memory assetData) {
         address[] memory positionAssets = Position(position).getPositionAssets();
 
         // fetch data for each position asset
@@ -120,7 +124,7 @@ contract PortfolioLens {
     /// @notice Fetch data for all active debt associated a given position
     /// @param position Address of the position
     /// @return debtData List of pool-wise debt data currently owed by the given position
-    function getDebtData(address position) public view returns (DebtData[] memory debtData) {
+    function getDebtData(address payable position) public view returns (DebtData[] memory debtData) {
         uint256[] memory debtPools = Position(position).getDebtPools();
 
         // fetch debt data for each pool
@@ -150,15 +154,22 @@ contract PortfolioLens {
     /// @param salt CREATE2 salt for the new position
     /// @return newPosition Predicted address for the new position
     /// @return available Boolean which is false if the predicted position address already has code deployed to it
-    function predictAddress(address owner, bytes32 salt) external view returns (address newPosition, bool available) {
+    function predictAddress(
+        address owner,
+        bytes32 salt
+    ) external view returns (address payable newPosition, bool available) {
         // hash salt with owner to mitigate frontrun attacks
         salt = keccak256(abi.encodePacked(owner, salt));
 
         bytes memory creationCode =
             abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(address(POSITION_MANAGER.positionBeacon()), ""));
 
-        newPosition = address(
-            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), POSITION_MANAGER, salt, keccak256(creationCode)))))
+        newPosition = payable(
+            address(
+                uint160(
+                    uint256(keccak256(abi.encodePacked(bytes1(0xff), POSITION_MANAGER, salt, keccak256(creationCode))))
+                )
+            )
         );
 
         return (newPosition, newPosition.code.length == 0);

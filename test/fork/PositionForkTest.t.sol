@@ -24,12 +24,12 @@ contract PositionForkTest is BaseForkTest {
         assertEq(position.MAX_ASSETS(), 5);
         assertEq(position.MAX_DEBT_POOLS(), 5);
         assertEq(address(position.POOL()), address(pool));
-        assertTrue(riskEngine.isPositionHealthy(address(position)));
+        assertTrue(riskEngine.isPositionHealthy(payable(position)));
         assertEq(positionManager.ownerOf(address(position)), sender);
         assertEq(position.POSITION_MANAGER(), address(positionManager));
 
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) =
-            riskEngine.getRiskData(address(position));
+            riskEngine.getRiskData(payable(position));
         assertEq(totalAssetValue, 0);
         assertEq(totalDebtValue, 0);
         assertEq(minReqAssetValue, 0);
@@ -62,7 +62,7 @@ contract PositionForkTest is BaseForkTest {
         positionManager = PositionManager(vm.parseJsonAddress(config, "$.positionManager"));
 
         bytes32 salt = bytes32(block.timestamp);
-        (address predictedPosition, bool isAvailable) = portfolioLens.predictAddress(sender, salt);
+        (address payable predictedPosition, bool isAvailable) = portfolioLens.predictAddress(sender, salt);
         assertTrue(isAvailable);
 
         Action[] memory actions = new Action[](1);
@@ -85,7 +85,7 @@ contract PositionForkTest is BaseForkTest {
 
         vm.startPrank(sender);
         MockERC20(asset).approve(address(positionManager), amt);
-        positionManager.processBatch(address(position), actions);
+        positionManager.processBatch(payable(position), actions);
         vm.stopPrank();
 
         uint256[] memory debtPools = position.getDebtPools();
@@ -96,10 +96,10 @@ contract PositionForkTest is BaseForkTest {
         assertEq(positionAssets[0], asset);
 
         assertEq(MockERC20(asset).balanceOf(address(position)), amt);
-        assertTrue(riskEngine.isPositionHealthy(address(position)));
+        assertTrue(riskEngine.isPositionHealthy(payable(position)));
 
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) =
-            riskEngine.getRiskData(address(position));
+            riskEngine.getRiskData(payable(position));
         assertEq(totalAssetValue, _getValueInEth(asset, amt));
         assertEq(totalDebtValue, 0);
         assertEq(minReqAssetValue, 0);

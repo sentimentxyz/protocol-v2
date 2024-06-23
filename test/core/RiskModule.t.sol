@@ -12,7 +12,7 @@ import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract RiskModuleUnitTests is BaseTest {
     Pool pool;
-    address position;
+    address payable position;
     RiskEngine riskEngine;
     RiskModule riskModule;
     PositionManager positionManager;

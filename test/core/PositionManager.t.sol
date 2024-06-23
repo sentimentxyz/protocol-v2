@@ -22,7 +22,7 @@ contract PositionManagerUnitTests is BaseTest {
 
     Pool pool;
     Registry registry;
-    address position;
+    address payable position;
     RiskEngine riskEngine;
     PositionManager positionManager;
 
@@ -87,7 +87,7 @@ contract PositionManagerUnitTests is BaseTest {
     }
 
     function testInitializePosition() public {
-        address expectedAddress;
+        address payable expectedAddress;
         Action[] memory actions = new Action[](1);
         (expectedAddress, actions[0]) = newPosition(positionOwner, bytes32(uint256(43_534_853)));
 
@@ -110,10 +110,10 @@ contract PositionManagerUnitTests is BaseTest {
         actions[0] = action;
 
         vm.expectRevert();
-        PositionManager(positionManager).processBatch(makeAddr("incorrectPosition"), actions);
+        PositionManager(positionManager).processBatch(payable(makeAddr("incorrectPosition")), actions);
 
         vm.expectRevert();
-        PositionManager(positionManager).process(makeAddr("incorrectPosition"), action);
+        PositionManager(positionManager).process(payable(makeAddr("incorrectPosition")), action);
     }
 
     function testAddAndRemoveCollateralTypes() public {

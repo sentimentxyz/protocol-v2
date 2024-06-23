@@ -64,7 +64,7 @@ contract RiskModule {
     }
 
     /// @notice Evaluates whether a given position is healthy based on the debt and asset values
-    function isPositionHealthy(address position) external view returns (bool) {
+    function isPositionHealthy(address payable position) external view returns (bool) {
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = getRiskData(position);
 
         if (totalDebtValue != 0 && totalDebtValue < MIN_DEBT) revert RiskModule_DebtTooLow(position, totalDebtValue);
@@ -77,7 +77,7 @@ contract RiskModule {
     /// @return totalAssetValue The total asset value of the position
     /// @return totalDebtValue The total debt value of the position
     /// @return minReqAssetValue The minimum required asset value for the position to be healthy
-    function getRiskData(address position) public view returns (uint256, uint256, uint256) {
+    function getRiskData(address payable position) public view returns (uint256, uint256, uint256) {
         (uint256 totalAssetValue, address[] memory positionAssets, uint256[] memory positionAssetWeight) =
             _getPositionAssetData(position);
 
@@ -128,7 +128,7 @@ contract RiskModule {
     }
 
     /// @notice Gets the total debt owed by a position in ETH
-    function getTotalDebtValue(address position) public view returns (uint256) {
+    function getTotalDebtValue(address payable position) public view returns (uint256) {
         uint256[] memory debtPools = Position(position).getDebtPools();
 
         uint256 totalDebtValue;
@@ -148,7 +148,7 @@ contract RiskModule {
     }
 
     /// @notice Gets the total ETH value of assets in a position
-    function getTotalAssetValue(address position) public view returns (uint256) {
+    function getTotalAssetValue(address payable position) public view returns (uint256) {
         address[] memory positionAssets = Position(position).getPositionAssets();
 
         uint256 totalAssetValue;
@@ -160,7 +160,7 @@ contract RiskModule {
         return totalAssetValue;
     }
 
-    function _getPositionDebtData(address position)
+    function _getPositionDebtData(address payable position)
         internal
         view
         returns (uint256, uint256[] memory, uint256[] memory)
@@ -179,7 +179,7 @@ contract RiskModule {
         return (totalDebtValue, debtPools, debtValueForPool);
     }
 
-    function _getPositionAssetData(address position)
+    function _getPositionAssetData(address payable position)
         internal
         view
         returns (uint256, address[] memory, uint256[] memory)

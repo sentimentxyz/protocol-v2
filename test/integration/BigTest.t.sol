@@ -109,7 +109,7 @@ contract BigTest is BaseTest {
         asset2.approve(address(positionManager), 300 ether);
 
         // Make a new position
-        (address position, Action memory _newPosition) = newPosition(user2, "test");
+        (address payable position, Action memory _newPosition) = newPosition(user2, "test");
         positionManager.process(position, _newPosition);
 
         Action memory addNewCollateral = addToken(address(asset2));

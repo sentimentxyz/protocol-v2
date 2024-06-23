@@ -11,7 +11,7 @@ import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract LiquidationTest is BaseTest {
     Pool pool;
-    address position;
+    address payable position;
     RiskEngine riskEngine;
     PositionManager positionManager;
     address public liquidator = makeAddr("liquidator");

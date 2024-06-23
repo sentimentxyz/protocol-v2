@@ -114,7 +114,7 @@ contract RiskEngine is Ownable {
     }
 
     /// @notice Check if the given position is healthy
-    function isPositionHealthy(address position) external view returns (bool) {
+    function isPositionHealthy(address payable position) external view returns (bool) {
         // call health check implementation based on position type
         return riskModule.isPositionHealthy(position);
     }
@@ -129,7 +129,7 @@ contract RiskEngine is Ownable {
     /// @return totalAssetValue The total asset value of the position
     /// @return totalDebtValue The total debt value of the position
     /// @return minReqAssetValue The minimum required asset value for the position to be healthy
-    function getRiskData(address position) external view returns (uint256, uint256, uint256) {
+    function getRiskData(address payable position) external view returns (uint256, uint256, uint256) {
         return riskModule.getRiskData(position);
     }
 

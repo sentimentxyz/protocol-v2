@@ -381,7 +381,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @dev Add a token address to the set of position assets
-    function addToken(address position, bytes calldata data) internal whenNotPaused {
+    function addToken(address position, bytes calldata data) internal {
         // data -> abi.encodePacked(address)
         // asset -> [0:20] address of asset to be registered as collateral
         address asset = address(bytes20(data[0:20]));

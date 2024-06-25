@@ -73,6 +73,10 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
+    /// @notice Attempt to withdraw zero shares worth of assets
+    error SuperPool_ZeroAssetRedeem(address superpool, uint256 shares);
+    /// @notice Attempt to withdraw zero shares worth of assets
+    error SuperPool_ZeroShareWithdraw(address superpool, uint256 assets);
     /// @notice Attempt to deposit zero shares worth of assets to the pool
     error SuperPool_ZeroShareDeposit(address superpool, uint256 assets);
     /// @notice Attempt to mint zero asset worth of shares from the pool
@@ -229,6 +233,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     function withdraw(uint256 assets, address receiver, address owner) public returns (uint256 shares) {
         accrue();
         shares = previewWithdraw(assets);
+        if (shares == 0) revert SuperPool_ZeroShareWithdraw(address(this), assets);
         _withdraw(receiver, owner, assets, shares);
     }
 
@@ -240,6 +245,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     function redeem(uint256 shares, address receiver, address owner) public returns (uint256 assets) {
         accrue();
         assets = previewRedeem(shares);
+        if (assets == 0) revert SuperPool_ZeroAssetRedeem(address(this), shares);
         _withdraw(receiver, owner, assets, shares);
     }
 

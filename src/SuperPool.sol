@@ -371,7 +371,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         uint256 _totalShares,
         Math.Rounding _rounding
     ) public view virtual returns (uint256 shares) {
-        shares = _assets.mulDiv(_totalShares + 10 ** DECIMALS, _totalAssets + 1, _rounding);
+        shares = _assets.mulDiv(_totalShares + 1, _totalAssets + 1, _rounding);
     }
 
     function _convertToAssets(
@@ -380,7 +380,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         uint256 _totalShares,
         Math.Rounding _rounding
     ) public view virtual returns (uint256 assets) {
-        assets = _shares.mulDiv(_totalAssets + 1, _totalShares + 10 ** DECIMALS, _rounding);
+        assets = _shares.mulDiv(_totalAssets + 1, _totalShares + 1, _rounding);
     }
 
     function _maxWithdraw(address _owner, uint256 _totalAssets, uint256 _totalShares) internal view returns (uint256) {

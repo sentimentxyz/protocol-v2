@@ -142,61 +142,63 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param assets The amount of assets
     /// @return shares The equivalent amount of shares
     function convertToShares(uint256 assets) public view virtual returns (uint256 shares) {
-        return _convertToShares(assets, Math.Rounding.Down);
+        (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
+        return _convertToShares(assets, newTotalAssets, totalSupply() + feeShares, Math.Rounding.Down);
     }
 
     /// @notice Converts a share amount to an asset amount, as defined by ERC4626
     /// @param shares The amount of shares
     /// @return assets The equivalent amount of assets
     function convertToAssets(uint256 shares) public view virtual returns (uint256 assets) {
-        return _convertToAssets(shares, Math.Rounding.Down);
+        (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
+        return _convertToAssets(shares, newTotalAssets, totalSupply() + feeShares, Math.Rounding.Down);
     }
 
     /// @notice Fetch the maximum amount of assets that can be deposited in the SuperPool
     function maxDeposit(address) public view returns (uint256) {
-        uint256 _totalAssets = totalAssets();
-        return superPoolCap > _totalAssets ? (superPoolCap - _totalAssets) : 0;
+        return _maxDeposit(totalAssets());
     }
 
     /// @notice Fetch the maximum amount of shares that can be minted from the SuperPool
     function maxMint(address) public view returns (uint256) {
-        return _convertToShares(maxDeposit(address(0)), Math.Rounding.Down);
+        (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
+        return
+            _convertToShares(_maxDeposit(newTotalAssets), newTotalAssets, totalSupply() + feeShares, Math.Rounding.Down);
     }
 
     /// @notice Fetch the maximum amount of assets that can be withdrawn by a depositor
     function maxWithdraw(address owner) public view returns (uint256) {
-        uint256 totalLiquidity;
-        uint256 depositQueueLength = depositQueue.length;
-        for (uint256 i; i < depositQueueLength; ++i) {
-            totalLiquidity += POOL.getLiquidityOf(depositQueue[i]);
-        }
-
-        totalLiquidity += ASSET.balanceOf(address(this));
-
-        uint256 userAssets = _convertToAssets(ERC20.balanceOf(owner), Math.Rounding.Down);
-
-        return totalLiquidity > userAssets ? userAssets : totalLiquidity;
+        (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
+        return _maxWithdraw(owner, newTotalAssets, totalSupply() + feeShares);
     }
 
     /// @notice Fetch the maximum amount of shares that can be redeemed by a depositor
     function maxRedeem(address owner) public view returns (uint256) {
-        return _convertToShares(maxWithdraw(owner), Math.Rounding.Down);
+        (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
+        uint256 newTotalShares = totalSupply() + feeShares;
+        return _convertToShares(
+            _maxWithdraw(owner, newTotalAssets, newTotalShares), newTotalAssets, newTotalShares, Math.Rounding.Down
+        );
     }
 
     function previewDeposit(uint256 assets) public view virtual returns (uint256) {
-        return _convertToShares(assets, Math.Rounding.Down);
+        (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
+        return _convertToShares(assets, newTotalAssets, totalSupply() + feeShares, Math.Rounding.Down);
     }
 
     function previewMint(uint256 shares) public view virtual returns (uint256) {
-        return _convertToAssets(shares, Math.Rounding.Up);
+        (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
+        return _convertToAssets(shares, newTotalAssets, totalSupply() + feeShares, Math.Rounding.Up);
     }
 
     function previewWithdraw(uint256 assets) public view virtual returns (uint256) {
-        return _convertToShares(assets, Math.Rounding.Up);
+        (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
+        return _convertToShares(assets, newTotalAssets, totalSupply() + feeShares, Math.Rounding.Up);
     }
 
     function previewRedeem(uint256 shares) public view virtual returns (uint256) {
-        return _convertToAssets(shares, Math.Rounding.Down);
+        (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
+        return _convertToAssets(shares, newTotalAssets, totalSupply() + feeShares, Math.Rounding.Down);
     }
 
     /// @notice Deposits assets into the SuperPool
@@ -363,12 +365,40 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                                Internal
     //////////////////////////////////////////////////////////////*/
 
-    function _convertToShares(uint256 assets, Math.Rounding rounding) public view virtual returns (uint256 shares) {
-        shares = assets.mulDiv(totalSupply() + 10 ** DECIMALS, lastTotalAssets + 1, rounding);
+    function _convertToShares(
+        uint256 _assets,
+        uint256 _totalAssets,
+        uint256 _totalShares,
+        Math.Rounding _rounding
+    ) public view virtual returns (uint256 shares) {
+        shares = _assets.mulDiv(_totalShares + 10 ** DECIMALS, _totalAssets + 1, _rounding);
     }
 
-    function _convertToAssets(uint256 shares, Math.Rounding rounding) public view virtual returns (uint256 assets) {
-        assets = shares.mulDiv(lastTotalAssets + 1, totalSupply() + 10 ** DECIMALS, rounding);
+    function _convertToAssets(
+        uint256 _shares,
+        uint256 _totalAssets,
+        uint256 _totalShares,
+        Math.Rounding _rounding
+    ) public view virtual returns (uint256 assets) {
+        assets = _shares.mulDiv(_totalAssets + 1, _totalShares + 10 ** DECIMALS, _rounding);
+    }
+
+    function _maxWithdraw(address _owner, uint256 _totalAssets, uint256 _totalShares) internal view returns (uint256) {
+        uint256 totalLiquidity; // max assets that can be withdrawn based on superpool and underlying pool liquidity
+        uint256 depositQueueLength = depositQueue.length;
+        for (uint256 i; i < depositQueueLength; ++i) {
+            totalLiquidity += POOL.getLiquidityOf(depositQueue[i]);
+        }
+        totalLiquidity += ASSET.balanceOf(address(this)); // unallocated assets in the superpool
+
+        // return the minimum of totalLiquidity and _owner balance
+        uint256 userAssets = _convertToAssets(ERC20.balanceOf(_owner), _totalAssets, _totalShares, Math.Rounding.Down);
+        return totalLiquidity > userAssets ? userAssets : totalLiquidity;
+    }
+
+    /// @notice Fetch the maximum amount of assets that can be deposited in the SuperPool
+    function _maxDeposit(uint256 _totalAssets) public view returns (uint256) {
+        return superPoolCap > _totalAssets ? (superPoolCap - _totalAssets) : 0;
     }
 
     /// @dev Internal function to process ERC4626 deposits and mints
@@ -517,7 +547,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         if (interestAccrued == 0 || fee == 0) return (0, newTotalAssets);
 
         uint256 feeAssets = interestAccrued.mulDiv(fee, WAD);
-        uint256 feeShares = convertToShares(feeAssets);
+        uint256 feeShares = _convertToShares(feeAssets, newTotalAssets, totalSupply(), Math.Rounding.Down);
 
         return (feeShares, newTotalAssets);
     }

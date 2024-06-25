@@ -195,6 +195,12 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         positionBeacon = registry.addressFor(SENTIMENT_POSITION_BEACON_KEY);
     }
 
+    /// @notice Toggle pause state of the PositionManager
+    function togglePause() external onlyOwner {
+        if (PausableUpgradeable.paused()) PausableUpgradeable._unpause();
+        else PausableUpgradeable._pause();
+    }
+
     /// @notice Authorize a caller other than the owner to operate on a position
     function toggleAuth(address user, address position) external {
         // only account owners are allowed to modify authorizations

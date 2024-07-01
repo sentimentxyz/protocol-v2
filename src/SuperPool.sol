@@ -48,7 +48,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @notice The queue of pool ids, in order, for withdrawing assets
     uint256[] public withdrawQueue;
     /// @notice The caps of the pools, indexed by pool id
-    mapping(uint256 poolId => uint256 cap) public poolCap;
+    mapping(uint256 poolId => uint256 cap) public poolCapFor;
     /// @notice The addresses that are allowed to reallocate assets
     mapping(address user => bool isAllocator) public isAllocator;
 
@@ -73,6 +73,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
+    /// @notice Attempt to interact with a queue not in the SuperPool queue
+    error SuperPool_PoolNotInQueue(uint256 poolId);
     /// @notice Attempt to deposit zero shares worth of assets to the pool
     error SuperPool_ZeroShareDeposit(address superpool, uint256 assets);
     /// @notice Attempt to mint zero asset worth of shares from the pool
@@ -268,16 +270,16 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param cap The cap of the pool, 0 to remove the cap
     function setPoolCap(uint256 poolId, uint256 cap) external onlyOwner {
         // add new pool
-        if (poolCap[poolId] == 0 && cap != 0) {
+        if (poolCapFor[poolId] == 0 && cap != 0) {
             _addPool(poolId);
-            poolCap[poolId] = cap;
+            poolCapFor[poolId] = cap;
         }
         // remove existing pool
-        else if (poolCap[poolId] != 0 && cap == 0) {
+        else if (poolCapFor[poolId] != 0 && cap == 0) {
             _removePool(poolId);
-            poolCap[poolId] = 0;
-        } else if (poolCap[poolId] != 0 && cap != 0) {
-            poolCap[poolId] = cap;
+            poolCapFor[poolId] = 0;
+        } else if (poolCapFor[poolId] != 0 && cap != 0) {
+            poolCapFor[poolId] = cap;
         } else {
             return; // handle pool == 0 && cap == 0
         }
@@ -356,8 +358,15 @@ contract SuperPool is Ownable, Pausable, ERC20 {
 
         uint256 depositsLength = deposits.length;
         for (uint256 i; i < depositsLength; ++i) {
-            ASSET.approve(address(POOL), deposits[i].assets);
-            POOL.deposit(deposits[i].poolId, deposits[i].assets, address(this));
+            uint256 poolCap = poolCapFor[deposits[i].poolId];
+            // disallow deposits to pool not associated with this SuperPool
+            if (poolCap == 0) revert SuperPool_PoolNotInQueue(deposits[i].poolId);
+            // respect pool cap
+            uint256 assetsInPool = POOL.getAssetsOf(deposits[i].poolId, address(this));
+            if (assetsInPool + deposits[i].assets < poolCap) {
+                ASSET.approve(address(POOL), deposits[i].assets);
+                POOL.deposit(deposits[i].poolId, deposits[i].assets, address(this));
+            }
         }
     }
 
@@ -437,8 +446,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
             uint256 poolId = depositQueue[i];
             uint256 assetsInPool = POOL.getAssetsOf(poolId, address(this));
 
-            if (assetsInPool < poolCap[poolId]) {
-                uint256 supplyAmt = poolCap[poolId] - assetsInPool;
+            if (assetsInPool < poolCapFor[poolId]) {
+                uint256 supplyAmt = poolCapFor[poolId] - assetsInPool;
                 if (assets < supplyAmt) supplyAmt = assets;
                 ASSET.forceApprove(address(POOL), supplyAmt);
 

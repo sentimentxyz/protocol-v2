@@ -67,7 +67,7 @@ contract SuperPoolUnitTests is BaseTest {
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
-        assertEq(superPool.poolCap(linearRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 100 ether);
 
         vm.expectRevert(); // Cannot mix asset types when initializing pool types
         superPool.setPoolCap(alternateAssetPool, 100 ether);
@@ -98,13 +98,13 @@ contract SuperPoolUnitTests is BaseTest {
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
-        assertEq(superPool.poolCap(linearRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 100 ether);
 
         superPool.setPoolCap(fixedRatePool, 100 ether);
 
         assertEq(superPool.getPoolCount(), 2);
         assertEq(superPool.pools().length, 2);
-        assertEq(superPool.poolCap(fixedRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(fixedRatePool), 100 ether);
 
         superPool.setPoolCap(linearRatePool2, 100 ether);
         superPool.setPoolCap(fixedRatePool2, 100 ether);
@@ -113,19 +113,19 @@ contract SuperPoolUnitTests is BaseTest {
 
         assertEq(superPool.getPoolCount(), 3);
         assertEq(superPool.pools().length, 3);
-        assertEq(superPool.poolCap(linearRatePool2), 0);
+        assertEq(superPool.poolCapFor(linearRatePool2), 0);
     }
 
     function testCanModifyPoolCap() public {
         vm.startPrank(poolOwner);
         superPool.setPoolCap(linearRatePool, 100 ether);
-        assertEq(superPool.poolCap(linearRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 100 ether);
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
 
         superPool.setPoolCap(linearRatePool, 200 ether);
-        assertEq(superPool.poolCap(linearRatePool), 200 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 200 ether);
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);

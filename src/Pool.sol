@@ -129,8 +129,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     error Pool_OnlyPoolOwner(uint256 poolId, address sender);
     /// @notice Function access restricted only to Sentiment Position Manager
     error Pool_OnlyPositionManager(uint256 poolId, address sender);
+    /// @notice Insufficient pool liquidity to service borrow
+    error Pool_InsufficientBorrowLiquidity(uint256 poolId, uint256 assetsInPool, uint256 assets);
     /// @notice Insufficient pool liquidity to service withdrawal
-    error Pool_InsufficientLiquidity(uint256 poolId, uint256 assetsInPool, uint256 assets);
+    error Pool_InsufficientWithdrawLiquidity(uint256 poolId, uint256 assetsInPool, uint256 assets);
     /// @notice Rate model timelock delay has not been completed
     error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
 
@@ -273,7 +275,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         }
 
         uint256 assetsInPool = pool.totalAssets.assets - pool.totalBorrows.assets;
-        if (assetsInPool < assets) revert Pool_InsufficientLiquidity(poolId, assetsInPool, assets);
+        if (assetsInPool < assets) revert Pool_InsufficientWithdrawLiquidity(poolId, assetsInPool, assets);
 
         pool.totalAssets.assets -= uint128(assets);
         pool.totalAssets.shares -= uint128(shares);
@@ -337,6 +339,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
+
+        // pools cannot share liquidity among themselves, revert if borrow amt exceeds pool liquidity
+        uint256 assetsInPool = pool.totalAssets.assets - pool.totalBorrows.assets;
+        if (assetsInPool < amt) revert Pool_InsufficientBorrowLiquidity(poolId, assetsInPool, amt);
 
         // compute borrow shares equivalant for notional borrow amt
         // [ROUND] round up shares minted, to ensure they capture the borrowed amount

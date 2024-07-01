@@ -140,11 +140,11 @@ contract RiskEngine is Ownable {
         // set oracle before ltv so risk modules don't have to explicitly check if an oracle exists
         if (oracleFor[asset] == address(0)) revert RiskEngine_NoOracleFound(asset);
 
-        // ensure new ltv is witihin global limits or zero
-        if ((ltv != 0 && ltv < minLtv) || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);
+        // ensure new ltv is witihin global limits. also enforces that an existing ltv cannot be updated to zero
+        if (ltv < minLtv || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);
 
         LtvUpdate memory ltvUpdate;
-        // only modification and removal of previously set ltvs require a timelock
+        // only modification of previously set ltvs require a timelock
         if (ltvFor[poolId][asset] == 0) ltvUpdate = LtvUpdate({ ltv: ltv, validAfter: block.timestamp });
         else ltvUpdate = LtvUpdate({ ltv: ltv, validAfter: block.timestamp + TIMELOCK_DURATION });
 

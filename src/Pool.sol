@@ -24,9 +24,12 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
+    /// @notice Initial interest fee for pools
+    uint128 public constant DEFAULT_INTEREST_FEE = 0;
+    /// @notice Initial origination fee for pools
+    uint128 public constant DEFAULT_ORIGINATION_FEE = 0;
     /// @notice Timelock delay for pool rate model modification
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
-
     /// @notice Registry key hash for the Sentiment position manager
     /// @dev keccak(SENTIMENT_POSITION_MANAGER_KEY)
     bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
@@ -109,6 +112,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
+    /// @notice Given fee value is greater than 100%
+    error Pool_FeeTooHigh();
     /// @notice Pool is paused
     error Pool_PoolPaused(uint256 poolId);
     /// @notice Pool deposits exceed asset cap
@@ -414,19 +419,15 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @param owner Pool owner
     /// @param asset Pool debt asset
     /// @param rateModel Pool interest rate model
-    /// @param interestFee Pool interest fee
-    /// @param originationFee Pool origination fee
     /// @param poolCap Pool asset cap
     /// @return poolId Pool id for initialized pool
     function initializePool(
         address owner,
         address asset,
         address rateModel,
-        uint128 interestFee,
-        uint128 originationFee,
         uint128 poolCap
     ) external returns (uint256 poolId) {
-        poolId = uint256(keccak256(abi.encodePacked(owner, asset, rateModel, interestFee, originationFee)));
+        poolId = uint256(keccak256(abi.encodePacked(owner, asset, rateModel)));
 
         if (ownerOf[poolId] != address(0)) revert Pool_PoolAlreadyInitialized(poolId);
         ownerOf[poolId] = owner;
@@ -436,8 +437,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
             rateModel: rateModel,
             poolCap: poolCap,
             lastUpdated: uint128(block.timestamp),
-            interestFee: interestFee,
-            originationFee: originationFee,
+            interestFee: DEFAULT_INTEREST_FEE,
+            originationFee: DEFAULT_ORIGINATION_FEE,
             isPaused: false,
             totalAssets: Uint128Pair(0, 0),
             totalBorrows: Uint128Pair(0, 0)
@@ -447,8 +448,6 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         emit PoolInitialized(poolId, owner, asset);
         emit RateModelUpdated(poolId, rateModel);
-        emit InterestFeeSet(poolId, interestFee);
-        emit OriginationFeeSet(poolId, originationFee);
         emit PoolCapSet(poolId, poolCap);
     }
 
@@ -503,5 +502,23 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     function setRegistry(address _registry) external onlyOwner {
         registry = _registry;
         emit RegistrySet(_registry);
+    }
+
+    /// @notice Set interest fee for given pool
+    /// @param poolId Pool id
+    /// @param interestFee New interest fee
+    function setInterestFee(uint256 poolId, uint128 interestFee) external onlyOwner {
+        if (interestFee > 1e18) revert Pool_FeeTooHigh();
+        poolDataFor[poolId].interestFee = interestFee;
+        emit InterestFeeSet(poolId, interestFee);
+    }
+
+    /// @notice Set origination fee for given pool
+    /// @param poolId Pool id
+    /// @param originationFee New origination fee
+    function setOriginationFee(uint256 poolId, uint128 originationFee) external onlyOwner {
+        if (originationFee > 1e18) revert Pool_FeeTooHigh();
+        poolDataFor[poolId].originationFee = originationFee;
+        emit OriginationFeeSet(poolId, originationFee);
     }
 }

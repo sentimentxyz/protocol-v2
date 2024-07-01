@@ -433,8 +433,8 @@ contract SuperPool is Ownable, Pausable, ERC20 {
         _withdrawFromPools(assets);
         if (msg.sender != owner) ERC20._spendAllowance(owner, msg.sender, shares);
         ERC20._burn(owner, shares);
-        ASSET.safeTransfer(receiver, assets);
         lastTotalAssets -= assets;
+        ASSET.safeTransfer(receiver, assets);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 

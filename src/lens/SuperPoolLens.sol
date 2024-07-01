@@ -186,10 +186,8 @@ contract SuperPoolLens {
     /// @param poolId Id of the underlying pool
     /// @return interestRate current interest rate for the given pool
     function getPoolInterestRate(uint256 poolId) public view returns (uint256 interestRate) {
-        uint256 totalBorrows = POOL.getTotalBorrows(poolId);
-        uint256 idleAssetAmt = POOL.getTotalAssets(poolId) - totalBorrows;
         IRateModel irm = IRateModel(POOL.getRateModelFor(poolId));
-        return irm.getInterestRate(totalBorrows, idleAssetAmt);
+        return irm.getInterestRate(POOL.getTotalBorrows(poolId), POOL.getTotalAssets(poolId));
     }
 
     /// @notice Fetch the weighted interest yield for a given super pool

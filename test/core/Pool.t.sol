@@ -90,7 +90,7 @@ contract PoolUnitTests is BaseTest {
         testCanDepositAssets(assets);
 
         vm.prank(user);
-        pool.redeem(linearRatePool, assets, user, user);
+        pool.withdraw(linearRatePool, assets, user, user);
 
         assertEq(pool.getAssetsOf(linearRatePool, user), 0);
         assertEq(pool.balanceOf(user, linearRatePool), 0);
@@ -105,14 +105,14 @@ contract PoolUnitTests is BaseTest {
 
         vm.startPrank(user);
         vm.expectRevert();
-        pool.redeem(linearRatePool, assets, user, notLender);
+        pool.withdraw(linearRatePool, assets, user, notLender);
     }
 
-    function testCannotWithdrawNoAssets() public {
+    function testCannotWithdrawNoShares() public {
         vm.startPrank(user);
 
-        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_ZeroAssetRedeem.selector, linearRatePool, 0));
-        pool.redeem(linearRatePool, 0, user, user);
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_ZeroShareRedeem.selector, linearRatePool, 0));
+        pool.withdraw(linearRatePool, 0, user, user);
     }
 
     function testCanWithdrawOthersAssetsWithApproval(uint96 assets) public {
@@ -124,7 +124,7 @@ contract PoolUnitTests is BaseTest {
         pool.approve(approvedUser, linearRatePool, assets);
 
         vm.prank(approvedUser);
-        pool.redeem(linearRatePool, assets, approvedUser, user);
+        pool.withdraw(linearRatePool, assets, approvedUser, user);
 
         assertEq(pool.getAssetsOf(linearRatePool, user), 0);
         assertEq(pool.balanceOf(user, linearRatePool), 0);
@@ -141,7 +141,7 @@ contract PoolUnitTests is BaseTest {
         pool.setOperator(operator, true);
 
         vm.prank(operator);
-        pool.redeem(linearRatePool, assets, operator, user);
+        pool.withdraw(linearRatePool, assets, operator, user);
 
         assertEq(pool.getAssetsOf(linearRatePool, user), 0);
         assertEq(pool.balanceOf(user, linearRatePool), 0);
@@ -230,7 +230,7 @@ contract PoolUnitTests is BaseTest {
         pool.deposit(linearRatePool, assets, user2);
 
         vm.startPrank(user);
-        pool.redeem(linearRatePool, pool.balanceOf(user, linearRatePool), user, user);
+        pool.withdraw(linearRatePool, pool.balanceOf(user, linearRatePool), user, user);
 
         assertGt(asset1.balanceOf(user), assets);
     }
@@ -405,7 +405,7 @@ contract PoolUnitTests is BaseTest {
         vm.startPrank(user);
 
         vm.expectRevert();
-        pool.redeem(linearRatePool, 100 ether, user, user);
+        pool.withdraw(linearRatePool, 100 ether, user, user);
     }
 
     function testOwnerCanSetRegistry(address newRegistry) public {

@@ -351,7 +351,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
 
         uint256 withdrawsLength = withdraws.length;
         for (uint256 i; i < withdrawsLength; ++i) {
-            POOL.redeem(withdraws[i].poolId, withdraws[i].assets, address(this), address(this));
+            POOL.withdraw(withdraws[i].poolId, withdraws[i].assets, address(this), address(this));
         }
 
         uint256 depositsLength = deposits.length;
@@ -468,7 +468,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
                 uint256 withdrawAmt = (assetsInPool < assets) ? assetsInPool : assets;
 
                 if (withdrawAmt > 0) {
-                    try POOL.redeem(poolId, withdrawAmt, address(this), address(this)) {
+                    try POOL.withdraw(poolId, withdrawAmt, address(this), address(this)) {
                         assets -= withdrawAmt;
                     } catch { }
                 }

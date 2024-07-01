@@ -117,8 +117,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     error Pool_NoRateModelUpdate(uint256 poolId);
     /// @notice Attempt to initialize an already existing pool
     error Pool_PoolAlreadyInitialized(uint256 poolId);
-    /// @notice Attempt to redeem zero asset worth of shares from the pool
-    error Pool_ZeroAssetRedeem(uint256 poolId, uint256 shares);
+    /// @notice Attempt to redeem zero shares worth of assets from the pool
+    error Pool_ZeroShareRedeem(uint256 poolId, uint256 assets);
     /// @notice Attempt to repay zero shares worth of assets to the pool
     error Pool_ZeroSharesRepay(uint256 poolId, uint256 amt);
     /// @notice Attempt to borrow zero shares worth of assets from the pool
@@ -129,8 +129,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     error Pool_OnlyPoolOwner(uint256 poolId, address sender);
     /// @notice Function access restricted only to Sentiment Position Manager
     error Pool_OnlyPositionManager(uint256 poolId, address sender);
+    /// @notice Insufficient pool liquidity to service borrow
+    error Pool_InsufficientBorrowLiquidity(uint256 poolId, uint256 assetsInPool, uint256 assets);
     /// @notice Insufficient pool liquidity to service withdrawal
-    error Pool_InsufficientLiquidity(uint256 poolId, uint256 assetsInPool, uint256 assets);
+    error Pool_InsufficientWithdrawLiquidity(uint256 poolId, uint256 assetsInPool, uint256 assets);
     /// @notice Rate model timelock delay has not been completed
     error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
 
@@ -246,29 +248,34 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
-    /// @notice Redeem assets from a pool
+    /// @notice Withdraw assets from a pool
     /// @param poolId Pool id
-    /// @param shares Amount of shares to be redeemed
+    /// @param assets Amount of assets to be redeemed
     /// @param receiver Address that receives redeemed assets
     /// @param owner Address to redeem on behalf of
-    /// @return assets Amount of assets redeemed from the pool
-    function redeem(uint256 poolId, uint256 shares, address receiver, address owner) public returns (uint256 assets) {
+    /// @return shares Amount of shares redeemed from the pool
+    function withdraw(
+        uint256 poolId,
+        uint256 assets,
+        address receiver,
+        address owner
+    ) public returns (uint256 shares) {
         PoolData storage pool = poolDataFor[poolId];
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
+
+        shares = convertToShares(pool.totalAssets, assets);
+        // check for rounding error since convertToShares rounds down
+        if (shares == 0) revert Pool_ZeroShareRedeem(poolId, assets);
 
         if (msg.sender != owner && !isOperator[owner][msg.sender]) {
             uint256 allowed = allowance[owner][msg.sender][poolId];
             if (allowed != type(uint256).max) allowance[owner][msg.sender][poolId] = allowed - shares;
         }
 
-        // Check for rounding error since we round down in previewRedeem.
-        assets = convertToAssets(pool.totalAssets, shares);
-        if (assets == 0) revert Pool_ZeroAssetRedeem(poolId, shares);
-
         uint256 assetsInPool = pool.totalAssets.assets - pool.totalBorrows.assets;
-        if (assetsInPool < assets) revert Pool_InsufficientLiquidity(poolId, assetsInPool, assets);
+        if (assetsInPool < assets) revert Pool_InsufficientWithdrawLiquidity(poolId, assetsInPool, assets);
 
         pool.totalAssets.assets -= uint128(assets);
         pool.totalAssets.shares -= uint128(shares);
@@ -332,6 +339,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
+
+        // pools cannot share liquidity among themselves, revert if borrow amt exceeds pool liquidity
+        uint256 assetsInPool = pool.totalAssets.assets - pool.totalBorrows.assets;
+        if (assetsInPool < amt) revert Pool_InsufficientBorrowLiquidity(poolId, assetsInPool, amt);
 
         // compute borrow shares equivalant for notional borrow amt
         // [ROUND] round up shares minted, to ensure they capture the borrowed amount

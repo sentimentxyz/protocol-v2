@@ -534,8 +534,8 @@ contract SuperPoolUnitTests is BaseTest {
         // 5. accrueInterest
         // 6. Attempt to withdraw all of the liquidity, and see the running out of the pool
         vm.startPrank(poolOwner);
-        superPool.setPoolCap(fixedRatePool, 50 ether);
         superPool.setPoolCap(linearRatePool, 50 ether);
+        superPool.setPoolCap(fixedRatePool, 50 ether);
         vm.stopPrank();
 
         vm.startPrank(user);
@@ -573,7 +573,7 @@ contract SuperPoolUnitTests is BaseTest {
 
         vm.startPrank(poolOwner);
         vm.expectRevert(); // Cant remove a pool with liquidity in it
-        superPool.setPoolCap(fixedRatePool, 0 ether);
+        superPool.setPoolCap(linearRatePool, 0 ether);
         vm.stopPrank();
     }
 }

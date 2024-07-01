@@ -10,6 +10,7 @@ import { Pool } from "./Pool.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // libraries
+import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -21,7 +22,7 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /// @title SuperPool
 /// @notice Aggregator of underlying pools compliant with ERC4626
-contract SuperPool is Ownable, Pausable, ERC20 {
+contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -207,7 +208,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param assets The amount of assets to deposit
     /// @param receiver The address to receive the shares
     /// @return shares The amount of shares minted
-    function deposit(uint256 assets, address receiver) public returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver) public nonReentrant returns (uint256 shares) {
         accrue();
         shares = previewDeposit(assets);
         if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this), assets);
@@ -218,7 +219,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param shares The amount of shares to mint
     /// @param receiver The address to receive the shares
     /// @return assets The amount of assets deposited
-    function mint(uint256 shares, address receiver) public returns (uint256 assets) {
+    function mint(uint256 shares, address receiver) public nonReentrant returns (uint256 assets) {
         accrue();
         assets = previewMint(shares);
         if (assets == 0) revert SuperPool_ZeroAssetDeposit(address(this), shares);
@@ -230,7 +231,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param receiver The address to receive the assets
     /// @param owner The address to withdraw the assets from
     /// @return shares The amount of shares burned
-    function withdraw(uint256 assets, address receiver, address owner) public returns (uint256 shares) {
+    function withdraw(uint256 assets, address receiver, address owner) public nonReentrant returns (uint256 shares) {
         accrue();
         shares = previewWithdraw(assets);
         _withdraw(receiver, owner, assets, shares);
@@ -241,7 +242,7 @@ contract SuperPool is Ownable, Pausable, ERC20 {
     /// @param receiver The address to receive the assets
     /// @param owner The address to redeem the shares from
     /// @return assets The amount of assets redeemed
-    function redeem(uint256 shares, address receiver, address owner) public returns (uint256 assets) {
+    function redeem(uint256 shares, address receiver, address owner) public nonReentrant returns (uint256 assets) {
         accrue();
         assets = previewRedeem(shares);
         _withdraw(receiver, owner, assets, shares);

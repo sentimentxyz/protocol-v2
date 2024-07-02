@@ -74,11 +74,11 @@ contract BaseTest is Test {
         vm.stopPrank();
     }
 
-    function newPosition(address owner, bytes32 salt) internal view returns (address, Action memory) {
+    function newPosition(address owner, bytes32 salt) internal view returns (address payable, Action memory) {
         bytes memory data = abi.encodePacked(owner, salt);
         (address position,) = protocol.portfolioLens().predictAddress(owner, salt);
         Action memory action = Action({ op: Operation.NewPosition, data: data });
-        return (position, action);
+        return (payable(position), action);
     }
 
     function deposit(address asset, uint256 amt) internal pure returns (Action memory) {

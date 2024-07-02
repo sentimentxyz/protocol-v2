@@ -476,19 +476,25 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         uint256 withdrawQueueLength = withdrawQueue.length;
         for (uint256 i; i < withdrawQueueLength; ++i) {
             uint256 poolId = withdrawQueue[i];
+            // withdrawAmt -> max assets that can be withdrawn from the underlying pool
+            // optimistically try to withdraw all assets from this pool
+            uint256 withdrawAmt = assets;
+
+            // withdrawAmt cannot be greater than the assets deposited by the pool in the underlying pool
             uint256 assetsInPool = POOL.getAssetsOf(poolId, address(this));
+            if (assetsInPool < withdrawAmt) withdrawAmt = assetsInPool;
 
-            if (assetsInPool > 0) {
-                uint256 withdrawAmt = (assetsInPool < assets) ? assetsInPool : assets;
+            // withdrawAmt cannot be greater than the underlying pool liquidity
+            uint256 poolLiquidity = POOL.getLiquidityOf(poolId);
+            if (poolLiquidity < withdrawAmt) withdrawAmt = poolLiquidity;
 
-                if (withdrawAmt > 0) {
-                    try POOL.withdraw(poolId, withdrawAmt, address(this), address(this)) {
-                        assets -= withdrawAmt;
-                    } catch { }
-                }
-
-                if (assets == 0) return;
+            if (withdrawAmt > 0) {
+                try POOL.withdraw(poolId, withdrawAmt, address(this), address(this)) {
+                    assets -= withdrawAmt;
+                } catch { }
             }
+
+            if (assets == 0) return;
         }
 
         // We explicitly check assets == 0, and if so return, otherwise we revert directly here

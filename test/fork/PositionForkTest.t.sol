@@ -70,7 +70,7 @@ contract PositionForkTest is BaseForkTest {
         vm.prank(sender);
         positionManager.processBatch(predictedPosition, actions);
 
-        return Position(predictedPosition);
+        return Position(payable(predictedPosition));
     }
 
     function _depositAssets(string memory key, uint256 amt) internal {

@@ -22,7 +22,7 @@ contract PositionManagerUnitTests is BaseTest {
 
     Pool pool;
     Registry registry;
-    address position;
+    address payable position;
     RiskEngine riskEngine;
     PositionManager positionManager;
 

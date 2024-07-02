@@ -129,7 +129,7 @@ contract RiskModule {
 
     /// @notice Gets the total debt owed by a position in ETH
     function getTotalDebtValue(address position) public view returns (uint256) {
-        uint256[] memory debtPools = Position(position).getDebtPools();
+        uint256[] memory debtPools = Position(payable(position)).getDebtPools();
 
         uint256 totalDebtValue;
         uint256 debtPoolsLength = debtPools.length;
@@ -149,7 +149,7 @@ contract RiskModule {
 
     /// @notice Gets the total ETH value of assets in a position
     function getTotalAssetValue(address position) public view returns (uint256) {
-        address[] memory positionAssets = Position(position).getPositionAssets();
+        address[] memory positionAssets = Position(payable(position)).getPositionAssets();
 
         uint256 totalAssetValue;
         uint256 positionAssetsLength = positionAssets.length;
@@ -166,7 +166,7 @@ contract RiskModule {
         returns (uint256, uint256[] memory, uint256[] memory)
     {
         uint256 totalDebtValue;
-        uint256[] memory debtPools = Position(position).getDebtPools();
+        uint256[] memory debtPools = Position(payable(position)).getDebtPools();
         uint256[] memory debtValueForPool = new uint256[](debtPools.length);
 
         uint256 debtPoolsLength = debtPools.length;
@@ -186,7 +186,7 @@ contract RiskModule {
     {
         uint256 totalAssetValue;
 
-        address[] memory positionAssets = Position(position).getPositionAssets();
+        address[] memory positionAssets = Position(payable(position)).getPositionAssets();
         uint256 positionAssetsLength = positionAssets.length;
         uint256[] memory positionAssetData = new uint256[](positionAssetsLength);
 

@@ -64,16 +64,13 @@ contract BaseTest is Test {
         address linearRateModel2 = address(new LinearRateModel(2e18, 3e18));
 
         vm.startPrank(poolOwner);
-        fixedRatePool =
-            protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0, type(uint128).max);
-        linearRatePool =
-            protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0, type(uint128).max);
-        fixedRatePool2 =
-            protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel2, 0, 0, type(uint128).max);
+        fixedRatePool = protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel, type(uint128).max);
+        linearRatePool = protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel, type(uint128).max);
+        fixedRatePool2 = protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel2, type(uint128).max);
         linearRatePool2 =
-            protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel2, 0, 0, type(uint128).max);
+            protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel2, type(uint128).max);
         alternateAssetPool =
-            protocol.pool().initializePool(poolOwner, address(asset2), fixedRateModel, 0, 0, type(uint128).max);
+            protocol.pool().initializePool(poolOwner, address(asset2), fixedRateModel, type(uint128).max);
         vm.stopPrank();
     }
 

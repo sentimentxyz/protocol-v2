@@ -67,22 +67,20 @@ contract SuperPoolUnitTests is BaseTest {
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
-        assertEq(superPool.poolCap(linearRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 100 ether);
 
         vm.expectRevert(); // Cannot mix asset types when initializing pool types
         superPool.setPoolCap(alternateAssetPool, 100 ether);
 
         for (uint256 i; i < 7; i++) {
             address linearRateModel = address(new LinearRateModel(2e18, 3e18));
-            uint256 linearPool =
-                pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);
+            uint256 linearPool = pool.initializePool(poolOwner, address(asset1), linearRateModel, type(uint128).max);
 
             superPool.setPoolCap(linearPool, 50 ether);
         }
 
         address newLinearModel = address(new LinearRateModel(2e18, 3e18));
-        uint256 lastLinearPool =
-            pool.initializePool(poolOwner, address(asset1), newLinearModel, 0, 0, type(uint128).max);
+        uint256 lastLinearPool = pool.initializePool(poolOwner, address(asset1), newLinearModel, type(uint128).max);
 
         // Test call reverts when adding too many pools
         vm.expectRevert();
@@ -98,13 +96,13 @@ contract SuperPoolUnitTests is BaseTest {
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
-        assertEq(superPool.poolCap(linearRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 100 ether);
 
         superPool.setPoolCap(fixedRatePool, 100 ether);
 
         assertEq(superPool.getPoolCount(), 2);
         assertEq(superPool.pools().length, 2);
-        assertEq(superPool.poolCap(fixedRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(fixedRatePool), 100 ether);
 
         superPool.setPoolCap(linearRatePool2, 100 ether);
         superPool.setPoolCap(fixedRatePool2, 100 ether);
@@ -113,19 +111,19 @@ contract SuperPoolUnitTests is BaseTest {
 
         assertEq(superPool.getPoolCount(), 3);
         assertEq(superPool.pools().length, 3);
-        assertEq(superPool.poolCap(linearRatePool2), 0);
+        assertEq(superPool.poolCapFor(linearRatePool2), 0);
     }
 
     function testCanModifyPoolCap() public {
         vm.startPrank(poolOwner);
         superPool.setPoolCap(linearRatePool, 100 ether);
-        assertEq(superPool.poolCap(linearRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 100 ether);
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
 
         superPool.setPoolCap(linearRatePool, 200 ether);
-        assertEq(superPool.poolCap(linearRatePool), 200 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 200 ether);
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
@@ -534,8 +532,8 @@ contract SuperPoolUnitTests is BaseTest {
         // 5. accrueInterest
         // 6. Attempt to withdraw all of the liquidity, and see the running out of the pool
         vm.startPrank(poolOwner);
-        superPool.setPoolCap(fixedRatePool, 50 ether);
         superPool.setPoolCap(linearRatePool, 50 ether);
+        superPool.setPoolCap(fixedRatePool, 50 ether);
         vm.stopPrank();
 
         vm.startPrank(user);
@@ -573,7 +571,7 @@ contract SuperPoolUnitTests is BaseTest {
 
         vm.startPrank(poolOwner);
         vm.expectRevert(); // Cant remove a pool with liquidity in it
-        superPool.setPoolCap(fixedRatePool, 0 ether);
+        superPool.setPoolCap(linearRatePool, 0 ether);
         vm.stopPrank();
     }
 }

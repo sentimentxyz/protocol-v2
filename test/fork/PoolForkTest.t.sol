@@ -37,7 +37,7 @@ contract PoolForkTest is BaseForkTest {
         assertEq(MockERC20(asset).balanceOf(address(sender)), 0);
 
         vm.prank(sender);
-        pool.redeem(basePool, shares, sender, sender);
+        pool.withdraw(basePool, shares, sender, sender);
 
         assertEq(pool.getTotalAssets(basePool), 0);
         assertEq(pool.getLiquidityOf(basePool), 0);

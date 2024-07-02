@@ -50,6 +50,12 @@ contract Position {
         POSITION_MANAGER = positionManager;
     }
 
+    // positions can receive and hold ether to perform external operations.
+    // ether is otherwise ignored by the rest of the protocol. it does not count
+    // towards the position balance, pools cannot lend ether and it cannot be
+    // used as collateral to borrow other assets
+    receive() external payable { }
+
     modifier onlyPositionManager() {
         if (msg.sender != POSITION_MANAGER) revert Position_OnlyPositionManager(address(this), msg.sender);
         _;

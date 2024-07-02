@@ -93,7 +93,7 @@ contract PortfolioLens {
     /// @return assetData List of data for assets currently held by the given position
     /// @dev Could return values with zero amount if AddToken / RemoveToken has not been called
     function getAssetData(address position) public view returns (AssetData[] memory assetData) {
-        address[] memory positionAssets = Position(position).getPositionAssets();
+        address[] memory positionAssets = Position(payable(position)).getPositionAssets();
 
         // fetch data for each position asset
         uint256 positionAssetsLength = positionAssets.length;
@@ -121,7 +121,7 @@ contract PortfolioLens {
     /// @param position Address of the position
     /// @return debtData List of pool-wise debt data currently owed by the given position
     function getDebtData(address position) public view returns (DebtData[] memory debtData) {
-        uint256[] memory debtPools = Position(position).getDebtPools();
+        uint256[] memory debtPools = Position(payable(position)).getDebtPools();
 
         // fetch debt data for each pool
         uint256 debtPoolsLength = debtPools.length;

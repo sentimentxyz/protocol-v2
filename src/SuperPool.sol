@@ -454,8 +454,10 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
                 if (assets < supplyAmt) supplyAmt = assets;
                 ASSET.forceApprove(address(POOL), supplyAmt);
 
-                POOL.deposit(poolId, supplyAmt, address(this));
-                assets -= supplyAmt;
+                // skip and move to the next pool in queue if deposit reverts
+                try POOL.deposit(poolId, supplyAmt, address(this)) {
+                    assets -= supplyAmt;
+                } catch { }
 
                 if (assets == 0) return;
             }

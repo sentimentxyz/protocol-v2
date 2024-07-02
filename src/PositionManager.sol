@@ -312,6 +312,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address asset = address(bytes20(data[0:20]));
         uint256 amt = uint256(bytes32(data[20:52]));
 
+        // mitigate unknown assets being locked in positions
+        if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
+
         IERC20(asset).safeTransferFrom(msg.sender, position, amt);
         emit Deposit(position, msg.sender, asset, amt);
     }
@@ -385,6 +388,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // data -> abi.encodePacked(address)
         // asset -> [0:20] address of asset to be registered as collateral
         address asset = address(bytes20(data[0:20]));
+
+        // avoid interactions with unknown assets
+        if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
+
         Position(payable(position)).addToken(asset); // validation should be in the position contract
         emit AddToken(position, msg.sender, asset);
     }

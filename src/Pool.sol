@@ -114,6 +114,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
     /// @notice Given fee value is greater than 100%
     error Pool_FeeTooHigh();
+    /// @notice Zero address cannot be the pool owner
+    error Pool_ZeroAddressOwner();
     /// @notice Pool is paused
     error Pool_PoolPaused(uint256 poolId);
     /// @notice Pool deposits exceed asset cap
@@ -427,6 +429,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         address rateModel,
         uint128 poolCap
     ) external returns (uint256 poolId) {
+        if (owner == address(0)) revert Pool_ZeroAddressOwner();
         poolId = uint256(keccak256(abi.encodePacked(owner, asset, rateModel)));
 
         if (ownerOf[poolId] != address(0)) revert Pool_PoolAlreadyInitialized(poolId);

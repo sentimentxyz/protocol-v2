@@ -245,7 +245,7 @@ contract PositionManagerUnitTests is BaseTest {
         testSimpleDepositCollateral(100 ether);
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        uint256 corruptPool = pool.initializePool(address(0), address(asset1), rateModel, type(uint128).max);
+        uint256 corruptPool = pool.initializePool(address(0xdead), address(asset1), rateModel, type(uint128).max);
 
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(corruptPool, 2 ether);

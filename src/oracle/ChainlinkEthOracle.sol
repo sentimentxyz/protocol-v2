@@ -29,16 +29,15 @@ contract ChainlinkEthOracle is Ownable, IOracle {
     /// @notice L2 sequencer uptime grace period during which prices are treated as stale
     uint256 public constant SEQ_GRACE_PERIOD = 3600; // 1 hour
 
-    /// @notice Prices older than the stale price threshold are considered invalid
-    /// @dev The oracle could misreport stale prices for feeds with longer hearbeats
-    uint256 public constant STALE_PRICE_THRESHOLD = 3600; // 1 hour
-
     /// @notice Chainlink arbitrum sequencer uptime feed
     IAggegregatorV3 public immutable ARB_SEQ_FEED;
 
     /// @notice Fetch the ETH-denominated price feed associated with a given asset
     /// @dev returns address(0) if there is no associated feed
     mapping(address asset => address feed) public priceFeedFor;
+
+    /// @notice Prices older than the stale price threshold are considered invalid
+    mapping(address feed => uint256 stalePriceThreshold) public stalePriceThresholdFor;
 
     /// @notice An Eth-denomiated chainlink feed has been associated with an asset
     event FeedSet(address indexed asset, address feed);
@@ -73,11 +72,12 @@ contract ChainlinkEthOracle is Ownable, IOracle {
     /// @notice Set Chainlink ETH-denominated feed for an asset
     /// @param asset Address of asset to be priced
     /// @param feed Address of the asset/eth chainlink feed
-    function setFeed(address asset, address feed) external onlyOwner {
+    /// @param stalePriceThreshold prices older than this duration are considered invalid, denominated in seconds
+    /// @dev stalePriceThreshold must be equal or greater to the feed's heartbeat
+    function setFeed(address asset, address feed, uint256 stalePriceThreshold) external onlyOwner {
         assert(IAggegregatorV3(feed).decimals() == 18);
-
         priceFeedFor[asset] = feed;
-
+        stalePriceThresholdFor[feed] = stalePriceThreshold;
         emit FeedSet(asset, feed);
     }
 
@@ -91,14 +91,12 @@ contract ChainlinkEthOracle is Ownable, IOracle {
         if (block.timestamp - startedAt <= SEQ_GRACE_PERIOD) revert ChainlinkEthOracle_GracePeriodNotOver();
     }
 
-    /// @dev Fetch price update from chainlink feed with sanity checks
+    /// @dev Fetch price from chainlink feed with sanity checks
     function _getPriceWithSanityChecks(address asset) private view returns (uint256) {
-        (, int256 price,, uint256 updatedAt,) = IAggegregatorV3(priceFeedFor[asset]).latestRoundData();
-
+        address feed = priceFeedFor[asset];
+        (, int256 price,, uint256 updatedAt,) = IAggegregatorV3(feed).latestRoundData();
         if (price < 0) revert ChainlinkEthOracle_NegativePrice(asset);
-
-        if (updatedAt < block.timestamp - STALE_PRICE_THRESHOLD) revert ChainlinkEthOracle_StalePrice(asset);
-
+        if (updatedAt < block.timestamp - stalePriceThresholdFor[feed]) revert ChainlinkEthOracle_StalePrice(asset);
         return uint256(price);
     }
 }

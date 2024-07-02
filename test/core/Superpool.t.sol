@@ -205,6 +205,7 @@ contract SuperPoolUnitTests is BaseTest {
 
     function testTotalAssets(uint96 amount) public {
         vm.assume(amount > 1e6);
+        vm.assume(amount < superPool.superPoolCap());
 
         vm.startPrank(poolOwner);
         superPool.setPoolCap(linearRatePool, amount);
@@ -253,6 +254,7 @@ contract SuperPoolUnitTests is BaseTest {
 
     function testPartialWithdrawal(uint96 amt) public {
         vm.assume(amt > 1e6);
+        vm.assume(amt < superPool.superPoolCap());
         vm.startPrank(poolOwner);
         superPool.setPoolCap(linearRatePool, amt / 2);
         superPool.setPoolCap(fixedRatePool, (amt / 2) + 1);

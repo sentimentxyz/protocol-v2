@@ -74,6 +74,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
+    /// @notice Global asset cap for this SuperPool has been reached
+    error SuperPool_SuperPoolCapReached();
     /// @notice SuperPools with non-zero fees cannot have an address(0) fee recipient
     error SuperPool_ZeroFeeRecipient();
     /// @notice Invalid queue reorder parameters
@@ -338,10 +340,6 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         emit SuperPoolFeeRecipientUpdated(_feeRecipient);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                           Asset Allocation
-    //////////////////////////////////////////////////////////////*/
-
     /// @notice Struct to hold a pair of pool id, and the delta in balance
     /// @custom:field pool     The pool id
     /// @custom:field assets   The amount of tokens to {deposit, remove} during reallocation
@@ -376,10 +374,6 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
             }
         }
     }
-
-    /*//////////////////////////////////////////////////////////////
-                               Internal
-    //////////////////////////////////////////////////////////////*/
 
     function _convertToShares(
         uint256 _assets,
@@ -423,6 +417,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @param shares The amount of shares to mint, should be equivalent to assets
 
     function _deposit(address receiver, uint256 assets, uint256 shares) internal {
+        // assume that lastTotalAssets are up to date
+        if (lastTotalAssets + assets > superPoolCap) revert SuperPool_SuperPoolCapReached();
         // Need to transfer before minting or ERC777s could reenter.
         ASSET.safeTransferFrom(msg.sender, address(this), assets);
         ERC20._mint(receiver, shares);

@@ -291,7 +291,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyPoolOwnerCanPause(address sender) public {
         vm.assume(sender != poolOwner);
-        // vm.assume(sender != proxyAdmin);
+        vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.togglePause(linearRatePool);
@@ -326,7 +326,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyOwnerCanRequestRateModelUpdate(address sender, address rateModel) public {
         vm.assume(sender != poolOwner);
-        // vm.assume(sender != proxyAdmin);
+        vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.requestRateModelUpdate(linearRatePool, rateModel);
@@ -359,7 +359,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyOwnerCanAcceptRateModelUpdate(address sender) public {
         vm.assume(sender != poolOwner);
-        // vm.assume(sender != proxyAdmin);
+        vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.acceptRateModelUpdate(linearRatePool);
@@ -384,6 +384,7 @@ contract PoolUnitTests is BaseTest {
 
     function testOnlyOwnerCanRejectModelUpdate(address sender) public {
         vm.assume(sender != poolOwner);
+        vm.assume(sender != proxyAdmin);
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
         pool.rejectRateModelUpdate(linearRatePool);

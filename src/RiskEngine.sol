@@ -75,6 +75,8 @@ contract RiskEngine is Ownable {
     /// @notice LTV update was requested
     event LtvUpdateRequested(uint256 indexed poolId, address indexed asset, LtvUpdate ltvUpdate);
 
+    /// @notice Restrict using the pool asset as collateral for itself
+    error RiskEngine_CannotBorrowPoolAsset();
     /// @notice There is no oracle associated with the given asset
     error RiskEngine_NoOracleFound(address asset);
     /// @notice Proposed LTV is outside of protocol LTV bounds
@@ -139,6 +141,9 @@ contract RiskEngine is Ownable {
 
         // set oracle before ltv so risk modules don't have to explicitly check if an oracle exists
         if (oracleFor[asset] == address(0)) revert RiskEngine_NoOracleFound(asset);
+
+        // pools are restricted from lending against the same asset that they lend out
+        if (asset == pool.getPoolAssetFor(poolId)) revert RiskEngine_CannotBorrowPoolAsset();
 
         // ensure new ltv is witihin global limits. also enforces that an existing ltv cannot be updated to zero
         if (ltv < minLtv || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);

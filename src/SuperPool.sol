@@ -317,7 +317,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @param _fee The fee, out of 1e18, to be taken from interest earned
     function setFee(uint256 _fee) external onlyOwner {
         accrue();
-        if (_fee == 0 && feeRecipient == address(0)) revert SuperPool_ZeroFeeRecipient();
+        if (_fee != 0 && feeRecipient == address(0)) revert SuperPool_ZeroFeeRecipient();
         fee = _fee;
         emit SuperPoolFeeUpdated(_fee);
     }
@@ -333,7 +333,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @param _feeRecipient The new address to recieve fees
     function setFeeRecipient(address _feeRecipient) external onlyOwner {
         accrue();
-        if (fee == 0 && _feeRecipient == address(0)) revert SuperPool_ZeroFeeRecipient();
+        if (fee != 0 && _feeRecipient == address(0)) revert SuperPool_ZeroFeeRecipient();
         feeRecipient = _feeRecipient;
         emit SuperPoolFeeRecipientUpdated(_feeRecipient);
     }

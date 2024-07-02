@@ -74,6 +74,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
+    /// @notice SuperPools with non-zero fees cannot have an address(0) fee recipient
+    error SuperPool_ZeroFeeRecipient();
     /// @notice Invalid queue reorder parameters
     error SuperPool_InvalidQueueReorder();
     /// @notice Attempt to interact with a queue not in the SuperPool queue
@@ -315,6 +317,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @param _fee The fee, out of 1e18, to be taken from interest earned
     function setFee(uint256 _fee) external onlyOwner {
         accrue();
+        if (_fee == 0 && feeRecipient == address(0)) revert SuperPool_ZeroFeeRecipient();
         fee = _fee;
         emit SuperPoolFeeUpdated(_fee);
     }
@@ -330,6 +333,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @param _feeRecipient The new address to recieve fees
     function setFeeRecipient(address _feeRecipient) external onlyOwner {
         accrue();
+        if (fee == 0 && _feeRecipient == address(0)) revert SuperPool_ZeroFeeRecipient();
         feeRecipient = _feeRecipient;
         emit SuperPoolFeeRecipientUpdated(_feeRecipient);
     }

@@ -74,6 +74,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
+    /// @notice Invalid queue reorder parameters
+    error SuperPool_InvalidQueueReorder();
     /// @notice Attempt to interact with a queue not in the SuperPool queue
     error SuperPool_PoolNotInQueue(uint256 poolId);
     /// @notice Attempt to deposit zero shares worth of assets to the pool
@@ -522,10 +524,13 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         uint256[] calldata indexes
     ) internal view returns (uint256[] memory newQueue) {
         uint256 indexesLength = indexes.length;
+        bool[] memory seen = new bool[](indexesLength);
         newQueue = new uint256[](indexesLength);
 
         for (uint256 i; i < indexesLength; ++i) {
+            if (seen[indexes[i]]) revert SuperPool_InvalidQueueReorder();
             newQueue[i] = queue[indexes[i]];
+            seen[indexes[i]] = true;
         }
 
         return newQueue;

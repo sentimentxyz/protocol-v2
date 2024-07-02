@@ -19,7 +19,7 @@ contract InitializePool is BaseScript {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        uint256 poolId = Pool(pool).initializePool(owner, asset, rateModel, interestFee, originationFee, poolCap);
+        uint256 poolId = Pool(pool).initializePool(owner, asset, rateModel, poolCap);
         console2.log("poolId: ", poolId);
     }
 

@@ -218,7 +218,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         vm.startPrank(poolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0);
-        vm.warp(block.timestamp + 7 days);
+        vm.warp(block.timestamp + 1 days);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
         vm.stopPrank();
 

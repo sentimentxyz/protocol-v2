@@ -195,7 +195,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @notice Fetch and update module addreses from the registry
-    function updateFromRegistry() external {
+    function updateFromRegistry() public {
         pool = Pool(registry.addressFor(SENTIMENT_POOL_KEY));
         riskEngine = RiskEngine(registry.addressFor(SENTIMENT_RISK_ENGINE_KEY));
         positionBeacon = registry.addressFor(SENTIMENT_POSITION_BEACON_KEY);
@@ -472,6 +472,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @notice Set the protocol registry address
     function setRegistry(address _registry) external onlyOwner {
         registry = Registry(_registry);
+        updateFromRegistry();
         emit RegistrySet(_registry);
     }
 

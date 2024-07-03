@@ -409,10 +409,11 @@ contract PoolUnitTests is BaseTest {
         pool.withdraw(linearRatePool, 100 ether, user, user);
     }
 
-    function testOwnerCanSetRegistry(address newRegistry) public {
+    function testOwnerCanSetRegistry() public {
+        Registry newRegistry = new Registry();
         vm.prank(protocolOwner);
-        pool.setRegistry(newRegistry);
-        assertEq(pool.registry(), newRegistry);
+        pool.setRegistry(address(newRegistry));
+        assertEq(pool.registry(), address(newRegistry));
     }
 
     function testOnlyOwnerCanSetRegistry(address sender, address newRegistry) public {

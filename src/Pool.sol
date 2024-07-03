@@ -537,6 +537,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @param _registry Registry address
     function setRegistry(address _registry) external onlyOwner {
         registry = _registry;
+        updateFromRegistry();
         emit RegistrySet(_registry);
     }
 

@@ -507,10 +507,11 @@ contract PositionManagerUnitTests is BaseTest {
         PositionManager(positionManager).process(position, action);
     }
 
-    function testCanSetRegistry(address newRegistry) public {
+    function testCanSetRegistry() public {
+        Registry newRegistry = new Registry();
         vm.prank(protocolOwner);
-        positionManager.setRegistry(newRegistry);
-        assertEq(address(positionManager.registry()), newRegistry);
+        positionManager.setRegistry(address(newRegistry));
+        assertEq(address(positionManager.registry()), address(newRegistry));
     }
 
     function testOnlyOwnerCanSetRegistry(address sender, address newRegistry) public {

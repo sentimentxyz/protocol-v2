@@ -178,7 +178,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         uint256 pendingInterest = simulateAccrue(pool);
         Uint128Pair memory totalAssets = pool.totalAssets;
         totalAssets.assets += uint128(pendingInterest);
-        return convertToAssets(totalAssets, balanceOf[guy][poolId]);
+        return _convertToAssets(totalAssets, balanceOf[guy][poolId], Math.Rounding.Down);
     }
 
     /// @notice Fetch debt owed by a position to a given pool
@@ -187,7 +187,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         uint256 pendingInterest = simulateAccrue(pool);
         Uint128Pair memory totalBorrows = pool.totalBorrows;
         totalBorrows.assets += uint128(pendingInterest);
-        return convertToAssets(totalBorrows, borrowSharesOf[poolId][position]);
+        // [ROUND] round up to enable enable complete debt repayment
+        return _convertToAssets(totalBorrows, borrowSharesOf[poolId][position], Math.Rounding.Up);
     }
 
     /// @notice Fetch the total amount of assets currently deposited in a pool
@@ -215,15 +216,31 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     /// @notice Fetch equivalent shares amount for given assets
-    function convertToShares(Uint128Pair memory pair, uint256 assets) public pure returns (uint256 shares) {
+    function convertToShares(Uint128Pair memory pair, uint256 assets) external pure returns (uint256 shares) {
+        shares = _convertToShares(pair, assets, Math.Rounding.Down);
+    }
+
+    function _convertToShares(
+        Uint128Pair memory pair,
+        uint256 assets,
+        Math.Rounding rounding
+    ) internal pure returns (uint256 shares) {
         if (pair.assets == 0) return assets;
-        shares = assets.mulDiv(pair.shares, pair.assets);
+        shares = assets.mulDiv(pair.shares, pair.assets, rounding);
     }
 
     /// @notice Fetch equivalent asset amount for given shares
-    function convertToAssets(Uint128Pair memory pair, uint256 shares) public pure returns (uint256 assets) {
+    function convertToAssets(Uint128Pair memory pair, uint256 shares) external pure returns (uint256 assets) {
+        assets = _convertToAssets(pair, shares, Math.Rounding.Down);
+    }
+
+    function _convertToAssets(
+        Uint128Pair memory pair,
+        uint256 shares,
+        Math.Rounding rounding
+    ) internal pure returns (uint256 assets) {
         if (pair.shares == 0) return shares;
-        assets = shares.mulDiv(pair.assets, pair.shares);
+        assets = shares.mulDiv(pair.assets, pair.shares, rounding);
     }
 
     /// @notice Deposit assets to a pool
@@ -241,7 +258,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         if (pool.totalAssets.assets + assets > pool.poolCap) revert Pool_PoolCapExceeded(poolId);
 
-        shares = convertToShares(pool.totalAssets, assets);
+        shares = _convertToShares(pool.totalAssets, assets, Math.Rounding.Down);
         if (shares == 0) revert Pool_ZeroSharesDeposit(poolId, assets);
 
         // Need to transfer before minting or ERC777s could reenter.
@@ -272,7 +289,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
 
-        shares = convertToShares(pool.totalAssets, assets);
+        shares = _convertToShares(pool.totalAssets, assets, Math.Rounding.Down);
         // check for rounding error since convertToShares rounds down
         if (shares == 0) revert Pool_ZeroShareRedeem(poolId, assets);
 
@@ -315,7 +332,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
             uint256 feeAssets = interestAccrued.mulDiv(pool.interestFee, 1e18);
 
             // [ROUND] round down in favor of pool lenders
-            uint256 feeShares = convertToShares(pool.totalAssets, feeAssets);
+            uint256 feeShares = _convertToShares(pool.totalAssets, feeAssets, Math.Rounding.Down);
 
             _mint(feeRecipient, id, feeShares);
         }
@@ -353,7 +370,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         // compute borrow shares equivalant for notional borrow amt
         // [ROUND] round up shares minted, to ensure they capture the borrowed amount
-        borrowShares = convertToShares(pool.totalBorrows, amt);
+        borrowShares = _convertToShares(pool.totalBorrows, amt, Math.Rounding.Up);
 
         // revert if borrow amt is too small
         if (borrowShares == 0) revert Pool_ZeroSharesBorrow(poolId, amt);
@@ -402,7 +419,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         // compute borrow shares equivalent to notional asset amt
         // [ROUND] burn fewer borrow shares, to ensure excess debt isn't pushed to others
-        uint256 borrowShares = convertToShares(pool.totalBorrows, amt);
+        uint256 borrowShares = _convertToShares(pool.totalBorrows, amt, Math.Rounding.Down);
 
         // revert if repaid amt is too small
         if (borrowShares == 0) revert Pool_ZeroSharesRepay(poolId, amt);

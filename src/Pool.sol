@@ -30,6 +30,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     uint128 public constant DEFAULT_ORIGINATION_FEE = 0;
     /// @notice Timelock delay for pool rate model modification
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
+    /// @notice Timelock deadline to enforce timely updates
+    uint256 public constant TIMELOCK_DEADLINE = 24 * 60 * 60; // 24 hours
     /// @notice Registry key hash for the Sentiment position manager
     /// @dev keccak(SENTIMENT_POSITION_MANAGER_KEY)
     bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
@@ -142,6 +144,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     error Pool_InsufficientWithdrawLiquidity(uint256 poolId, uint256 assetsInPool, uint256 assets);
     /// @notice Rate model timelock delay has not been completed
     error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
+    /// @notice Rate model timelock deadline has passed
+    error Pool_TimelockExpired(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
 
     constructor() {
         _disableInitializers();
@@ -487,6 +491,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     /// @notice Propose a interest rate model update for a pool
+    /// @dev overwrites any pending or expired updates
     function requestRateModelUpdate(uint256 poolId, address rateModel) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         RateModelUpdate memory rateModelUpdate =
@@ -501,10 +506,21 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     function acceptRateModelUpdate(uint256 poolId) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         RateModelUpdate memory rateModelUpdate = rateModelUpdateFor[poolId];
+
+        // revert if there is no update to apply
         if (rateModelUpdate.validAfter == 0) revert Pool_NoRateModelUpdate(poolId);
+
+        // revert if called before timelock delay has passed
         if (block.timestamp < rateModelUpdate.validAfter) {
             revert Pool_TimelockPending(poolId, block.timestamp, rateModelUpdate.validAfter);
         }
+
+        // revert if timelock deadline has passed
+        if (block.timestamp > rateModelUpdate.validAfter + TIMELOCK_DEADLINE) {
+            revert Pool_TimelockExpired(poolId, block.timestamp, rateModelUpdate.validAfter);
+        }
+
+        // apply update
         poolDataFor[poolId].rateModel = rateModelUpdate.rateModel;
         delete rateModelUpdateFor[poolId];
         emit RateModelUpdated(poolId, rateModelUpdate.rateModel);

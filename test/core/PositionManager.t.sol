@@ -162,6 +162,9 @@ contract PositionManagerUnitTests is BaseTest {
     function testSimpleTransfer() public {
         testSimpleDepositCollateral(100 ether);
 
+        vm.prank(positionManager.owner());
+        positionManager.toggleKnownAddress(address(asset2));
+
         vm.startPrank(positionOwner);
         // bytes memory data = abi.encode(address(positionOwner), address(asset2), 50 ether);
         // Action memory action = Action({ op: Operation.Transfer, data: data });
@@ -179,7 +182,6 @@ contract PositionManagerUnitTests is BaseTest {
         positionManager.toggleKnownAddress(address(asset2));
 
         vm.startPrank(positionOwner);
-
         uint256 initialCollateral = asset2.balanceOf(positionOwner);
         PositionManager(positionManager).processBatch(position, actions);
         assertEq(asset2.balanceOf(positionOwner), initialCollateral + 50 ether);
@@ -187,6 +189,7 @@ contract PositionManagerUnitTests is BaseTest {
         initialCollateral = asset2.balanceOf(positionOwner);
         PositionManager(positionManager).process(position, actions[0]);
         assertEq(asset2.balanceOf(positionOwner), initialCollateral + 50 ether);
+        vm.stopPrank();
     }
 
     function testSimpleBorrow() public {
@@ -444,9 +447,6 @@ contract PositionManagerUnitTests is BaseTest {
         vm.expectRevert();
         PositionManager(positionManager).process(position, action);
         vm.stopPrank();
-
-        vm.prank(positionManager.owner());
-        positionManager.toggleKnownAddress(address(asset2));
 
         vm.startPrank(positionOwner);
         vm.expectRevert();

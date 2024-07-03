@@ -155,10 +155,16 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     error PositionManager_UnknownPool(uint256 poolId);
     /// @notice Unknown spenders cannot be granted approval to position assets
     error PositionManager_UnknownSpender(address spender);
-    /// @notice Position cannot interact with unknown contracts
-    error PositionManager_UnknownContract(address target);
     /// @notice Position health check failed
     error PositionManager_HealthCheckFailed(address position);
+    /// @notice Attempt to add unrecognized asset to a position's asset list
+    error PositionManager_AddUnknownToken(address asset);
+    /// @notice Attempt to approve unknown asset
+    error PositionManager_ApproveUnknownAsset(address asset);
+    /// @notice Attempt to deposit unrecognized asset to position
+    error PositionManager_DepositUnknownAsset(address asset);
+    /// @notice Attempt to transfer unrecognized asset out of position
+    error PositionManager_TransferUnknownAsset(address asset);
     /// @notice Cannot liquidate healthy position
     error PositionManager_LiquidateHealthyPosition(address position);
     /// @notice Function access restricted to position owner only
@@ -295,7 +301,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address asset = address(bytes20(data[20:40]));
         uint256 amt = uint256(bytes32(data[40:72]));
 
-        if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
+        if (!isKnownAddress[asset]) revert PositionManager_TransferUnknownAsset(asset);
 
         // if the passed amt is type(uint).max assume transfer of the entire balance
         if (amt == type(uint256).max) amt = IERC20(asset).balanceOf(position);
@@ -312,6 +318,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address asset = address(bytes20(data[0:20]));
         uint256 amt = uint256(bytes32(data[20:52]));
 
+        // mitigate unknown assets being locked in positions
+        if (!isKnownAddress[asset]) revert PositionManager_DepositUnknownAsset(asset);
+
         IERC20(asset).safeTransferFrom(msg.sender, position, amt);
         emit Deposit(position, msg.sender, asset, amt);
     }
@@ -326,7 +335,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address asset = address(bytes20(data[20:40]));
         uint256 amt = uint256(bytes32(data[40:72]));
 
-        if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
+        if (!isKnownAddress[asset]) revert PositionManager_ApproveUnknownAsset(asset);
         if (!isKnownAddress[spender]) revert PositionManager_UnknownSpender(spender);
 
         // if the passed amt is type(uint).max assume approval of the entire balance
@@ -385,6 +394,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // data -> abi.encodePacked(address)
         // asset -> [0:20] address of asset to be registered as collateral
         address asset = address(bytes20(data[0:20]));
+
+        // avoid interactions with unknown assets
+        if (!isKnownAddress[asset]) revert PositionManager_AddUnknownToken(asset);
+
         Position(payable(position)).addToken(asset); // validation should be in the position contract
         emit AddToken(position, msg.sender, asset);
     }

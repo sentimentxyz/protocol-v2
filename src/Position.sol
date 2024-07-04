@@ -71,6 +71,18 @@ contract Position {
         return positionAssets.getElements();
     }
 
+    /// @notice Check if a given asset exists in the position asset set
+    /// @dev an asset with zero balance could be in the set until explicitly removed
+    function hasAsset(address asset) external view returns (bool) {
+        return positionAssets.contains(asset);
+    }
+
+    /// @notice Check if a given debt pool exists in the debt pool set
+    /// @dev Position.repay() removes the debt pool after complete repayment
+    function hasDebt(uint256 poolId) external view returns (bool) {
+        return debtPools.contains(poolId);
+    }
+
     /// @notice Approve an external contract to spend funds from the position
     /// @dev The position manager imposes additional checks that the spender is trusted
     function approve(address token, address spender, uint256 amt) external onlyPositionManager {

@@ -504,6 +504,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
     /// @notice Apply a pending interest rate model change for a pool
     function acceptRateModelUpdate(uint256 poolId) external {
+        accrue(poolDataFor[poolId], poolId); // accrue pending interest using previous rate model
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         RateModelUpdate memory rateModelUpdate = rateModelUpdateFor[poolId];
 

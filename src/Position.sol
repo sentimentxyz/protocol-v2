@@ -71,6 +71,11 @@ contract Position {
         return positionAssets.getElements();
     }
 
+    /// @notice Check if a given asset exists in the position asset set
+    function contains(address asset) external view returns (bool) {
+        return positionAssets.contains(asset);
+    }
+
     /// @notice Approve an external contract to spend funds from the position
     /// @dev The position manager imposes additional checks that the spender is trusted
     function approve(address token, address spender, uint256 amt) external onlyPositionManager {

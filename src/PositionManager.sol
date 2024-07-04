@@ -175,6 +175,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     error PositionManager_OnlyPositionAuthorized(address position, address sender);
     /// @notice Predicted position address does not match with deployed address
     error PositionManager_PredictedPositionMismatch(address position, address predicted);
+    /// @notice Seized asset does not belong to to the position's asset list
+    error PositionManager_SeizeInvalidAsset(address position, address asset);
 
     constructor() {
         _disableInitializers();
@@ -432,6 +434,11 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             // compute fee amt
             // [ROUND] liquidation fee is rounded down, in favor of the liquidator
             uint256 fee = liquidationFee.mulDiv(positionAssets[i].amt, 1e18);
+
+            // ensure positionAssets[i] is in the position asset list
+            if (Position(payable(position)).contains(positionAssets[i].asset) == false) {
+                revert PositionManager_SeizeInvalidAsset(position, positionAssets[i].asset);
+            }
 
             // transfer fee amt to protocol
             Position(payable(position)).transfer(owner(), positionAssets[i].asset, fee);

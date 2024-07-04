@@ -431,14 +431,14 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // transfer position assets to the liqudiator and accrue protocol liquidation fees
         uint256 positionAssetsLength = positionAssets.length;
         for (uint256 i; i < positionAssetsLength; ++i) {
-            // compute fee amt
-            // [ROUND] liquidation fee is rounded down, in favor of the liquidator
-            uint256 fee = liquidationFee.mulDiv(positionAssets[i].amt, 1e18);
-
             // ensure positionAssets[i] is in the position asset list
             if (Position(payable(position)).hasAsset(positionAssets[i].asset) == false) {
                 revert PositionManager_SeizeInvalidAsset(position, positionAssets[i].asset);
             }
+
+            // compute fee amt
+            // [ROUND] liquidation fee is rounded down, in favor of the liquidator
+            uint256 fee = liquidationFee.mulDiv(positionAssets[i].amt, 1e18);
 
             // transfer fee amt to protocol
             Position(payable(position)).transfer(owner(), positionAssets[i].asset, fee);

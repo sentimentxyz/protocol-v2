@@ -72,8 +72,15 @@ contract Position {
     }
 
     /// @notice Check if a given asset exists in the position asset set
-    function contains(address asset) external view returns (bool) {
+    /// @dev an asset with zero balance could be in the set until explicitly removed
+    function hasAsset(address asset) external view returns (bool) {
         return positionAssets.contains(asset);
+    }
+
+    /// @notice Check if a given debt pool exists in the debt pool set
+    /// @dev Position.repay() removes the debt pool after complete repayment
+    function hasDebt(uint256 poolId) external view returns (bool) {
+        return debtPools.contains(poolId);
     }
 
     /// @notice Approve an external contract to spend funds from the position

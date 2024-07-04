@@ -436,7 +436,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             uint256 fee = liquidationFee.mulDiv(positionAssets[i].amt, 1e18);
 
             // ensure positionAssets[i] is in the position asset list
-            if (Position(payable(position)).contains(positionAssets[i].asset) == false) {
+            if (Position(payable(position)).hasAsset(positionAssets[i].asset) == false) {
                 revert PositionManager_SeizeInvalidAsset(position, positionAssets[i].asset);
             }
 

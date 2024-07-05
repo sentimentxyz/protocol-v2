@@ -265,11 +265,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         shares = _convertToShares(pool.totalAssets, assets, Math.Rounding.Down);
         if (shares == 0) revert Pool_ZeroSharesDeposit(poolId, assets);
 
-        // Need to transfer before minting or ERC777s could reenter.
-        IERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
-
         pool.totalAssets.assets += uint128(assets);
         pool.totalAssets.shares += uint128(shares);
+
+        IERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
 
         _mint(receiver, poolId, shares);
 

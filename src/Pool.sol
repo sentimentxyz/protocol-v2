@@ -490,6 +490,15 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         emit PoolCapSet(poolId, poolCap);
     }
 
+    /// @notice Update base pool owner
+    function setPoolOwner(uint256 poolId, address newOwner) external {
+        if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
+        // address(0) cannot own pools since it is used to denote uninitalized pools
+        if (newOwner == address(0)) revert Pool_ZeroAddressOwner();
+        ownerOf[poolId] = newOwner;
+        emit PoolOwnerSet(poolId, newOwner);
+    }
+
     /// @notice Propose a interest rate model update for a pool
     /// @dev overwrites any pending or expired updates
     function requestRateModelUpdate(uint256 poolId, address rateModel) external {

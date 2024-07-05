@@ -81,7 +81,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
     // keccak(SENIMENT_POSITION_BEACON_KEY)
     bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
-        0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
+        0x6e7384c78b0e09fb848f35d00a7b14fc1ad10ae9b10117368146c0e09b6f2fa2;
 
     /// @notice Sentiment Singleton Pool
     Pool public pool;
@@ -155,10 +155,16 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     error PositionManager_UnknownPool(uint256 poolId);
     /// @notice Unknown spenders cannot be granted approval to position assets
     error PositionManager_UnknownSpender(address spender);
-    /// @notice Position cannot interact with unknown contracts
-    error PositionManager_UnknownContract(address target);
     /// @notice Position health check failed
     error PositionManager_HealthCheckFailed(address position);
+    /// @notice Attempt to add unrecognized asset to a position's asset list
+    error PositionManager_AddUnknownToken(address asset);
+    /// @notice Attempt to approve unknown asset
+    error PositionManager_ApproveUnknownAsset(address asset);
+    /// @notice Attempt to deposit unrecognized asset to position
+    error PositionManager_DepositUnknownAsset(address asset);
+    /// @notice Attempt to transfer unrecognized asset out of position
+    error PositionManager_TransferUnknownAsset(address asset);
     /// @notice Cannot liquidate healthy position
     error PositionManager_LiquidateHealthyPosition(address position);
     /// @notice Function access restricted to position owner only
@@ -169,6 +175,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     error PositionManager_OnlyPositionAuthorized(address position, address sender);
     /// @notice Predicted position address does not match with deployed address
     error PositionManager_PredictedPositionMismatch(address position, address predicted);
+    /// @notice Seized asset does not belong to to the position's asset list
+    error PositionManager_SeizeInvalidAsset(address position, address asset);
 
     constructor() {
         _disableInitializers();
@@ -189,10 +197,16 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @notice Fetch and update module addreses from the registry
-    function updateFromRegistry() external {
+    function updateFromRegistry() public {
         pool = Pool(registry.addressFor(SENTIMENT_POOL_KEY));
         riskEngine = RiskEngine(registry.addressFor(SENTIMENT_RISK_ENGINE_KEY));
         positionBeacon = registry.addressFor(SENTIMENT_POSITION_BEACON_KEY);
+    }
+
+    /// @notice Toggle pause state of the PositionManager
+    function togglePause() external onlyOwner {
+        if (PausableUpgradeable.paused()) PausableUpgradeable._unpause();
+        else PausableUpgradeable._pause();
     }
 
     /// @notice Authorize a caller other than the owner to operate on a position
@@ -281,7 +295,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
         if (!isKnownFunc[target][funcSelector]) revert PositionManager_UnknownFuncSelector(target, funcSelector);
 
-        Position(position).exec(target, value, data[52:]);
+        Position(payable(position)).exec(target, value, data[52:]);
         emit Exec(position, msg.sender, target, funcSelector);
     }
 
@@ -295,12 +309,12 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address asset = address(bytes20(data[20:40]));
         uint256 amt = uint256(bytes32(data[40:72]));
 
-        if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
+        if (!isKnownAddress[asset]) revert PositionManager_TransferUnknownAsset(asset);
 
         // if the passed amt is type(uint).max assume transfer of the entire balance
         if (amt == type(uint256).max) amt = IERC20(asset).balanceOf(position);
 
-        Position(position).transfer(recipient, asset, amt);
+        Position(payable(position)).transfer(recipient, asset, amt);
         emit Transfer(position, msg.sender, recipient, asset, amt);
     }
 
@@ -311,6 +325,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // amt -> [20: 52] amount of asset to be deposited
         address asset = address(bytes20(data[0:20]));
         uint256 amt = uint256(bytes32(data[20:52]));
+
+        // mitigate unknown assets being locked in positions
+        if (!isKnownAddress[asset]) revert PositionManager_DepositUnknownAsset(asset);
 
         IERC20(asset).safeTransferFrom(msg.sender, position, amt);
         emit Deposit(position, msg.sender, asset, amt);
@@ -326,13 +343,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address asset = address(bytes20(data[20:40]));
         uint256 amt = uint256(bytes32(data[40:72]));
 
-        if (!isKnownAddress[asset]) revert PositionManager_UnknownContract(asset);
+        if (!isKnownAddress[asset]) revert PositionManager_ApproveUnknownAsset(asset);
         if (!isKnownAddress[spender]) revert PositionManager_UnknownSpender(spender);
 
         // if the passed amt is type(uint).max assume approval of the entire balance
         if (amt == type(uint256).max) amt = IERC20(asset).balanceOf(position);
 
-        Position(position).approve(asset, spender, amt);
+        Position(payable(position)).approve(asset, spender, amt);
         emit Approve(position, msg.sender, spender, asset, amt);
     }
 
@@ -348,14 +365,14 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         if (amt == type(uint256).max) amt = pool.getBorrowsOf(poolId, position);
 
         // transfer assets to be repaid from the position to the given pool
-        Position(position).transfer(address(pool), pool.getPoolAssetFor(poolId), amt);
+        Position(payable(position)).transfer(address(pool), pool.getPoolAssetFor(poolId), amt);
 
         // trigger pool repayment which assumes successful transfer of repaid assets
         pool.repay(poolId, position, amt);
 
         // signals repayment to the position and removes the debt pool if completely paid off
         // any checks needed to validate repayment must be implemented in the position
-        Position(position).repay(poolId, amt);
+        Position(payable(position)).repay(poolId, amt);
         emit Repay(position, msg.sender, poolId, amt);
     }
 
@@ -376,16 +393,20 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
         // signals a borrow operation without any actual transfer of borrowed assets
         // any checks needed to validate the borrow must be implemented in the position
-        Position(position).borrow(poolId, amt);
+        Position(payable(position)).borrow(poolId, amt);
         emit Borrow(position, msg.sender, poolId, amt);
     }
 
     /// @dev Add a token address to the set of position assets
-    function addToken(address position, bytes calldata data) internal whenNotPaused {
+    function addToken(address position, bytes calldata data) internal {
         // data -> abi.encodePacked(address)
         // asset -> [0:20] address of asset to be registered as collateral
         address asset = address(bytes20(data[0:20]));
-        Position(position).addToken(asset); // validation should be in the position contract
+
+        // avoid interactions with unknown assets
+        if (!isKnownAddress[asset]) revert PositionManager_AddUnknownToken(asset);
+
+        Position(payable(position)).addToken(asset); // validation should be in the position contract
         emit AddToken(position, msg.sender, asset);
     }
 
@@ -394,7 +415,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // data -> abi.encodePacked(address)
         // asset -> address of asset to be deregistered as collateral
         address asset = address(bytes20(data[0:20]));
-        Position(position).removeToken(asset);
+        Position(payable(position)).removeToken(asset);
         emit RemoveToken(position, msg.sender, asset);
     }
 
@@ -413,6 +434,25 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // verify that the liquidator seized by the liquidator is within liquidiation discount
         riskEngine.validateLiquidation(debt, positionAssets);
 
+        // transfer position assets to the liqudiator and accrue protocol liquidation fees
+        uint256 positionAssetsLength = positionAssets.length;
+        for (uint256 i; i < positionAssetsLength; ++i) {
+            // ensure positionAssets[i] is in the position asset list
+            if (Position(payable(position)).hasAsset(positionAssets[i].asset) == false) {
+                revert PositionManager_SeizeInvalidAsset(position, positionAssets[i].asset);
+            }
+
+            // compute fee amt
+            // [ROUND] liquidation fee is rounded down, in favor of the liquidator
+            uint256 fee = liquidationFee.mulDiv(positionAssets[i].amt, 1e18);
+
+            // transfer fee amt to protocol
+            Position(payable(position)).transfer(owner(), positionAssets[i].asset, fee);
+
+            // transfer difference to the liquidator
+            Position(payable(position)).transfer(msg.sender, positionAssets[i].asset, positionAssets[i].amt - fee);
+        }
+
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator
         uint256 debtLength = debt.length;
@@ -421,27 +461,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             address poolAsset = pool.getPoolAssetFor(debt[i].poolId);
 
             // transfer debt asset from the liquidator to the pool
-            IERC20(poolAsset).transferFrom(msg.sender, address(pool), debt[i].amt);
+            IERC20(poolAsset).safeTransferFrom(msg.sender, address(pool), debt[i].amt);
 
             // trigger pool repayment which assumes successful transfer of repaid assets
             pool.repay(debt[i].poolId, position, debt[i].amt);
 
             // update position to reflect repayment of debt by liquidator
-            Position(position).repay(debt[i].poolId, debt[i].amt);
-        }
-
-        // transfer position assets to the liqudiator and accrue protocol liquidation fees
-        uint256 positionAssetsLength = positionAssets.length;
-        for (uint256 i; i < positionAssetsLength; ++i) {
-            // compute fee amt
-            // [ROUND] liquidation fee is rounded down, in favor of the liquidator
-            uint256 fee = liquidationFee.mulDiv(positionAssets[i].amt, 1e18);
-
-            // transfer fee amt to protocol
-            Position(position).transfer(owner(), positionAssets[i].asset, fee);
-
-            // transfer difference to the liquidator
-            Position(position).transfer(msg.sender, positionAssets[i].asset, positionAssets[i].amt - fee);
+            Position(payable(position)).repay(debt[i].poolId, debt[i].amt);
         }
 
         // position should be within risk thresholds after liqudiation
@@ -459,6 +485,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @notice Set the protocol registry address
     function setRegistry(address _registry) external onlyOwner {
         registry = Registry(_registry);
+        updateFromRegistry();
         emit RegistrySet(_registry);
     }
 

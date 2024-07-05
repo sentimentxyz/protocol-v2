@@ -18,11 +18,11 @@ contract PositionManagerUnitTests is BaseTest {
         0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
     // keccak(SENIMENT_POSITION_BEACON_KEY)
     bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
-        0xc77ea3242ed8f193508dbbe062eaeef25819b43b511cbe2fc5bd5de7e23b9990;
+        0x6e7384c78b0e09fb848f35d00a7b14fc1ad10ae9b10117368146c0e09b6f2fa2;
 
     Pool pool;
     Registry registry;
-    address position;
+    address payable position;
     RiskEngine riskEngine;
     PositionManager positionManager;
 
@@ -162,6 +162,9 @@ contract PositionManagerUnitTests is BaseTest {
     function testSimpleTransfer() public {
         testSimpleDepositCollateral(100 ether);
 
+        vm.prank(positionManager.owner());
+        positionManager.toggleKnownAddress(address(asset2));
+
         vm.startPrank(positionOwner);
         // bytes memory data = abi.encode(address(positionOwner), address(asset2), 50 ether);
         // Action memory action = Action({ op: Operation.Transfer, data: data });
@@ -179,7 +182,6 @@ contract PositionManagerUnitTests is BaseTest {
         positionManager.toggleKnownAddress(address(asset2));
 
         vm.startPrank(positionOwner);
-
         uint256 initialCollateral = asset2.balanceOf(positionOwner);
         PositionManager(positionManager).processBatch(position, actions);
         assertEq(asset2.balanceOf(positionOwner), initialCollateral + 50 ether);
@@ -187,6 +189,7 @@ contract PositionManagerUnitTests is BaseTest {
         initialCollateral = asset2.balanceOf(positionOwner);
         PositionManager(positionManager).process(position, actions[0]);
         assertEq(asset2.balanceOf(positionOwner), initialCollateral + 50 ether);
+        vm.stopPrank();
     }
 
     function testSimpleBorrow() public {
@@ -215,7 +218,7 @@ contract PositionManagerUnitTests is BaseTest {
 
         vm.startPrank(poolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0);
-        vm.warp(block.timestamp + 7 days);
+        vm.warp(block.timestamp + 1 days);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
         vm.stopPrank();
 
@@ -245,7 +248,7 @@ contract PositionManagerUnitTests is BaseTest {
         testSimpleDepositCollateral(100 ether);
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        uint256 corruptPool = pool.initializePool(address(0), address(asset1), rateModel, 0, 0, type(uint128).max);
+        uint256 corruptPool = pool.initializePool(address(0xdead), address(asset1), rateModel, type(uint128).max);
 
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(corruptPool, 2 ether);
@@ -445,9 +448,6 @@ contract PositionManagerUnitTests is BaseTest {
         PositionManager(positionManager).process(position, action);
         vm.stopPrank();
 
-        vm.prank(positionManager.owner());
-        positionManager.toggleKnownAddress(address(asset2));
-
         vm.startPrank(positionOwner);
         vm.expectRevert();
         PositionManager(positionManager).process(position, action);
@@ -507,10 +507,11 @@ contract PositionManagerUnitTests is BaseTest {
         PositionManager(positionManager).process(position, action);
     }
 
-    function testCanSetRegistry(address newRegistry) public {
+    function testCanSetRegistry() public {
+        Registry newRegistry = new Registry();
         vm.prank(protocolOwner);
-        positionManager.setRegistry(newRegistry);
-        assertEq(address(positionManager.registry()), newRegistry);
+        positionManager.setRegistry(address(newRegistry));
+        assertEq(address(positionManager.registry()), address(newRegistry));
     }
 
     function testOnlyOwnerCanSetRegistry(address sender, address newRegistry) public {

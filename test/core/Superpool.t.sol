@@ -67,22 +67,20 @@ contract SuperPoolUnitTests is BaseTest {
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
-        assertEq(superPool.poolCap(linearRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 100 ether);
 
         vm.expectRevert(); // Cannot mix asset types when initializing pool types
         superPool.setPoolCap(alternateAssetPool, 100 ether);
 
         for (uint256 i; i < 7; i++) {
             address linearRateModel = address(new LinearRateModel(2e18, 3e18));
-            uint256 linearPool =
-                pool.initializePool(poolOwner, address(asset1), linearRateModel, 0, 0, type(uint128).max);
+            uint256 linearPool = pool.initializePool(poolOwner, address(asset1), linearRateModel, type(uint128).max);
 
             superPool.setPoolCap(linearPool, 50 ether);
         }
 
         address newLinearModel = address(new LinearRateModel(2e18, 3e18));
-        uint256 lastLinearPool =
-            pool.initializePool(poolOwner, address(asset1), newLinearModel, 0, 0, type(uint128).max);
+        uint256 lastLinearPool = pool.initializePool(poolOwner, address(asset1), newLinearModel, type(uint128).max);
 
         // Test call reverts when adding too many pools
         vm.expectRevert();
@@ -98,13 +96,13 @@ contract SuperPoolUnitTests is BaseTest {
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
-        assertEq(superPool.poolCap(linearRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 100 ether);
 
         superPool.setPoolCap(fixedRatePool, 100 ether);
 
         assertEq(superPool.getPoolCount(), 2);
         assertEq(superPool.pools().length, 2);
-        assertEq(superPool.poolCap(fixedRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(fixedRatePool), 100 ether);
 
         superPool.setPoolCap(linearRatePool2, 100 ether);
         superPool.setPoolCap(fixedRatePool2, 100 ether);
@@ -113,19 +111,19 @@ contract SuperPoolUnitTests is BaseTest {
 
         assertEq(superPool.getPoolCount(), 3);
         assertEq(superPool.pools().length, 3);
-        assertEq(superPool.poolCap(linearRatePool2), 0);
+        assertEq(superPool.poolCapFor(linearRatePool2), 0);
     }
 
     function testCanModifyPoolCap() public {
         vm.startPrank(poolOwner);
         superPool.setPoolCap(linearRatePool, 100 ether);
-        assertEq(superPool.poolCap(linearRatePool), 100 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 100 ether);
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
 
         superPool.setPoolCap(linearRatePool, 200 ether);
-        assertEq(superPool.poolCap(linearRatePool), 200 ether);
+        assertEq(superPool.poolCapFor(linearRatePool), 200 ether);
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
@@ -207,6 +205,7 @@ contract SuperPoolUnitTests is BaseTest {
 
     function testTotalAssets(uint96 amount) public {
         vm.assume(amount > 1e6);
+        vm.assume(amount < superPool.superPoolCap());
 
         vm.startPrank(poolOwner);
         superPool.setPoolCap(linearRatePool, amount);
@@ -255,6 +254,7 @@ contract SuperPoolUnitTests is BaseTest {
 
     function testPartialWithdrawal(uint96 amt) public {
         vm.assume(amt > 1e6);
+        vm.assume(amt < superPool.superPoolCap());
         vm.startPrank(poolOwner);
         superPool.setPoolCap(linearRatePool, amt / 2);
         superPool.setPoolCap(fixedRatePool, (amt / 2) + 1);
@@ -466,9 +466,9 @@ contract SuperPoolUnitTests is BaseTest {
         vm.stopPrank();
 
         uint256[] memory newWrongDepositOrder = new uint256[](3);
-        newWrongDepositOrder[0] = fixedRatePool;
-        newWrongDepositOrder[1] = linearRatePool;
-        newWrongDepositOrder[2] = fixedRatePool2;
+        newWrongDepositOrder[0] = 0;
+        newWrongDepositOrder[1] = 1;
+        newWrongDepositOrder[2] = 2;
         // newDepositOrder[3] = linearRatePool2;
 
         vm.expectRevert();
@@ -480,18 +480,18 @@ contract SuperPoolUnitTests is BaseTest {
         superPool.reorderDepositQueue(newWrongDepositOrder);
 
         uint256[] memory newDepositOrder = new uint256[](4);
-        newDepositOrder[0] = fixedRatePool;
-        newDepositOrder[1] = linearRatePool;
-        newDepositOrder[2] = fixedRatePool2;
-        newDepositOrder[3] = linearRatePool2;
+        newDepositOrder[0] = 3;
+        newDepositOrder[1] = 2;
+        newDepositOrder[2] = 1;
+        newDepositOrder[3] = 0;
 
         superPool.reorderDepositQueue(newDepositOrder);
         vm.stopPrank();
 
-        assertEq(superPool.depositQueue(0), fixedRatePool);
-        assertEq(superPool.depositQueue(1), linearRatePool);
-        assertEq(superPool.depositQueue(2), fixedRatePool2);
-        assertEq(superPool.depositQueue(3), linearRatePool2);
+        assertEq(superPool.depositQueue(3), fixedRatePool);
+        assertEq(superPool.depositQueue(2), linearRatePool);
+        assertEq(superPool.depositQueue(1), fixedRatePool2);
+        assertEq(superPool.depositQueue(0), linearRatePool2);
     }
 
     function testReorderWithdrawals() public {
@@ -503,7 +503,7 @@ contract SuperPoolUnitTests is BaseTest {
         vm.stopPrank();
 
         uint256[] memory newWrongWithdrawalOrder = new uint256[](100);
-        newWrongWithdrawalOrder[0] = fixedRatePool;
+        newWrongWithdrawalOrder[0] = 2;
 
         vm.expectRevert();
         superPool.reorderWithdrawQueue(newWrongWithdrawalOrder);
@@ -513,17 +513,17 @@ contract SuperPoolUnitTests is BaseTest {
         superPool.reorderWithdrawQueue(newWrongWithdrawalOrder);
 
         uint256[] memory newWithdrawalOrder = new uint256[](4);
-        newWithdrawalOrder[0] = fixedRatePool;
-        newWithdrawalOrder[1] = linearRatePool;
-        newWithdrawalOrder[2] = fixedRatePool2;
-        newWithdrawalOrder[3] = linearRatePool2;
+        newWithdrawalOrder[0] = 3;
+        newWithdrawalOrder[1] = 2;
+        newWithdrawalOrder[2] = 1;
+        newWithdrawalOrder[3] = 0;
 
         superPool.reorderWithdrawQueue(newWithdrawalOrder);
 
-        assertEq(superPool.withdrawQueue(0), fixedRatePool);
-        assertEq(superPool.withdrawQueue(1), linearRatePool);
-        assertEq(superPool.withdrawQueue(2), fixedRatePool2);
-        assertEq(superPool.withdrawQueue(3), linearRatePool2);
+        assertEq(superPool.withdrawQueue(3), fixedRatePool);
+        assertEq(superPool.withdrawQueue(2), linearRatePool);
+        assertEq(superPool.withdrawQueue(1), fixedRatePool2);
+        assertEq(superPool.withdrawQueue(0), linearRatePool2);
     }
 
     function testInterestEarnedOnTheUnderlingPool() public {
@@ -534,8 +534,8 @@ contract SuperPoolUnitTests is BaseTest {
         // 5. accrueInterest
         // 6. Attempt to withdraw all of the liquidity, and see the running out of the pool
         vm.startPrank(poolOwner);
-        superPool.setPoolCap(fixedRatePool, 50 ether);
         superPool.setPoolCap(linearRatePool, 50 ether);
+        superPool.setPoolCap(fixedRatePool, 50 ether);
         vm.stopPrank();
 
         vm.startPrank(user);
@@ -573,7 +573,7 @@ contract SuperPoolUnitTests is BaseTest {
 
         vm.startPrank(poolOwner);
         vm.expectRevert(); // Cant remove a pool with liquidity in it
-        superPool.setPoolCap(fixedRatePool, 0 ether);
+        superPool.setPoolCap(linearRatePool, 0 ether);
         vm.stopPrank();
     }
 }

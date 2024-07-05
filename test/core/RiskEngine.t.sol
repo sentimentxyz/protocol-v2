@@ -38,7 +38,7 @@ contract RiskModuleUnitTests is BaseTest {
 
     function testRiskEngineInit() public {
         RiskEngine testRiskEngine = new RiskEngine(address(registry), 0, 1e18);
-        assertEq(address(testRiskEngine.registry()), address(registry));
+        assertEq(address(testRiskEngine.REGISTRY()), address(registry));
         assertEq(testRiskEngine.minLtv(), uint256(0));
         assertEq(testRiskEngine.maxLtv(), uint256(1e18));
     }

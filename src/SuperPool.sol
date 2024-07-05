@@ -515,6 +515,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
 
         depositQueue.push(poolId);
         withdrawQueue.push(poolId);
+
+        emit PoolAdded(poolId);
     }
 
     /// @dev Internal function to remove a pool from the SuperPool

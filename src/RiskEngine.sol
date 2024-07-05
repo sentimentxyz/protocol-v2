@@ -47,7 +47,7 @@ contract RiskEngine is Ownable {
     uint256 public maxLtv;
 
     /// @notice Sentiment Registry
-    Registry public registry;
+    Registry public immutable REGISTRY;
     /// @notice Sentiment Singleton Pool
     Pool public pool;
     /// @notice Sentiment Risk Module
@@ -94,7 +94,7 @@ contract RiskEngine is Ownable {
     /// @param minLtv_ Minimum LTV bound
     /// @param maxLtv_ Maximum LTV bound
     constructor(address registry_, uint256 minLtv_, uint256 maxLtv_) Ownable() {
-        registry = Registry(registry_);
+        REGISTRY = Registry(registry_);
         minLtv = minLtv_;
         maxLtv = maxLtv_;
 
@@ -103,8 +103,8 @@ contract RiskEngine is Ownable {
 
     /// @notice Fetch and update module addreses from the registry
     function updateFromRegistry() external {
-        pool = Pool(registry.addressFor(SENTIMENT_POOL_KEY));
-        riskModule = RiskModule(registry.addressFor(SENTIMENT_RISK_MODULE_KEY));
+        pool = Pool(REGISTRY.addressFor(SENTIMENT_POOL_KEY));
+        riskModule = RiskModule(REGISTRY.addressFor(SENTIMENT_RISK_MODULE_KEY));
 
         emit PoolSet(address(pool));
         emit RiskModuleSet(address(riskModule));

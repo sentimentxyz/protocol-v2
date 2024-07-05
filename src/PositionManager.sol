@@ -27,7 +27,7 @@ import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.so
 struct DebtData {
     // poolId address for debt to be repaid
     uint256 poolId;
-    // amount of debt to be repaid by the liqudiator
+    // amount of debt to be repaid by the liquidator
     // position manager assumes that this amount has already been approved
     uint256 amt;
 }
@@ -79,7 +79,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     // keccak(SENTIMENT_RISK_ENGINE_KEY)
     bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
         0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
-    // keccak(SENIMENT_POSITION_BEACON_KEY)
+    // keccak(SENTIMENT_POSITION_BEACON_KEY)
     bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
         0x6e7384c78b0e09fb848f35d00a7b14fc1ad10ae9b10117368146c0e09b6f2fa2;
 

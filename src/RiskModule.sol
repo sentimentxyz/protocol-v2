@@ -113,7 +113,7 @@ contract RiskModule {
         }
 
         // max asset value that can be seized by the liquidator
-        uint256 maxSeizedAssetValue = debtRepaidValue.mulDiv((1e18 + LIQUIDATION_DISCOUNT), 1e18);
+        uint256 maxSeizedAssetValue = debtRepaidValue.mulDiv(1e18, (1e18 - LIQUIDATION_DISCOUNT));
 
         if (assetSeizedValue > maxSeizedAssetValue) {
             revert RiskModule_SeizedTooMuch(assetSeizedValue, maxSeizedAssetValue);

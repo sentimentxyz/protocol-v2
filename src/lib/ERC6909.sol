@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
+/// @title ERC6909
 /// @notice Minimalist and gas efficient standard ERC6909 implementation.
-/// @author Solmate (https://github.com/transmissions11/solmate/blob/main/src/tokens/ERC6909.sol)
+/// @dev Forked from solmate with modified approval flows
 abstract contract ERC6909 {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -54,11 +55,18 @@ abstract contract ERC6909 {
     }
 
     function approve(address spender, uint256 id, uint256 amount) public virtual returns (bool) {
-        allowance[msg.sender][spender][id] = amount;
-
-        emit Approval(msg.sender, spender, id, amount);
-
+        _approve(spender, id, amount);
         return true;
+    }
+
+    function increaseAllowance(address spender, uint256 id, uint256 value) public virtual {
+        // reverts on overflow
+        _approve(spender, id, allowance[msg.sender][spender][id] + value);
+    }
+
+    function decreaseAllowance(address spender, uint256 id, uint256 value) public virtual {
+        // reverts on underflow
+        _approve(spender, id, allowance[msg.sender][spender][id] - value);
     }
 
     function setOperator(address operator, bool approved) public virtual returns (bool) {
@@ -92,5 +100,11 @@ abstract contract ERC6909 {
         balanceOf[sender][id] -= amount;
 
         emit Transfer(msg.sender, sender, address(0), id, amount);
+    }
+
+    function _approve(address spender, uint256 id, uint256 amount) internal virtual {
+        allowance[msg.sender][spender][id] = amount;
+
+        emit Approval(msg.sender, spender, id, amount);
     }
 }

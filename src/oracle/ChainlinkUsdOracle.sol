@@ -53,7 +53,7 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
     /// @notice Last price update for `asset` was before the accepted stale price threshold
     error ChainlinkUsdOracle_StalePrice(address asset);
     /// @notice Latest price update for `asset` has a negative value
-    error ChainlinkUsdOracle_NegativePrice(address asset);
+    error ChainlinkUsdOracle_NonPositivePrice(address asset);
 
     /// @param owner Oracle owner address
     /// @param arbSeqFeed Chainlink arbitrum sequencer feed
@@ -109,7 +109,7 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
     function _getPriceWithSanityChecks(address asset) private view returns (uint256) {
         address feed = priceFeedFor[asset];
         (, int256 price,, uint256 updatedAt,) = IAggegregatorV3(feed).latestRoundData();
-        if (price < 0) revert ChainlinkUsdOracle_NegativePrice(asset);
+        if (price <= 0) revert ChainlinkUsdOracle_NonPositivePrice(asset);
         if (updatedAt < block.timestamp - stalePriceThresholdFor[feed]) revert ChainlinkUsdOracle_StalePrice(asset);
         return uint256(price);
     }

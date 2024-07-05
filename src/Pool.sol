@@ -156,7 +156,6 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @param registry_ Sentiment Registry
     /// @param feeRecipient_ Sentiment fee receiver
     function initialize(address owner_, address registry_, address feeRecipient_) public initializer {
-        OwnableUpgradeable.__Ownable_init();
         _transferOwnership(owner_);
 
         registry = registry_;
@@ -345,9 +344,6 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         pool.totalBorrows.assets += uint128(interestAccrued);
         pool.totalAssets.assets += uint128(interestAccrued);
 
-        // store a timestamp for this accrue() call
-        // used to compute the pending interest next time accrue() is called
-        pool.lastUpdated = uint128(block.timestamp);
         // store a timestamp for this accrue() call
         // used to compute the pending interest next time accrue() is called
         pool.lastUpdated = uint128(block.timestamp);

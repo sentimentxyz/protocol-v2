@@ -82,10 +82,14 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     error SuperPool_InvalidQueueReorder();
     /// @notice Attempt to interact with a queue not in the SuperPool queue
     error SuperPool_PoolNotInQueue(uint256 poolId);
+    /// @notice Attempt to withdraw zero shares worth of assets
+    error SuperPool_ZeroAssetRedeem(address superpool, uint256 shares);
+    /// @notice Attempt to withdraw zero shares worth of assets
+    error SuperPool_ZeroShareWithdraw(address superpool, uint256 assets);
     /// @notice Attempt to deposit zero shares worth of assets to the pool
     error SuperPool_ZeroShareDeposit(address superpool, uint256 assets);
     /// @notice Attempt to mint zero asset worth of shares from the pool
-    error SuperPool_ZeroAssetDeposit(address superpool, uint256 shares);
+    error SuperPool_ZeroAssetMint(address superpool, uint256 shares);
     /// @notice Insufficient Liquidity to service withdrawal
     error SuperPool_NotEnoughLiquidity(address superPool);
     /// @notice Reordered queue length does not match current queue length
@@ -216,7 +220,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @return shares The amount of shares minted
     function deposit(uint256 assets, address receiver) public nonReentrant returns (uint256 shares) {
         accrue();
-        shares = previewDeposit(assets);
+        shares = _convertToShares(assets, lastTotalAssets, totalSupply(), Math.Rounding.Down);
         if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this), assets);
         _deposit(receiver, assets, shares);
     }
@@ -227,8 +231,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @return assets The amount of assets deposited
     function mint(uint256 shares, address receiver) public nonReentrant returns (uint256 assets) {
         accrue();
-        assets = previewMint(shares);
-        if (assets == 0) revert SuperPool_ZeroAssetDeposit(address(this), shares);
+        assets = _convertToAssets(shares, lastTotalAssets, totalSupply(), Math.Rounding.Up);
+        if (assets == 0) revert SuperPool_ZeroAssetMint(address(this), shares);
         _deposit(receiver, assets, shares);
     }
 
@@ -239,7 +243,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @return shares The amount of shares burned
     function withdraw(uint256 assets, address receiver, address owner) public nonReentrant returns (uint256 shares) {
         accrue();
-        shares = previewWithdraw(assets);
+        shares = _convertToShares(assets, lastTotalAssets, totalSupply(), Math.Rounding.Up);
+        if (shares == 0) revert SuperPool_ZeroShareWithdraw(address(this), assets);
         _withdraw(receiver, owner, assets, shares);
     }
 
@@ -250,7 +255,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @return assets The amount of assets redeemed
     function redeem(uint256 shares, address receiver, address owner) public nonReentrant returns (uint256 assets) {
         accrue();
-        assets = previewRedeem(shares);
+        assets = _convertToAssets(shares, lastTotalAssets, totalSupply(), Math.Rounding.Down);
+        if (assets == 0) revert SuperPool_ZeroAssetRedeem(address(this), shares);
         _withdraw(receiver, owner, assets, shares);
     }
 

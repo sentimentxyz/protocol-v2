@@ -521,7 +521,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
 
     /// @dev Internal function to remove a pool from the SuperPool
     /// @param poolId The id of the pool to remove, cannot be removed if the pool has non-zero balance
-    function _removePool(uint256 poolId) internal onlyOwner {
+    function _removePool(uint256 poolId) internal {
         if (POOL.getAssetsOf(poolId, address(this)) != 0) revert SuperPool_NonZeroPoolBalance(address(this), poolId);
 
         // gas intensive ops that shift the entire array to preserve order
@@ -556,14 +556,19 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @param queue The queue to remove the pool from
     /// @param poolId The id of the pool to remove
     function _removeFromQueue(uint256[] storage queue, uint256 poolId) internal {
-        uint256 toRemoveIdx;
         uint256 queueLength = queue.length;
+        uint256 toRemoveIdx = queueLength; // initialize with an invalid index
         for (uint256 i; i < queueLength; ++i) {
             if (queue[i] == poolId) {
                 toRemoveIdx = i;
                 break;
             }
         }
+
+        // early return and noop if toRemoveIdx still equals queueLength
+        // since it is only possible if poolId was not found in the queue
+        if (toRemoveIdx == queueLength) return;
+
         for (uint256 i = toRemoveIdx; i < queueLength - 1; ++i) {
             queue[i] = queue[i + 1];
         }

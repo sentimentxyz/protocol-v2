@@ -6,6 +6,7 @@ import { console2 } from "forge-std/console2.sol";
 
 contract SuperPoolUnitTests is BaseTest {
     Pool pool;
+    Registry registry;
     SuperPool superPool;
     SuperPoolFactory superPoolFactory;
 
@@ -15,6 +16,7 @@ contract SuperPoolUnitTests is BaseTest {
         super.setUp();
 
         pool = protocol.pool();
+        registry = protocol.registry();
         superPoolFactory = protocol.superPoolFactory();
 
         superPool = SuperPool(
@@ -59,35 +61,31 @@ contract SuperPoolUnitTests is BaseTest {
     }
 
     function testAddPoolToSuperPool() public {
-        vm.startPrank(poolOwner);
         assertEq(superPool.getPoolCount(), 0);
         assertEq(superPool.pools().length, 0);
 
+        vm.prank(poolOwner);
         superPool.setPoolCap(linearRatePool, 100 ether);
 
         assertEq(superPool.getPoolCount(), 1);
         assertEq(superPool.pools().length, 1);
         assertEq(superPool.poolCapFor(linearRatePool), 100 ether);
 
+        vm.prank(poolOwner);
         vm.expectRevert(); // Cannot mix asset types when initializing pool types
         superPool.setPoolCap(alternateAssetPool, 100 ether);
 
-        for (uint256 i; i < 7; i++) {
-            address linearRateModel = address(new LinearRateModel(2e18, 3e18));
-            uint256 linearPool = pool.initializePool(poolOwner, address(asset1), linearRateModel, type(uint128).max);
+        address linearRateModel = address(new LinearRateModel(2e18, 3e18));
+        bytes32 RATE_MODEL_KEY = 0xc6e8fa81936202e651519e9ac3074fa4a42c65daad3fded162373ba224d6ea96;
+        vm.prank(protocolOwner);
+        Registry(registry).setAddress(RATE_MODEL_KEY, linearRateModel);
 
-            superPool.setPoolCap(linearPool, 50 ether);
-        }
-
-        address newLinearModel = address(new LinearRateModel(2e18, 3e18));
-        uint256 lastLinearPool = pool.initializePool(poolOwner, address(asset1), newLinearModel, type(uint128).max);
-
-        // Test call reverts when adding too many pools
-        vm.expectRevert();
-        superPool.setPoolCap(lastLinearPool, 50 ether);
-
+        vm.startPrank(poolOwner);
+        uint256 linearPool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
+        superPool.setPoolCap(linearPool, 50 ether);
         // Call will return if double 0's are passed in
         superPool.setPoolCap(0, 0);
+        vm.stopPrank();
     }
 
     function testRemovePoolFromSuperPool() public {

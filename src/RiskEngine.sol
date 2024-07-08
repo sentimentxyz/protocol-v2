@@ -208,7 +208,7 @@ contract RiskEngine is Ownable {
     }
 
     /// @notice Set the oracle address used to price a given asset
-    /// @dev only callable by RiskEngine owner
+    /// @dev Does not support ERC777s, rebasing and fee-on-transfer tokens
     function setOracle(address asset, address oracle) external onlyOwner {
         oracleFor[asset] = oracle;
 

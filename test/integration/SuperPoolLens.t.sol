@@ -48,9 +48,9 @@ contract SuperPoolLensTests is BaseTest {
         superPoolList.push(address(superPool2));
 
         vm.startPrank(poolOwner);
-        superPool1.setPoolCap(fixedRatePool, 50 ether);
-        superPool1.setPoolCap(linearRatePool, 50 ether);
-        superPool2.setPoolCap(alternateAssetPool, 50 ether);
+        superPool1.addPool(fixedRatePool, 50 ether);
+        superPool1.addPool(linearRatePool, 50 ether);
+        superPool2.addPool(alternateAssetPool, 50 ether);
         vm.stopPrank();
 
         vm.startPrank(user);

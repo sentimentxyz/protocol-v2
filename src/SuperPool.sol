@@ -89,6 +89,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );
 
+    /// @notice Fee value is greater than 100%
+    error SuperPool_FeeTooHigh();
     /// @notice Global asset cap for this SuperPool has been reached
     error SuperPool_SuperPoolCapReached();
     /// @notice SuperPools with non-zero fees cannot have an address(0) fee recipient
@@ -145,6 +147,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         ASSET = IERC20(asset_);
         DECIMALS = _tryGetAssetDecimals(ASSET);
 
+        if (fee > 1e18) revert SuperPool_FeeTooHigh();
         fee = fee_;
         feeRecipient = feeRecipient_;
         superPoolCap = superPoolCap_;
@@ -345,6 +348,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @notice Propose a new fee update for the SuperPool
     /// @dev overwrites any pending or expired updates
     function requestFeeUpdate(uint256 _fee) external onlyOwner {
+        if (fee > 1e18) revert SuperPool_FeeTooHigh();
         pendingFeeUpdate = PendingFeeUpdate({ fee: _fee, validAfter: block.timestamp + TIMELOCK_DURATION });
         emit SuperPoolFeeUpdateRequested(_fee);
     }

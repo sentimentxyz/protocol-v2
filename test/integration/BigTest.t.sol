@@ -99,9 +99,9 @@ contract BigTest is BaseTest {
 
         // 2. Make a SuperPool with the 3 pools
         vm.startPrank(poolOwner);
-        superPool.setPoolCap(fixedRatePool, 100 ether);
-        superPool.setPoolCap(fixedRatePool2, 100 ether);
-        superPool.setPoolCap(linearRatePool, 100 ether);
+        superPool.addPool(fixedRatePool, 100 ether);
+        superPool.addPool(fixedRatePool2, 100 ether);
+        superPool.addPool(linearRatePool, 100 ether);
         vm.stopPrank();
 
         // 3. User fills up the pool

@@ -53,6 +53,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @notice The queue of pool ids, in order, for withdrawing assets
     uint256[] public withdrawQueue;
     /// @notice The caps of the pools, indexed by pool id
+    /// @dev poolCapFor[x] == 0 -> x is not part of the queue
     mapping(uint256 poolId => uint256 cap) public poolCapFor;
     /// @notice The addresses that are allowed to reallocate assets
     mapping(address user => bool isAllocator) public isAllocator;
@@ -99,6 +100,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     error SuperPool_InvalidQueueReorder();
     /// @notice Attempt to interact with a queue not in the SuperPool queue
     error SuperPool_PoolNotInQueue(uint256 poolId);
+    /// @notice Attempt to add a pool already in the queue
+    error SuperPool_PoolAlreadyInQueue(uint256 poolId);
     /// @notice Attempt to withdraw zero shares worth of assets
     error SuperPool_ZeroAssetRedeem(address superpool, uint256 shares);
     /// @notice Attempt to withdraw zero shares worth of assets
@@ -125,6 +128,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     error SuperPool_TimelockExpired(uint256 currentTimestamp, uint256 validAfter);
     /// @notice No pending SuperPool fee update
     error SuperPool_NoFeeUpdate();
+    /// @notice Underlying pools must have non-zero pool caps
+    error SuperPool_ZeroPoolCap(uint256 poolId);
 
     /// @notice This function should only be called by the SuperPool Factory
     /// @param pool_ The address of the singelton pool contract
@@ -301,27 +306,30 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         lastTotalAssets = newTotalAssets;
     }
 
-    /// @notice Modify the maximum amount of assets that can be deposited to an underlying pool
-    /// @dev If the cap is set below the assets in the pool, it becomes withdraw-only
-    /// @param poolId The id of the pool to set the cap for
-    /// @param cap The cap of the pool, 0 to remove the cap
-    function setPoolCap(uint256 poolId, uint256 cap) external onlyOwner {
-        // add new pool
-        if (poolCapFor[poolId] == 0 && cap != 0) {
-            _addPool(poolId);
-            poolCapFor[poolId] = cap;
-        }
-        // remove existing pool
-        else if (poolCapFor[poolId] != 0 && cap == 0) {
-            _removePool(poolId);
-            poolCapFor[poolId] = 0;
-        } else if (poolCapFor[poolId] != 0 && cap != 0) {
-            poolCapFor[poolId] = cap;
-        } else {
-            return; // handle pool == 0 && cap == 0
-        }
+    function addPool(uint256 poolId, uint256 assetCap) external onlyOwner {
+        if (poolCapFor[poolId] != 0) revert SuperPool_PoolAlreadyInQueue(poolId);
+        // cannot add pool with zero asset cap
+        if (assetCap == 0) revert SuperPool_ZeroPoolCap(poolId);
+        _addPool(poolId);
+        poolCapFor[poolId] = assetCap;
+        emit PoolCapSet(poolId, assetCap);
+    }
 
-        emit PoolCapSet(poolId, cap);
+    function removePool(uint256 poolId, bool forceRemove) external onlyOwner {
+        if (poolCapFor[poolId] == 0) return; // no op if pool is not in queue
+        uint256 assetsInPool = POOL.getAssetsOf(poolId, address(this));
+        if (forceRemove && assetsInPool > 0) POOL.withdraw(poolId, assetsInPool, address(this), address(this));
+        _removePool(poolId);
+        poolCapFor[poolId] = 0;
+        emit PoolCapSet(poolId, 0);
+    }
+
+    function modifyPoolCap(uint256 poolId, uint256 assetCap) external onlyOwner {
+        if (poolCapFor[poolId] == 0) revert SuperPool_PoolNotInQueue(poolId);
+        // cannot modify pool cap to zero, remove pool instead
+        if (assetCap == 0) revert SuperPool_ZeroPoolCap(poolId);
+        poolCapFor[poolId] = assetCap;
+        emit PoolCapSet(poolId, assetCap);
     }
 
     /// @notice Reorders the deposit queue, based in deposit priority

@@ -14,7 +14,7 @@ contract SetPoolCap is BaseScript {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        superPool.setPoolCap(poolId, poolCap);
+        superPool.addPool(poolId, poolCap);
         console2.log("SetPoolCap: ", address(superPool), poolId, poolCap);
     }
 

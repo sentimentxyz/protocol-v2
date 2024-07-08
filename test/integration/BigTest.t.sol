@@ -5,6 +5,7 @@ import { BaseTest } from "../BaseTest.t.sol";
 import { Pool } from "src/Pool.sol";
 import { Action, Operation } from "src/PositionManager.sol";
 import { PositionManager } from "src/PositionManager.sol";
+import { Registry } from "src/Registry.sol";
 import { RiskEngine } from "src/RiskEngine.sol";
 import { SuperPool } from "src/SuperPool.sol";
 import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
@@ -15,6 +16,7 @@ import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract BigTest is BaseTest {
     Pool pool;
+    Registry registry;
     RiskEngine riskEngine;
     PortfolioLens portfolioLens;
     PositionManager positionManager;
@@ -27,6 +29,7 @@ contract BigTest is BaseTest {
         super.setUp();
 
         pool = protocol.pool();
+        registry = protocol.registry();
         riskEngine = protocol.riskEngine();
         portfolioLens = protocol.portfolioLens();
         positionManager = protocol.positionManager();
@@ -44,10 +47,20 @@ contract BigTest is BaseTest {
         address linearRateModel = address(new LinearRateModel(1e18, 2e18));
         address fixedRateModel2 = address(new FixedRateModel(2e18));
 
+        bytes32 BIG_RATE_MODEL_KEY = 0x199ad5d279eb979be68ff9a70e3cdbfde6d1db68fbafaae562d8bf550876df66;
+        bytes32 BIG_RATE_MODEL2_KEY = 0xe4ac42ec0e5155ec53437786f05f6965eaaa6ca6bf14e6ec63cf272ec067d8c5;
+        bytes32 BIG_RATE_MODEL3_KEY = 0x3c8173df5c36ecb50abea64f9912b8e8c6265f00eb5a4ea7a7e6e4141e5a091e;
+
+        vm.startPrank(protocolOwner);
+        registry.setAddress(BIG_RATE_MODEL_KEY, fixedRateModel);
+        registry.setAddress(BIG_RATE_MODEL2_KEY, linearRateModel);
+        registry.setAddress(BIG_RATE_MODEL3_KEY, fixedRateModel2);
+        vm.stopPrank();
+
         vm.startPrank(poolOwner);
-        fixedRatePool = pool.initializePool(poolOwner, address(asset1), fixedRateModel, type(uint128).max);
-        linearRatePool = pool.initializePool(poolOwner, address(asset1), linearRateModel, type(uint128).max);
-        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), fixedRateModel2, type(uint128).max);
+        fixedRatePool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL_KEY);
+        linearRatePool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL2_KEY);
+        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL3_KEY);
         vm.stopPrank();
 
         vm.startPrank(poolOwner);

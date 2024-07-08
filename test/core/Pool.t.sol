@@ -26,27 +26,36 @@ contract PoolUnitTests is BaseTest {
         assertEq(testPool.registry(), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
-        uint256 id = testPool.initializePool(poolOwner, address(asset1), rateModel, type(uint128).max);
+        bytes32 RATE_MODEL_KEY = 0xc6e8fa81936202e651519e9ac3074fa4a42c65daad3fded162373ba224d6ea96;
+        vm.prank(protocolOwner);
+        registry.setAddress(RATE_MODEL_KEY, rateModel);
+        uint256 id = testPool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
         assertEq(rateModel, testPool.getRateModelFor(id));
     }
 
     /// @dev Foundry "fails" keyword
     function testFailsDoubleInit() public {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
+        bytes32 RATE_MODEL_KEY = 0xc6e8fa81936202e651519e9ac3074fa4a42c65daad3fded162373ba224d6ea96;
+        vm.prank(protocolOwner);
+        registry.setAddress(RATE_MODEL_KEY, rateModel);
 
-        pool.initializePool(poolOwner, address(asset1), rateModel, type(uint128).max);
-        pool.initializePool(poolOwner, address(asset1), rateModel, type(uint128).max);
+        pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
+        pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
     }
 
     function testCannotFrontRunDeployment() public {
         address notPoolOwner = makeAddr("notPoolOwner");
         address rateModel = address(new LinearRateModel(1e18, 2e18));
+        bytes32 RATE_MODEL_KEY = 0xc6e8fa81936202e651519e9ac3074fa4a42c65daad3fded162373ba224d6ea96;
+        vm.prank(protocolOwner);
+        registry.setAddress(RATE_MODEL_KEY, rateModel);
 
         vm.prank(poolOwner);
-        uint256 id = pool.initializePool(poolOwner, address(asset1), rateModel, type(uint128).max);
+        uint256 id = pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
 
         vm.prank(notPoolOwner);
-        uint256 id2 = pool.initializePool(notPoolOwner, address(asset1), rateModel, type(uint128).max);
+        uint256 id2 = pool.initializePool(notPoolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
 
         assert(id != id2);
     }

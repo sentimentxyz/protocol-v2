@@ -146,6 +146,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     error Pool_TimelockPending(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
     /// @notice Rate model timelock deadline has passed
     error Pool_TimelockExpired(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
+    /// @notice Rate model was not found in the Sentiment registry
+    error Pool_RateModelNotFound(bytes32 rateModelKey);
 
     constructor() {
         _disableInitializers();
@@ -437,18 +439,21 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @notice Initialize a new pool
     /// @param owner Pool owner
     /// @param asset Pool debt asset
-    /// @param rateModel Pool interest rate model
     /// @param poolCap Pool asset cap
+    /// @param rateModelKey Registry key for interest rate model
     /// @return poolId Pool id for initialized pool
     function initializePool(
         address owner,
         address asset,
-        address rateModel,
-        uint128 poolCap
+        uint128 poolCap,
+        bytes32 rateModelKey
     ) external returns (uint256 poolId) {
         if (owner == address(0)) revert Pool_ZeroAddressOwner();
-        poolId = uint256(keccak256(abi.encodePacked(owner, asset, rateModel)));
 
+        address rateModel = Registry(registry).addressFor(rateModelKey);
+        if (rateModel == address(0)) revert Pool_RateModelNotFound(rateModelKey);
+
+        poolId = uint256(keccak256(abi.encodePacked(owner, asset, rateModelKey)));
         if (ownerOf[poolId] != address(0)) revert Pool_PoolAlreadyInitialized(poolId);
         ownerOf[poolId] = owner;
 

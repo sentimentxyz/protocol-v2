@@ -10,7 +10,7 @@ contract InitializePool is BaseScript {
 
     address owner;
     address asset;
-    address rateModel;
+    bytes32 rateModelKey;
     uint128 interestFee;
     uint128 originationFee;
     uint128 poolCap;
@@ -19,7 +19,7 @@ contract InitializePool is BaseScript {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        uint256 poolId = Pool(pool).initializePool(owner, asset, rateModel, poolCap);
+        uint256 poolId = Pool(pool).initializePool(owner, asset, poolCap, rateModelKey);
         console2.log("poolId: ", poolId);
     }
 
@@ -29,7 +29,7 @@ contract InitializePool is BaseScript {
         pool = vm.parseJsonAddress(config, "$.InitializePool.pool");
         owner = vm.parseJsonAddress(config, "$.InitializePool.owner");
         asset = vm.parseJsonAddress(config, "$.InitializePool.asset");
-        rateModel = vm.parseJsonAddress(config, "$.InitializePool.rateModel");
+        rateModelKey = vm.parseJsonBytes32(config, "$.InitializePool.rateModelKey");
         interestFee = uint128(vm.parseJsonUint(config, "$.InitializePool.interestFee"));
         originationFee = uint128(vm.parseJsonUint(config, "$.InitializePool.originationFee"));
         poolCap = uint128(vm.parseJsonUint(config, "$.InitializePool.poolCap"));

@@ -68,14 +68,29 @@ contract BaseTest is Test {
         address fixedRateModel2 = address(new FixedRateModel(2e18));
         address linearRateModel2 = address(new LinearRateModel(2e18, 3e18));
 
+        bytes32 FIXED_RATE_MODEL_KEY = 0xeba2c14de8b8ca05a15d7673453a0a3b315f122f56770b8bb643dc4bfbcf326b;
+        bytes32 LINEAR_RATE_MODEL_KEY = 0x7922391f605f567c8e61c33be42b581e2f71019b5dce3c47110ad332b7dbd68c;
+        bytes32 FIXED_RATE_MODEL2_KEY = 0x65347a20305cbd3ca20cb81ec8a2261639f4e635b4b5f3039a9aa5e7e03f41a7;
+        bytes32 LINEAR_RATE_MODEL2_KEY = 0xd61dc960093d99acc135f998430c41a550d91de727e66a94fd8e7a8a24d99ecf;
+
+        vm.startPrank(protocolOwner);
+        Registry(protocol.registry()).setAddress(FIXED_RATE_MODEL_KEY, fixedRateModel);
+        Registry(protocol.registry()).setAddress(LINEAR_RATE_MODEL_KEY, linearRateModel);
+        Registry(protocol.registry()).setAddress(FIXED_RATE_MODEL2_KEY, fixedRateModel2);
+        Registry(protocol.registry()).setAddress(LINEAR_RATE_MODEL2_KEY, linearRateModel2);
+        vm.stopPrank();
+
         vm.startPrank(poolOwner);
-        fixedRatePool = protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel, type(uint128).max);
-        linearRatePool = protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel, type(uint128).max);
-        fixedRatePool2 = protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel2, type(uint128).max);
+        fixedRatePool =
+            protocol.pool().initializePool(poolOwner, address(asset1), type(uint128).max, FIXED_RATE_MODEL_KEY);
+        linearRatePool =
+            protocol.pool().initializePool(poolOwner, address(asset1), type(uint128).max, LINEAR_RATE_MODEL_KEY);
+        fixedRatePool2 =
+            protocol.pool().initializePool(poolOwner, address(asset1), type(uint128).max, FIXED_RATE_MODEL2_KEY);
         linearRatePool2 =
-            protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel2, type(uint128).max);
+            protocol.pool().initializePool(poolOwner, address(asset1), type(uint128).max, LINEAR_RATE_MODEL2_KEY);
         alternateAssetPool =
-            protocol.pool().initializePool(poolOwner, address(asset2), fixedRateModel, type(uint128).max);
+            protocol.pool().initializePool(poolOwner, address(asset2), type(uint128).max, FIXED_RATE_MODEL_KEY);
         vm.stopPrank();
     }
 

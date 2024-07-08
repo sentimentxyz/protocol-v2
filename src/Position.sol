@@ -50,6 +50,12 @@ contract Position {
         POSITION_MANAGER = positionManager;
     }
 
+    // positions can receive and hold ether to perform external operations.
+    // ether is otherwise ignored by the rest of the protocol. it does not count
+    // towards the position balance, pools cannot lend ether and it cannot be
+    // used as collateral to borrow other assets
+    receive() external payable { }
+
     modifier onlyPositionManager() {
         if (msg.sender != POSITION_MANAGER) revert Position_OnlyPositionManager(address(this), msg.sender);
         _;
@@ -63,6 +69,18 @@ contract Position {
     /// @notice Fetch list of assets currently held by the position
     function getPositionAssets() external view returns (address[] memory) {
         return positionAssets.getElements();
+    }
+
+    /// @notice Check if a given asset exists in the position asset set
+    /// @dev an asset with zero balance could be in the set until explicitly removed
+    function hasAsset(address asset) external view returns (bool) {
+        return positionAssets.contains(asset);
+    }
+
+    /// @notice Check if a given debt pool exists in the debt pool set
+    /// @dev Position.repay() removes the debt pool after complete repayment
+    function hasDebt(uint256 poolId) external view returns (bool) {
+        return debtPools.contains(poolId);
     }
 
     /// @notice Approve an external contract to spend funds from the position

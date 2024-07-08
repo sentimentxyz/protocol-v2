@@ -96,8 +96,10 @@ contract RiskModuleUnitTests is BaseTest {
         MockERC20 asset3 = new MockERC20("ASSET3", "ASSET3", 18);
         asset3.mint(user, 10e18);
 
-        vm.prank(protocolOwner);
+        vm.startPrank(protocolOwner);
+        positionManager.toggleKnownAddress(address(asset3));
         riskEngine.setOracle(address(asset3), address(oneEthOracle));
+        vm.stopPrank();
 
         vm.startPrank(user);
         asset3.approve(address(positionManager), 1e18);

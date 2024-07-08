@@ -18,6 +18,8 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 contract RiskEngine is Ownable {
     /// @notice Timelock delay to update asset LTVs
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
+    /// @notice Timelock deadline to enforce timely updates
+    uint256 public constant TIMELOCK_DEADLINE = 24 * 60 * 60; // 24 hours
     /// @notice Sentiment Pool registry key hash
     /// @dev keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
@@ -45,7 +47,7 @@ contract RiskEngine is Ownable {
     uint256 public maxLtv;
 
     /// @notice Sentiment Registry
-    Registry public registry;
+    Registry public immutable REGISTRY;
     /// @notice Sentiment Singleton Pool
     Pool public pool;
     /// @notice Sentiment Risk Module
@@ -85,12 +87,14 @@ contract RiskEngine is Ownable {
     error RiskEngine_OnlyPoolOwner(uint256 poolId, address sender);
     /// @notice Timelock delay for the pending LTV update has not been completed
     error RiskEngine_LtvUpdateTimelocked(uint256 poolId, address asset);
+    /// @notice Timelock deadline for LTV update has passed
+    error RiskEngine_LtvUpdateExpired(uint256 poolId, address asset);
 
     /// @param registry_ Sentiment Registry
     /// @param minLtv_ Minimum LTV bound
     /// @param maxLtv_ Maximum LTV bound
     constructor(address registry_, uint256 minLtv_, uint256 maxLtv_) Ownable() {
-        registry = Registry(registry_);
+        REGISTRY = Registry(registry_);
         minLtv = minLtv_;
         maxLtv = maxLtv_;
 
@@ -99,8 +103,8 @@ contract RiskEngine is Ownable {
 
     /// @notice Fetch and update module addreses from the registry
     function updateFromRegistry() external {
-        pool = Pool(registry.addressFor(SENTIMENT_POOL_KEY));
-        riskModule = RiskModule(registry.addressFor(SENTIMENT_RISK_MODULE_KEY));
+        pool = Pool(REGISTRY.addressFor(SENTIMENT_POOL_KEY));
+        riskModule = RiskModule(REGISTRY.addressFor(SENTIMENT_RISK_MODULE_KEY));
 
         emit PoolSet(address(pool));
         emit RiskModuleSet(address(riskModule));
@@ -134,17 +138,18 @@ contract RiskEngine is Ownable {
     }
 
     /// @notice Propose an LTV update for a given Pool-Asset pair
+    /// @dev overwrites any pending or expired updates
     function requestLtvUpdate(uint256 poolId, address asset, uint256 ltv) external {
         if (msg.sender != pool.ownerOf(poolId)) revert RiskEngine_OnlyPoolOwner(poolId, msg.sender);
 
         // set oracle before ltv so risk modules don't have to explicitly check if an oracle exists
         if (oracleFor[asset] == address(0)) revert RiskEngine_NoOracleFound(asset);
 
-        // ensure new ltv is witihin global limits or zero
-        if ((ltv != 0 && ltv < minLtv) || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);
+        // ensure new ltv is within global limits. also enforces that an existing ltv cannot be updated to zero
+        if (ltv < minLtv || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);
 
         LtvUpdate memory ltvUpdate;
-        // only modification and removal of previously set ltvs require a timelock
+        // only modification of previously set ltvs require a timelock
         if (ltvFor[poolId][asset] == 0) ltvUpdate = LtvUpdate({ ltv: ltv, validAfter: block.timestamp });
         else ltvUpdate = LtvUpdate({ ltv: ltv, validAfter: block.timestamp + TIMELOCK_DURATION });
 
@@ -159,12 +164,20 @@ contract RiskEngine is Ownable {
 
         LtvUpdate memory ltvUpdate = ltvUpdateFor[poolId][asset];
 
+        // revert if there is no pending update
         if (ltvUpdate.validAfter == 0) revert RiskEngine_NoLtvUpdate(poolId, asset);
 
+        // revert if called before timelock delay has passed
         if (ltvUpdate.validAfter > block.timestamp) revert RiskEngine_LtvUpdateTimelocked(poolId, asset);
 
-        ltvFor[poolId][asset] = ltvUpdate.ltv;
+        // revert if timelock deadline has passed
+        if (block.timestamp > ltvUpdate.validAfter + TIMELOCK_DEADLINE) {
+            revert RiskEngine_LtvUpdateExpired(poolId, asset);
+        }
 
+        // apply changes
+        ltvFor[poolId][asset] = ltvUpdate.ltv;
+        delete ltvUpdateFor[poolId][asset];
         emit LtvUpdateAccepted(poolId, asset, ltvUpdate.ltv);
     }
 

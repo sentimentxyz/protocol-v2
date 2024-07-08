@@ -58,30 +58,32 @@ contract BaseTest is Test {
         asset1 = new MockERC20("Asset1", "ASSET1", 18);
         asset2 = new MockERC20("Asset2", "ASSET2", 18);
 
+        vm.startPrank(protocolOwner);
+        protocol.positionManager().toggleKnownAddress(address(asset1));
+        protocol.positionManager().toggleKnownAddress(address(asset2));
+        vm.stopPrank();
+
         address fixedRateModel = address(new FixedRateModel(1e18));
         address linearRateModel = address(new LinearRateModel(1e18, 2e18));
         address fixedRateModel2 = address(new FixedRateModel(2e18));
         address linearRateModel2 = address(new LinearRateModel(2e18, 3e18));
 
         vm.startPrank(poolOwner);
-        fixedRatePool =
-            protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel, 0, 0, type(uint128).max);
-        linearRatePool =
-            protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel, 0.1e18, 0, type(uint128).max);
-        fixedRatePool2 =
-            protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel2, 0, 0, type(uint128).max);
+        fixedRatePool = protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel, type(uint128).max);
+        linearRatePool = protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel, type(uint128).max);
+        fixedRatePool2 = protocol.pool().initializePool(poolOwner, address(asset1), fixedRateModel2, type(uint128).max);
         linearRatePool2 =
-            protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel2, 0, 0, type(uint128).max);
+            protocol.pool().initializePool(poolOwner, address(asset1), linearRateModel2, type(uint128).max);
         alternateAssetPool =
-            protocol.pool().initializePool(poolOwner, address(asset2), fixedRateModel, 0, 0, type(uint128).max);
+            protocol.pool().initializePool(poolOwner, address(asset2), fixedRateModel, type(uint128).max);
         vm.stopPrank();
     }
 
-    function newPosition(address owner, bytes32 salt) internal view returns (address, Action memory) {
+    function newPosition(address owner, bytes32 salt) internal view returns (address payable, Action memory) {
         bytes memory data = abi.encodePacked(owner, salt);
         (address position,) = protocol.portfolioLens().predictAddress(owner, salt);
         Action memory action = Action({ op: Operation.NewPosition, data: data });
-        return (position, action);
+        return (payable(position), action);
     }
 
     function deposit(address asset, uint256 amt) internal pure returns (Action memory) {

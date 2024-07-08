@@ -17,6 +17,9 @@ contract SuperPoolFactory {
     /// @notice New Super Pool instance was deployed
     event SuperPoolDeployed(address indexed owner, address superPool, string name, string symbol);
 
+    /// @notice SuperPools with non-zero fees cannot have an address(0) fee recipient
+    error SuperPoolFactory_ZeroFeeRecipient();
+
     /// @param _pool The address of the pool contract
     constructor(address _pool) {
         POOL = _pool;
@@ -45,6 +48,7 @@ contract SuperPoolFactory {
         string calldata name,
         string calldata symbol
     ) external returns (address) {
+        if (fee != 0 && feeRecipient == address(0)) revert SuperPoolFactory_ZeroFeeRecipient();
         SuperPool superPool = new SuperPool(POOL, asset, feeRecipient, fee, superPoolCap, name, symbol);
         superPool.transferOwnership(owner);
         emit SuperPoolDeployed(owner, address(superPool), name, symbol);

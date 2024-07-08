@@ -222,7 +222,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @notice Process a single action on a given position
     /// @param position Position address
     /// @param action Action config
-    function process(address position, Action calldata action) external nonReentrant {
+    function process(address position, Action calldata action) external nonReentrant whenNotPaused {
         _process(position, action);
         if (!riskEngine.isPositionHealthy(position)) revert PositionManager_HealthCheckFailed(position);
     }
@@ -231,7 +231,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @dev only one position can be operated on in one txn, including creation
     /// @param position Position address
     /// @param actions List of actions to process
-    function processBatch(address position, Action[] calldata actions) external nonReentrant {
+    function processBatch(address position, Action[] calldata actions) external nonReentrant whenNotPaused {
         // loop over actions and process them sequentially based on operation
         uint256 actionsLength = actions.length;
         for (uint256 i; i < actionsLength; ++i) {
@@ -261,7 +261,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @dev deterministically deploy a new beacon proxy representing a position
     /// @dev the target field in the action is the new owner of the position
-    function newPosition(address predictedAddress, bytes calldata data) internal whenNotPaused {
+    function newPosition(address predictedAddress, bytes calldata data) internal {
         // data -> abi.encodePacked(address, bytes32)
         // owner -> [:20] owner to create the position on behalf of
         // salt -> [20:52] create2 salt for position
@@ -377,7 +377,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @dev Increase position debt via borrowing
-    function borrow(address position, bytes calldata data) internal whenNotPaused {
+    function borrow(address position, bytes calldata data) internal {
         // data -> abi.encodePacked(uint256, uint256)
         // poolId -> [0:32] pool to borrow from
         // amt -> [32:64] notional amount to be borrowed
@@ -411,7 +411,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @dev Remove a token address from the set of position assets
-    function removeToken(address position, bytes calldata data) internal whenNotPaused {
+    function removeToken(address position, bytes calldata data) internal {
         // data -> abi.encodePacked(address)
         // asset -> address of asset to be deregistered as collateral
         address asset = address(bytes20(data[0:20]));

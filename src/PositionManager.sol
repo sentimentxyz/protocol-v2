@@ -222,7 +222,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @notice Process a single action on a given position
     /// @param position Position address
     /// @param action Action config
-    function process(address position, Action calldata action) external nonReentrant {
+    function process(address position, Action calldata action) external nonReentrant whenNotPaused {
         _process(position, action);
         if (!riskEngine.isPositionHealthy(position)) revert PositionManager_HealthCheckFailed(position);
     }
@@ -231,7 +231,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @dev only one position can be operated on in one txn, including creation
     /// @param position Position address
     /// @param actions List of actions to process
-    function processBatch(address position, Action[] calldata actions) external nonReentrant {
+    function processBatch(address position, Action[] calldata actions) external nonReentrant whenNotPaused {
         // loop over actions and process them sequentially based on operation
         uint256 actionsLength = actions.length;
         for (uint256 i; i < actionsLength; ++i) {
@@ -261,7 +261,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @dev deterministically deploy a new beacon proxy representing a position
     /// @dev the target field in the action is the new owner of the position
-    function newPosition(address predictedAddress, bytes calldata data) internal whenNotPaused {
+    function newPosition(address predictedAddress, bytes calldata data) internal {
         // data -> abi.encodePacked(address, bytes32)
         // owner -> [:20] owner to create the position on behalf of
         // salt -> [20:52] create2 salt for position
@@ -282,7 +282,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @dev Operate on a position by interaction with external contracts using arbitrary calldata
-    function exec(address position, bytes calldata data) internal whenNotPaused {
+    function exec(address position, bytes calldata data) internal {
         // exec data is encodePacked (address, uint256, bytes)
         // target -> [0:20] contract address to be called by the position
         // value -> [20:52] the ether amount to be sent with the call
@@ -300,7 +300,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @dev Transfer assets out of a position
-    function transfer(address position, bytes calldata data) internal whenNotPaused {
+    function transfer(address position, bytes calldata data) internal {
         // data -> abi.encodePacked(address, address, uint256)
         // recipient -> [0:20] address that will receive the transferred tokens
         // asset -> [20:40] address of token to be transferred
@@ -319,7 +319,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @dev Deposit assets from msg.sender to a position
-    function deposit(address position, bytes calldata data) internal whenNotPaused {
+    function deposit(address position, bytes calldata data) internal {
         // data -> abi.encodePacked(address, uint256)
         // asset -> [0:20] address of token to be deposited
         // amt -> [20: 52] amount of asset to be deposited
@@ -334,7 +334,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @dev Approve a spender to use assets from a position
-    function approve(address position, bytes calldata data) internal whenNotPaused {
+    function approve(address position, bytes calldata data) internal {
         // data -> abi.encodePacked(address, address, uint256)
         // spender -> [0:20] address to be approved
         // asset -> [20:40] address of token to be approves
@@ -354,7 +354,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @dev Decrease position debt via repayment. To repay the entire debt set `_amt` to uint.max
-    function repay(address position, bytes calldata data) internal whenNotPaused {
+    function repay(address position, bytes calldata data) internal {
         // data -> abi.encodePacked(uint256, uint256)
         // poolId -> [0:32] pool that recieves the repaid debt
         // amt -> [32: 64] notional amount to be repaid
@@ -377,7 +377,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @dev Increase position debt via borrowing
-    function borrow(address position, bytes calldata data) internal whenNotPaused {
+    function borrow(address position, bytes calldata data) internal {
         // data -> abi.encodePacked(uint256, uint256)
         // poolId -> [0:32] pool to borrow from
         // amt -> [32:64] notional amount to be borrowed
@@ -398,7 +398,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @dev Add a token address to the set of position assets
-    function addToken(address position, bytes calldata data) internal whenNotPaused {
+    function addToken(address position, bytes calldata data) internal {
         // data -> abi.encodePacked(address)
         // asset -> [0:20] address of asset to be registered as collateral
         address asset = address(bytes20(data[0:20]));
@@ -411,7 +411,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     }
 
     /// @dev Remove a token address from the set of position assets
-    function removeToken(address position, bytes calldata data) internal whenNotPaused {
+    function removeToken(address position, bytes calldata data) internal {
         // data -> abi.encodePacked(address)
         // asset -> address of asset to be deregistered as collateral
         address asset = address(bytes20(data[0:20]));

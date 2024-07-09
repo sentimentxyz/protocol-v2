@@ -14,6 +14,9 @@ contract SuperPoolFactory {
     /// @notice All Pools exist on the Singleton Pool Contract, which is fixed per factory
     address public immutable POOL;
 
+    /// @notice Verify if a particular SuperPool was deployed by this factory
+    mapping(address superPool => bool isDeployer) public isDeployerFor;
+
     /// @notice New Super Pool instance was deployed
     event SuperPoolDeployed(address indexed owner, address superPool, string name, string symbol);
 
@@ -51,6 +54,7 @@ contract SuperPoolFactory {
         if (fee != 0 && feeRecipient == address(0)) revert SuperPoolFactory_ZeroFeeRecipient();
         SuperPool superPool = new SuperPool(POOL, asset, feeRecipient, fee, superPoolCap, name, symbol);
         superPool.transferOwnership(owner);
+        isDeployerFor[address(superPool)] = true;
         emit SuperPoolDeployed(owner, address(superPool), name, symbol);
         return address(superPool);
     }

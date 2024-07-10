@@ -48,6 +48,7 @@ contract BaseTest is Test {
             minLtv: 0,
             maxLtv: type(uint256).max,
             minDebt: 0.03 ether,
+            minBorrow: 0,
             liquidationFee: 0,
             liquidationDiscount: 200_000_000_000_000_000
         });

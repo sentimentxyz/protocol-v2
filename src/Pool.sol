@@ -7,6 +7,8 @@ pragma solidity ^0.8.24;
 
 // types
 import { Registry } from "./Registry.sol";
+import { RiskEngine } from "./RiskEngine.sol";
+import { IOracle } from "./interfaces/IOracle.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -36,6 +38,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @dev keccak(SENTIMENT_POSITION_MANAGER_KEY)
     bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
         0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
+    /// @notice Sentiment risk engine registry key
+    /// @dev keccak(SENTIMENT_RISK_ENGINE_KEY)
+    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
+        0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
 
     /// @notice Sentiment registry
     address public registry;
@@ -43,6 +49,11 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     address public feeRecipient;
     /// @notice Sentiment position manager
     address public positionManager;
+    /// @notice Sentiment Risk Engine
+    address public riskEngine;
+
+    /// @notice minimum amount that must be borrowed in a single operation
+    uint256 public minBorrow; // in eth
 
     /// @notice Fetch the owner for a given pool id
     mapping(uint256 poolId => address poolOwner) public ownerOf;
@@ -83,6 +94,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @notice Fetch pending rate model updates for a given pool id
     mapping(uint256 poolId => RateModelUpdate rateModelUpdate) public rateModelUpdateFor;
 
+    /// @notice Minimum borrow amount set
+    event MinBorrowSet(uint256 minBorrow);
     /// @notice Registry address was set
     event RegistrySet(address registry);
     /// @notice Paused state of a pool was toggled
@@ -148,6 +161,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     error Pool_TimelockExpired(uint256 poolId, uint256 currentTimestamp, uint256 validAfter);
     /// @notice Rate model was not found in the Sentiment registry
     error Pool_RateModelNotFound(bytes32 rateModelKey);
+    /// @notice Borrowed amount is lower than minimum borrow amount
+    error Pool_BorrowAmountTooLow(uint256 poolId, address asset, uint256 amt);
 
     constructor() {
         _disableInitializers();
@@ -157,17 +172,24 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @param owner_ Pool owner
     /// @param registry_ Sentiment Registry
     /// @param feeRecipient_ Sentiment fee receiver
-    function initialize(address owner_, address registry_, address feeRecipient_) public initializer {
+    function initialize(
+        address owner_,
+        address registry_,
+        address feeRecipient_,
+        uint256 minBorrow_
+    ) public initializer {
         _transferOwnership(owner_);
 
         registry = registry_;
         feeRecipient = feeRecipient_;
+        minBorrow = minBorrow_;
         updateFromRegistry();
     }
 
     /// @notice Fetch and update module addreses from the registry
     function updateFromRegistry() public {
         positionManager = Registry(registry).addressFor(SENTIMENT_POSITION_MANAGER_KEY);
+        riskEngine = Registry(registry).addressFor(SENTIMENT_RISK_ENGINE_KEY);
     }
 
     /// @notice Fetch amount of liquid assets currently held in a given pool
@@ -363,6 +385,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         // revert if the caller is not the position manager
         if (msg.sender != positionManager) revert Pool_OnlyPositionManager(poolId, msg.sender);
 
+        // revert if borrow amount is too low
+        if (_getValueOf(pool.asset, amt) < minBorrow) revert Pool_BorrowAmountTooLow(poolId, pool.asset, amt);
+
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
 
@@ -434,6 +459,11 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         // return the remaining position debt, denominated in borrow shares
         return (borrowSharesOf[poolId][position] -= borrowShares);
+    }
+
+    function _getValueOf(address asset, uint256 amt) internal view returns (uint256) {
+        address oracle = RiskEngine(riskEngine).getOracleFor(asset);
+        return IOracle(oracle).getValueInEth(asset, amt);
     }
 
     /// @notice Initialize a new pool
@@ -568,5 +598,11 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         if (originationFee > 1e18) revert Pool_FeeTooHigh();
         poolDataFor[poolId].originationFee = originationFee;
         emit OriginationFeeSet(poolId, originationFee);
+    }
+
+    /// @notice Update the minimum borrow amount
+    function setMinBorrow(uint256 newMinBorrow) external onlyOwner {
+        minBorrow = newMinBorrow;
+        emit MinBorrowSet(newMinBorrow);
     }
 }

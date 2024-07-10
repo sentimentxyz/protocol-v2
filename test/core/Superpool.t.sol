@@ -3,11 +3,13 @@ pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
+import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract SuperPoolUnitTests is BaseTest {
     Pool pool;
     Registry registry;
     SuperPool superPool;
+    RiskEngine riskEngine;
     SuperPoolFactory superPoolFactory;
 
     address public feeTo = makeAddr("FeeTo");
@@ -17,7 +19,12 @@ contract SuperPoolUnitTests is BaseTest {
 
         pool = protocol.pool();
         registry = protocol.registry();
+        riskEngine = protocol.riskEngine();
         superPoolFactory = protocol.superPoolFactory();
+
+        FixedPriceOracle asset1Oracle = new FixedPriceOracle(1e18);
+        vm.prank(protocolOwner);
+        riskEngine.setOracle(address(asset1), address(asset1Oracle));
 
         superPool = SuperPool(
             superPoolFactory.deploySuperPool(

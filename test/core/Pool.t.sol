@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract PoolUnitTests is BaseTest {
     // keccak(SENTIMENT_POSITION_MANAGER_KEY)
@@ -11,18 +12,24 @@ contract PoolUnitTests is BaseTest {
 
     Pool pool;
     Registry registry;
+    RiskEngine riskEngine;
 
     function setUp() public override {
         super.setUp();
         pool = protocol.pool();
         registry = protocol.registry();
+        riskEngine = protocol.riskEngine();
+
+        FixedPriceOracle asset1Oracle = new FixedPriceOracle(1e18);
+        vm.prank(protocolOwner);
+        riskEngine.setOracle(address(asset1), address(asset1Oracle));
     }
 
     function testIntializePool() public {
         // test constructor
         address poolImpl = address(new Pool());
         Pool testPool = Pool(address(new TransparentUpgradeableProxy(poolImpl, protocolOwner, new bytes(0))));
-        testPool.initialize(protocolOwner, address(registry), address(0));
+        testPool.initialize(protocolOwner, address(registry), address(0), 0);
         assertEq(testPool.registry(), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));

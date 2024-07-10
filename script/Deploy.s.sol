@@ -41,6 +41,7 @@ contract Deploy is BaseScript {
         uint256 minLtv;
         uint256 maxLtv;
         uint256 minDebt;
+        uint256 minBorrow;
         uint256 liquidationFee;
         uint256 liquidationDiscount;
     }
@@ -83,8 +84,9 @@ contract Deploy is BaseScript {
         riskModule = new RiskModule(address(registry), params.minDebt, params.liquidationDiscount);
         // pool
         poolImpl = address(new Pool());
-        bytes memory poolInitData =
-            abi.encodeWithSelector(Pool.initialize.selector, params.owner, address(registry), params.feeRecipient);
+        bytes memory poolInitData = abi.encodeWithSelector(
+            Pool.initialize.selector, params.owner, address(registry), params.feeRecipient, params.minBorrow
+        );
         pool = Pool(address(new TransparentUpgradeableProxy(poolImpl, params.proxyAdmin, poolInitData)));
         // super pool factory
         superPoolFactory = new SuperPoolFactory(address(pool));
@@ -127,6 +129,7 @@ contract Deploy is BaseScript {
         params.minLtv = vm.parseJsonUint(config, "$.Deploy.minLtv");
         params.maxLtv = vm.parseJsonUint(config, "$.Deploy.maxLtv");
         params.minDebt = vm.parseJsonUint(config, "$.Deploy.minDebt");
+        params.minBorrow = vm.parseJsonUint(config, "$.Deploy.minBorrow");
         params.liquidationFee = vm.parseJsonUint(config, "$.Deploy.liquidationFee");
         params.liquidationDiscount = vm.parseJsonUint(config, "$.Deploy.liquidationDiscount");
 

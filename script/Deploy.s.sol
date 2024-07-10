@@ -129,6 +129,7 @@ contract Deploy is BaseScript {
         params.minLtv = vm.parseJsonUint(config, "$.Deploy.minLtv");
         params.maxLtv = vm.parseJsonUint(config, "$.Deploy.maxLtv");
         params.minDebt = vm.parseJsonUint(config, "$.Deploy.minDebt");
+        params.minBorrow = vm.parseJsonUint(config, "$.Deploy.minBorrow");
         params.liquidationFee = vm.parseJsonUint(config, "$.Deploy.liquidationFee");
         params.liquidationDiscount = vm.parseJsonUint(config, "$.Deploy.liquidationDiscount");
 

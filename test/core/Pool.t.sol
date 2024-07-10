@@ -2,7 +2,6 @@
 pragma solidity ^0.8.24;
 
 import "../BaseTest.t.sol";
-
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 

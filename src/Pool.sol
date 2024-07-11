@@ -54,6 +54,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
     /// @notice minimum amount that must be borrowed in a single operation
     uint256 public minBorrow; // in eth
+    /// @notice minimum debt that a borrower must maintain
+    uint256 public minDebt; // in eth
 
     /// @notice Fetch the owner for a given pool id
     mapping(uint256 poolId => address poolOwner) public ownerOf;
@@ -94,6 +96,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @notice Fetch pending rate model updates for a given pool id
     mapping(uint256 poolId => RateModelUpdate rateModelUpdate) public rateModelUpdateFor;
 
+    /// @notice Minimum debt amount set
+    event MinDebtSet(uint256 minDebt);
     /// @notice Minimum borrow amount set
     event MinBorrowSet(uint256 minBorrow);
     /// @notice Registry address was set
@@ -163,6 +167,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     error Pool_RateModelNotFound(bytes32 rateModelKey);
     /// @notice Borrowed amount is lower than minimum borrow amount
     error Pool_BorrowAmountTooLow(uint256 poolId, address asset, uint256 amt);
+    /// @notice Debt is below min debt amount
+    error Pool_DebtTooLow(uint256 poolId, address asset, uint256 amt);
 
     constructor() {
         _disableInitializers();
@@ -176,13 +182,15 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         address owner_,
         address registry_,
         address feeRecipient_,
-        uint256 minBorrow_
+        uint256 minBorrow_,
+        uint256 minDebt_
     ) public initializer {
         _transferOwnership(owner_);
 
         registry = registry_;
         feeRecipient = feeRecipient_;
         minBorrow = minBorrow_;
+        minDebt = minDebt_;
         updateFromRegistry();
     }
 
@@ -402,12 +410,19 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         // revert if borrow amt is too small
         if (borrowShares == 0) revert Pool_ZeroSharesBorrow(poolId, amt);
 
+        // check that final debt amount is greater than min debt
+        uint256 newBorrowShares = borrowSharesOf[poolId][position] + borrowShares;
+        uint256 newBorrowAssets = _convertToAssets(pool.totalAssets, newBorrowShares, Math.Rounding.Down);
+        if (_getValueOf(pool.asset, newBorrowAssets) < minDebt) {
+            revert Pool_DebtTooLow(poolId, pool.asset, newBorrowAssets);
+        }
+
         // update total pool debt, denominated in notional asset units and shares
         pool.totalBorrows.assets += uint128(amt);
         pool.totalBorrows.shares += uint128(borrowShares);
 
         // update position debt, denominated in borrow shares
-        borrowSharesOf[poolId][position] += borrowShares;
+        borrowSharesOf[poolId][position] = newBorrowShares;
 
         // compute origination fee amt
         // [ROUND] origination fee is rounded down, in favor of the borrower
@@ -451,14 +466,25 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         // revert if repaid amt is too small
         if (borrowShares == 0) revert Pool_ZeroSharesRepay(poolId, amt);
 
+        // check that final debt amount is greater than min debt
+        uint256 newBorrowShares = borrowSharesOf[poolId][position] - borrowShares;
+        if (newBorrowShares != 0) {
+            uint256 newBorrowAssets = _convertToAssets(pool.totalAssets, newBorrowShares, Math.Rounding.Down);
+            if (_getValueOf(pool.asset, newBorrowAssets) < minDebt) {
+                revert Pool_DebtTooLow(poolId, pool.asset, newBorrowAssets);
+            }
+        }
+
         // update total pool debt, denominated in notional asset units, and shares
         pool.totalBorrows.assets -= uint128(amt);
         pool.totalBorrows.shares -= uint128(borrowShares);
 
+        // update and return remaining position debt, denominated in borrow shares
+        borrowSharesOf[poolId][position] = newBorrowShares;
+
         emit Repay(position, poolId, pool.asset, amt);
 
-        // return the remaining position debt, denominated in borrow shares
-        return (borrowSharesOf[poolId][position] -= borrowShares);
+        return newBorrowShares;
     }
 
     function _getValueOf(address asset, uint256 amt) internal view returns (uint256) {
@@ -604,5 +630,11 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     function setMinBorrow(uint256 newMinBorrow) external onlyOwner {
         minBorrow = newMinBorrow;
         emit MinBorrowSet(newMinBorrow);
+    }
+
+    /// @notice Update the min debt amount
+    function setMinDebt(uint256 newMinDebt) external onlyOwner {
+        minDebt = newMinDebt;
+        emit MinDebtSet(newMinDebt);
     }
 }

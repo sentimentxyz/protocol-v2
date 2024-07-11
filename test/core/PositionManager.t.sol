@@ -238,9 +238,12 @@ contract PositionManagerUnitTests is BaseTest {
     function testMinDebtCheck() public {
         testSimpleDepositCollateral(100 ether);
 
+        vm.prank(protocolOwner);
+        pool.setMinDebt(0.05 ether);
+
         Action memory action = borrow(linearRatePool, 0.001e18); // 1 asset1 = 10 eth => 1/1000 asset1 = 0.01 eth
         vm.prank(positionOwner);
-        vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_DebtTooLow.selector, position, 0.01 ether));
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_DebtTooLow.selector, linearRatePool, asset1, 0.001 ether));
         positionManager.process(position, action);
     }
 

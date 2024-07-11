@@ -50,12 +50,11 @@ contract RiskModuleUnitTests is BaseTest {
         vm.stopPrank();
     }
 
-    function testRiskModuleInit(address testRegistry, uint256 minDebt, uint256 liqDiscount) public {
-        RiskModule testRiskModule = new RiskModule(testRegistry, minDebt, liqDiscount);
+    function testRiskModuleInit(address testRegistry, uint256 liqDiscount) public {
+        RiskModule testRiskModule = new RiskModule(testRegistry, liqDiscount);
 
         assertEq(address(testRiskModule.REGISTRY()), testRegistry);
         assertEq(testRiskModule.LIQUIDATION_DISCOUNT(), liqDiscount);
-        assertEq(testRiskModule.MIN_DEBT(), minDebt);
     }
 
     function testAssetValueFuncs() public {

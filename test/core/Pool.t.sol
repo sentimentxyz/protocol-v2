@@ -217,7 +217,7 @@ contract PoolUnitTests is BaseTest {
     function testTimeIncreasesDebt(uint96 assets) public {
         testBorrowWorksAsIntended(assets);
 
-        (,,,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,, uint256 totalBorrowAssets, uint256 totalBorrowShares,,) = pool.poolDataFor(linearRatePool);
 
         uint256 time = block.timestamp + 1 days;
         vm.warp(time + 86_400 * 7);
@@ -225,18 +225,18 @@ contract PoolUnitTests is BaseTest {
 
         pool.accrue(linearRatePool);
 
-        (,,,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,, uint256 newTotalBorrowAssets, uint256 newTotalBorrowShares,,) = pool.poolDataFor(linearRatePool);
 
-        assertEq(newTotalBorrows.shares, totalBorrows.shares);
-        assertGt(newTotalBorrows.assets, totalBorrows.assets);
+        assertEq(newTotalBorrowShares, totalBorrowShares);
+        assertGt(newTotalBorrowAssets, totalBorrowAssets);
     }
 
     function testCanWithdrawEarnedInterest(uint96 assets) public {
         testTimeIncreasesDebt(assets);
 
-        (,,,,,,,, Pool.Uint128Pair memory borrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,, uint256 totalBorrowAssets, uint256 totalBorrowShares,,) = pool.poolDataFor(linearRatePool);
 
-        assertGt(borrows.assets, borrows.shares);
+        assertGt(totalBorrowAssets, totalBorrowShares);
 
         // Add some liquidity to the pool
         address user2 = makeAddr("user2");
@@ -267,10 +267,11 @@ contract PoolUnitTests is BaseTest {
         vm.assume(frac1 > 1e8);
         vm.assume(number > 0);
 
-        Pool.Uint128Pair memory rebase = Pool.Uint128Pair(uint128(frac1) * 2, uint128(frac1));
+        uint256 totalAssets = uint256(frac1) * 2;
+        uint256 totalShares = frac1;
 
-        uint256 sharesFromAssets = pool.convertToShares(rebase, number);
-        uint256 assetsFromShares = pool.convertToAssets(rebase, sharesFromAssets);
+        uint256 sharesFromAssets = pool.convertToShares(number, totalAssets, totalShares);
+        uint256 assetsFromShares = pool.convertToAssets(sharesFromAssets, totalAssets, totalShares);
 
         assertApproxEqAbs(assetsFromShares, number, 2);
     }
@@ -295,13 +296,13 @@ contract PoolUnitTests is BaseTest {
     }
 
     function testOwnerCanPause() public {
-        (,,,,,, bool isPaused,,) = pool.poolDataFor(linearRatePool);
+        (bool isPaused,,,,,,,,,,) = pool.poolDataFor(linearRatePool);
         assertFalse(isPaused);
 
         vm.prank(poolOwner);
         pool.togglePause(linearRatePool);
 
-        (,,,,,, isPaused,,) = pool.poolDataFor(linearRatePool);
+        (isPaused,,,,,,,,,,) = pool.poolDataFor(linearRatePool);
         assertTrue(isPaused);
     }
 
@@ -314,13 +315,13 @@ contract PoolUnitTests is BaseTest {
     }
 
     function testOwnerCanSetCap(uint128 newPoolCap) public {
-        (,, uint128 poolCap,,,,,,) = pool.poolDataFor(linearRatePool);
+        (,,, uint256 poolCap,,,,,,,) = pool.poolDataFor(linearRatePool);
         assert(poolCap == type(uint128).max);
 
         vm.prank(poolOwner);
         pool.setPoolCap(linearRatePool, newPoolCap);
 
-        (,, poolCap,,,,,,) = pool.poolDataFor(linearRatePool);
+        (,,, poolCap,,,,,,,) = pool.poolDataFor(linearRatePool);
         assertEq(poolCap, newPoolCap);
     }
 
@@ -369,7 +370,7 @@ contract PoolUnitTests is BaseTest {
         vm.prank(poolOwner);
         pool.acceptRateModelUpdate(linearRatePool);
 
-        (, address rateModel,,,,,,,) = pool.poolDataFor(linearRatePool);
+        (,, address rateModel,,,,,,,,) = pool.poolDataFor(linearRatePool);
         assertEq(rateModel, newRateModel);
     }
 

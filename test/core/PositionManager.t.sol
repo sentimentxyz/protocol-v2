@@ -203,14 +203,14 @@ contract PositionManagerUnitTests is BaseTest {
         actions[0] = action;
 
         uint256 initialAssetBalance = asset1.balanceOf(position);
-        (,,,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,, uint256 totalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
         assertEq(address(positionManager.pool()), address(pool));
 
         PositionManager(positionManager).processBatch(position, actions);
 
         assertGt(asset1.balanceOf(position), initialAssetBalance);
-        (,,,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
-        assertEq(newTotalBorrows.assets, totalBorrows.assets + 2 ether);
+        (,,,,,,, uint256 newTotalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
+        assertEq(newTotalBorrowAssets, totalBorrowAssets + 2 ether);
     }
 
     function testZeroLtvBorrow() public {
@@ -278,17 +278,17 @@ contract PositionManagerUnitTests is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        (,,,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,, uint256 totalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
         uint256 initialBorrow = pool.getBorrowsOf(linearRatePool, position);
 
         PositionManager(positionManager).processBatch(position, actions);
 
-        (,,,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,, uint256 newTotalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
 
         uint256 borrow = pool.getBorrowsOf(linearRatePool, position);
 
         assertLt(borrow, initialBorrow);
-        assertLt(newTotalBorrows.assets, totalBorrows.assets);
+        assertLt(newTotalBorrowAssets, totalBorrowAssets);
     }
 
     function testFullRepay() public {

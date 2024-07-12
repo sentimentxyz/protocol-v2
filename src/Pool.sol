@@ -62,25 +62,20 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @notice Fetch debt owed by a given position for a particular pool, denominated in borrow shares
     mapping(uint256 poolId => mapping(address position => uint256 borrowShares)) public borrowSharesOf;
 
-    /// @title Uint128Pair
-    /// @notice Store a value in terms of both notional assets and shares using a pair of Uint128s
-    struct Uint128Pair {
-        uint128 assets;
-        uint128 shares;
-    }
-
     /// @title PoolData
     /// @notice Pool config and state container
     struct PoolData {
+        bool isPaused;
         address asset;
         address rateModel;
         uint128 poolCap;
         uint128 lastUpdated;
         uint128 interestFee;
         uint128 originationFee;
-        bool isPaused;
-        Uint128Pair totalAssets;
-        Uint128Pair totalBorrows;
+        uint256 totalBorrowAssets;
+        uint256 totalBorrowShares;
+        uint256 totalDepositAssets;
+        uint256 totalDepositShares;
     }
 
     /// @notice Fetch pool config and state for a given pool id
@@ -204,40 +199,46 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     function getLiquidityOf(uint256 poolId) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 pendingInterest = simulateAccrue(pool);
-        return pool.totalAssets.assets + pendingInterest - pool.totalBorrows.assets;
+        return pool.totalDepositAssets + pendingInterest - pool.totalBorrowAssets;
     }
 
     /// @notice Fetch pool asset balance for depositor to a pool
     function getAssetsOf(uint256 poolId, address guy) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 pendingInterest = simulateAccrue(pool);
-        Uint128Pair memory totalAssets = pool.totalAssets;
-        totalAssets.assets += uint128(pendingInterest);
-        return _convertToAssets(totalAssets, balanceOf[guy][poolId], Math.Rounding.Down);
+        return _convertToAssets(
+            balanceOf[guy][poolId],
+            pool.totalDepositAssets + pendingInterest,
+            pool.totalDepositShares,
+            Math.Rounding.Down
+        );
     }
 
     /// @notice Fetch debt owed by a position to a given pool
     function getBorrowsOf(uint256 poolId, address position) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 pendingInterest = simulateAccrue(pool);
-        Uint128Pair memory totalBorrows = pool.totalBorrows;
-        totalBorrows.assets += uint128(pendingInterest);
         // [ROUND] round up to enable enable complete debt repayment
-        return _convertToAssets(totalBorrows, borrowSharesOf[poolId][position], Math.Rounding.Up);
+        return _convertToAssets(
+            borrowSharesOf[poolId][position],
+            pool.totalBorrowAssets + pendingInterest,
+            pool.totalBorrowShares,
+            Math.Rounding.Up
+        );
     }
 
     /// @notice Fetch the total amount of assets currently deposited in a pool
     function getTotalAssets(uint256 poolId) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 pendingInterest = simulateAccrue(pool);
-        return pool.totalAssets.assets + pendingInterest;
+        return pool.totalDepositAssets + pendingInterest;
     }
 
     /// @notice Fetch total amount of debt owed to a given pool id
     function getTotalBorrows(uint256 poolId) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 pendingInterest = simulateAccrue(pool);
-        return pool.totalBorrows.assets + pendingInterest;
+        return pool.totalBorrowAssets + pendingInterest;
     }
 
     /// @notice Fetch current rate model for a given pool id
@@ -251,31 +252,41 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     /// @notice Fetch equivalent shares amount for given assets
-    function convertToShares(Uint128Pair memory pair, uint256 assets) external pure returns (uint256 shares) {
-        shares = _convertToShares(pair, assets, Math.Rounding.Down);
+    function convertToShares(
+        uint256 assets,
+        uint256 totalAssets,
+        uint256 totalShares
+    ) external pure returns (uint256 shares) {
+        shares = _convertToShares(assets, totalAssets, totalShares, Math.Rounding.Down);
     }
 
     function _convertToShares(
-        Uint128Pair memory pair,
         uint256 assets,
+        uint256 totalAssets,
+        uint256 totalShares,
         Math.Rounding rounding
     ) internal pure returns (uint256 shares) {
-        if (pair.assets == 0) return assets;
-        shares = assets.mulDiv(pair.shares, pair.assets, rounding);
+        if (totalAssets == 0) return assets;
+        shares = assets.mulDiv(totalShares, totalAssets, rounding);
     }
 
     /// @notice Fetch equivalent asset amount for given shares
-    function convertToAssets(Uint128Pair memory pair, uint256 shares) external pure returns (uint256 assets) {
-        assets = _convertToAssets(pair, shares, Math.Rounding.Down);
+    function convertToAssets(
+        uint256 shares,
+        uint256 totalAssets,
+        uint256 totalShares
+    ) external pure returns (uint256 assets) {
+        assets = _convertToAssets(shares, totalAssets, totalShares, Math.Rounding.Down);
     }
 
     function _convertToAssets(
-        Uint128Pair memory pair,
         uint256 shares,
+        uint256 totalAssets,
+        uint256 totalShares,
         Math.Rounding rounding
     ) internal pure returns (uint256 assets) {
-        if (pair.shares == 0) return shares;
-        assets = shares.mulDiv(pair.assets, pair.shares, rounding);
+        if (totalShares == 0) return shares;
+        assets = shares.mulDiv(totalAssets, totalShares, rounding);
     }
 
     /// @notice Deposit assets to a pool
@@ -294,13 +305,13 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         // Need to transfer before or ERC777s could reenter, or bypass the pool cap
         IERC20(pool.asset).safeTransferFrom(msg.sender, address(this), assets);
 
-        if (pool.totalAssets.assets + assets > pool.poolCap) revert Pool_PoolCapExceeded(poolId);
+        if (pool.totalDepositAssets + assets > pool.poolCap) revert Pool_PoolCapExceeded(poolId);
 
-        shares = _convertToShares(pool.totalAssets, assets, Math.Rounding.Down);
+        shares = _convertToShares(assets, pool.totalDepositAssets, pool.totalDepositShares, Math.Rounding.Down);
         if (shares == 0) revert Pool_ZeroSharesDeposit(poolId, assets);
 
-        pool.totalAssets.assets += uint128(assets);
-        pool.totalAssets.shares += uint128(shares);
+        pool.totalDepositAssets += assets;
+        pool.totalDepositShares += shares;
 
         _mint(receiver, poolId, shares);
 
@@ -324,7 +335,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
 
-        shares = _convertToShares(pool.totalAssets, assets, Math.Rounding.Down);
+        shares = _convertToShares(assets, pool.totalDepositAssets, pool.totalDepositShares, Math.Rounding.Down);
         // check for rounding error since convertToShares rounds down
         if (shares == 0) revert Pool_ZeroShareRedeem(poolId, assets);
 
@@ -333,11 +344,11 @@ contract Pool is OwnableUpgradeable, ERC6909 {
             if (allowed != type(uint256).max) allowance[owner][msg.sender][poolId] = allowed - shares;
         }
 
-        uint256 assetsInPool = pool.totalAssets.assets - pool.totalBorrows.assets;
+        uint256 assetsInPool = pool.totalDepositAssets - pool.totalBorrowAssets;
         if (assetsInPool < assets) revert Pool_InsufficientWithdrawLiquidity(poolId, assetsInPool, assets);
 
-        pool.totalAssets.assets -= uint128(assets);
-        pool.totalAssets.shares -= uint128(shares);
+        pool.totalDepositAssets -= assets;
+        pool.totalDepositShares -= shares;
 
         _burn(owner, poolId, shares);
 
@@ -354,7 +365,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
     function simulateAccrue(PoolData storage pool) internal view returns (uint256 interestAccrued) {
         return IRateModel(pool.rateModel).getInterestAccrued(
-            pool.lastUpdated, pool.totalBorrows.assets, pool.totalAssets.assets
+            pool.lastUpdated, pool.totalBorrowAssets, pool.totalDepositAssets
         );
     }
 
@@ -367,14 +378,15 @@ contract Pool is OwnableUpgradeable, ERC6909 {
             uint256 feeAssets = interestAccrued.mulDiv(pool.interestFee, 1e18);
 
             // [ROUND] round down in favor of pool lenders
-            uint256 feeShares = _convertToShares(pool.totalAssets, feeAssets, Math.Rounding.Down);
+            uint256 feeShares =
+                _convertToShares(feeAssets, pool.totalDepositAssets, pool.totalDepositShares, Math.Rounding.Down);
 
             _mint(feeRecipient, id, feeShares);
         }
 
         // update cached notional borrows to current borrow amount
-        pool.totalBorrows.assets += uint128(interestAccrued);
-        pool.totalAssets.assets += uint128(interestAccrued);
+        pool.totalBorrowAssets += uint128(interestAccrued);
+        pool.totalDepositAssets += uint128(interestAccrued);
 
         // store a timestamp for this accrue() call
         // used to compute the pending interest next time accrue() is called
@@ -400,29 +412,33 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         accrue(pool, poolId);
 
         // pools cannot share liquidity among themselves, revert if borrow amt exceeds pool liquidity
-        uint256 assetsInPool = pool.totalAssets.assets - pool.totalBorrows.assets;
+        uint256 assetsInPool = pool.totalDepositAssets - pool.totalBorrowAssets;
         if (assetsInPool < amt) revert Pool_InsufficientBorrowLiquidity(poolId, assetsInPool, amt);
 
         // compute borrow shares equivalant for notional borrow amt
         // [ROUND] round up shares minted, to ensure they capture the borrowed amount
-        borrowShares = _convertToShares(pool.totalBorrows, amt, Math.Rounding.Up);
+        borrowShares = _convertToShares(amt, pool.totalBorrowAssets, pool.totalBorrowShares, Math.Rounding.Up);
 
         // revert if borrow amt is too small
         if (borrowShares == 0) revert Pool_ZeroSharesBorrow(poolId, amt);
 
         // check that final debt amount is greater than min debt
-        uint256 newBorrowShares = borrowSharesOf[poolId][position] + borrowShares;
-        uint256 newBorrowAssets = _convertToAssets(pool.totalAssets, newBorrowShares, Math.Rounding.Down);
+        uint256 newBorrowAssets = _convertToAssets(
+            borrowSharesOf[poolId][position] + borrowShares,
+            pool.totalBorrowAssets + amt,
+            pool.totalBorrowShares + borrowShares,
+            Math.Rounding.Down
+        );
         if (_getValueOf(pool.asset, newBorrowAssets) < minDebt) {
             revert Pool_DebtTooLow(poolId, pool.asset, newBorrowAssets);
         }
 
         // update total pool debt, denominated in notional asset units and shares
-        pool.totalBorrows.assets += uint128(amt);
-        pool.totalBorrows.shares += uint128(borrowShares);
+        pool.totalBorrowAssets += uint128(amt);
+        pool.totalBorrowShares += uint128(borrowShares);
 
         // update position debt, denominated in borrow shares
-        borrowSharesOf[poolId][position] = newBorrowShares;
+        borrowSharesOf[poolId][position] += borrowShares;
 
         // compute origination fee amt
         // [ROUND] origination fee is rounded down, in favor of the borrower
@@ -461,30 +477,32 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         // compute borrow shares equivalent to notional asset amt
         // [ROUND] burn fewer borrow shares, to ensure excess debt isn't pushed to others
-        uint256 borrowShares = _convertToShares(pool.totalBorrows, amt, Math.Rounding.Down);
+        uint256 borrowShares = _convertToShares(amt, pool.totalBorrowAssets, pool.totalBorrowShares, Math.Rounding.Down);
 
         // revert if repaid amt is too small
         if (borrowShares == 0) revert Pool_ZeroSharesRepay(poolId, amt);
 
         // check that final debt amount is greater than min debt
-        uint256 newBorrowShares = borrowSharesOf[poolId][position] - borrowShares;
-        if (newBorrowShares != 0) {
-            uint256 newBorrowAssets = _convertToAssets(pool.totalAssets, newBorrowShares, Math.Rounding.Down);
+        remainingShares = borrowSharesOf[poolId][position] - borrowShares;
+        if (remainingShares > 0) {
+            uint256 newBorrowAssets = _convertToAssets(
+                remainingShares, pool.totalBorrowAssets - amt, pool.totalBorrowShares - borrowShares, Math.Rounding.Down
+            );
             if (_getValueOf(pool.asset, newBorrowAssets) < minDebt) {
                 revert Pool_DebtTooLow(poolId, pool.asset, newBorrowAssets);
             }
         }
 
         // update total pool debt, denominated in notional asset units, and shares
-        pool.totalBorrows.assets -= uint128(amt);
-        pool.totalBorrows.shares -= uint128(borrowShares);
+        pool.totalBorrowAssets -= uint128(amt);
+        pool.totalBorrowShares -= uint128(borrowShares);
 
         // update and return remaining position debt, denominated in borrow shares
-        borrowSharesOf[poolId][position] = newBorrowShares;
+        borrowSharesOf[poolId][position] = remainingShares;
 
         emit Repay(position, poolId, pool.asset, amt);
 
-        return newBorrowShares;
+        return remainingShares;
     }
 
     function _getValueOf(address asset, uint256 amt) internal view returns (uint256) {
@@ -514,15 +532,17 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         ownerOf[poolId] = owner;
 
         PoolData memory poolData = PoolData({
+            isPaused: false,
             asset: asset,
             rateModel: rateModel,
             poolCap: poolCap,
             lastUpdated: uint128(block.timestamp),
             interestFee: DEFAULT_INTEREST_FEE,
             originationFee: DEFAULT_ORIGINATION_FEE,
-            isPaused: false,
-            totalAssets: Uint128Pair(0, 0),
-            totalBorrows: Uint128Pair(0, 0)
+            totalBorrowAssets: 0,
+            totalBorrowShares: 0,
+            totalDepositAssets: 0,
+            totalDepositShares: 0
         });
 
         poolDataFor[poolId] = poolData;

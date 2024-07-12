@@ -94,7 +94,7 @@ contract FailedRepayAll is BaseTest {
     function testTimeIncreasesDebt(uint96 assets) public {
         testBorrowWorksAsIntended(assets);
 
-        (,,,,,,,, Pool.Uint128Pair memory totalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,, uint256 totalBorrowAssets, uint256 totalBorrowShares,,) = pool.poolDataFor(linearRatePool);
 
         uint256 time = block.timestamp + 1 days;
         vm.warp(time + 86_400 * 365);
@@ -102,17 +102,17 @@ contract FailedRepayAll is BaseTest {
 
         pool.accrue(linearRatePool);
 
-        (,,,,,,,, Pool.Uint128Pair memory newTotalBorrows) = pool.poolDataFor(linearRatePool);
+        (,,,,,,, uint256 newTotalBorrowAssets, uint256 newTotalBorrowShares,,) = pool.poolDataFor(linearRatePool);
 
-        assertEq(newTotalBorrows.shares, totalBorrows.shares);
-        assertGt(newTotalBorrows.assets, totalBorrows.assets);
+        assertEq(newTotalBorrowShares, totalBorrowShares);
+        assertGt(newTotalBorrowAssets, totalBorrowAssets);
     }
 
     function test_poc_RepayFail() public {
         // Underlying pool has some actions that changes share:asset ratio
         testTimeIncreasesDebt(10e18);
-        (,,,,,,,, Pool.Uint128Pair memory borrows) = pool.poolDataFor(linearRatePool);
-        assertGt(borrows.assets, borrows.shares);
+        (,,,,,,, uint256 totalBorrowAssets, uint256 totalBorrowShares,,) = pool.poolDataFor(linearRatePool);
+        assertGt(totalBorrowAssets, totalBorrowShares);
 
         // Mint some tokens to position owner
         asset1.mint(positionOwner, 2 ether); // User will transfer it to Position contract when repay

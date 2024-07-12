@@ -47,7 +47,7 @@ contract BaseTest is Test {
             feeRecipient: address(this),
             minLtv: 0,
             maxLtv: type(uint256).max,
-            minDebt: 0.03 ether,
+            minDebt: 0,
             minBorrow: 0,
             liquidationFee: 0,
             liquidationDiscount: 200_000_000_000_000_000

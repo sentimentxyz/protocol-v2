@@ -29,8 +29,6 @@ contract RiskModule {
     bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
         0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
 
-    /// @notice The minimum amount of debt that must be held by a position
-    uint256 public immutable MIN_DEBT;
     /// @notice The discount on assets when liquidating, out of 1e18
     uint256 public immutable LIQUIDATION_DISCOUNT;
     /// @notice The updateable registry as a part of the 2step initialization process
@@ -40,8 +38,6 @@ contract RiskModule {
     /// @notice Sentiment Risk Engine
     RiskEngine public riskEngine;
 
-    /// @notice Total debt owed by a position is non-zero and less than MIN_DEBT
-    error RiskModule_DebtTooLow(address position, uint256 debtValue);
     /// @notice Value of assets seized by the liquidator exceeds liquidation discount
     error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
     /// @notice Position contains an asset that is not supported by a pool that it borrows from
@@ -49,11 +45,9 @@ contract RiskModule {
 
     /// @notice Constructor for Risk Module, which should be registered with the RiskEngine
     /// @param registry_ The address of the registry contract
-    /// @param minDebt_ The minimum amount of debt that must be held by a position
     /// @param liquidationDiscount_ The discount on assets when liquidating, out of 1e18
-    constructor(address registry_, uint256 minDebt_, uint256 liquidationDiscount_) {
+    constructor(address registry_, uint256 liquidationDiscount_) {
         REGISTRY = Registry(registry_);
-        MIN_DEBT = minDebt_;
         LIQUIDATION_DISCOUNT = liquidationDiscount_;
     }
 
@@ -65,10 +59,7 @@ contract RiskModule {
 
     /// @notice Evaluates whether a given position is healthy based on the debt and asset values
     function isPositionHealthy(address position) external view returns (bool) {
-        (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = getRiskData(position);
-
-        if (totalDebtValue != 0 && totalDebtValue < MIN_DEBT) revert RiskModule_DebtTooLow(position, totalDebtValue);
-
+        (uint256 totalAssetValue,, uint256 minReqAssetValue) = getRiskData(position);
         return totalAssetValue >= minReqAssetValue;
     }
 

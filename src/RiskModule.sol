@@ -42,6 +42,8 @@ contract RiskModule {
     error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
     /// @notice Position contains an asset that is not supported by a pool that it borrows from
     error RiskModule_UnsupportedAsset(address position, uint256 poolId, address asset);
+    /// @notice Minimum assets required in a position with non-zero debt cannot be zero
+    error RiskModule_ZeroMinReqAssets();
 
     /// @notice Constructor for Risk Module, which should be registered with the RiskEngine
     /// @param registry_ The address of the registry contract
@@ -59,8 +61,23 @@ contract RiskModule {
 
     /// @notice Evaluates whether a given position is healthy based on the debt and asset values
     function isPositionHealthy(address position) external view returns (bool) {
-        (uint256 totalAssetValue,, uint256 minReqAssetValue) = getRiskData(position);
-        return totalAssetValue >= minReqAssetValue;
+        // a position can have four states:
+        // 1. (zero debt, zero assets) -> healthy
+        // 2. (zero debt, non-zero assets) -> healthy
+        // 3. (non-zero debt, zero assets) -> unhealthy
+        // 4. (non-zero assets, non-zero debt) -> determined by weighted ltv
+
+        (uint256 totalDebtValue, uint256[] memory debtPools, uint256[] memory debtValueForPool) =
+            _getPositionDebtData(position);
+        if (totalDebtValue == 0) return true; // (zero debt, zero assets) AND (zero debt, non-zero assets)
+
+        (uint256 totalAssetValue, address[] memory positionAssets, uint256[] memory positionAssetWeight) =
+            _getPositionAssetData(position);
+        if (totalAssetValue == 0) return false; // (non-zero debt, zero assets)
+
+        uint256 minReqAssetValue =
+            _getMinReqAssetValue(debtPools, debtValueForPool, positionAssets, positionAssetWeight, position);
+        return totalAssetValue >= minReqAssetValue; // (non-zero debt, non-zero assets)
     }
 
     /// @notice Fetch risk-associated data for a given position
@@ -68,14 +85,14 @@ contract RiskModule {
     /// @return totalAssetValue The total asset value of the position
     /// @return totalDebtValue The total debt value of the position
     /// @return minReqAssetValue The minimum required asset value for the position to be healthy
-    function getRiskData(address position) public view returns (uint256, uint256, uint256) {
+    function getRiskData(address position) external view returns (uint256, uint256, uint256) {
         (uint256 totalAssetValue, address[] memory positionAssets, uint256[] memory positionAssetWeight) =
             _getPositionAssetData(position);
 
         (uint256 totalDebtValue, uint256[] memory debtPools, uint256[] memory debtValueForPool) =
             _getPositionDebtData(position);
 
-        if (totalDebtValue == 0) return (totalAssetValue, 0, 0);
+        if (totalAssetValue == 0 || totalDebtValue == 0) return (totalAssetValue, totalDebtValue, 0);
 
         uint256 minReqAssetValue =
             _getMinReqAssetValue(debtPools, debtValueForPool, positionAssets, positionAssetWeight, position);
@@ -225,6 +242,7 @@ contract RiskModule {
             }
         }
 
+        if (minReqAssetValue == 0) revert RiskModule_ZeroMinReqAssets();
         return minReqAssetValue;
     }
 }

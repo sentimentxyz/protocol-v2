@@ -505,6 +505,26 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         return remainingShares;
     }
 
+    function rebalanceBadDebt(uint256 poolId, address position) external {
+        PoolData storage pool = poolDataFor[poolId];
+        accrue(pool, poolId);
+
+        // revert if the caller is not the position manager
+        if (msg.sender != positionManager) revert Pool_OnlyPositionManager(poolId, msg.sender);
+
+        // compute pool and position debt in shares and assets
+        uint256 totalBorrowShares = pool.totalBorrowShares;
+        uint256 totalBorrowAssets = pool.totalBorrowAssets;
+        uint256 borrowShares = borrowSharesOf[poolId][position];
+        // [ROUND] round up against lenders
+        uint256 borrowAssets = _convertToAssets(borrowShares, totalBorrowAssets, totalBorrowShares, Math.Rounding.Up);
+
+        // rebalance bad debt across lenders
+        pool.totalBorrowShares = totalBorrowShares - borrowShares;
+        // handle borrowAssets being rounded up to be greater than totalBorrowAssets
+        pool.totalBorrowAssets = (totalBorrowAssets > borrowAssets) ? totalBorrowAssets - borrowAssets : 0;
+    }
+
     function _getValueOf(address asset, uint256 amt) internal view returns (uint256) {
         address oracle = RiskEngine(riskEngine).getOracleFor(asset);
         return IOracle(oracle).getValueInEth(asset, amt);

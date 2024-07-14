@@ -31,6 +31,8 @@ contract RiskModule {
 
     /// @notice The discount on assets when liquidating, out of 1e18
     uint256 public immutable LIQUIDATION_DISCOUNT;
+    /// @notice Asset discount for bad debt liquidation
+    uint256 public immutable BAD_DEBT_LIQUIDATION_DISCOUNT;
     /// @notice The updateable registry as a part of the 2step initialization process
     Registry public immutable REGISTRY;
     /// @notice Sentiment Singleton Pool
@@ -44,13 +46,18 @@ contract RiskModule {
     error RiskModule_UnsupportedAsset(address position, uint256 poolId, address asset);
     /// @notice Minimum assets required in a position with non-zero debt cannot be zero
     error RiskModule_ZeroMinReqAssets();
+    /// @notice Cannot liquidate healthy positions
+    error RiskModule_LiquidateHealthyPosition(address position);
+    /// @notice Position does not have any bad debt
+    error RiskModule_NoBadDebt(address position);
 
     /// @notice Constructor for Risk Module, which should be registered with the RiskEngine
     /// @param registry_ The address of the registry contract
     /// @param liquidationDiscount_ The discount on assets when liquidating, out of 1e18
-    constructor(address registry_, uint256 liquidationDiscount_) {
+    constructor(address registry_, uint256 liquidationDiscount_, uint256 badDebtLiquidationDiscount_) {
         REGISTRY = Registry(registry_);
         LIQUIDATION_DISCOUNT = liquidationDiscount_;
+        BAD_DEBT_LIQUIDATION_DISCOUNT = badDebtLiquidationDiscount_;
     }
 
     /// @notice Updates the pool and risk engine from the registry
@@ -60,7 +67,7 @@ contract RiskModule {
     }
 
     /// @notice Evaluates whether a given position is healthy based on the debt and asset values
-    function isPositionHealthy(address position) external view returns (bool) {
+    function isPositionHealthy(address position) public view returns (bool) {
         // a position can have four states:
         // 1. (zero debt, zero assets) -> healthy
         // 2. (zero debt, non-zero assets) -> healthy
@@ -101,28 +108,58 @@ contract RiskModule {
     }
 
     /// @notice Used to validate liquidator data and value of assets seized
-    /// @param debt The debt data for the position
-    /// @param positionAssets The asset data for the position
-    function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata positionAssets) external view {
+    /// @param position Position being liquidated
+    /// @param debtData The debt data for the position
+    /// @param assetData The asset data for the position
+    function validateLiquidation(
+        address position,
+        DebtData[] calldata debtData,
+        AssetData[] calldata assetData
+    ) external view {
+        // position must breach risk thresholds before liquidation
+        if (isPositionHealthy(position)) revert RiskModule_LiquidateHealthyPosition(position);
+
+        _validateSeizedAssetValue(debtData, assetData, LIQUIDATION_DISCOUNT);
+    }
+
+    function validateBadDebtLiquidation(
+        address position,
+        DebtData[] calldata debtData,
+        AssetData[] calldata assetData
+    ) external view {
+        // position must have bad debt
+        uint256 totalDebtValue = getTotalDebtValue(position);
+        uint256 totalAssetValue = getTotalAssetValue(position);
+        if (totalAssetValue > totalDebtValue) revert RiskModule_NoBadDebt(position);
+
+        _validateSeizedAssetValue(debtData, assetData, BAD_DEBT_LIQUIDATION_DISCOUNT);
+    }
+
+    function _validateSeizedAssetValue(
+        DebtData[] calldata debtData,
+        AssetData[] calldata assetData,
+        uint256 discount
+    ) internal view {
+        // compute value of debt repaid by the liquidator
         uint256 debtRepaidValue;
-        uint256 debtLength = debt.length;
+        uint256 debtLength = debtData.length;
         for (uint256 i; i < debtLength; ++i) {
             // PositionManger.liquidate() verifies that the asset belongs to the associated pool
-            address poolAsset = pool.getPoolAssetFor(debt[i].poolId);
+            address poolAsset = pool.getPoolAssetFor(debtData[i].poolId);
             IOracle oracle = IOracle(riskEngine.getOracleFor(poolAsset));
-            debtRepaidValue += oracle.getValueInEth(poolAsset, debt[i].amt);
+            debtRepaidValue += oracle.getValueInEth(poolAsset, debtData[i].amt);
         }
 
+        // compute value of assets seized by the liquidator
         uint256 assetSeizedValue;
-        uint256 positionAssetsLength = positionAssets.length;
-        for (uint256 i; i < positionAssetsLength; ++i) {
-            IOracle oracle = IOracle(riskEngine.getOracleFor(positionAssets[i].asset));
-            assetSeizedValue += oracle.getValueInEth(positionAssets[i].asset, positionAssets[i].amt);
+        uint256 assetDataLength = assetData.length;
+        for (uint256 i; i < assetDataLength; ++i) {
+            IOracle oracle = IOracle(riskEngine.getOracleFor(assetData[i].asset));
+            assetSeizedValue += oracle.getValueInEth(assetData[i].asset, assetData[i].amt);
         }
 
         // max asset value that can be seized by the liquidator
-        uint256 maxSeizedAssetValue = debtRepaidValue.mulDiv(1e18, (1e18 - LIQUIDATION_DISCOUNT));
-
+        uint256 maxSeizedAssetValue = debtRepaidValue.mulDiv(1e18, (1e18 - discount));
         if (assetSeizedValue > maxSeizedAssetValue) {
             revert RiskModule_SeizedTooMuch(assetSeizedValue, maxSeizedAssetValue);
         }

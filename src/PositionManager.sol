@@ -421,59 +421,77 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @notice Liquidate an unhealthy position
     /// @param position Position address
-    /// @param debt DebtData object for debts to be repaid
-    /// @param positionAssets AssetData object for assets to be seized
+    /// @param debtData DebtData object for debts to be repaid
+    /// @param assetData AssetData object for assets to be seized
     function liquidate(
         address position,
-        DebtData[] calldata debt,
-        AssetData[] calldata positionAssets
+        DebtData[] calldata debtData,
+        AssetData[] calldata assetData
     ) external nonReentrant {
-        // position must breach risk thresholds before liquidation
-        if (riskEngine.isPositionHealthy(position)) revert PositionManager_LiquidateHealthyPosition(position);
+        riskEngine.validateLiquidation(position, debtData, assetData);
 
-        // verify that the liquidator seized by the liquidator is within liquidiation discount
-        riskEngine.validateLiquidation(debt, positionAssets);
-
-        // transfer position assets to the liqudiator and accrue protocol liquidation fees
-        uint256 positionAssetsLength = positionAssets.length;
-        for (uint256 i; i < positionAssetsLength; ++i) {
-            // ensure positionAssets[i] is in the position asset list
-            if (Position(payable(position)).hasAsset(positionAssets[i].asset) == false) {
-                revert PositionManager_SeizeInvalidAsset(position, positionAssets[i].asset);
-            }
-
-            // compute fee amt
-            // [ROUND] liquidation fee is rounded down, in favor of the liquidator
-            uint256 fee = liquidationFee.mulDiv(positionAssets[i].amt, 1e18);
-
-            // transfer fee amt to protocol
-            Position(payable(position)).transfer(owner(), positionAssets[i].asset, fee);
-
-            // transfer difference to the liquidator
-            Position(payable(position)).transfer(msg.sender, positionAssets[i].asset, positionAssets[i].amt - fee);
-        }
-
-        // sequentially repay position debts
-        // assumes the position manager is approved to pull assets from the liquidator
-        uint256 debtLength = debt.length;
-        for (uint256 i; i < debtLength; ++i) {
-            // verify that the asset being repaid is actually the pool asset
-            address poolAsset = pool.getPoolAssetFor(debt[i].poolId);
-
-            // transfer debt asset from the liquidator to the pool
-            IERC20(poolAsset).safeTransferFrom(msg.sender, address(pool), debt[i].amt);
-
-            // trigger pool repayment which assumes successful transfer of repaid assets
-            pool.repay(debt[i].poolId, position, debt[i].amt);
-
-            // update position to reflect repayment of debt by liquidator
-            Position(payable(position)).repay(debt[i].poolId, debt[i].amt);
-        }
+        // liquidate
+        _transferAssetsToLiquidator(position, assetData);
+        _repayPositionDebt(position, debtData);
 
         // position should be within risk thresholds after liqudiation
         if (!riskEngine.isPositionHealthy(position)) revert PositionManager_HealthCheckFailed(position);
-
         emit Liquidation(position, msg.sender, ownerOf[position]);
+    }
+
+    function liquidateWithBadDebt(
+        address position,
+        DebtData[] calldata debtData,
+        AssetData[] calldata assetData
+    ) external nonReentrant {
+        riskEngine.validateBadDebtLiquidation(position, debtData, assetData);
+
+        // liquidate
+        _transferAssetsToLiquidator(position, assetData);
+        _repayPositionDebt(position, debtData);
+
+        // rebalance bad debt
+        if (riskEngine.getTotalAssetValue(position) == 0) {
+            uint256[] memory debtPools = Position(payable(position)).getDebtPools();
+            uint256 debtPoolsLength = debtPools.length;
+            for (uint256 i; i < debtPoolsLength; ++i) {
+                pool.rebalanceBadDebt(debtPools[i], position);
+            }
+        }
+    }
+
+    function _transferAssetsToLiquidator(address position, AssetData[] calldata assetData) internal {
+        // transfer position assets to the liqudiator and accrue protocol liquidation fees
+        uint256 assetDataLength = assetData.length;
+        for (uint256 i; i < assetDataLength; ++i) {
+            // ensure assetData[i] is in the position asset list
+            if (Position(payable(position)).hasAsset(assetData[i].asset) == false) {
+                revert PositionManager_SeizeInvalidAsset(position, assetData[i].asset);
+            }
+            // compute fee amt
+            // [ROUND] liquidation fee is rounded down, in favor of the liquidator
+            uint256 fee = liquidationFee.mulDiv(assetData[i].amt, 1e18);
+            // transfer fee amt to protocol
+            Position(payable(position)).transfer(owner(), assetData[i].asset, fee);
+            // transfer difference to the liquidator
+            Position(payable(position)).transfer(msg.sender, assetData[i].asset, assetData[i].amt - fee);
+        }
+    }
+
+    function _repayPositionDebt(address position, DebtData[] calldata debtData) internal {
+        // sequentially repay position debts
+        // assumes the position manager is approved to pull assets from the liquidator
+        uint256 debtDataLength = debtData.length;
+        for (uint256 i; i < debtDataLength; ++i) {
+            // verify that the asset being repaid is actually the pool asset
+            address poolAsset = pool.getPoolAssetFor(debtData[i].poolId);
+            // transfer debt asset from the liquidator to the pool
+            IERC20(poolAsset).safeTransferFrom(msg.sender, address(pool), debtData[i].amt);
+            // trigger pool repayment which assumes successful transfer of repaid assets
+            pool.repay(debtData[i].poolId, position, debtData[i].amt);
+            // update position to reflect repayment of debt by liquidator
+            Position(payable(position)).repay(debtData[i].poolId, debtData[i].amt);
+        }
     }
 
     /// @notice Set the position beacon used to point to the position implementation

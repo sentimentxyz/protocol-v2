@@ -82,9 +82,7 @@ contract LiquidationTest is BaseTest {
         asset1.mint(liquidator, 10e18);
         vm.startPrank(liquidator);
         asset1.approve(address(positionManager), 1e18);
-        vm.expectRevert(
-            abi.encodeWithSelector(PositionManager.PositionManager_LiquidateHealthyPosition.selector, position)
-        );
+        vm.expectRevert(abi.encodeWithSelector(RiskModule.RiskModule_LiquidateHealthyPosition.selector, position));
         positionManager.liquidate(position, debts, assets);
         vm.stopPrank();
 

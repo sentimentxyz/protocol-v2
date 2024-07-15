@@ -456,7 +456,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             uint256 debtPoolsLength = debtPools.length;
             for (uint256 i; i < debtPoolsLength; ++i) {
                 pool.rebalanceBadDebt(debtPools[i], position);
-                Position(payable(position)).repay(debtPools[i], 0);
+                Position(payable(position)).repay(debtPools[i], type(uint256).max);
             }
         }
     }

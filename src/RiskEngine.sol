@@ -124,8 +124,20 @@ contract RiskEngine is Ownable {
     }
 
     /// @notice Valid liquidator data and value of assets seized
-    function validateLiquidation(DebtData[] calldata debt, AssetData[] calldata positionAssets) external view {
-        riskModule.validateLiquidation(debt, positionAssets);
+    function validateLiquidation(
+        address position,
+        DebtData[] calldata debtData,
+        AssetData[] calldata assetData
+    ) external view {
+        riskModule.validateLiquidation(position, debtData, assetData);
+    }
+
+    function validateBadDebtLiquidation(
+        address position,
+        DebtData[] calldata debtData,
+        AssetData[] calldata assetData
+    ) external view {
+        riskModule.validateBadDebtLiquidation(position, debtData, assetData);
     }
 
     /// @notice Fetch risk-associated data for a given position
@@ -135,6 +147,14 @@ contract RiskEngine is Ownable {
     /// @return minReqAssetValue The minimum required asset value for the position to be healthy
     function getRiskData(address position) external view returns (uint256, uint256, uint256) {
         return riskModule.getRiskData(position);
+    }
+
+    function getTotalAssetValue(address position) external view returns (uint256) {
+        return riskModule.getTotalAssetValue(position);
+    }
+
+    function getTotalDebtValue(address position) external view returns (uint256) {
+        return riskModule.getTotalDebtValue(position);
     }
 
     /// @notice Propose an LTV update for a given Pool-Asset pair

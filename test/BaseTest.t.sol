@@ -50,7 +50,8 @@ contract BaseTest is Test {
             minDebt: 0,
             minBorrow: 0,
             liquidationFee: 0,
-            liquidationDiscount: 200_000_000_000_000_000
+            liquidationDiscount: 200_000_000_000_000_000,
+            badDebtLiquidationDiscount: 1e16
         });
 
         protocol = new Deploy();

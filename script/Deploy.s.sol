@@ -44,6 +44,7 @@ contract Deploy is BaseScript {
         uint256 minBorrow;
         uint256 liquidationFee;
         uint256 liquidationDiscount;
+        uint256 badDebtLiquidationDiscount;
     }
 
     DeployParams params;
@@ -81,7 +82,7 @@ contract Deploy is BaseScript {
         // risk
         riskEngine = new RiskEngine(address(registry), params.minLtv, params.maxLtv);
         riskEngine.transferOwnership(params.owner);
-        riskModule = new RiskModule(address(registry), params.liquidationDiscount);
+        riskModule = new RiskModule(address(registry), params.liquidationDiscount, params.badDebtLiquidationDiscount);
         // pool
         poolImpl = address(new Pool());
         bytes memory poolInitData = abi.encodeWithSelector(
@@ -137,6 +138,7 @@ contract Deploy is BaseScript {
         params.minBorrow = vm.parseJsonUint(config, "$.Deploy.minBorrow");
         params.liquidationFee = vm.parseJsonUint(config, "$.Deploy.liquidationFee");
         params.liquidationDiscount = vm.parseJsonUint(config, "$.Deploy.liquidationDiscount");
+        params.badDebtLiquidationDiscount = vm.parseJsonUint(config, "$.Deploy.badDebtLiquidationDiscount");
 
         require(params.owner != params.proxyAdmin, "OWNER == PROXY_ADMIN");
     }

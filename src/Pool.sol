@@ -523,6 +523,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         pool.totalBorrowShares = totalBorrowShares - borrowShares;
         // handle borrowAssets being rounded up to be greater than totalBorrowAssets
         pool.totalBorrowAssets = (totalBorrowAssets > borrowAssets) ? totalBorrowAssets - borrowAssets : 0;
+        uint256 totalDepositAssets = pool.totalDepositAssets;
+        pool.totalDepositAssets = (totalDepositAssets > borrowAssets) ? totalDepositAssets - borrowAssets : 0;
+        borrowSharesOf[poolId][position] = 0;
     }
 
     function _getValueOf(address asset, uint256 amt) internal view returns (uint256) {

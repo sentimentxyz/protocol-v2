@@ -199,7 +199,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     function getLiquidityOf(uint256 poolId) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 pendingInterest = simulateAccrue(pool);
-        return pool.totalDepositAssets + pendingInterest - pool.totalBorrowAssets;
+        uint256 assetsInPool = pool.totalDepositAssets + pendingInterest - pool.totalBorrowAssets;
+        uint256 totalBalance = IERC20(pool.asset).balanceOf(address(this));
+        return (totalBalance > assetsInPool) ? assetsInPool : totalBalance;
     }
 
     /// @notice Fetch pool asset balance for depositor to a pool
@@ -344,8 +346,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
             if (allowed != type(uint256).max) allowance[owner][msg.sender][poolId] = allowed - shares;
         }
 
-        uint256 assetsInPool = pool.totalDepositAssets - pool.totalBorrowAssets;
-        if (assetsInPool < assets) revert Pool_InsufficientWithdrawLiquidity(poolId, assetsInPool, assets);
+        uint256 maxWithdrawAssets = pool.totalDepositAssets - pool.totalBorrowAssets;
+        uint256 totalBalance = IERC20(pool.asset).balanceOf(address(this));
+        maxWithdrawAssets = (totalBalance > maxWithdrawAssets) ? maxWithdrawAssets : totalBalance;
+        if (maxWithdrawAssets < assets) revert Pool_InsufficientWithdrawLiquidity(poolId, maxWithdrawAssets, assets);
 
         pool.totalDepositAssets -= assets;
         pool.totalDepositShares -= shares;

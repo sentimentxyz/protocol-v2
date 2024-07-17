@@ -56,17 +56,20 @@ abstract contract ERC6909 {
 
     function approve(address spender, uint256 id, uint256 amount) public virtual returns (bool) {
         _approve(spender, id, amount);
+
         return true;
     }
 
-    function increaseAllowance(address spender, uint256 id, uint256 value) public virtual {
-        // reverts on overflow
+    function increaseAllowance(address spender, uint256 id, uint256 value) public virtual returns (bool) {
         _approve(spender, id, allowance[msg.sender][spender][id] + value);
+
+        return true;
     }
 
-    function decreaseAllowance(address spender, uint256 id, uint256 value) public virtual {
-        // reverts on underflow
+    function decreaseAllowance(address spender, uint256 id, uint256 value) public virtual returns (bool) {
         _approve(spender, id, allowance[msg.sender][spender][id] - value);
+
+        return true;
     }
 
     function setOperator(address operator, bool approved) public virtual returns (bool) {

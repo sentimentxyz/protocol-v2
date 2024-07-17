@@ -385,8 +385,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         }
 
         // update cached notional borrows to current borrow amount
-        pool.totalBorrowAssets += uint128(interestAccrued);
-        pool.totalDepositAssets += uint128(interestAccrued);
+        pool.totalBorrowAssets += interestAccrued;
+        pool.totalDepositAssets += interestAccrued;
 
         // store a timestamp for this accrue() call
         // used to compute the pending interest next time accrue() is called
@@ -434,8 +434,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         }
 
         // update total pool debt, denominated in notional asset units and shares
-        pool.totalBorrowAssets += uint128(amt);
-        pool.totalBorrowShares += uint128(borrowShares);
+        pool.totalBorrowAssets += amt;
+        pool.totalBorrowShares += borrowShares;
 
         // update position debt, denominated in borrow shares
         borrowSharesOf[poolId][position] += borrowShares;
@@ -494,8 +494,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         }
 
         // update total pool debt, denominated in notional asset units, and shares
-        pool.totalBorrowAssets -= uint128(amt);
-        pool.totalBorrowShares -= uint128(borrowShares);
+        pool.totalBorrowAssets -= amt;
+        pool.totalBorrowShares -= borrowShares;
 
         // update and return remaining position debt, denominated in borrow shares
         borrowSharesOf[poolId][position] = remainingShares;

@@ -650,7 +650,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         if (interestAccrued == 0 || fee == 0) return (0, newTotalAssets);
 
         uint256 feeAssets = interestAccrued.mulDiv(fee, WAD);
-        uint256 feeShares = _convertToShares(feeAssets, newTotalAssets, totalSupply(), Math.Rounding.Down);
+        // newTotalAssets already includes feeAssets
+        uint256 feeShares = _convertToShares(feeAssets, newTotalAssets - feeAssets, totalSupply(), Math.Rounding.Down);
 
         return (feeShares, newTotalAssets);
     }

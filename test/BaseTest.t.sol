@@ -45,8 +45,8 @@ contract BaseTest is Test {
             owner: protocolOwner,
             proxyAdmin: proxyAdmin,
             feeRecipient: address(this),
-            minLtv: 0,
-            maxLtv: type(uint256).max,
+            minLtv: 2e17, // 0.1
+            maxLtv: 8e17, // 0.8
             minDebt: 0,
             minBorrow: 0,
             liquidationFee: 0,

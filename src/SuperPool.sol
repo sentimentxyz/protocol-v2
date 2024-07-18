@@ -130,6 +130,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     error SuperPool_NoFeeUpdate();
     /// @notice Underlying pools must have non-zero pool caps
     error SuperPool_ZeroPoolCap(uint256 poolId);
+    /// @notice Reordered queue length does not match original queue length
+    error SuperPool_ReorderQueueLength();
 
     /// @notice This function should only be called by the SuperPool Factory
     /// @param pool_ The address of the singelton pool contract
@@ -604,6 +606,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         uint256[] calldata indexes
     ) internal view returns (uint256[] memory newQueue) {
         uint256 indexesLength = indexes.length;
+        if (indexesLength != queue.length) revert SuperPool_ReorderQueueLength();
         bool[] memory seen = new bool[](indexesLength);
         newQueue = new uint256[](indexesLength);
 

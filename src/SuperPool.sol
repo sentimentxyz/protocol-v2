@@ -427,6 +427,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
 
         uint256 withdrawsLength = withdraws.length;
         for (uint256 i; i < withdrawsLength; ++i) {
+            if (poolCapFor[withdraws[i].poolId] == 0) revert SuperPool_PoolNotInQueue(withdraws[i].poolId);
             POOL.withdraw(withdraws[i].poolId, withdraws[i].assets, address(this), address(this));
         }
 

@@ -89,11 +89,18 @@ contract RiskEngine is Ownable {
     error RiskEngine_LtvUpdateTimelocked(uint256 poolId, address asset);
     /// @notice Timelock deadline for LTV update has passed
     error RiskEngine_LtvUpdateExpired(uint256 poolId, address asset);
+    /// @notice Global min ltv cannot be zero
+    error RiskEngine_MinLtvTooLow();
+    /// @notice Global max ltv must be less than 100%
+    error RiskEngine_MaxLtvTooHigh();
 
     /// @param registry_ Sentiment Registry
     /// @param minLtv_ Minimum LTV bound
     /// @param maxLtv_ Maximum LTV bound
     constructor(address registry_, uint256 minLtv_, uint256 maxLtv_) Ownable() {
+        if (minLtv_ == 0) revert RiskEngine_MinLtvTooLow();
+        if (maxLtv_ >= 1e18) revert RiskEngine_MaxLtvTooHigh();
+
         REGISTRY = Registry(registry_);
         minLtv = minLtv_;
         maxLtv = maxLtv_;
@@ -212,6 +219,9 @@ contract RiskEngine is Ownable {
 
     /// @notice Set Protocol LTV bounds
     function setLtvBounds(uint256 _minLtv, uint256 _maxLtv) external onlyOwner {
+        if (_minLtv == 0) revert RiskEngine_MinLtvTooLow();
+        if (_maxLtv >= 1e18) revert RiskEngine_MaxLtvTooHigh();
+
         minLtv = _minLtv;
         maxLtv = _maxLtv;
 

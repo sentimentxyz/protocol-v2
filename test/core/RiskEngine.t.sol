@@ -37,10 +37,10 @@ contract RiskModuleUnitTests is BaseTest {
     }
 
     function testRiskEngineInit() public {
-        RiskEngine testRiskEngine = new RiskEngine(address(registry), 0, 1e18);
+        RiskEngine testRiskEngine = new RiskEngine(address(registry), 0.2e18, 0.8e18);
         assertEq(address(testRiskEngine.REGISTRY()), address(registry));
-        assertEq(testRiskEngine.minLtv(), uint256(0));
-        assertEq(testRiskEngine.maxLtv(), uint256(1e18));
+        assertEq(testRiskEngine.minLtv(), 0.2e18);
+        assertEq(testRiskEngine.maxLtv(), 0.8e18);
     }
 
     function testNoOracleFound(address asset) public {
@@ -113,14 +113,14 @@ contract RiskModuleUnitTests is BaseTest {
 
     function testCannotSetLTVOutsideGlobalLimits() public {
         vm.prank(riskEngine.owner());
-        riskEngine.setLtvBounds(0.25e18, 1.25e18);
+        riskEngine.setLtvBounds(0.25e18, 0.75e18);
 
         vm.startPrank(poolOwner);
         vm.expectRevert();
         riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.24e18);
 
         vm.expectRevert();
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 1.26e18);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.76e18);
 
         assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0);
     }

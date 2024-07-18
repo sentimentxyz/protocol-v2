@@ -605,8 +605,15 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
     /// @notice Propose a interest rate model update for a pool
     /// @dev overwrites any pending or expired updates
-    function requestRateModelUpdate(uint256 poolId, address rateModel) external {
+    function requestRateModelUpdate(uint256 poolId, bytes32 rateModelKey) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
+
+        // store the rateModel instead of the registry key to mitigate issues
+        // arising from registry changes taking place between request/accept
+        // to pull registry update, call this function with the same key again
+        address rateModel = Registry(registry).addressFor(rateModelKey);
+        if (rateModel == address(0)) revert Pool_RateModelNotFound(rateModelKey);
+
         RateModelUpdate memory rateModelUpdate =
             RateModelUpdate({ rateModel: rateModel, validAfter: block.timestamp + TIMELOCK_DURATION });
 

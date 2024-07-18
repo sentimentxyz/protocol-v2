@@ -334,19 +334,28 @@ contract PoolUnitTests is BaseTest {
     }
 
     function testOwnerCanRequestRateModelUpdate(address newRateModel) public {
+        vm.assume(newRateModel != address(0));
+
+        vm.prank(protocolOwner);
+        registry.setAddress("NEW_RATE_MODEL", newRateModel);
+
         vm.prank(poolOwner);
-        pool.requestRateModelUpdate(linearRatePool, newRateModel);
+        pool.requestRateModelUpdate(linearRatePool, "NEW_RATE_MODEL");
 
         (address rateModel,) = pool.rateModelUpdateFor(linearRatePool);
         assertEq(rateModel, newRateModel);
     }
 
-    function testOnlyOwnerCanRequestRateModelUpdate(address sender, address rateModel) public {
+    function testOnlyOwnerCanRequestRateModelUpdate(address sender, address newRateModel) public {
         vm.assume(sender != poolOwner);
         vm.assume(sender != proxyAdmin);
+
+        vm.prank(protocolOwner);
+        registry.setAddress("NEW_RATE_MODEL", newRateModel);
+
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);
-        pool.requestRateModelUpdate(linearRatePool, rateModel);
+        pool.requestRateModelUpdate(linearRatePool, "NEW_RATE_MODEL");
     }
 
     function testRateModelUpdateTimelockWorks(address newRateModel) public {

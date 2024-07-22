@@ -13,7 +13,7 @@ dictFreq: 0.40
 # list of file formats to save coverage reports in; default is all possible formats
 coverageFormats: ["txt","html","lcov"]
 # number of workers
-workers: 4
+workers: 10
 testLimit: 500000
 #seqLen defines how many transactions are in a test sequence
 seqLen: 50

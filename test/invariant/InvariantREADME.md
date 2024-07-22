@@ -17,7 +17,7 @@ All of the invariants reside in the following contracts:
 ### Setup And Run Instructions
 To run invariant tests:
 ```shell
-echidna . --contract SentimentInvariant --config echidna.yaml
+echidna ./invariant/invariants/SentimentInvariant.sol --contract SentimentInvariant --config echidna.yaml
 ```
 
 ### Changelog

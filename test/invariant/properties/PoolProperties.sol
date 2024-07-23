@@ -82,7 +82,7 @@ abstract contract PoolProperties is BeforeAfter {
             Pool.PoolData memory poolData = pool.getPoolData(poolIds[poolId]);
             fl.eq(
                 usersTotalAssets,
-                poolData.totalDepositAssets,
+                poolData.totalDepositShares,
                 "PO-20: The pool.totalAssets.shares values should always equal the sum of the shares of all users"
             );
         }

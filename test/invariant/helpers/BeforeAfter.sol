@@ -299,10 +299,12 @@ abstract contract BeforeAfter is BaseSentimentInvariant {
                 uint256 supplyAmt = superPool.poolCapFor(poolId) - assetsInPool;
                 if (_assets < supplyAmt) supplyAmt = _assets;
                 superPoolVars.assetDeposits[i] = supplyAmt;
-                superPoolVars.shareDeposits[i] = pool.convertToShares(
+                superPoolVars.shareDeposits[i] = pool.convertToSharesRounding(
                     supplyAmt, 
                     poolVars.poolData.totalDepositAssets + pendingInterest, 
-                    poolVars.poolData.totalDepositShares);
+                    poolVars.poolData.totalDepositShares,
+                    Math.Rounding.Down
+                );
 
                 _assets -= supplyAmt;
 
@@ -342,10 +344,11 @@ abstract contract BeforeAfter is BaseSentimentInvariant {
 
                 if (withdrawAmt > 0) {
                     superPoolVars.assetWithdraws[i] = withdrawAmt;
-                    superPoolVars.shareWithdraws[i] = pool.convertToShares(
+                    superPoolVars.shareWithdraws[i] = pool.convertToSharesRounding(
                         _assets, 
                         poolVars.poolData.totalDepositAssets + pendingInterest, 
-                        poolVars.poolData.totalDepositShares
+                        poolVars.poolData.totalDepositShares,
+                        Math.Rounding.Down
                     );
                 }
 

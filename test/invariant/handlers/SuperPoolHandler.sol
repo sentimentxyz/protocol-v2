@@ -119,37 +119,42 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
 
         for (uint256 i = 0; i < _beforeSP.assetDeposits.length; i++) {
             if (_beforeSP.assetDeposits[i] == 0) break;
-
-            fl.eq(
-                _afterSP.poolData[i].totalDepositAssets,
-                _beforeSP.poolData[i].totalDepositAssets +
-                    _beforeSP.assetDeposits[i] +
-                    _beforeSP.pendingInterest[i],
-                "SP-03: SuperPool.deposit() must credit the correct number of assets to the pools in depositQueue"
-            );
-            fl.eq(
-                _afterSP.poolData[i].totalDepositShares,
-                _beforeSP.poolData[i].totalDepositShares +
-                    _beforeSP.shareDeposits[i],
-                "SP-04: SuperPool.deposit() must credit the correct number of shares to the pools in depositQueue"
-            );
-            fl.eq(
-                _afterSP.superPoolShareBalance[i],
-                _beforeSP.superPoolShareBalance[i] + _beforeSP.shareDeposits[i],
-                "SP-05: SuperPool.deposit() must credit the correct number of shares to the SuperPool for the pools in depositQueue"
-            );
-            fl.eq(
-                _afterSP.poolData[i].lastUpdated,
-                uint128(block.timestamp),
-                "SP-06: SuperPool.deposit() must update lastUpdated to the current block.timestamp for the pools in depositQueue"
-            );
-            if (_beforeSP.pendingInterest[i] > 0) {
+            
+            if (
+                _afterSP.poolData[i].totalDepositAssets <
+                _beforeSP.poolData[i].totalDepositAssets
+            ) {
                 fl.eq(
-                    _afterSP.poolData[i].totalBorrowAssets,
-                    _beforeSP.poolData[i].totalBorrowAssets +
+                    _afterSP.poolData[i].totalDepositAssets,
+                    _beforeSP.poolData[i].totalDepositAssets +
+                        _beforeSP.assetDeposits[i] +
                         _beforeSP.pendingInterest[i],
-                    "SP-07: SuperPool.deposit() must credit pendingInterest to the totalBorrows asset balance for pools in depositQueue"
+                    "SP-03: SuperPool.deposit() must credit the correct number of assets to the pools in depositQueue"
                 );
+                fl.eq(
+                    _afterSP.poolData[i].totalDepositShares,
+                    _beforeSP.poolData[i].totalDepositShares +
+                        _beforeSP.shareDeposits[i],
+                    "SP-04: SuperPool.deposit() must credit the correct number of shares to the pools in depositQueue"
+                );
+                fl.eq(
+                    _afterSP.superPoolShareBalance[i],
+                    _beforeSP.superPoolShareBalance[i] + _beforeSP.shareDeposits[i],
+                    "SP-05: SuperPool.deposit() must credit the correct number of shares to the SuperPool for the pools in depositQueue"
+                );
+                fl.eq(
+                    _afterSP.poolData[i].lastUpdated,
+                    uint128(block.timestamp),
+                    "SP-06: SuperPool.deposit() must update lastUpdated to the current block.timestamp for the pools in depositQueue"
+                );
+                if (_beforeSP.pendingInterest[i] > 0) {
+                    fl.eq(
+                        _afterSP.poolData[i].totalBorrowAssets,
+                        _beforeSP.poolData[i].totalBorrowAssets +
+                            _beforeSP.pendingInterest[i],
+                        "SP-07: SuperPool.deposit() must credit pendingInterest to the totalBorrows asset balance for pools in depositQueue"
+                    );
+                }
             }
         }
         fl.eq(
@@ -194,6 +199,7 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
         address owner;
         address receiver;
         address asset;
+        uint256 assets;
         uint256 assetsConsumed;
         MockSuperPool superPool;
     }
@@ -213,21 +219,24 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
 
         d.superPool.accrue();
 
-        shares = bound(shares, 0, IERC20(d.asset).balanceOf(d.owner));
+        shares = bound(shares, 0, d.superPool.previewDeposit(IERC20(d.asset).balanceOf(d.owner)));
         if (shares == 0) return;
+
+        d.assets = d.superPool.previewMint(shares);
+        if (d.assets < IERC20(d.asset).balanceOf(d.owner)) return;
 
         SuperPoolVars memory _beforeSP = __beforeSP(
             d.superPool,
             d.owner,
             d.receiver,
-            d.superPool.previewMint(shares),
+            d.assets,
             shares
         );
 
         // ACTION
         IERC20 superPoolAsset = IERC20(d.asset);
         vm.prank(d.owner);
-        superPoolAsset.approve(address(d.superPool), shares);
+        superPoolAsset.approve(address(d.superPool), d.assets);
 
         vm.prank(d.owner);
         try d.superPool.mint(shares, d.receiver) returns (
@@ -235,8 +244,9 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
         ) {
             d.assetsConsumed = assetsConsumed;
         } catch (bytes memory err) {
-            bytes4[3] memory errors = [
+            bytes4[4] memory errors = [
                 SuperPool.SuperPool_ZeroShareDeposit.selector,
+                SuperPool.SuperPool_SuperPoolCapReached.selector,
                 Pool.Pool_PoolCapExceeded.selector,
                 Pool.Pool_ZeroSharesDeposit.selector
             ];
@@ -274,36 +284,41 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
         for (uint256 i = 0; i < _beforeSP.assetDeposits.length; i++) {
             if (_beforeSP.assetDeposits[i] == 0) break;
 
-            fl.eq(
-                _afterSP.poolData[i].totalDepositAssets,
-                _beforeSP.poolData[i].totalDepositAssets +
-                    _beforeSP.assetDeposits[i] +
-                    _beforeSP.pendingInterest[i],
-                "SP-13: SuperPool.mint() must credit the correct number of assets to the pools in depositQueue"
-            );
-            fl.eq(
-                _afterSP.poolData[i].totalDepositShares,
-                _beforeSP.poolData[i].totalDepositShares +
-                    _beforeSP.shareDeposits[i],
-                "SP-14: SuperPool.mint() must credit the correct number of shares to the pools in depositQueue"
-            );
-            fl.eq(
-                _afterSP.superPoolShareBalance[i],
-                _beforeSP.superPoolShareBalance[i] + _beforeSP.shareDeposits[i],
-                "SP-15: SuperPool.mint() must credit the correct number of shares to the SuperPool for the pools in depositQueue"
-            );
-            fl.eq(
-                _afterSP.poolData[i].lastUpdated,
-                uint128(block.timestamp),
-                "SP-16: SuperPool.mint() must update lastUpdated to the current block.timestamp for the pools in depositQueue"
-            );
-            if (_beforeSP.pendingInterest[i] > 0) {
+            if (
+                _afterSP.poolData[i].totalDepositAssets <
+                _beforeSP.poolData[i].totalDepositAssets
+            ) {
                 fl.eq(
-                    _afterSP.poolData[i].totalBorrowAssets,
-                    _beforeSP.poolData[i].totalBorrowAssets +
+                    _afterSP.poolData[i].totalDepositAssets,
+                    _beforeSP.poolData[i].totalDepositAssets +
+                        _beforeSP.assetDeposits[i] +
                         _beforeSP.pendingInterest[i],
-                    "SP-17: SuperPool.mint() must credit pendingInterest to the totalBorrows asset balance for pools in depositQueue"
+                    "SP-13: SuperPool.mint() must credit the correct number of assets to the pools in depositQueue"
                 );
+                fl.eq(
+                    _afterSP.poolData[i].totalDepositShares,
+                    _beforeSP.poolData[i].totalDepositShares +
+                        _beforeSP.shareDeposits[i],
+                    "SP-14: SuperPool.mint() must credit the correct number of shares to the pools in depositQueue"
+                );
+                fl.eq(
+                    _afterSP.superPoolShareBalance[i],
+                    _beforeSP.superPoolShareBalance[i] + _beforeSP.shareDeposits[i],
+                    "SP-15: SuperPool.mint() must credit the correct number of shares to the SuperPool for the pools in depositQueue"
+                );
+                fl.eq(
+                    _afterSP.poolData[i].lastUpdated,
+                    uint128(block.timestamp),
+                    "SP-16: SuperPool.mint() must update lastUpdated to the current block.timestamp for the pools in depositQueue"
+                );
+                if (_beforeSP.pendingInterest[i] > 0) {
+                    fl.eq(
+                        _afterSP.poolData[i].totalBorrowAssets,
+                        _beforeSP.poolData[i].totalBorrowAssets +
+                            _beforeSP.pendingInterest[i],
+                        "SP-17: SuperPool.mint() must credit pendingInterest to the totalBorrows asset balance for pools in depositQueue"
+                    );
+                }
             }
         }
         fl.eq(
@@ -427,25 +442,25 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
                 _afterSP.poolData[i].totalDepositAssets <
                 _beforeSP.poolData[i].totalDepositAssets
             ) {
-                // fl.eq(
-                //     _afterSP.poolData[i].totalDepositAssets,
-                //     _beforeSP.poolData[i].totalDepositAssets -
-                //         _beforeSP.assetWithdraws[i] +
-                //         _beforeSP.pendingInterest[i],
-                //     "SP-23: SuperPool.withdraw() must withdraw the correct number of assets from the pools in withdrawQueue"
-                // );
-                // fl.eq(
-                //     _afterSP.poolData[i].totalDepositShares,
-                //     _beforeSP.poolData[i].totalDepositShares -
-                //         _beforeSP.shareWithdraws[i],
-                //     "SP-24: SuperPool.withdraw() must withdraw the correct number of shares from the pools in withdrawQueue"
-                // );
-                // fl.eq(
-                //     _afterSP.superPoolShareBalance[i],
-                //     _beforeSP.superPoolShareBalance[i] -
-                //         _beforeSP.shareWithdraws[i],
-                //     "SP-25: SuperPool.withdraw() must deduct the correct number of shares from the SuperPool share balance for the pools in withdrawQueue"
-                // );
+                fl.eq(
+                    _afterSP.poolData[i].totalDepositAssets,
+                    _beforeSP.poolData[i].totalDepositAssets -
+                        _beforeSP.assetWithdraws[i] +
+                        _beforeSP.pendingInterest[i],
+                    "SP-23: SuperPool.withdraw() must withdraw the correct number of assets from the pools in withdrawQueue"
+                );
+                fl.eq(
+                    _afterSP.poolData[i].totalDepositShares,
+                    _beforeSP.poolData[i].totalDepositShares -
+                        _beforeSP.shareWithdraws[i],
+                    "SP-24: SuperPool.withdraw() must withdraw the correct number of shares from the pools in withdrawQueue"
+                );
+                fl.eq(
+                    _afterSP.superPoolShareBalance[i],
+                    _beforeSP.superPoolShareBalance[i] -
+                        _beforeSP.shareWithdraws[i],
+                    "SP-25: SuperPool.withdraw() must deduct the correct number of shares from the SuperPool share balance for the pools in withdrawQueue"
+                );
                 fl.eq(
                     _afterSP.poolData[i].lastUpdated,
                     uint128(block.timestamp),
@@ -461,11 +476,11 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
                 }
             }
         }
-        // fl.eq(
-        //     _afterSP.poolAssetBalance,
-        //     _beforeSP.poolAssetBalance - assets,
-        //     "SP-28: SuperPool.withdraw() must transfer the correct number of assets from the base pool for pools in withdrawQueue"
-        // );
+        fl.eq(
+            _afterSP.poolAssetBalance,
+            _beforeSP.poolAssetBalance - assets,
+            "SP-28: SuperPool.withdraw() must transfer the correct number of assets from the base pool for pools in withdrawQueue"
+        );
         fl.eq(
             _afterSP.lastTotalAssets,
             _beforeSP.lastTotalAssets - assets,
@@ -581,25 +596,25 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
                 _afterSP.poolData[i].totalDepositAssets <
                 _beforeSP.poolData[i].totalDepositAssets
             ) {
-                // fl.eq(
-                //     _afterSP.poolData[i].totalDepositAssets,
-                //     _beforeSP.poolData[i].totalDepositAssets -
-                //         _beforeSP.assetWithdraws[i] +
-                //         _beforeSP.pendingInterest[i],
-                //     "SP-33: SuperPool.redeem() must withdraw the correct number of assets from the pools in withdrawQueue"
-                // );
-                // fl.eq(
-                //     _afterSP.poolData[i].totalDepositShares,
-                //     _beforeSP.poolData[i].totalDepositShares -
-                //         _beforeSP.shareWithdraws[i],
-                //     "SP-34: SuperPool.redeem() must withdraw the correct number of shares from the pools in withdrawQueue"
-                // );
-                // fl.eq(
-                //     _afterSP.superPoolShareBalance[i],
-                //     _beforeSP.superPoolShareBalance[i] -
-                //         _beforeSP.shareWithdraws[i],
-                //     "SP-35: SuperPool.redeem() must deduct the correct number of shares from the SuperPool share balance for the pools in depositQueue"
-                // );
+                fl.eq(
+                    _afterSP.poolData[i].totalDepositAssets,
+                    _beforeSP.poolData[i].totalDepositAssets -
+                        _beforeSP.assetWithdraws[i] +
+                        _beforeSP.pendingInterest[i],
+                    "SP-33: SuperPool.redeem() must withdraw the correct number of assets from the pools in withdrawQueue"
+                );
+                fl.eq(
+                    _afterSP.poolData[i].totalDepositShares,
+                    _beforeSP.poolData[i].totalDepositShares -
+                        _beforeSP.shareWithdraws[i],
+                    "SP-34: SuperPool.redeem() must withdraw the correct number of shares from the pools in withdrawQueue"
+                );
+                fl.eq(
+                    _afterSP.superPoolShareBalance[i],
+                    _beforeSP.superPoolShareBalance[i] -
+                        _beforeSP.shareWithdraws[i],
+                    "SP-35: SuperPool.redeem() must deduct the correct number of shares from the SuperPool share balance for the pools in depositQueue"
+                );
                 fl.eq(
                     _afterSP.poolData[i].lastUpdated,
                     uint128(block.timestamp),
@@ -615,11 +630,11 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
                 }
             }
         }
-        // fl.eq(
-        //     _afterSP.poolAssetBalance,
-        //     _beforeSP.poolAssetBalance - d.assetsWithdrawn,
-        //     "SP-38: SuperPool.redeem() must transfer the correct number of assets from the pools in withdrawQueue"
-        // );
+        fl.eq(
+            _afterSP.poolAssetBalance,
+            _beforeSP.poolAssetBalance - d.assetsWithdrawn,
+            "SP-38: SuperPool.redeem() must transfer the correct number of assets from the pools in withdrawQueue"
+        );
         fl.eq(
             _afterSP.lastTotalAssets,
             _beforeSP.lastTotalAssets - d.assetsWithdrawn,
@@ -658,7 +673,7 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
         d.sender = randomAddress(senderIndexSeed);
         d.superPool = poolIndexSeed % 2 == 0 ? superPool1 : superPool2;
 
-        // uint256 lastTotalAssetsBefore = d.superPool.lastTotalAssets();
+        uint256 lastTotalAssetsBefore = d.superPool.lastTotalAssets();
         uint256 feeRecipientSharesBefore = d.superPool.balanceOf(
             d.superPool.feeRecipient()
         );
@@ -667,16 +682,16 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
         d.superPool.accrue();
 
         // POST-CONDITIONS
-        // uint256 lastTotalAssetsAfter = d.superPool.lastTotalAssets();
+        uint256 lastTotalAssetsAfter = d.superPool.lastTotalAssets();
         uint256 feeRecipientSharesAfter = d.superPool.balanceOf(
             d.superPool.feeRecipient()
         );
 
-        // fl.lte(
-        //     lastTotalAssetsBefore,
-        //     lastTotalAssetsAfter,
-        //     "SP-41: The lastTotalAssets value before calling accrue should always be <= after calling it"
-        // );
+        fl.lte(
+            lastTotalAssetsBefore,
+            lastTotalAssetsAfter,
+            "SP-41: The lastTotalAssets value before calling accrue should always be <= after calling it"
+        );
         fl.gte(
             feeRecipientSharesAfter,
             feeRecipientSharesBefore,

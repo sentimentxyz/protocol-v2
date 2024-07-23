@@ -299,10 +299,11 @@ abstract contract PositionManagerHandler is BeforeAfter {
         if (amount == 0) return;
         if (IERC20(_beforePool.poolData.asset).balanceOf(address(pool)) < amount) return;
 
-        d.shares = pool.convertToShares(
+        d.shares = pool.convertToSharesRounding(
                 amount, 
                 _beforePool.poolData.totalBorrowAssets, 
-                _beforePool.poolData.totalBorrowShares
+                _beforePool.poolData.totalBorrowShares,
+                Math.Rounding.Up
             );
 
         d.fee = amount.mulDiv(_beforePool.poolData.originationFee, 1e18);

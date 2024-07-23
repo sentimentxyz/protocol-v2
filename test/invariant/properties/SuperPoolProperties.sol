@@ -161,6 +161,7 @@ abstract contract SuperPoolProperties is BeforeAfter {
     }
 
     /// @notice verify Accounting system must not be vulnerable to share price inflation attacks
+    //@audit Last failing invariant.
     function superPool_SP_56(
         uint256 attackerIndexSeed,
         uint256 receiverIndexSeed,

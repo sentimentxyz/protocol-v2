@@ -280,6 +280,36 @@ abstract contract BaseSentimentInvariant is Test, FuzzBase {
         return tokens[bound(seed, 0, tokens.length - 1)];
     }
 
+    function assertApproxGeAbs(uint a, uint b, uint maxDelta) internal {
+        if (!(a >= b)) {
+            uint dt = b - a;
+            if (dt > maxDelta) {
+                emit log                ("Error: a >=~ b not satisfied [uint]");
+                emit log_named_uint     ("   Value a", a);
+                emit log_named_uint     ("   Value b", b);
+                emit log_named_uint     (" Max Delta", maxDelta);
+                emit log_named_uint     ("     Delta", dt);
+                fail();
+            }
+        }
+    }
+
+    function assertApproxLeAbs(uint a, uint b, uint maxDelta, string memory reason) internal {
+        if (!(a <= b)) {
+            uint dt = a - b;
+            if (dt > maxDelta) {
+                emit log                ("Error: a <=~ b not satisfied [uint]");
+                emit log_named_uint     ("   Value a", a);
+                emit log_named_uint     ("   Value b", b);
+                emit log_named_uint     (" Max Delta", maxDelta);
+                emit log_named_uint     ("     Delta", dt);
+                fl.t(false, reason);
+            }
+        } else {
+            fl.t(true, "a == b");
+        }
+    }
+
     function _run(DeployParams memory _params) internal {
         // registry
         registry = new Registry();

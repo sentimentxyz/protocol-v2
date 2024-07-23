@@ -161,70 +161,70 @@ abstract contract SuperPoolProperties is BeforeAfter {
     }
 
     /// @notice verify Accounting system must not be vulnerable to share price inflation attacks
-    // function superPool_SP_56(
-    //     uint256 attackerIndexSeed,
-    //     uint256 receiverIndexSeed,
-    //     uint256 poolIndexSeed,
-    //     uint256 inflateAmount,
-    //     uint256 delta
-    // ) public {
-    //     // PRE-CONDITIONS
-    //     InflationAttackTemps memory d;
-    //     d.attacker = randomAddress(attackerIndexSeed);
-    //     d.receiver = randomAddress(receiverIndexSeed);
-    //     d.superPool = poolIndexSeed % 2 == 0 ? superPool1 : superPool2;
-    //     d.asset = d.superPool.asset();
+    function superPool_SP_56(
+        uint256 attackerIndexSeed,
+        uint256 receiverIndexSeed,
+        uint256 poolIndexSeed,
+        uint256 inflateAmount,
+        uint256 delta
+    ) public {
+        // PRE-CONDITIONS
+        InflationAttackTemps memory d;
+        d.attacker = randomAddress(attackerIndexSeed);
+        d.receiver = randomAddress(receiverIndexSeed);
+        d.superPool = poolIndexSeed % 2 == 0 ? superPool1 : superPool2;
+        d.asset = d.superPool.asset();
 
-    //     // this has to be changed if there's deposit/withdraw fees
-    //     uint256 lossThreshold = 0.999 ether;
-    //     // vault is fresh
-    //     require(d.superPool.totalAssets() == 0);
-    //     require(d.superPool.totalSupply() == 0);
+        // this has to be changed if there's deposit/withdraw fees
+        uint256 lossThreshold = 0.999 ether;
+        // vault is fresh
+        require(d.superPool.totalAssets() == 0);
+        require(d.superPool.totalSupply() == 0);
 
-    //     // these minimums are to prevent 1-wei rounding errors from triggering the property
-    //     require(inflateAmount > 10_000);
-    //     uint256 victimDeposit = inflateAmount + delta;
-    //     // fund account
-    //     asset1.mint(d.attacker, inflateAmount);
-    //     asset2.mint(d.attacker, inflateAmount);
-    //     vm.prank(d.attacker);
-    //     IERC20(d.asset).approve(address(d.superPool), inflateAmount);
+        // these minimums are to prevent 1-wei rounding errors from triggering the property
+        require(inflateAmount > 10_000);
+        uint256 victimDeposit = inflateAmount + delta;
+        // fund account
+        asset1.mint(d.attacker, inflateAmount);
+        asset2.mint(d.attacker, inflateAmount);
+        vm.prank(d.attacker);
+        IERC20(d.asset).approve(address(d.superPool), inflateAmount);
 
-    //     vm.prank(d.attacker);
-    //     uint256 shares = d.superPool.deposit(1, d.attacker);
-    //     // attack only works when pps=1:1 + new vault
-    //     require(shares == 1);
-    //     require(d.superPool.totalAssets() == 1);
+        vm.prank(d.attacker);
+        uint256 shares = d.superPool.deposit(1, d.attacker);
+        // attack only works when pps=1:1 + new vault
+        require(shares == 1);
+        require(d.superPool.totalAssets() == 1);
 
-    //     // inflate pps
-    //     vm.prank(d.attacker);
-    //     IERC20(d.asset).transfer(address(d.superPool), inflateAmount - 1);
+        // inflate pps
+        vm.prank(d.attacker);
+        IERC20(d.asset).transfer(address(d.superPool), inflateAmount - 1);
 
-    //     // fund victim
-    //     asset1.mint(d.receiver, victimDeposit);
-    //     asset2.mint(d.receiver, victimDeposit);
-    //     vm.prank(d.receiver);
-    //     IERC20(d.asset).approve(address(d.superPool), type(uint256).max);
+        // fund victim
+        asset1.mint(d.receiver, victimDeposit);
+        asset2.mint(d.receiver, victimDeposit);
+        vm.prank(d.receiver);
+        IERC20(d.asset).approve(address(d.superPool), type(uint256).max);
 
-    //     fl.log("Amount of receiver's deposit:", victimDeposit);
-    //     vm.prank(d.receiver);
-    //     uint256 receiverShares = d.superPool.deposit(victimDeposit, d.receiver);
-    //     fl.log("receiver Shares:", receiverShares);
-    //     vm.prank(d.receiver);
-    //     uint256 receiverWithdrawnFunds = d.superPool.redeem(receiverShares, d.receiver, d.receiver);
-    //     fl.log("Amount of tokens receiver withdrew:", receiverWithdrawnFunds);
+        fl.log("Amount of receiver's deposit:", victimDeposit);
+        vm.prank(d.receiver);
+        uint256 receiverShares = d.superPool.deposit(victimDeposit, d.receiver);
+        fl.log("receiver Shares:", receiverShares);
+        vm.prank(d.receiver);
+        uint256 receiverWithdrawnFunds = d.superPool.redeem(receiverShares, d.receiver, d.receiver);
+        fl.log("Amount of tokens receiver withdrew:", receiverWithdrawnFunds);
 
-    //     uint256 victimLoss = victimDeposit - receiverWithdrawnFunds;
-    //     fl.log("receiver Loss:", victimLoss);
+        uint256 victimLoss = victimDeposit - receiverWithdrawnFunds;
+        fl.log("receiver Loss:", victimLoss);
 
-    //     uint256 minRedeemedAmountNorm = (victimDeposit * lossThreshold) / 1 ether;
+        uint256 minRedeemedAmountNorm = (victimDeposit * lossThreshold) / 1 ether;
 
-    //     fl.log("lossThreshold", lossThreshold);
-    //     fl.log("minRedeemedAmountNorm", minRedeemedAmountNorm);
-    //     fl.gt(
-    //         receiverWithdrawnFunds,
-    //         minRedeemedAmountNorm,
-    //         "SP-56: Share inflation attack possible, victim lost an amount over lossThreshold%"
-    //     );
-    // }
+        fl.log("lossThreshold", lossThreshold);
+        fl.log("minRedeemedAmountNorm", minRedeemedAmountNorm);
+        fl.gt(
+            receiverWithdrawnFunds,
+            minRedeemedAmountNorm,
+            "SP-56: Share inflation attack possible, victim lost an amount over lossThreshold%"
+        );
+    }
 }

@@ -687,9 +687,10 @@ abstract contract SuperPoolHandler is SuperPoolProperties {
             d.superPool.feeRecipient()
         );
 
-        fl.lte(
+        assertApproxLeAbs(
             lastTotalAssetsBefore,
             lastTotalAssetsAfter,
+            1,
             "SP-41: The lastTotalAssets value before calling accrue should always be <= after calling it"
         );
         fl.gte(

@@ -393,7 +393,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         if (feeShares != 0) _mint(feeRecipient, id, feeShares);
 
-        // update cached notional borrows to current borrow amount
+        // update pool state
+        pool.totalDepositShares += feeShares;
         pool.totalBorrowAssets += interestAccrued;
         pool.totalDepositAssets += interestAccrued;
 
@@ -455,7 +456,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         address asset = pool.asset;
         // send origination fee to owner
-        IERC20(asset).safeTransfer(feeRecipient, fee);
+        if (fee > 0) IERC20(asset).safeTransfer(feeRecipient, fee);
 
         // send borrowed assets to position
         IERC20(asset).safeTransfer(position, amt - fee);
@@ -671,8 +672,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @param poolId Pool id
     /// @param interestFee New interest fee
     function setInterestFee(uint256 poolId, uint128 interestFee) external onlyOwner {
+        PoolData storage pool = poolDataFor[poolId];
+        accrue(pool, poolId);
         if (interestFee > 1e18) revert Pool_FeeTooHigh();
-        poolDataFor[poolId].interestFee = interestFee;
+        pool.interestFee = interestFee;
         emit InterestFeeSet(poolId, interestFee);
     }
 

@@ -393,7 +393,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         if (feeShares != 0) _mint(feeRecipient, id, feeShares);
 
-        // update cached notional borrows to current borrow amount
+        // update pool state
+        pool.totalDepositShares += feeShares;
         pool.totalBorrowAssets += interestAccrued;
         pool.totalDepositAssets += interestAccrued;
 

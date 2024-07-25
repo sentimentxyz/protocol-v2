@@ -112,7 +112,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     // by a position.
 
     /// @notice Check if a given address is recognized by the protocol
-    mapping(address target => bool isAllowed) public isKnownAddress;
+    mapping(address asset => bool isAllowed) public isKnownAsset;
+    /// @notice Check if a given spender is recognized by the protocol
+    mapping(address spender => bool isKnown) public isKnownSpender;
     /// @notice Check if a position can interact with a given target-function pair
     mapping(address target => mapping(bytes4 method => bool isAllowed)) public isKnownFunc;
 
@@ -123,7 +125,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @notice Protocol liquidation fee was updated
     event LiquidationFeeSet(uint256 liquidationFee);
     /// @notice Known state of an address was toggled
-    event ToggleKnownAddress(address indexed target, bool isAllowed);
+    event ToggleKnownAsset(address indexed asset, bool isAllowed);
+    /// @notice Known state of an address was toggled
+    event ToggleKnownSpender(address indexed spender, bool isAllowed);
     /// @notice Token was added to a position's asset list
     event AddToken(address indexed position, address indexed caller, address asset);
     /// @notice Known state of a target-function pair was toggled
@@ -309,7 +313,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address asset = address(bytes20(data[20:40]));
         uint256 amt = uint256(bytes32(data[40:72]));
 
-        if (!isKnownAddress[asset]) revert PositionManager_TransferUnknownAsset(asset);
+        if (!isKnownAsset[asset]) revert PositionManager_TransferUnknownAsset(asset);
 
         // if the passed amt is type(uint).max assume transfer of the entire balance
         if (amt == type(uint256).max) amt = IERC20(asset).balanceOf(position);
@@ -327,7 +331,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         uint256 amt = uint256(bytes32(data[20:52]));
 
         // mitigate unknown assets being locked in positions
-        if (!isKnownAddress[asset]) revert PositionManager_DepositUnknownAsset(asset);
+        if (!isKnownAsset[asset]) revert PositionManager_DepositUnknownAsset(asset);
 
         IERC20(asset).safeTransferFrom(msg.sender, position, amt);
         emit Deposit(position, msg.sender, asset, amt);
@@ -343,8 +347,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address asset = address(bytes20(data[20:40]));
         uint256 amt = uint256(bytes32(data[40:72]));
 
-        if (!isKnownAddress[asset]) revert PositionManager_ApproveUnknownAsset(asset);
-        if (!isKnownAddress[spender]) revert PositionManager_UnknownSpender(spender);
+        if (!isKnownAsset[asset]) revert PositionManager_ApproveUnknownAsset(asset);
+        if (!isKnownSpender[spender]) revert PositionManager_UnknownSpender(spender);
 
         // if the passed amt is type(uint).max assume approval of the entire balance
         if (amt == type(uint256).max) amt = IERC20(asset).balanceOf(position);
@@ -404,7 +408,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address asset = address(bytes20(data[0:20]));
 
         // avoid interactions with unknown assets
-        if (!isKnownAddress[asset]) revert PositionManager_AddUnknownToken(asset);
+        if (!isKnownAsset[asset]) revert PositionManager_AddUnknownToken(asset);
 
         Position(payable(position)).addToken(asset); // validation should be in the position contract
         emit AddToken(position, msg.sender, asset);
@@ -514,10 +518,16 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         emit LiquidationFeeSet(_liquidationFee);
     }
 
-    /// @notice Toggle address inclusion in the known address universe
-    function toggleKnownAddress(address target) external onlyOwner {
-        isKnownAddress[target] = !isKnownAddress[target];
-        emit ToggleKnownAddress(target, isKnownAddress[target]);
+    /// @notice Toggle asset inclusion in the known asset universe
+    function toggleKnownAsset(address asset) external onlyOwner {
+        isKnownAsset[asset] = !isKnownAsset[asset];
+        emit ToggleKnownAsset(asset, isKnownAsset[asset]);
+    }
+
+    /// @notice Toggle spender inclusion in the known spender universe
+    function toggleKnownSpender(address spender) external onlyOwner {
+        isKnownSpender[spender] = !isKnownAsset[spender];
+        emit ToggleKnownSpender(spender, isKnownAsset[spender]);
     }
 
     /// @notice Toggle target-function pair inclusion in the known function universe

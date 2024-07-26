@@ -9,13 +9,14 @@ contract DeployChainlinkUsdOracle is BaseScript {
     address owner;
     address ethUsdFeed;
     address arbSeqFeed;
+    uint256 ethUsdThreshold;
     ChainlinkUsdOracle oracle;
 
     function run() public {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        oracle = new ChainlinkUsdOracle(owner, arbSeqFeed, ethUsdFeed);
+        oracle = new ChainlinkUsdOracle(owner, arbSeqFeed, ethUsdFeed, ethUsdThreshold);
         console2.log("ChainlinkUsdOracle: ", address(oracle));
     }
 
@@ -25,5 +26,6 @@ contract DeployChainlinkUsdOracle is BaseScript {
         owner = vm.parseJsonAddress(config, "$.DeployChainlinkUsdOracle.owner");
         arbSeqFeed = vm.parseJsonAddress(config, "$.DeployChainLinkUsdOracle.arbSeqFeed");
         ethUsdFeed = vm.parseJsonAddress(config, "$.DeployChainlinkUsdOracle.ethUsdFeed");
+        ethUsdThreshold = vm.parseJsonUint(config, "$.DeployChainlinkUsdOracle.ethUsdFeed");
     }
 }

@@ -29,7 +29,7 @@ contract PoolUnitTests is BaseTest {
         // test constructor
         address poolImpl = address(new Pool());
         Pool testPool = Pool(address(new TransparentUpgradeableProxy(poolImpl, protocolOwner, new bytes(0))));
-        testPool.initialize(protocolOwner, address(registry), address(0), 0, 0);
+        testPool.initialize(protocolOwner, 0, 0, address(registry), address(0), 0, 0);
         assertEq(testPool.registry(), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));

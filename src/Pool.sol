@@ -164,6 +164,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     error Pool_BorrowAmountTooLow(uint256 poolId, address asset, uint256 amt);
     /// @notice Debt is below min debt amount
     error Pool_DebtTooLow(uint256 poolId, address asset, uint256 amt);
+    /// @notice No oracle found for pool asset
+    error Pool_OracleNotFound(address asset);
 
     constructor() {
         _disableInitializers();
@@ -556,6 +558,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         bytes32 rateModelKey
     ) external returns (uint256 poolId) {
         if (owner == address(0)) revert Pool_ZeroAddressOwner();
+
+        if (RiskEngine(riskEngine).getOracleFor(asset) == address(0)) revert Pool_OracleNotFound(asset);
 
         address rateModel = Registry(registry).addressFor(rateModelKey);
         if (rateModel == address(0)) revert Pool_RateModelNotFound(rateModelKey);

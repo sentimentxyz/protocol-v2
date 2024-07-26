@@ -20,6 +20,7 @@ import { SuperPool } from "src/SuperPool.sol";
 import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
 import { PortfolioLens } from "src/lens/PortfolioLens.sol";
 import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
+import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract BaseTest is Test {
     address public user = makeAddr("user");
@@ -63,6 +64,12 @@ contract BaseTest is Test {
         vm.startPrank(protocolOwner);
         protocol.positionManager().toggleKnownAsset(address(asset1));
         protocol.positionManager().toggleKnownAsset(address(asset2));
+        vm.stopPrank();
+
+        FixedPriceOracle testOracle = new FixedPriceOracle(1e18);
+        vm.startPrank(protocolOwner);
+        protocol.riskEngine().setOracle(address(asset1), address(testOracle));
+        protocol.riskEngine().setOracle(address(asset2), address(testOracle));
         vm.stopPrank();
 
         address fixedRateModel = address(new FixedRateModel(1e18));

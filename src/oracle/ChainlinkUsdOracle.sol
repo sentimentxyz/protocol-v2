@@ -58,10 +58,12 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
     /// @param owner Oracle owner address
     /// @param arbSeqFeed Chainlink arbitrum sequencer feed
     /// @param ethUsdFeed Chainlink ETH/USD price feed
-    constructor(address owner, address arbSeqFeed, address ethUsdFeed) Ownable() {
+    /// @param ethUsdThreshold Stale price threshold for ETH/USD feed
+    constructor(address owner, address arbSeqFeed, address ethUsdFeed, uint256 ethUsdThreshold) Ownable() {
         ARB_SEQ_FEED = IAggegregatorV3(arbSeqFeed);
         ETH_USD_FEED = IAggegregatorV3(ethUsdFeed);
         priceFeedFor[ETH] = ethUsdFeed;
+        stalePriceThresholdFor[ETH] = ethUsdThreshold;
 
         _transferOwnership(owner);
     }

@@ -97,7 +97,7 @@ contract RiskModuleUnitTests is BaseTest {
         asset3.mint(user, 10e18);
 
         vm.startPrank(protocolOwner);
-        positionManager.toggleKnownAddress(address(asset3));
+        positionManager.toggleKnownAsset(address(asset3));
         riskEngine.setOracle(address(asset3), address(oneEthOracle));
         vm.stopPrank();
 

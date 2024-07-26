@@ -61,8 +61,8 @@ contract BaseTest is Test {
         asset2 = new MockERC20("Asset2", "ASSET2", 18);
 
         vm.startPrank(protocolOwner);
-        protocol.positionManager().toggleKnownAddress(address(asset1));
-        protocol.positionManager().toggleKnownAddress(address(asset2));
+        protocol.positionManager().toggleKnownAsset(address(asset1));
+        protocol.positionManager().toggleKnownAsset(address(asset2));
         vm.stopPrank();
 
         address fixedRateModel = address(new FixedRateModel(1e18));

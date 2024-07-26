@@ -163,7 +163,7 @@ contract PositionManagerUnitTests is BaseTest {
         testSimpleDepositCollateral(100 ether);
 
         vm.prank(positionManager.owner());
-        positionManager.toggleKnownAddress(address(asset2));
+        positionManager.toggleKnownAsset(address(asset2));
 
         vm.startPrank(positionOwner);
         // bytes memory data = abi.encode(address(positionOwner), address(asset2), 50 ether);
@@ -179,7 +179,7 @@ contract PositionManagerUnitTests is BaseTest {
         vm.stopPrank();
 
         vm.prank(positionManager.owner());
-        positionManager.toggleKnownAddress(address(asset2));
+        positionManager.toggleKnownAsset(address(asset2));
 
         vm.startPrank(positionOwner);
         uint256 initialCollateral = asset2.balanceOf(positionOwner);
@@ -321,8 +321,8 @@ contract PositionManagerUnitTests is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        vm.prank(positionManager.owner());
-        positionManager.toggleKnownAddress(address(testContract));
+        // vm.prank(positionManager.owner());
+        // positionManager.toggleKnownAsset(address(testContract));
         vm.prank(positionManager.owner());
         positionManager.toggleKnownFunc(address(testContract), bytes4(keccak256("testCall()")));
 
@@ -343,8 +343,8 @@ contract PositionManagerUnitTests is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        vm.prank(positionManager.owner());
-        positionManager.toggleKnownAddress(address(testContract));
+        // vm.prank(positionManager.owner());
+        // positionManager.toggleKnownAddress(address(testContract));
         vm.prank(positionManager.owner());
         positionManager.toggleKnownFunc(address(testContract), bytes4(keccak256("testCall()")));
 
@@ -369,8 +369,8 @@ contract PositionManagerUnitTests is BaseTest {
         PositionManager(positionManager).process(position, action);
         vm.stopPrank();
 
-        vm.prank(positionManager.owner());
-        positionManager.toggleKnownAddress(address(testContract));
+        // vm.prank(positionManager.owner());
+        // positionManager.toggleKnownAddress(address(testContract));
 
         assertEq(testContract.ping(), 0);
 
@@ -415,18 +415,18 @@ contract PositionManagerUnitTests is BaseTest {
         positionManager.setLiquidationFee(newFee);
     }
 
-    // Test toggling known address
-    function testToggleKnownAddress() public {
+    // Test toggling known asset
+    function testToggleKnownAsset() public {
         address target = makeAddr("target");
-        bool initialState = positionManager.isKnownAddress(target);
+        bool initialState = positionManager.isKnownAsset(target);
 
         vm.prank(positionManager.owner());
-        positionManager.toggleKnownAddress(target);
-        assertEq(positionManager.isKnownAddress(target), !initialState, "Known address state should be toggled");
+        positionManager.toggleKnownAsset(target);
+        assertEq(positionManager.isKnownAsset(target), !initialState, "Known address state should be toggled");
 
         vm.startPrank(makeAddr("nonOwner")); // Non-owner address
         vm.expectRevert();
-        positionManager.toggleKnownAddress(target);
+        positionManager.toggleKnownAsset(target);
     }
 
     // Test toggling known function
@@ -462,7 +462,7 @@ contract PositionManagerUnitTests is BaseTest {
         vm.stopPrank();
 
         vm.prank(positionManager.owner());
-        positionManager.toggleKnownAddress(spender);
+        positionManager.toggleKnownSpender(spender);
 
         vm.prank(positionOwner);
         PositionManager(positionManager).process(position, action);

@@ -26,10 +26,6 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
-    /// @notice Initial interest fee for pools
-    uint128 public constant DEFAULT_INTEREST_FEE = 0;
-    /// @notice Initial origination fee for pools
-    uint128 public constant DEFAULT_ORIGINATION_FEE = 0;
     /// @notice Timelock delay for pool rate model modification
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
     /// @notice Timelock deadline to enforce timely updates
@@ -42,6 +38,11 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @dev keccak(SENTIMENT_RISK_ENGINE_KEY)
     bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
         0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
+
+    /// @notice Initial interest fee for pools
+    uint128 public defaultInterestFee;
+    /// @notice Initial origination fee for pools
+    uint128 public defaultOriginationFee;
 
     /// @notice Sentiment registry
     address public registry;
@@ -113,6 +114,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     event RateModelUpdateRejected(uint256 indexed poolId, address rateModel);
     /// @notice Rate model update for a pool was proposed
     event RateModelUpdateRequested(uint256 indexed poolId, address rateModel);
+    /// @notice Default interest fee for new pools updated
+    event DefaultInterestFeeSet(uint256 defaultInterestFee);
+    /// @notice Default origination fee for new pools updated
+    event DefaultOriginationFeeSet(uint256 defaultOriginationFee);
     /// @notice New pool was initialized
     event PoolInitialized(uint256 indexed poolId, address indexed owner, address indexed asset);
     /// @notice Assets were deposited to a pool
@@ -177,6 +182,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @param feeRecipient_ Sentiment fee receiver
     function initialize(
         address owner_,
+        uint128 defaultInterestFee_,
+        uint128 defaultOriginationFee_,
         address registry_,
         address feeRecipient_,
         uint256 minBorrow_,
@@ -184,6 +191,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     ) public initializer {
         _transferOwnership(owner_);
 
+        defaultInterestFee = defaultInterestFee_;
+        defaultOriginationFee = defaultOriginationFee_;
         registry = registry_;
         feeRecipient = feeRecipient_;
         minBorrow = minBorrow_;
@@ -574,8 +583,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
             rateModel: rateModel,
             poolCap: poolCap,
             lastUpdated: uint128(block.timestamp),
-            interestFee: DEFAULT_INTEREST_FEE,
-            originationFee: DEFAULT_ORIGINATION_FEE,
+            interestFee: defaultInterestFee,
+            originationFee: defaultOriginationFee,
             totalBorrowAssets: 0,
             totalBorrowShares: 0,
             totalDepositAssets: 0,
@@ -702,5 +711,15 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     function setMinDebt(uint256 newMinDebt) external onlyOwner {
         minDebt = newMinDebt;
         emit MinDebtSet(newMinDebt);
+    }
+
+    function setDefaultOriginationFee(uint128 newDefaultOriginationFee) external onlyOwner {
+        defaultOriginationFee = newDefaultOriginationFee;
+        emit DefaultOriginationFeeSet(newDefaultOriginationFee);
+    }
+
+    function setDefaultInterestFee(uint128 newDefaultInterestFee) external onlyOwner {
+        defaultInterestFee = newDefaultInterestFee;
+        emit DefaultInterestFeeSet(newDefaultInterestFee);
     }
 }

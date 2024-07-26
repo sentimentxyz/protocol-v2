@@ -45,6 +45,8 @@ contract Deploy is BaseScript {
         uint256 liquidationFee;
         uint256 liquidationDiscount;
         uint256 badDebtLiquidationDiscount;
+        uint256 defaultInterestFee;
+        uint256 defaultOriginationFee;
     }
 
     DeployParams params;
@@ -88,6 +90,8 @@ contract Deploy is BaseScript {
         bytes memory poolInitData = abi.encodeWithSelector(
             Pool.initialize.selector,
             params.owner,
+            params.defaultInterestFee,
+            params.defaultOriginationFee,
             address(registry),
             params.feeRecipient,
             params.minBorrow,
@@ -139,6 +143,8 @@ contract Deploy is BaseScript {
         params.liquidationFee = vm.parseJsonUint(config, "$.Deploy.liquidationFee");
         params.liquidationDiscount = vm.parseJsonUint(config, "$.Deploy.liquidationDiscount");
         params.badDebtLiquidationDiscount = vm.parseJsonUint(config, "$.Deploy.badDebtLiquidationDiscount");
+        params.defaultInterestFee = vm.parseJsonUint(config, "$.Deploy.defaultInterestFee");
+        params.defaultOriginationFee = vm.parseJsonUint(config, "$.Deploy.defaultOriginationFee");
 
         require(params.owner != params.proxyAdmin, "OWNER == PROXY_ADMIN");
     }

@@ -52,7 +52,9 @@ contract BaseTest is Test {
             minBorrow: 0,
             liquidationFee: 0,
             liquidationDiscount: 200_000_000_000_000_000,
-            badDebtLiquidationDiscount: 1e16
+            badDebtLiquidationDiscount: 1e16,
+            defaultOriginationFee: 0,
+            defaultInterestFee: 0
         });
 
         protocol = new Deploy();

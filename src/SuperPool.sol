@@ -160,6 +160,12 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         superPoolCap = superPoolCap_;
     }
 
+    /// @notice Toggle pause state of the SuperPool
+    function togglePause() external onlyOwner {
+        if (Pausable.paused()) Pausable._unpause();
+        else Pausable._pause();
+    }
+
     /// @notice Number of decimals used to get user representation of amounts
     function decimals() public view override returns (uint8) {
         return DECIMALS;

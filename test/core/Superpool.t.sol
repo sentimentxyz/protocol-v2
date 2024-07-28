@@ -96,7 +96,7 @@ contract SuperPoolUnitTests is BaseTest {
         address linearRateModel = address(new LinearRateModel(2e18, 3e18));
         bytes32 RATE_MODEL_KEY = 0xc6e8fa81936202e651519e9ac3074fa4a42c65daad3fded162373ba224d6ea96;
         vm.prank(protocolOwner);
-        Registry(registry).setAddress(RATE_MODEL_KEY, linearRateModel);
+        Registry(registry).setRateModel(RATE_MODEL_KEY, linearRateModel);
 
         vm.startPrank(poolOwner);
         uint256 linearPool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);

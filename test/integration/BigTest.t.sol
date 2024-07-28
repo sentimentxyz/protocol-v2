@@ -52,9 +52,9 @@ contract BigTest is BaseTest {
         bytes32 BIG_RATE_MODEL3_KEY = 0x3c8173df5c36ecb50abea64f9912b8e8c6265f00eb5a4ea7a7e6e4141e5a091e;
 
         vm.startPrank(protocolOwner);
-        registry.setAddress(BIG_RATE_MODEL_KEY, fixedRateModel);
-        registry.setAddress(BIG_RATE_MODEL2_KEY, linearRateModel);
-        registry.setAddress(BIG_RATE_MODEL3_KEY, fixedRateModel2);
+        registry.setRateModel(BIG_RATE_MODEL_KEY, fixedRateModel);
+        registry.setRateModel(BIG_RATE_MODEL2_KEY, linearRateModel);
+        registry.setRateModel(BIG_RATE_MODEL3_KEY, fixedRateModel2);
         vm.stopPrank();
 
         vm.startPrank(poolOwner);

@@ -13,6 +13,7 @@ contract DeploySuperPool is BaseScript {
     address feeRecipient;
     uint256 fee;
     uint256 superPoolCap;
+    uint256 initialDepositAmt;
     string name;
     string symbol;
 
@@ -21,7 +22,7 @@ contract DeploySuperPool is BaseScript {
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         address superPool = SuperPoolFactory(superPoolFactory).deploySuperPool(
-            owner, asset, feeRecipient, fee, superPoolCap, name, symbol
+            owner, asset, feeRecipient, fee, superPoolCap, initialDepositAmt, name, symbol
         );
         console2.log("SuperPool: ", superPool);
     }
@@ -35,6 +36,7 @@ contract DeploySuperPool is BaseScript {
         feeRecipient = vm.parseJsonAddress(config, "$.DeploySuperPool.feeRecipient");
         fee = vm.parseJsonUint(config, "$.DeploySuperPool.fee");
         superPoolCap = vm.parseJsonUint(config, "$.DeploySuperPool.superPoolCap");
+        initialDepositAmt = vm.parseJsonUint(config, "$.DeploySuperPool.initialDepositAmt");
         name = vm.parseJsonString(config, "$.DeploySuperPool.name");
         symbol = vm.parseJsonString(config, "$.DeploySuperPool.symbol");
     }

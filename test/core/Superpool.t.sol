@@ -6,6 +6,8 @@ import { console2 } from "forge-std/console2.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract SuperPoolUnitTests is BaseTest {
+    uint256 initialDepositAmt = 1e5;
+
     Pool pool;
     Registry registry;
     SuperPool superPool;
@@ -26,9 +28,13 @@ contract SuperPoolUnitTests is BaseTest {
         vm.prank(protocolOwner);
         riskEngine.setOracle(address(asset1), address(asset1Oracle));
 
+        vm.prank(protocolOwner);
+        asset1.mint(address(this), initialDepositAmt);
+        asset1.approve(address(superPoolFactory), initialDepositAmt);
+
         superPool = SuperPool(
             superPoolFactory.deploySuperPool(
-                poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test"
+                poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, initialDepositAmt, "test", "test"
             )
         );
     }
@@ -53,8 +59,13 @@ contract SuperPoolUnitTests is BaseTest {
     function testDeployAPoolFromFactory() public {
         address feeRecipient = makeAddr("FeeRecipient");
 
-        address deployed =
-            superPoolFactory.deploySuperPool(poolOwner, address(asset1), feeRecipient, 0, 0, "test", "test");
+        vm.prank(protocolOwner);
+        asset1.mint(address(this), initialDepositAmt);
+        asset1.approve(address(superPoolFactory), initialDepositAmt);
+
+        address deployed = superPoolFactory.deploySuperPool(
+            poolOwner, address(asset1), feeRecipient, 0, type(uint256).max, initialDepositAmt, "test", "test"
+        );
 
         assert(deployed != address(0));
         SuperPool _superPool = SuperPool(deployed);
@@ -62,7 +73,7 @@ contract SuperPoolUnitTests is BaseTest {
         assertEq(address(_superPool.asset()), address(asset1));
         assertEq(_superPool.feeRecipient(), feeRecipient);
         assertEq(_superPool.fee(), 0);
-        assertEq(_superPool.superPoolCap(), 0);
+        assertEq(_superPool.superPoolCap(), type(uint256).max);
         assertEq(_superPool.name(), "test");
         assertEq(_superPool.symbol(), "test");
     }
@@ -208,7 +219,7 @@ contract SuperPoolUnitTests is BaseTest {
 
     function testTotalAssets(uint96 amount) public {
         vm.assume(amount > 1e6);
-        vm.assume(amount < superPool.superPoolCap());
+        vm.assume(amount < superPool.superPoolCap() - initialDepositAmt);
 
         vm.startPrank(poolOwner);
         superPool.addPool(linearRatePool, amount);
@@ -221,7 +232,7 @@ contract SuperPoolUnitTests is BaseTest {
         superPool.deposit(amount, user);
         vm.stopPrank();
 
-        assertEq(superPool.totalAssets(), amount);
+        assertEq(superPool.totalAssets(), amount + initialDepositAmt);
     }
 
     function testSimpleDepositIntoMultiplePools() public {
@@ -252,12 +263,12 @@ contract SuperPoolUnitTests is BaseTest {
         asset1.approve(address(superPool), 100 ether);
 
         superPool.deposit(100 ether, user);
-        assertEq(asset1.balanceOf(address(superPool)), 50 ether);
+        assertEq(asset1.balanceOf(address(superPool)), 50 ether + initialDepositAmt);
     }
 
     function testPartialWithdrawal(uint96 amt) public {
         vm.assume(amt > 1e6);
-        vm.assume(amt < superPool.superPoolCap());
+        vm.assume(amt < superPool.superPoolCap() - initialDepositAmt);
         vm.startPrank(poolOwner);
         superPool.addPool(linearRatePool, amt / 2);
         superPool.addPool(fixedRatePool, (amt / 2) + 1);
@@ -377,7 +388,7 @@ contract SuperPoolUnitTests is BaseTest {
         superPool.deposit(200 ether, user);
 
         superPool.deposit(1 ether, user);
-        assertEq(asset1.balanceOf(address(superPool)), 1 ether);
+        assertEq(asset1.balanceOf(address(superPool)), 1 ether + initialDepositAmt);
     }
 
     function invariantMaxWithdrawalsStayConsistent() public view {

@@ -91,9 +91,14 @@ contract BigTest is BaseTest {
         // 7. User should have profit from the borrowed amount
         // 8. feeTo should make money
         address feeTo = makeAddr("feeTo");
+
+        vm.prank(protocolOwner);
+        asset1.mint(address(this), 1e5);
+        asset1.approve(address(superPoolFactory), 1e5);
+
         SuperPool superPool = SuperPool(
             superPoolFactory.deploySuperPool(
-                poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, "test", "test"
+                poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, 1e5, "test", "test"
             )
         );
 

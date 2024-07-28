@@ -129,8 +129,8 @@ contract PortfolioLens {
         for (uint256 i; i < debtPoolsLength; ++i) {
             uint256 poolId = debtPools[i];
             address poolAsset = POOL.getPoolAssetFor(poolId);
+            uint256 totalAssets = POOL.getTotalAssets(poolId);
             uint256 totalBorrows = POOL.getTotalBorrows(poolId);
-            uint256 idleAssetAmt = POOL.getTotalAssets(poolId) - totalBorrows;
             uint256 borrowAmt = POOL.getBorrowsOf(poolId, position);
 
             debtData[i] = DebtData({
@@ -138,7 +138,7 @@ contract PortfolioLens {
                 asset: poolAsset,
                 amount: borrowAmt,
                 valueInEth: _getValueInEth(poolAsset, borrowAmt),
-                interestRate: IRateModel(POOL.getRateModelFor(poolId)).getInterestRate(totalBorrows, idleAssetAmt)
+                interestRate: IRateModel(POOL.getRateModelFor(poolId)).getInterestRate(totalBorrows, totalAssets)
             });
         }
 

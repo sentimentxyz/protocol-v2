@@ -209,8 +209,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @notice Fetch amount of liquid assets currently held in a given pool
     function getLiquidityOf(uint256 poolId) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
-        (uint256 accruedInterest,) = simulateAccrue(pool);
-        uint256 assetsInPool = pool.totalDepositAssets + accruedInterest - pool.totalBorrowAssets;
+        uint256 assetsInPool = pool.totalDepositAssets - pool.totalBorrowAssets;
         uint256 totalBalance = IERC20(pool.asset).balanceOf(address(this));
         return (totalBalance > assetsInPool) ? assetsInPool : totalBalance;
     }

@@ -119,7 +119,7 @@ contract RiskModule {
         // position must breach risk thresholds before liquidation
         if (isPositionHealthy(position)) revert RiskModule_LiquidateHealthyPosition(position);
 
-        _validateSeizedAssetValue(debtData, assetData, LIQUIDATION_DISCOUNT);
+        _validateSeizedAssetValue(position, debtData, assetData, LIQUIDATION_DISCOUNT);
     }
 
     function validateBadDebtLiquidation(
@@ -132,10 +132,11 @@ contract RiskModule {
         uint256 totalAssetValue = getTotalAssetValue(position);
         if (totalAssetValue > totalDebtValue) revert RiskModule_NoBadDebt(position);
 
-        _validateSeizedAssetValue(debtData, assetData, BAD_DEBT_LIQUIDATION_DISCOUNT);
+        _validateSeizedAssetValue(position, debtData, assetData, BAD_DEBT_LIQUIDATION_DISCOUNT);
     }
 
     function _validateSeizedAssetValue(
+        address position,
         DebtData[] calldata debtData,
         AssetData[] calldata assetData,
         uint256 discount
@@ -144,10 +145,12 @@ contract RiskModule {
         uint256 debtRepaidValue;
         uint256 debtLength = debtData.length;
         for (uint256 i; i < debtLength; ++i) {
-            // PositionManger.liquidate() verifies that the asset belongs to the associated pool
-            address poolAsset = pool.getPoolAssetFor(debtData[i].poolId);
+            uint256 poolId = debtData[i].poolId;
+            uint256 amt = debtData[i].amt;
+            if (amt == type(uint256).max) amt = pool.getBorrowsOf(poolId, position);
+            address poolAsset = pool.getPoolAssetFor(poolId);
             IOracle oracle = IOracle(riskEngine.getOracleFor(poolAsset));
-            debtRepaidValue += oracle.getValueInEth(poolAsset, debtData[i].amt);
+            debtRepaidValue += oracle.getValueInEth(poolAsset, amt);
         }
 
         // compute value of assets seized by the liquidator

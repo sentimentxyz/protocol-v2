@@ -488,14 +488,16 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // assumes the position manager is approved to pull assets from the liquidator
         uint256 debtDataLength = debtData.length;
         for (uint256 i; i < debtDataLength; ++i) {
-            // verify that the asset being repaid is actually the pool asset
-            address poolAsset = pool.getPoolAssetFor(debtData[i].poolId);
+            uint256 poolId = debtData[i].poolId;
+            address poolAsset = pool.getPoolAssetFor(poolId);
+            uint256 amt = debtData[i].amt;
+            if (amt == type(uint256).max) amt = pool.getBorrowsOf(poolId, position);
             // transfer debt asset from the liquidator to the pool
-            IERC20(poolAsset).safeTransferFrom(msg.sender, address(pool), debtData[i].amt);
+            IERC20(poolAsset).safeTransferFrom(msg.sender, address(pool), amt);
             // trigger pool repayment which assumes successful transfer of repaid assets
-            pool.repay(debtData[i].poolId, position, debtData[i].amt);
+            pool.repay(poolId, position, amt);
             // update position to reflect repayment of debt by liquidator
-            Position(payable(position)).repay(debtData[i].poolId, debtData[i].amt);
+            Position(payable(position)).repay(poolId, amt);
         }
     }
 

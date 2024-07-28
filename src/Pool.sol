@@ -348,7 +348,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
 
-        shares = _convertToShares(assets, pool.totalDepositAssets, pool.totalDepositShares, Math.Rounding.Down);
+        shares = _convertToShares(assets, pool.totalDepositAssets, pool.totalDepositShares, Math.Rounding.Up);
         // check for rounding error since convertToShares rounds down
         if (shares == 0) revert Pool_ZeroShareRedeem(poolId, assets);
 

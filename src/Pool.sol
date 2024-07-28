@@ -569,7 +569,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         if (RiskEngine(riskEngine).getOracleFor(asset) == address(0)) revert Pool_OracleNotFound(asset);
 
-        address rateModel = Registry(registry).addressFor(rateModelKey);
+        address rateModel = Registry(registry).rateModelFor(rateModelKey);
         if (rateModel == address(0)) revert Pool_RateModelNotFound(rateModelKey);
 
         poolId = uint256(keccak256(abi.encodePacked(owner, asset, rateModelKey)));
@@ -629,7 +629,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         // store the rateModel instead of the registry key to mitigate issues
         // arising from registry changes taking place between request/accept
         // to pull registry update, call this function with the same key again
-        address rateModel = Registry(registry).addressFor(rateModelKey);
+        address rateModel = Registry(registry).rateModelFor(rateModelKey);
         if (rateModel == address(0)) revert Pool_RateModelNotFound(rateModelKey);
 
         RateModelUpdate memory rateModelUpdate =

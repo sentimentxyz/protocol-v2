@@ -35,7 +35,7 @@ contract PoolUnitTests is BaseTest {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
         bytes32 RATE_MODEL_KEY = 0xc6e8fa81936202e651519e9ac3074fa4a42c65daad3fded162373ba224d6ea96;
         vm.prank(protocolOwner);
-        registry.setAddress(RATE_MODEL_KEY, rateModel);
+        registry.setRateModel(RATE_MODEL_KEY, rateModel);
         uint256 id = testPool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
         assertEq(rateModel, testPool.getRateModelFor(id));
     }
@@ -45,7 +45,7 @@ contract PoolUnitTests is BaseTest {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
         bytes32 RATE_MODEL_KEY = 0xc6e8fa81936202e651519e9ac3074fa4a42c65daad3fded162373ba224d6ea96;
         vm.prank(protocolOwner);
-        registry.setAddress(RATE_MODEL_KEY, rateModel);
+        registry.setRateModel(RATE_MODEL_KEY, rateModel);
 
         pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
         pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
@@ -56,7 +56,7 @@ contract PoolUnitTests is BaseTest {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
         bytes32 RATE_MODEL_KEY = 0xc6e8fa81936202e651519e9ac3074fa4a42c65daad3fded162373ba224d6ea96;
         vm.prank(protocolOwner);
-        registry.setAddress(RATE_MODEL_KEY, rateModel);
+        registry.setRateModel(RATE_MODEL_KEY, rateModel);
 
         vm.prank(poolOwner);
         uint256 id = pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
@@ -337,7 +337,7 @@ contract PoolUnitTests is BaseTest {
         vm.assume(newRateModel != address(0));
 
         vm.prank(protocolOwner);
-        registry.setAddress("NEW_RATE_MODEL", newRateModel);
+        registry.setRateModel("NEW_RATE_MODEL", newRateModel);
 
         vm.prank(poolOwner);
         pool.requestRateModelUpdate(linearRatePool, "NEW_RATE_MODEL");
@@ -351,7 +351,7 @@ contract PoolUnitTests is BaseTest {
         vm.assume(sender != proxyAdmin);
 
         vm.prank(protocolOwner);
-        registry.setAddress("NEW_RATE_MODEL", newRateModel);
+        registry.setRateModel("NEW_RATE_MODEL", newRateModel);
 
         vm.expectRevert(abi.encodeWithSelector(Pool.Pool_OnlyPoolOwner.selector, linearRatePool, sender));
         vm.prank(sender);

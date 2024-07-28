@@ -85,10 +85,10 @@ contract BaseTest is Test {
         bytes32 LINEAR_RATE_MODEL2_KEY = 0xd61dc960093d99acc135f998430c41a550d91de727e66a94fd8e7a8a24d99ecf;
 
         vm.startPrank(protocolOwner);
-        Registry(protocol.registry()).setAddress(FIXED_RATE_MODEL_KEY, fixedRateModel);
-        Registry(protocol.registry()).setAddress(LINEAR_RATE_MODEL_KEY, linearRateModel);
-        Registry(protocol.registry()).setAddress(FIXED_RATE_MODEL2_KEY, fixedRateModel2);
-        Registry(protocol.registry()).setAddress(LINEAR_RATE_MODEL2_KEY, linearRateModel2);
+        Registry(protocol.registry()).setRateModel(FIXED_RATE_MODEL_KEY, fixedRateModel);
+        Registry(protocol.registry()).setRateModel(LINEAR_RATE_MODEL_KEY, linearRateModel);
+        Registry(protocol.registry()).setRateModel(FIXED_RATE_MODEL2_KEY, fixedRateModel2);
+        Registry(protocol.registry()).setRateModel(LINEAR_RATE_MODEL2_KEY, linearRateModel2);
         vm.stopPrank();
 
         vm.startPrank(poolOwner);

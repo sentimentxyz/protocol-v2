@@ -17,7 +17,7 @@ All of the invariants reside in the following contracts:
 ### Setup And Run Instructions
 To run invariant tests:
 ```shell
-echidna ./invariant/invariants/SentimentInvariant.sol --contract SentimentInvariant --config echidna.yaml
+echidna test/invariant/invariants/SentimentInvariant.sol --contract SentimentInvariant --config echidna.yaml
 ```
 
 ### Changelog
@@ -93,7 +93,7 @@ Due to the `_getMinReqAssetValue` (PO-19) issue of not requiring a position's as
 | **SP-53** | Assets must not be withdrawn for free using withdraw() | PASS | PASS | 1,000,000+
 | **SP-54** | Assets must not be withdrawn for free using redeem() | PASS | PASS | 1,000,000+
 | **SP-55** | The vault's share token should have greater than or equal to the number of decimals as the vault's asset token | PASS | PASS | 1,000,000+
-| **SP-56** | Share inflation attack possible, victim lost an amount over lossThreshold% | PASS | **FAIL** | 1,000,000+
+| **SP-56** | Share inflation griefing possible, victim lost an amount over lossThreshold% | PASS | **FAIL** | 1,000,000+
 ## **Pool**
 | **Invariant ID** | **Invariant Description** | **Passed** | **Remediation** | **Run Count** |
 |:--------------:|:-----|:-----------:|:-----------:|:-----------:|

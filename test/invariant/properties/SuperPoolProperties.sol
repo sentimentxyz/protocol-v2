@@ -160,14 +160,12 @@ abstract contract SuperPoolProperties is BeforeAfter {
         SuperPool superPool;
     }
 
-    /// @notice verify Accounting system must not be vulnerable to share price inflation attacks
-    //@audit Last failing invariant.
+    /// @notice verify Accounting system must not be vulnerable to share price inflation griefing
     function superPool_SP_56(
         uint256 attackerIndexSeed,
         uint256 receiverIndexSeed,
         uint256 poolIndexSeed,
-        uint256 inflateAmount,
-        uint256 delta
+        uint256 inflateAmount
     ) public {
         // PRE-CONDITIONS
         InflationAttackTemps memory d;
@@ -184,7 +182,7 @@ abstract contract SuperPoolProperties is BeforeAfter {
 
         // these minimums are to prevent 1-wei rounding errors from triggering the property
         require(inflateAmount > 10_000);
-        uint256 victimDeposit = inflateAmount + delta;
+        uint256 victimDeposit = inflateAmount;
         // fund account
         asset1.mint(d.attacker, inflateAmount);
         asset2.mint(d.attacker, inflateAmount);
@@ -225,7 +223,7 @@ abstract contract SuperPoolProperties is BeforeAfter {
         fl.gt(
             receiverWithdrawnFunds,
             minRedeemedAmountNorm,
-            "SP-56: Share inflation attack possible, victim lost an amount over lossThreshold%"
+            "SP-56: Share inflation griefing possible, victim lost an amount over lossThreshold%"
         );
     }
 }

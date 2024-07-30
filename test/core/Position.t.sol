@@ -17,12 +17,14 @@ contract PositionUnitTests is BaseTest {
     address positionOwner = makeAddr("positionOwner");
     FixedPriceOracle asset1Oracle;
     FixedPriceOracle asset2Oracle;
+    FixedPriceOracle asset3Oracle;
 
     function setUp() public override {
         super.setUp();
 
         asset1Oracle = new FixedPriceOracle(10e18);
         asset2Oracle = new FixedPriceOracle(0.5e18);
+        asset3Oracle = new FixedPriceOracle(1e18);
 
         pool = protocol.pool();
         riskEngine = protocol.riskEngine();
@@ -31,6 +33,7 @@ contract PositionUnitTests is BaseTest {
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(asset1), address(asset1Oracle));
         riskEngine.setOracle(address(asset2), address(asset2Oracle));
+        riskEngine.setOracle(address(asset3), address(asset3Oracle));
         vm.stopPrank();
 
         asset1.mint(address(this), 10_000 ether);
@@ -43,11 +46,11 @@ contract PositionUnitTests is BaseTest {
         PositionManager(positionManager).processBatch(position, actions);
 
         vm.startPrank(poolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
-
         riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
+
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset3), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset3));
         vm.stopPrank();
     }
 

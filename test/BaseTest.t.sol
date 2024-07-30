@@ -5,6 +5,7 @@ import { Deploy } from "../script/Deploy.s.sol";
 import { FixedRateModel } from "../src/irm/FixedRateModel.sol";
 import { LinearRateModel } from "../src/irm/LinearRateModel.sol";
 import { MockERC20 } from "./mocks/MockERC20.sol";
+import { MockSwap } from "./mocks/MockSwap.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { Test } from "forge-std/Test.sol";
@@ -32,6 +33,11 @@ contract BaseTest is Test {
 
     MockERC20 public asset1;
     MockERC20 public asset2;
+    MockERC20 public asset3;
+
+    MockSwap public mockswap;
+    bytes4 public constant SWAP_FUNC_SELECTOR =
+        bytes4(bytes32(0xdf791e5000000000000000000000000000000000000000000000000000000000));
 
     uint256 public fixedRatePool;
     uint256 public linearRatePool;
@@ -62,10 +68,16 @@ contract BaseTest is Test {
 
         asset1 = new MockERC20("Asset1", "ASSET1", 18);
         asset2 = new MockERC20("Asset2", "ASSET2", 18);
+        asset3 = new MockERC20("Asset3", "ASSET3", 18);
+
+        mockswap = new MockSwap();
 
         vm.startPrank(protocolOwner);
         protocol.positionManager().toggleKnownAsset(address(asset1));
         protocol.positionManager().toggleKnownAsset(address(asset2));
+        protocol.positionManager().toggleKnownAsset(address(asset3));
+        protocol.positionManager().toggleKnownSpender(address(mockswap));
+        protocol.positionManager().toggleKnownFunc(address(mockswap), SWAP_FUNC_SELECTOR);
         vm.stopPrank();
 
         FixedPriceOracle testOracle = new FixedPriceOracle(1e18);
@@ -145,6 +157,12 @@ contract BaseTest is Test {
     function transfer(address recipient, address asset, uint256 amt) internal pure returns (Action memory) {
         bytes memory data = abi.encodePacked(recipient, asset, amt);
         Action memory action = Action({ op: Operation.Transfer, data: data });
+        return action;
+    }
+
+    function exec(address target, uint256 value, bytes memory execData) internal pure returns (Action memory) {
+        bytes memory data = abi.encodePacked(target, value, execData);
+        Action memory action = Action({ op: Operation.Exec, data: data });
         return action;
     }
 }

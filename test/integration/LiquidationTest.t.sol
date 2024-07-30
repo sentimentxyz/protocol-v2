@@ -29,11 +29,12 @@ contract LiquidationTest is BaseTest {
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(asset1), address(oneEthOracle)); // 1 asset1 = 1 eth
         riskEngine.setOracle(address(asset2), address(oneEthOracle)); // 1 asset2 = 1 eth
+        riskEngine.setOracle(address(asset3), address(oneEthOracle)); // 1 asset3 = 1 eth
         vm.stopPrank();
 
         vm.startPrank(poolOwner);
-        riskEngine.requestLtvUpdate(fixedRatePool, address(asset1), 0.5e18); // 2x lev
-        riskEngine.acceptLtvUpdate(fixedRatePool, address(asset1));
+        riskEngine.requestLtvUpdate(fixedRatePool, address(asset3), 0.5e18); // 2x lev
+        riskEngine.acceptLtvUpdate(fixedRatePool, address(asset3));
         riskEngine.requestLtvUpdate(fixedRatePool, address(asset2), 0.5e18); // 2x lev
         riskEngine.acceptLtvUpdate(fixedRatePool, address(asset2));
         vm.stopPrank();
@@ -52,12 +53,15 @@ contract LiquidationTest is BaseTest {
         asset2.approve(address(positionManager), 1e18);
 
         // deposit 1e18 asset2, borrow 1e18 asset1
-        Action[] memory actions = new Action[](5);
+        Action[] memory actions = new Action[](7);
         (position, actions[0]) = newPosition(user, bytes32(uint256(0x123456789)));
         actions[1] = deposit(address(asset2), 1e18);
         actions[2] = addToken(address(asset2));
         actions[3] = borrow(fixedRatePool, 1e18);
-        actions[4] = addToken(address(asset1));
+        actions[4] = approve(address(mockswap), address(asset1), 1e18);
+        bytes memory data = abi.encodeWithSelector(SWAP_FUNC_SELECTOR, address(asset1), address(asset3), 1e18);
+        actions[5] = exec(address(mockswap), 0, data);
+        actions[6] = addToken(address(asset3));
         positionManager.processBatch(position, actions);
         vm.stopPrank();
         assertTrue(riskEngine.isPositionHealthy(position));
@@ -72,7 +76,7 @@ contract LiquidationTest is BaseTest {
         DebtData memory debtData = DebtData({ poolId: fixedRatePool, amt: type(uint256).max });
         DebtData[] memory debts = new DebtData[](1);
         debts[0] = debtData;
-        AssetData memory asset1Data = AssetData({ asset: address(asset1), amt: 1e18 });
+        AssetData memory asset1Data = AssetData({ asset: address(asset3), amt: 1e18 });
         AssetData memory asset2Data = AssetData({ asset: address(asset2), amt: 1e18 });
         AssetData[] memory assets = new AssetData[](2);
         assets[0] = asset1Data;
@@ -104,12 +108,15 @@ contract LiquidationTest is BaseTest {
         asset2.approve(address(positionManager), 1e18);
 
         // deposit 1e18 asset2, borrow 1e18 asset1
-        Action[] memory actions = new Action[](5);
+        Action[] memory actions = new Action[](7);
         (position, actions[0]) = newPosition(user, bytes32(uint256(0x123456789)));
         actions[1] = deposit(address(asset2), 1e18);
         actions[2] = addToken(address(asset2));
         actions[3] = borrow(fixedRatePool, 1e18);
-        actions[4] = addToken(address(asset1));
+        actions[4] = approve(address(mockswap), address(asset1), 1e18);
+        bytes memory data = abi.encodeWithSelector(SWAP_FUNC_SELECTOR, address(asset1), address(asset3), 1e18);
+        actions[5] = exec(address(mockswap), 0, data);
+        actions[6] = addToken(address(asset3));
         positionManager.processBatch(position, actions);
         vm.stopPrank();
         assertTrue(riskEngine.isPositionHealthy(position));
@@ -130,7 +137,7 @@ contract LiquidationTest is BaseTest {
         DebtData memory debtData = DebtData({ poolId: fixedRatePool, amt: 0.1e18 });
         DebtData[] memory debts = new DebtData[](1);
         debts[0] = debtData;
-        AssetData memory asset1Data = AssetData({ asset: address(asset1), amt: 1e18 });
+        AssetData memory asset1Data = AssetData({ asset: address(asset3), amt: 1e18 });
         AssetData memory asset2Data = AssetData({ asset: address(asset2), amt: 1e18 });
         AssetData[] memory assets = new AssetData[](2);
         assets[0] = asset1Data;

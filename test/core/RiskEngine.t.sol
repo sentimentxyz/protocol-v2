@@ -9,7 +9,7 @@ import { Action, Operation } from "src/PositionManager.sol";
 import { RiskEngine } from "src/RiskEngine.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
-contract RiskModuleUnitTests is BaseTest {
+contract RiskEngineUnitTests is BaseTest {
     Pool pool;
     address position;
     Registry registry;
@@ -54,11 +54,11 @@ contract RiskModuleUnitTests is BaseTest {
         assertEq(startLtv, 0);
 
         vm.startPrank(poolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);
 
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
 
-        assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
+        assertEq(riskEngine.ltvFor(linearRatePool, address(asset2)), 0.75e18);
     }
 
     function testOnlyOwnerCanUpdateLTV(address sender) public {
@@ -80,15 +80,15 @@ contract RiskModuleUnitTests is BaseTest {
     function testOwnerCanRejectLTVUpdated() public {
         // Set a starting non-zero ltv
         vm.startPrank(poolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
 
-        assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
+        assertEq(riskEngine.ltvFor(linearRatePool, address(asset2)), 0.75e18);
 
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.5e18);
-        riskEngine.rejectLtvUpdate(linearRatePool, address(asset1));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.5e18);
+        riskEngine.rejectLtvUpdate(linearRatePool, address(asset2));
 
-        assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
+        assertEq(riskEngine.ltvFor(linearRatePool, address(asset2)), 0.75e18);
     }
 
     function testNoLTVUpdate(address asset) public {
@@ -99,16 +99,16 @@ contract RiskModuleUnitTests is BaseTest {
 
     function testNonOwnerCannotUpdateLTV() public {
         vm.prank(poolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);
 
         vm.startPrank(makeAddr("notOwner"));
         vm.expectRevert();
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
 
         vm.expectRevert();
-        riskEngine.rejectLtvUpdate(linearRatePool, address(asset1));
+        riskEngine.rejectLtvUpdate(linearRatePool, address(asset2));
 
-        assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0);
+        assertEq(riskEngine.ltvFor(linearRatePool, address(asset2)), 0);
     }
 
     function testCannotSetLTVOutsideGlobalLimits() public {
@@ -137,18 +137,18 @@ contract RiskModuleUnitTests is BaseTest {
 
     function testCannotUpdateLTVBeforeTimelock() public {
         vm.startPrank(poolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
 
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.5e18);
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.5e18);
 
         vm.expectRevert();
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
 
-        assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0.75e18);
+        assertEq(riskEngine.ltvFor(linearRatePool, address(asset2)), 0.75e18);
 
         vm.warp(block.timestamp + 2 days);
 
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
     }
 }

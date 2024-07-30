@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { BaseTest } from "../BaseTest.t.sol";
+import { BaseTest, MockSwap } from "../BaseTest.t.sol";
 import { Pool } from "src/Pool.sol";
 import { Action, Operation } from "src/PositionManager.sol";
 import { PositionManager } from "src/PositionManager.sol";
@@ -24,6 +24,7 @@ contract BigTest is BaseTest {
 
     FixedPriceOracle asset1Oracle;
     FixedPriceOracle asset2Oracle;
+    FixedPriceOracle asset3Oracle;
 
     function setUp() public override {
         super.setUp();
@@ -36,11 +37,13 @@ contract BigTest is BaseTest {
         superPoolFactory = protocol.superPoolFactory();
 
         asset1Oracle = new FixedPriceOracle(10e18);
-        asset2Oracle = new FixedPriceOracle(1e18);
+        asset2Oracle = new FixedPriceOracle(10e18);
+        asset3Oracle = new FixedPriceOracle(10e18);
 
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(asset1), address(asset1Oracle));
         riskEngine.setOracle(address(asset2), address(asset2Oracle));
+        riskEngine.setOracle(address(asset3), address(asset3Oracle));
         vm.stopPrank();
 
         address fixedRateModel = address(new FixedRateModel(1e18));
@@ -64,18 +67,18 @@ contract BigTest is BaseTest {
         vm.stopPrank();
 
         vm.startPrank(poolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset3), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset3));
         riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
 
-        riskEngine.requestLtvUpdate(fixedRatePool, address(asset1), 0.75e18);
-        riskEngine.acceptLtvUpdate(fixedRatePool, address(asset1));
+        riskEngine.requestLtvUpdate(fixedRatePool, address(asset3), 0.75e18);
+        riskEngine.acceptLtvUpdate(fixedRatePool, address(asset3));
         riskEngine.requestLtvUpdate(fixedRatePool, address(asset2), 0.75e18);
         riskEngine.acceptLtvUpdate(fixedRatePool, address(asset2));
 
-        riskEngine.requestLtvUpdate(fixedRatePool2, address(asset1), 0.75e18);
-        riskEngine.acceptLtvUpdate(fixedRatePool2, address(asset1));
+        riskEngine.requestLtvUpdate(fixedRatePool2, address(asset3), 0.75e18);
+        riskEngine.acceptLtvUpdate(fixedRatePool2, address(asset3));
         riskEngine.requestLtvUpdate(fixedRatePool2, address(asset2), 0.75e18);
         riskEngine.acceptLtvUpdate(fixedRatePool2, address(asset2));
         vm.stopPrank();
@@ -130,11 +133,18 @@ contract BigTest is BaseTest {
         Action memory addNewCollateral = addToken(address(asset2));
         Action memory depositCollateral = deposit(address(asset2), 300 ether);
         Action memory borrowAct = borrow(fixedRatePool, 15 ether);
+        Action memory approveAct = approve(address(mockswap), address(asset1), 15 ether);
+        bytes memory data = abi.encodeWithSelector(SWAP_FUNC_SELECTOR, address(asset1), address(asset3), 15 ether);
+        Action memory execAct = exec(address(mockswap), 0, data);
+        Action memory addAsset3 = addToken(address(asset3));
 
-        Action[] memory actions = new Action[](3);
+        Action[] memory actions = new Action[](6);
         actions[0] = addNewCollateral;
         actions[1] = depositCollateral;
         actions[2] = borrowAct;
+        actions[3] = approveAct;
+        actions[4] = execAct;
+        actions[5] = addAsset3;
 
         positionManager.processBatch(position, actions);
         vm.stopPrank();

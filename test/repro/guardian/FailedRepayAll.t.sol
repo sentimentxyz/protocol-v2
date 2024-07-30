@@ -25,12 +25,14 @@ contract FailedRepayAll is BaseTest {
     address public positionOwner = makeAddr("positionOwner");
     FixedPriceOracle asset1Oracle = new FixedPriceOracle(10e18);
     FixedPriceOracle asset2Oracle = new FixedPriceOracle(0.5e18);
+    FixedPriceOracle asset3Oracle = new FixedPriceOracle(10e18);
 
     function setUp() public override {
         super.setUp();
 
         asset1Oracle = new FixedPriceOracle(10e18);
         asset2Oracle = new FixedPriceOracle(0.5e18);
+        asset3Oracle = new FixedPriceOracle(10e18);
 
         pool = protocol.pool();
         registry = protocol.registry();
@@ -40,6 +42,7 @@ contract FailedRepayAll is BaseTest {
         vm.startPrank(protocolOwner);
         riskEngine.setOracle(address(asset1), address(asset1Oracle));
         riskEngine.setOracle(address(asset2), address(asset2Oracle));
+        riskEngine.setOracle(address(asset3), address(asset3Oracle));
         vm.stopPrank();
 
         asset1.mint(address(this), 10_000 ether);
@@ -53,8 +56,8 @@ contract FailedRepayAll is BaseTest {
         PositionManager(positionManager).processBatch(position, actions);
 
         vm.startPrank(poolOwner);
-        riskEngine.requestLtvUpdate(linearRatePool, address(asset1), 0.75e18);
-        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
+        riskEngine.requestLtvUpdate(linearRatePool, address(asset3), 0.75e18);
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset3));
         riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);
         riskEngine.acceptLtvUpdate(linearRatePool, address(asset2));
         vm.stopPrank();

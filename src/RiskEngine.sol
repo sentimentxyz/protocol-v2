@@ -93,6 +93,8 @@ contract RiskEngine is Ownable {
     error RiskEngine_MinLtvTooLow();
     /// @notice Global max ltv must be less than 100%
     error RiskEngine_MaxLtvTooHigh();
+    /// @notice Pool LTV for the asset being lent out must be zero
+    error RiskEngine_CannotBorrowPoolAsset(uint256 poolId);
 
     /// @param registry_ Sentiment Registry
     /// @param minLtv_ Minimum LTV bound
@@ -174,6 +176,9 @@ contract RiskEngine is Ownable {
 
         // ensure new ltv is within global limits. also enforces that an existing ltv cannot be updated to zero
         if (ltv < minLtv || ltv > maxLtv) revert RiskEngine_LtvLimitBreached(ltv);
+
+        // Positions cannot borrow against the same asset that is being lent out
+        if (pool.getPoolAssetFor(poolId) == asset) revert RiskEngine_CannotBorrowPoolAsset(poolId);
 
         LtvUpdate memory ltvUpdate;
         // only modification of previously set ltvs require a timelock

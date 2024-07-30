@@ -122,17 +122,11 @@ contract RiskModule {
         _validateSeizedAssetValue(position, debtData, assetData, LIQUIDATION_DISCOUNT);
     }
 
-    function validateBadDebtLiquidation(
-        address position,
-        DebtData[] calldata debtData,
-        AssetData[] calldata assetData
-    ) external view {
-        // position must have bad debt
+    /// @notice Verify if a given position has bad debt
+    function validateBadDebt(address position) external view {
         uint256 totalDebtValue = getTotalDebtValue(position);
         uint256 totalAssetValue = getTotalAssetValue(position);
         if (totalAssetValue > totalDebtValue) revert RiskModule_NoBadDebt(position);
-
-        _validateSeizedAssetValue(position, debtData, assetData, BAD_DEBT_LIQUIDATION_DISCOUNT);
     }
 
     function _validateSeizedAssetValue(

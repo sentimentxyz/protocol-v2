@@ -443,25 +443,23 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         emit Liquidation(position, msg.sender, ownerOf[position]);
     }
 
-    function liquidateWithBadDebt(
-        address position,
-        DebtData[] calldata debtData,
-        AssetData[] calldata assetData
-    ) external nonReentrant {
-        riskEngine.validateBadDebtLiquidation(position, debtData, assetData);
+    function liquidateBadDebt(address position) external onlyOwner {
+        riskEngine.validateBadDebt(position);
 
-        // liquidate
-        _transferAssetsToLiquidator(position, assetData);
-        _repayPositionDebt(position, debtData);
+        // transfer any remaining position assets to the PositionManager owner
+        address[] memory positionAssets = Position(payable(position)).getPositionAssets();
+        uint256 positionAssetsLength = positionAssets.length;
+        for (uint256 i; i < positionAssetsLength; ++i) {
+            uint256 amt = IERC20(positionAssets[i]).balanceOf(position);
+            try Position(payable(position)).transfer(owner(), positionAssets[i], amt) { } catch { }
+        }
 
-        // rebalance bad debt
-        if (riskEngine.getTotalAssetValue(position) == 0) {
-            uint256[] memory debtPools = Position(payable(position)).getDebtPools();
-            uint256 debtPoolsLength = debtPools.length;
-            for (uint256 i; i < debtPoolsLength; ++i) {
-                pool.rebalanceBadDebt(debtPools[i], position);
-                Position(payable(position)).repay(debtPools[i], type(uint256).max);
-            }
+        // clear all debt associated with the given position
+        uint256[] memory debtPools = Position(payable(position)).getDebtPools();
+        uint256 debtPoolsLength = debtPools.length;
+        for (uint256 i; i < debtPoolsLength; ++i) {
+            pool.rebalanceBadDebt(debtPools[i], position);
+            Position(payable(position)).repay(debtPools[i], type(uint256).max);
         }
     }
 

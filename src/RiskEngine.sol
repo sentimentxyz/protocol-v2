@@ -141,12 +141,8 @@ contract RiskEngine is Ownable {
         riskModule.validateLiquidation(position, debtData, assetData);
     }
 
-    function validateBadDebtLiquidation(
-        address position,
-        DebtData[] calldata debtData,
-        AssetData[] calldata assetData
-    ) external view {
-        riskModule.validateBadDebtLiquidation(position, debtData, assetData);
+    function validateBadDebt(address position) external view {
+        riskModule.validateBadDebt(position);
     }
 
     /// @notice Fetch risk-associated data for a given position

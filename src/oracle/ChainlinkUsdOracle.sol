@@ -54,6 +54,8 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
     error ChainlinkUsdOracle_StalePrice(address asset);
     /// @notice Latest price update for `asset` has a negative value
     error ChainlinkUsdOracle_NonPositivePrice(address asset);
+    /// @notice Invalid oracle update round
+    error ChainlinkUsdOracle_InvalidRound();
 
     /// @param owner Oracle owner address
     /// @param arbSeqFeed Chainlink arbitrum sequencer feed
@@ -103,6 +105,7 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
         // answer == 0 -> sequncer up
         // answer == 1 -> sequencer down
         if (answer != 0) revert ChainlinkUsdOracle_SequencerDown();
+        if (startedAt == 0) revert ChainlinkUsdOracle_InvalidRound();
 
         if (block.timestamp - startedAt <= SEQ_GRACE_PERIOD) revert ChainlinkUsdOracle_GracePeriodNotOver();
     }

@@ -526,8 +526,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
     /// @notice Toggle spender inclusion in the known spender universe
     function toggleKnownSpender(address spender) external onlyOwner {
-        isKnownSpender[spender] = !isKnownAsset[spender];
-        emit ToggleKnownSpender(spender, isKnownAsset[spender]);
+        isKnownSpender[spender] = !isKnownSpender[spender];
+        emit ToggleKnownSpender(spender, isKnownSpender[spender]);
     }
 
     /// @notice Toggle target-function pair inclusion in the known function universe

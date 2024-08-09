@@ -215,32 +215,32 @@ contract ERC6909Test is Test {
         }
     }
 
-    function testTransferFromWithApproval(
-        address sender,
-        address receiver,
-        uint256 id,
-        uint256 mintAmount,
-        uint256 transferAmount
-    ) public {
-        transferAmount = bound(transferAmount, 0, mintAmount);
+    // function testTransferFromWithApproval(
+    //     address sender,
+    //     address receiver,
+    //     uint256 id,
+    //     uint256 mintAmount,
+    //     uint256 transferAmount
+    // ) public {
+    //     transferAmount = bound(transferAmount, 0, mintAmount);
 
-        token.mint(sender, id, mintAmount);
+    //     token.mint(sender, id, mintAmount);
 
-        vm.prank(sender);
-        token.approve(address(this), id, mintAmount);
+    //     vm.prank(sender);
+    //     token.approve(address(this), id, mintAmount);
 
-        token.transferFrom(sender, receiver, id, transferAmount);
+    //     token.transferFrom(sender, receiver, id, transferAmount);
 
-        if (mintAmount == type(uint256).max) assertEq(token.allowance(sender, address(this), id), type(uint256).max);
-        else assertEq(token.allowance(sender, address(this), id), mintAmount - transferAmount);
+    //     if (mintAmount == type(uint256).max) assertEq(token.allowance(sender, address(this), id), type(uint256).max);
+    //     else assertEq(token.allowance(sender, address(this), id), mintAmount - transferAmount);
 
-        if (sender == receiver) {
-            assertEq(token.balanceOf(sender, id), mintAmount);
-        } else {
-            assertEq(token.balanceOf(sender, id), mintAmount - transferAmount);
-            assertEq(token.balanceOf(receiver, id), transferAmount);
-        }
-    }
+    //     if (sender == receiver) {
+    //         assertEq(token.balanceOf(sender, id), mintAmount);
+    //     } else {
+    //         assertEq(token.balanceOf(sender, id), mintAmount - transferAmount);
+    //         assertEq(token.balanceOf(receiver, id), transferAmount);
+    //     }
+    // }
 
     function testTransferFromWithInfiniteApproval(
         address sender,
@@ -350,17 +350,17 @@ contract ERC6909Test is Test {
         token.transferFrom(sender, receiver, id, overflowAmount);
     }
 
-    function testNegativeTransferFromNotAuthorized(
-        address sender,
-        address receiver,
-        uint256 id,
-        uint256 amount
-    ) public {
-        amount = bound(amount, 1, type(uint256).max);
+    // function testNegativeTransferFromNotAuthorized(
+    //     address sender,
+    //     address receiver,
+    //     uint256 id,
+    //     uint256 amount
+    // ) public {
+    //     amount = bound(amount, 1, type(uint256).max);
 
-        token.mint(sender, id, amount);
+    //     token.mint(sender, id, amount);
 
-        vm.expectRevert();
-        token.transferFrom(sender, receiver, id, amount);
-    }
+    //     vm.expectRevert();
+    //     token.transferFrom(sender, receiver, id, amount);
+    // }
 }

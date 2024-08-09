@@ -26,7 +26,7 @@ contract SuperPoolFactory {
     mapping(address superPool => bool isDeployer) public isDeployerFor;
 
     /// @notice New Super Pool instance was deployed
-    event SuperPoolDeployed(address indexed owner, address superPool, string name, string symbol);
+    event SuperPoolDeployed(address indexed owner, address superPool, address asset, string name, string symbol);
 
     /// @notice SuperPools with non-zero fees cannot have an address(0) fee recipient
     error SuperPoolFactory_ZeroFeeRecipient();
@@ -75,7 +75,7 @@ contract SuperPoolFactory {
         if (shares < MIN_BURNED_SHARES) revert SuperPoolFactory_TooFewInitialShares(shares);
         IERC20(superPool).transfer(DEAD_ADDRESS, shares);
 
-        emit SuperPoolDeployed(owner, address(superPool), name, symbol);
+        emit SuperPoolDeployed(owner, address(superPool), asset, name, symbol);
         return address(superPool);
     }
 }

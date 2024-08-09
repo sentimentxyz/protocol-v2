@@ -45,4 +45,10 @@ library ActionUtils {
         Action memory action = Action({ op: Operation.Transfer, data: data });
         return action;
     }
+
+    function exec(address target, uint256 value, bytes memory execData) internal pure returns (Action memory) {
+        bytes memory data = abi.encodePacked(target, value, execData);
+        Action memory action = Action({ op: Operation.Exec, data: data });
+        return action;
+    }
 }

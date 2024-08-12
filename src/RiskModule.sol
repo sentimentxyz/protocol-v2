@@ -31,8 +31,6 @@ contract RiskModule {
 
     /// @notice The discount on assets when liquidating, out of 1e18
     uint256 public immutable LIQUIDATION_DISCOUNT;
-    /// @notice Asset discount for bad debt liquidation
-    uint256 public immutable BAD_DEBT_LIQUIDATION_DISCOUNT;
     /// @notice The updateable registry as a part of the 2step initialization process
     Registry public immutable REGISTRY;
     /// @notice Sentiment Singleton Pool
@@ -54,10 +52,9 @@ contract RiskModule {
     /// @notice Constructor for Risk Module, which should be registered with the RiskEngine
     /// @param registry_ The address of the registry contract
     /// @param liquidationDiscount_ The discount on assets when liquidating, out of 1e18
-    constructor(address registry_, uint256 liquidationDiscount_, uint256 badDebtLiquidationDiscount_) {
+    constructor(address registry_, uint256 liquidationDiscount_) {
         REGISTRY = Registry(registry_);
         LIQUIDATION_DISCOUNT = liquidationDiscount_;
-        BAD_DEBT_LIQUIDATION_DISCOUNT = badDebtLiquidationDiscount_;
     }
 
     /// @notice Updates the pool and risk engine from the registry

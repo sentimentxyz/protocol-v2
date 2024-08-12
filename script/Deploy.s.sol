@@ -84,7 +84,7 @@ contract Deploy is BaseScript {
         // risk
         riskEngine = new RiskEngine(address(registry), params.minLtv, params.maxLtv);
         riskEngine.transferOwnership(params.owner);
-        riskModule = new RiskModule(address(registry), params.liquidationDiscount, params.badDebtLiquidationDiscount);
+        riskModule = new RiskModule(address(registry), params.liquidationDiscount);
         // pool
         poolImpl = address(new Pool());
         bytes memory poolInitData = abi.encodeWithSelector(

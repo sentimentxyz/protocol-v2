@@ -29,7 +29,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @notice Timelock delay for pool rate model modification
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
     /// @notice Timelock deadline to enforce timely updates
-    uint256 public constant TIMELOCK_DEADLINE = 24 * 60 * 60; // 24 hours
+    uint256 public constant TIMELOCK_DEADLINE = 3 * 24 * 60 * 60; // 72 hours
     /// @notice Registry key hash for the Sentiment position manager
     /// @dev keccak(SENTIMENT_POSITION_MANAGER_KEY)
     bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =

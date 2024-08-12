@@ -19,7 +19,7 @@ contract RiskEngine is Ownable {
     /// @notice Timelock delay to update asset LTVs
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
     /// @notice Timelock deadline to enforce timely updates
-    uint256 public constant TIMELOCK_DEADLINE = 24 * 60 * 60; // 24 hours
+    uint256 public constant TIMELOCK_DEADLINE = 3 * 24 * 60 * 60; // 72 hours
     /// @notice Sentiment Pool registry key hash
     /// @dev keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;

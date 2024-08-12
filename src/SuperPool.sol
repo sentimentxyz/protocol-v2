@@ -29,11 +29,11 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @notice The denominator for fixed point number calculations
     uint256 internal constant WAD = 1e18;
     /// @notice The maximum length of the deposit and withdraw queues
-    uint256 public constant MAX_QUEUE_LENGTH = 8;
+    uint256 public constant MAX_QUEUE_LENGTH = 10;
     /// @notice Timelock delay for fee modification
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
     /// @notice Timelock deadline to enforce timely updates
-    uint256 public constant TIMELOCK_DEADLINE = 24 * 60 * 60; // 24 hours
+    uint256 public constant TIMELOCK_DEADLINE = 3 * 24 * 60 * 60; // 72 hours
 
     uint8 internal immutable DECIMALS;
     /// @notice The singleton pool contract associated with this superpool

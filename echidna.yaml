@@ -1,0 +1,27 @@
+
+testMode: "assertion"
+prefix: "invariant_"
+coverage: true
+corpusDir: "echidna"
+balanceAddr: 0x1043561a8829300000
+balanceContract: 0x1043561a8829300000
+cryticArgs: []
+codeSize: 0xffffffffff
+#dictFreq controls how often to use echidna's internal dictionary vs random
+#values
+dictFreq: 0.40
+# list of file formats to save coverage reports in; default is all possible formats
+coverageFormats: ["txt","html","lcov"]
+# number of workers
+workers: 10
+testLimit: 500000
+#seqLen defines how many transactions are in a test sequence
+seqLen: 50
+#shrinkLimit determines how much effort is spent shrinking failing sequences
+shrinkLimit: 1
+maxTimeDelay: 604800
+# maxTimeDelay: 86400
+#maximum time between generated txs; default is one week
+maxBlockDelay: 60480
+# maxBlockDelay: 8640
+#maximum number of blocks elapsed between generated txs; default is expected increment in one week

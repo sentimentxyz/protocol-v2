@@ -394,18 +394,6 @@ contract PositionManagerUnitTests is BaseTest {
         assertEq(testContract.ping(), 1);
     }
 
-    // Test setting the beacon address
-    function testSetBeacon() public {
-        address newBeacon = makeAddr("newBeacon");
-        vm.prank(positionManager.owner());
-        positionManager.setBeacon(newBeacon);
-        assertEq(positionManager.positionBeacon(), newBeacon, "Beacon address should be updated");
-
-        vm.startPrank(makeAddr("nonOwner")); // Non-owner address
-        vm.expectRevert();
-        positionManager.setBeacon(newBeacon);
-    }
-
     // Test setting the liquidation fee
     function testSetLiquidationFee() public {
         uint256 newFee = 100; // Example fee

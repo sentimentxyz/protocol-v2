@@ -505,12 +505,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         }
     }
 
-    /// @notice Set the position beacon used to point to the position implementation
-    function setBeacon(address _positionBeacon) external onlyOwner {
-        positionBeacon = _positionBeacon;
-        emit BeaconSet(_positionBeacon);
-    }
-
     /// @notice Set the protocol registry address
     function setRegistry(address _registry) external onlyOwner {
         registry = Registry(_registry);

@@ -59,7 +59,7 @@ contract KinkedRateModel is IRateModel {
     function getInterestRate(uint256 totalBorrows, uint256 totalAssets) public view returns (uint256) {
         uint256 util = (totalAssets == 0) ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Up);
 
-        if (util <= OPTIMAL_UTIL) return MIN_RATE_1 + SLOPE_1.mulDiv(util, OPTIMAL_UTIL, Math.Rounding.Down);
-        else return MIN_RATE_2 + SLOPE_2.mulDiv((util - OPTIMAL_UTIL), MAX_EXCESS_UTIL, Math.Rounding.Down);
+        if (util <= OPTIMAL_UTIL) return MIN_RATE_1 + SLOPE_1.mulDiv(util, OPTIMAL_UTIL, Math.Rounding.Up);
+        else return MIN_RATE_2 + SLOPE_2.mulDiv((util - OPTIMAL_UTIL), MAX_EXCESS_UTIL, Math.Rounding.Up);
     }
 }

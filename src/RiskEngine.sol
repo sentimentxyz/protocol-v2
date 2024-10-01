@@ -95,6 +95,8 @@ contract RiskEngine is Ownable {
     error RiskEngine_MaxLtvTooHigh();
     /// @notice Pool LTV for the asset being lent out must be zero
     error RiskEngine_CannotBorrowPoolAsset(uint256 poolId);
+    /// @notice Min Ltv is not less than Max Ltv
+    error RiskEngine_InvalidLtvLimits(uint256 minLtv, uint256 maxLtv);
 
     /// @param registry_ Sentiment Registry
     /// @param minLtv_ Minimum LTV bound
@@ -102,6 +104,7 @@ contract RiskEngine is Ownable {
     constructor(address registry_, uint256 minLtv_, uint256 maxLtv_) Ownable() {
         if (minLtv_ == 0) revert RiskEngine_MinLtvTooLow();
         if (maxLtv_ >= 1e18) revert RiskEngine_MaxLtvTooHigh();
+        if (minLtv_ >= maxLtv_) revert RiskEngine_InvalidLtvLimits(minLtv_, maxLtv_);
 
         REGISTRY = Registry(registry_);
         minLtv = minLtv_;
@@ -226,6 +229,7 @@ contract RiskEngine is Ownable {
     function setLtvBounds(uint256 _minLtv, uint256 _maxLtv) external onlyOwner {
         if (_minLtv == 0) revert RiskEngine_MinLtvTooLow();
         if (_maxLtv >= 1e18) revert RiskEngine_MaxLtvTooHigh();
+        if (_minLtv >= _maxLtv) revert RiskEngine_InvalidLtvLimits(_minLtv, _maxLtv);
 
         minLtv = _minLtv;
         maxLtv = _maxLtv;

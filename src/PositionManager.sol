@@ -124,6 +124,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     event RegistrySet(address registry);
     /// @notice Protocol liquidation fee was updated
     event LiquidationFeeSet(uint256 liquidationFee);
+    /// @notice Position authorization was toggled
+    event AuthToggled(address indexed position, address indexed user, bool isAuth);
     /// @notice Known state of an address was toggled
     event ToggleKnownAsset(address indexed asset, bool isAllowed);
     /// @notice Known state of an address was toggled
@@ -221,6 +223,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
 
         // update authz status in storage
         isAuth[position][user] = !isAuth[position][user];
+        emit AuthToggled(position, user, isAuth[position][user]);
     }
 
     /// @notice Process a single action on a given position

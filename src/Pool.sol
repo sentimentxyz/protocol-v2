@@ -144,7 +144,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @notice Attempt to initialize an already existing pool
     error Pool_PoolAlreadyInitialized(uint256 poolId);
     /// @notice Attempt to redeem zero shares worth of assets from the pool
-    error Pool_ZeroShareRedeem(uint256 poolId, uint256 assets);
+    error Pool_ZeroShareWithdraw(uint256 poolId, uint256 assets);
     /// @notice Attempt to repay zero shares worth of assets to the pool
     error Pool_ZeroSharesRepay(uint256 poolId, uint256 amt);
     /// @notice Attempt to borrow zero shares worth of assets from the pool
@@ -207,7 +207,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     /// @notice Fetch amount of liquid assets currently held in a given pool
-    function getLiquidityOf(uint256 poolId) public view returns (uint256) {
+    function getLiquidityOf(
+        uint256 poolId
+    ) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         uint256 assetsInPool = pool.totalDepositAssets - pool.totalBorrowAssets;
         uint256 totalBalance = IERC20(pool.asset).balanceOf(address(this));
@@ -240,26 +242,34 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     /// @notice Fetch the total amount of assets currently deposited in a pool
-    function getTotalAssets(uint256 poolId) public view returns (uint256) {
+    function getTotalAssets(
+        uint256 poolId
+    ) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         (uint256 accruedInterest,) = simulateAccrue(pool);
         return pool.totalDepositAssets + accruedInterest;
     }
 
     /// @notice Fetch total amount of debt owed to a given pool id
-    function getTotalBorrows(uint256 poolId) public view returns (uint256) {
+    function getTotalBorrows(
+        uint256 poolId
+    ) public view returns (uint256) {
         PoolData storage pool = poolDataFor[poolId];
         (uint256 accruedInterest,) = simulateAccrue(pool);
         return pool.totalBorrowAssets + accruedInterest;
     }
 
     /// @notice Fetch current rate model for a given pool id
-    function getRateModelFor(uint256 poolId) public view returns (address rateModel) {
+    function getRateModelFor(
+        uint256 poolId
+    ) public view returns (address rateModel) {
         return poolDataFor[poolId].rateModel;
     }
 
     /// @notice Fetch the debt asset address for a given pool
-    function getPoolAssetFor(uint256 poolId) public view returns (address) {
+    function getPoolAssetFor(
+        uint256 poolId
+    ) public view returns (address) {
         return poolDataFor[poolId].asset;
     }
 
@@ -349,7 +359,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         shares = _convertToShares(assets, pool.totalDepositAssets, pool.totalDepositShares, Math.Rounding.Up);
         // check for rounding error since convertToShares rounds down
-        if (shares == 0) revert Pool_ZeroShareRedeem(poolId, assets);
+        if (shares == 0) revert Pool_ZeroShareWithdraw(poolId, assets);
 
         if (msg.sender != owner && !isOperator[owner][msg.sender]) {
             uint256 allowed = allowance[owner][msg.sender][poolId];
@@ -372,12 +382,16 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     /// @notice Accrue interest and fees for a given pool
-    function accrue(uint256 id) external {
+    function accrue(
+        uint256 id
+    ) external {
         PoolData storage pool = poolDataFor[id];
         accrue(pool, id);
     }
 
-    function simulateAccrue(PoolData storage pool) internal view returns (uint256, uint256) {
+    function simulateAccrue(
+        PoolData storage pool
+    ) internal view returns (uint256, uint256) {
         uint256 interestAccrued = IRateModel(pool.rateModel).getInterestAccrued(
             pool.lastUpdated, pool.totalBorrowAssets, pool.totalDepositAssets
         );
@@ -598,7 +612,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     /// @notice Toggle paused state for a pool to restrict deposit and borrows
-    function togglePause(uint256 poolId) external {
+    function togglePause(
+        uint256 poolId
+    ) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         PoolData storage pool = poolDataFor[poolId];
         pool.isPaused = !pool.isPaused;
@@ -641,7 +657,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     /// @notice Apply a pending interest rate model change for a pool
-    function acceptRateModelUpdate(uint256 poolId) external {
+    function acceptRateModelUpdate(
+        uint256 poolId
+    ) external {
         accrue(poolDataFor[poolId], poolId); // accrue pending interest using previous rate model
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         RateModelUpdate memory rateModelUpdate = rateModelUpdateFor[poolId];
@@ -666,7 +684,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     /// @notice Reject pending interest rate model update
-    function rejectRateModelUpdate(uint256 poolId) external {
+    function rejectRateModelUpdate(
+        uint256 poolId
+    ) external {
         if (msg.sender != ownerOf[poolId]) revert Pool_OnlyPoolOwner(poolId, msg.sender);
         emit RateModelUpdateRejected(poolId, rateModelUpdateFor[poolId].rateModel);
         delete rateModelUpdateFor[poolId];
@@ -674,7 +694,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
     /// @notice Set protocol registry address
     /// @param _registry Registry address
-    function setRegistry(address _registry) external onlyOwner {
+    function setRegistry(
+        address _registry
+    ) external onlyOwner {
         registry = _registry;
         updateFromRegistry();
         emit RegistrySet(_registry);
@@ -701,23 +723,31 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     /// @notice Update the minimum borrow amount
-    function setMinBorrow(uint256 newMinBorrow) external onlyOwner {
+    function setMinBorrow(
+        uint256 newMinBorrow
+    ) external onlyOwner {
         minBorrow = newMinBorrow;
         emit MinBorrowSet(newMinBorrow);
     }
 
     /// @notice Update the min debt amount
-    function setMinDebt(uint256 newMinDebt) external onlyOwner {
+    function setMinDebt(
+        uint256 newMinDebt
+    ) external onlyOwner {
         minDebt = newMinDebt;
         emit MinDebtSet(newMinDebt);
     }
 
-    function setDefaultOriginationFee(uint128 newDefaultOriginationFee) external onlyOwner {
+    function setDefaultOriginationFee(
+        uint128 newDefaultOriginationFee
+    ) external onlyOwner {
         defaultOriginationFee = newDefaultOriginationFee;
         emit DefaultOriginationFeeSet(newDefaultOriginationFee);
     }
 
-    function setDefaultInterestFee(uint128 newDefaultInterestFee) external onlyOwner {
+    function setDefaultInterestFee(
+        uint128 newDefaultInterestFee
+    ) external onlyOwner {
         defaultInterestFee = newDefaultInterestFee;
         emit DefaultInterestFeeSet(newDefaultInterestFee);
     }

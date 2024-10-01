@@ -91,10 +91,12 @@ contract RiskEngineUnitTests is BaseTest {
         assertEq(riskEngine.ltvFor(linearRatePool, address(asset2)), 0.75e18);
     }
 
-    function testNoLTVUpdate(address asset) public {
+    function testNoLTVUpdate() public {
         vm.prank(poolOwner);
-        vm.expectRevert(abi.encodeWithSelector(RiskEngine.RiskEngine_NoLtvUpdate.selector, linearRatePool, asset));
-        riskEngine.acceptLtvUpdate(linearRatePool, asset);
+        vm.expectRevert(
+            abi.encodeWithSelector(RiskEngine.RiskEngine_NoLtvUpdate.selector, linearRatePool, address(asset1))
+        );
+        riskEngine.acceptLtvUpdate(linearRatePool, address(asset1));
     }
 
     function testNonOwnerCannotUpdateLTV() public {

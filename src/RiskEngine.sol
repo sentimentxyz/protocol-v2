@@ -192,6 +192,7 @@ contract RiskEngine is Ownable {
     /// @notice Apply a pending LTV update
     function acceptLtvUpdate(uint256 poolId, address asset) external {
         if (msg.sender != pool.ownerOf(poolId)) revert RiskEngine_OnlyPoolOwner(poolId, msg.sender);
+        if (oracleFor[asset] == address(0)) revert RiskEngine_NoOracleFound(asset);
 
         LtvUpdate memory ltvUpdate = ltvUpdateFor[poolId][asset];
 

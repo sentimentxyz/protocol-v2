@@ -65,7 +65,7 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
         ARB_SEQ_FEED = IAggegregatorV3(arbSeqFeed);
         ETH_USD_FEED = IAggegregatorV3(ethUsdFeed);
         priceFeedFor[ETH] = ethUsdFeed;
-        stalePriceThresholdFor[ETH] = ethUsdThreshold;
+        stalePriceThresholdFor[ethUsdFeed] = ethUsdThreshold;
 
         _transferOwnership(owner);
     }

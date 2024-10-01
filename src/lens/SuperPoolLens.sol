@@ -92,7 +92,11 @@ contract SuperPoolLens {
     function getPoolDepositData(
         address superPool,
         uint256 poolId
-    ) public view returns (PoolDepositData memory poolDepositData) {
+    )
+        public
+        view
+        returns (PoolDepositData memory poolDepositData)
+    {
         address asset = POOL.getPoolAssetFor(poolId);
         uint256 amount = POOL.getAssetsOf(poolId, superPool);
 
@@ -121,7 +125,11 @@ contract SuperPoolLens {
     function getUserMultiDepositData(
         address user,
         address[] calldata superPools
-    ) public view returns (UserMultiDepositData memory userMultiDepositData) {
+    )
+        public
+        view
+        returns (UserMultiDepositData memory userMultiDepositData)
+    {
         UserDepositData[] memory deposits = new UserDepositData[](superPools.length);
 
         uint256 totalValueInEth;
@@ -167,7 +175,11 @@ contract SuperPoolLens {
     function getUserDepositData(
         address user,
         address _superPool
-    ) public view returns (UserDepositData memory userDepositData) {
+    )
+        public
+        view
+        returns (UserDepositData memory userDepositData)
+    {
         SuperPool superPool = SuperPool(_superPool);
         address asset = address(superPool.asset());
         uint256 amount = superPool.previewRedeem(superPool.balanceOf(user));

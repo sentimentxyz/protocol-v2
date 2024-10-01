@@ -137,7 +137,10 @@ contract RiskEngine is Ownable {
         address position,
         DebtData[] calldata debtData,
         AssetData[] calldata assetData
-    ) external view {
+    )
+        external
+        view
+    {
         riskModule.validateLiquidation(position, debtData, assetData);
     }
 

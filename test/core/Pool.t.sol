@@ -127,7 +127,7 @@ contract PoolUnitTests is BaseTest {
     function testCannotWithdrawNoShares() public {
         vm.startPrank(user);
 
-        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_ZeroShareRedeem.selector, linearRatePool, 0));
+        vm.expectRevert(abi.encodeWithSelector(Pool.Pool_ZeroShareWithdraw.selector, linearRatePool, 0));
         pool.withdraw(linearRatePool, 0, user, user);
     }
 

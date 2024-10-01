@@ -43,7 +43,11 @@ contract KinkedRateModel is IRateModel {
         uint256 lastUpdated,
         uint256 totalBorrows,
         uint256 totalAssets
-    ) external view returns (uint256) {
+    )
+        external
+        view
+        returns (uint256)
+    {
         uint256 rateFactor = ((block.timestamp - lastUpdated)).mulDiv(
             getInterestRate(totalBorrows, totalAssets), SECONDS_PER_YEAR, Math.Rounding.Up
         ); // rateFactor = time delta * apr / secs_per_year

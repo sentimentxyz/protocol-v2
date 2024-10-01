@@ -144,7 +144,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @notice Attempt to initialize an already existing pool
     error Pool_PoolAlreadyInitialized(uint256 poolId);
     /// @notice Attempt to redeem zero shares worth of assets from the pool
-    error Pool_ZeroShareRedeem(uint256 poolId, uint256 assets);
+    error Pool_ZeroShareWithdraw(uint256 poolId, uint256 assets);
     /// @notice Attempt to repay zero shares worth of assets to the pool
     error Pool_ZeroSharesRepay(uint256 poolId, uint256 amt);
     /// @notice Attempt to borrow zero shares worth of assets from the pool
@@ -188,7 +188,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         address feeRecipient_,
         uint256 minBorrow_,
         uint256 minDebt_
-    ) public initializer {
+    )
+        public
+        initializer
+    {
         _transferOwnership(owner_);
 
         defaultInterestFee = defaultInterestFee_;
@@ -268,7 +271,11 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         uint256 assets,
         uint256 totalAssets,
         uint256 totalShares
-    ) external pure returns (uint256 shares) {
+    )
+        external
+        pure
+        returns (uint256 shares)
+    {
         shares = _convertToShares(assets, totalAssets, totalShares, Math.Rounding.Down);
     }
 
@@ -277,7 +284,11 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         uint256 totalAssets,
         uint256 totalShares,
         Math.Rounding rounding
-    ) internal pure returns (uint256 shares) {
+    )
+        internal
+        pure
+        returns (uint256 shares)
+    {
         if (totalAssets == 0) return assets;
         shares = assets.mulDiv(totalShares, totalAssets, rounding);
     }
@@ -287,7 +298,11 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         uint256 shares,
         uint256 totalAssets,
         uint256 totalShares
-    ) external pure returns (uint256 assets) {
+    )
+        external
+        pure
+        returns (uint256 assets)
+    {
         assets = _convertToAssets(shares, totalAssets, totalShares, Math.Rounding.Down);
     }
 
@@ -296,7 +311,11 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         uint256 totalAssets,
         uint256 totalShares,
         Math.Rounding rounding
-    ) internal pure returns (uint256 assets) {
+    )
+        internal
+        pure
+        returns (uint256 assets)
+    {
         if (totalShares == 0) return shares;
         assets = shares.mulDiv(totalAssets, totalShares, rounding);
     }
@@ -341,7 +360,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         uint256 assets,
         address receiver,
         address owner
-    ) public returns (uint256 shares) {
+    )
+        public
+        returns (uint256 shares)
+    {
         PoolData storage pool = poolDataFor[poolId];
 
         // update state to accrue interest since the last time accrue() was called
@@ -349,7 +371,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
         shares = _convertToShares(assets, pool.totalDepositAssets, pool.totalDepositShares, Math.Rounding.Up);
         // check for rounding error since convertToShares rounds down
-        if (shares == 0) revert Pool_ZeroShareRedeem(poolId, assets);
+        if (shares == 0) revert Pool_ZeroShareWithdraw(poolId, assets);
 
         if (msg.sender != owner && !isOperator[owner][msg.sender]) {
             uint256 allowed = allowance[owner][msg.sender][poolId];
@@ -564,7 +586,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         address asset,
         uint128 poolCap,
         bytes32 rateModelKey
-    ) external returns (uint256 poolId) {
+    )
+        external
+        returns (uint256 poolId)
+    {
         if (owner == address(0)) revert Pool_ZeroAddressOwner();
 
         if (RiskEngine(riskEngine).getOracleFor(asset) == address(0)) revert Pool_OracleNotFound(asset);

@@ -149,7 +149,10 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         uint256 superPoolCap_,
         string memory name_,
         string memory symbol_
-    ) Ownable() ERC20(name_, symbol_) {
+    )
+        Ownable()
+        ERC20(name_, symbol_)
+    {
         POOL = Pool(pool_);
         ASSET = IERC20(asset_);
         DECIMALS = _tryGetAssetDecimals(ASSET);
@@ -458,7 +461,12 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         uint256 _totalAssets,
         uint256 _totalShares,
         Math.Rounding _rounding
-    ) public view virtual returns (uint256 shares) {
+    )
+        public
+        view
+        virtual
+        returns (uint256 shares)
+    {
         shares = _assets.mulDiv(_totalShares + 1, _totalAssets + 1, _rounding);
     }
 
@@ -467,7 +475,12 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         uint256 _totalAssets,
         uint256 _totalShares,
         Math.Rounding _rounding
-    ) public view virtual returns (uint256 assets) {
+    )
+        public
+        view
+        virtual
+        returns (uint256 assets)
+    {
         assets = _shares.mulDiv(_totalAssets + 1, _totalShares + 1, _rounding);
     }
 
@@ -610,7 +623,11 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     function _reorderQueue(
         uint256[] storage queue,
         uint256[] calldata indexes
-    ) internal view returns (uint256[] memory newQueue) {
+    )
+        internal
+        view
+        returns (uint256[] memory newQueue)
+    {
         uint256 indexesLength = indexes.length;
         if (indexesLength != queue.length) revert SuperPool_ReorderQueueLength();
         bool[] memory seen = new bool[](indexesLength);

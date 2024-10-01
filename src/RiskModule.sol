@@ -112,7 +112,10 @@ contract RiskModule {
         address position,
         DebtData[] calldata debtData,
         AssetData[] calldata assetData
-    ) external view {
+    )
+        external
+        view
+    {
         // position must breach risk thresholds before liquidation
         if (isPositionHealthy(position)) revert RiskModule_LiquidateHealthyPosition(position);
 
@@ -131,7 +134,10 @@ contract RiskModule {
         DebtData[] calldata debtData,
         AssetData[] calldata assetData,
         uint256 discount
-    ) internal view {
+    )
+        internal
+        view
+    {
         // compute value of debt repaid by the liquidator
         uint256 debtRepaidValue;
         uint256 debtLength = debtData.length;
@@ -253,7 +259,11 @@ contract RiskModule {
         address[] memory positionAssets,
         uint256[] memory wt,
         address position
-    ) internal view returns (uint256) {
+    )
+        internal
+        view
+        returns (uint256)
+    {
         uint256 minReqAssetValue;
 
         // O(pools.len * positionAssets.len)

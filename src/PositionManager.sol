@@ -431,7 +431,10 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         address position,
         DebtData[] calldata debtData,
         AssetData[] calldata assetData
-    ) external nonReentrant {
+    )
+        external
+        nonReentrant
+    {
         riskEngine.validateLiquidation(position, debtData, assetData);
 
         // liquidate

@@ -62,7 +62,10 @@ contract SuperPoolFactory {
         uint256 initialDepositAmt,
         string calldata name,
         string calldata symbol
-    ) external returns (address) {
+    )
+        external
+        returns (address)
+    {
         if (fee != 0 && feeRecipient == address(0)) revert SuperPoolFactory_ZeroFeeRecipient();
         SuperPool superPool = new SuperPool(POOL, asset, feeRecipient, fee, superPoolCap, name, symbol);
         superPool.transferOwnership(owner);

@@ -73,10 +73,10 @@ contract SuperPoolFactory {
 
         // burn initial deposit
         IERC20(asset).safeTransferFrom(msg.sender, address(this), initialDepositAmt); // assume approval
-        IERC20(asset).approve(address(superPool), initialDepositAmt);
+        IERC20(asset).forceApprove(address(superPool), initialDepositAmt);
         uint256 shares = superPool.deposit(initialDepositAmt, address(this));
         if (shares < MIN_BURNED_SHARES) revert SuperPoolFactory_TooFewInitialShares(shares);
-        IERC20(superPool).transfer(DEAD_ADDRESS, shares);
+        IERC20(superPool).safeTransfer(DEAD_ADDRESS, shares);
 
         emit SuperPoolDeployed(owner, address(superPool), asset, name, symbol);
         return address(superPool);

@@ -127,16 +127,6 @@ contract RiskEngineUnitTests is BaseTest {
         assertEq(riskEngine.ltvFor(linearRatePool, address(asset1)), 0);
     }
 
-    function testCanUpdateRiskModule() public {
-        vm.prank(protocolOwner);
-        riskEngine.setRiskModule(address(0x3828342));
-        assertEq(address(riskEngine.riskModule()), address(0x3828342));
-
-        vm.startPrank(address(0x21));
-        vm.expectRevert();
-        riskEngine.setRiskModule(address(0x821813));
-    }
-
     function testCannotUpdateLTVBeforeTimelock() public {
         vm.startPrank(poolOwner);
         riskEngine.requestLtvUpdate(linearRatePool, address(asset2), 0.75e18);

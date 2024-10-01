@@ -237,15 +237,6 @@ contract RiskEngine is Ownable {
         emit LtvBoundsSet(_minLtv, _maxLtv);
     }
 
-    /// @notice Set the risk module used to store risk logic for positions
-    /// @dev only callable by RiskEngine owner
-    /// @param _riskModule the address of the risk module implementation
-    function setRiskModule(address _riskModule) external onlyOwner {
-        riskModule = RiskModule(_riskModule);
-
-        emit RiskModuleSet(_riskModule);
-    }
-
     /// @notice Set the oracle address used to price a given asset
     /// @dev Does not support ERC777s, rebasing and fee-on-transfer tokens
     function setOracle(address asset, address oracle) external onlyOwner {

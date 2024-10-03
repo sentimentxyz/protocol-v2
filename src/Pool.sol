@@ -408,6 +408,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     function simulateAccrue(PoolData storage pool) internal view returns (uint256, uint256) {
+        if (block.timestamp == pool.lastUpdated) return (0, 0);
+
         uint256 interestAccrued = IRateModel(pool.rateModel).getInterestAccrued(
             pool.lastUpdated, pool.totalBorrowAssets, pool.totalDepositAssets
         );

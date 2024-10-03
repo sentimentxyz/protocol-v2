@@ -83,7 +83,7 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
 
         // [ROUND] price is rounded down. this is used for both debt and asset math, no effect
         if (decimals <= 18) return (amt * 10 ** (18 - decimals)).mulDiv(uint256(assetUsdPrice), uint256(ethUsdPrice));
-        else return (amt / (10 ** decimals - 18)).mulDiv(uint256(assetUsdPrice), uint256(ethUsdPrice));
+        else return (amt / (10 ** (decimals - 18))).mulDiv(uint256(assetUsdPrice), uint256(ethUsdPrice));
     }
 
     /// @notice Set Chainlink ETH-denominated feed for an asset

@@ -171,6 +171,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     error Pool_DebtTooLow(uint256 poolId, address asset, uint256 amt);
     /// @notice No oracle found for pool asset
     error Pool_OracleNotFound(address asset);
+    /// @notice Non-zero fees need a non-zero fee recipient
+    error Pool_ZeroFeeRecipient();
 
     constructor() {
         _disableInitializers();
@@ -193,6 +195,12 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         initializer
     {
         _transferOwnership(owner_);
+
+        if (defaultInterestFee_ > 1e18) revert Pool_FeeTooHigh();
+        if (defaultOriginationFee_ > 1e18) revert Pool_FeeTooHigh();
+        if ((defaultInterestFee_ > 0 || defaultOriginationFee_ > 0) && feeRecipient_ == address(0)) {
+            revert Pool_ZeroFeeRecipient();
+        }
 
         defaultInterestFee = defaultInterestFee_;
         defaultOriginationFee = defaultOriginationFee_;
@@ -711,7 +719,10 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     function setInterestFee(uint256 poolId, uint128 interestFee) external onlyOwner {
         PoolData storage pool = poolDataFor[poolId];
         accrue(pool, poolId);
+
         if (interestFee > 1e18) revert Pool_FeeTooHigh();
+        if (interestFee > 0 && feeRecipient == address(0)) revert Pool_ZeroFeeRecipient();
+
         pool.interestFee = interestFee;
         emit InterestFeeSet(poolId, interestFee);
     }
@@ -721,6 +732,8 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @param originationFee New origination fee
     function setOriginationFee(uint256 poolId, uint128 originationFee) external onlyOwner {
         if (originationFee > 1e18) revert Pool_FeeTooHigh();
+        if (originationFee > 0 && feeRecipient == address(0)) revert Pool_ZeroFeeRecipient();
+
         poolDataFor[poolId].originationFee = originationFee;
         emit OriginationFeeSet(poolId, originationFee);
     }
@@ -739,12 +752,16 @@ contract Pool is OwnableUpgradeable, ERC6909 {
 
     function setDefaultOriginationFee(uint128 newDefaultOriginationFee) external onlyOwner {
         if (newDefaultOriginationFee > 1e18) revert Pool_FeeTooHigh();
+        if (newDefaultOriginationFee > 0 && feeRecipient == address(0)) revert Pool_ZeroFeeRecipient();
+
         defaultOriginationFee = newDefaultOriginationFee;
         emit DefaultOriginationFeeSet(newDefaultOriginationFee);
     }
 
     function setDefaultInterestFee(uint128 newDefaultInterestFee) external onlyOwner {
         if (newDefaultInterestFee > 1e18) revert Pool_FeeTooHigh();
+        if (newDefaultInterestFee > 0 && feeRecipient == address(0)) revert Pool_ZeroFeeRecipient();
+
         defaultInterestFee = newDefaultInterestFee;
         emit DefaultInterestFeeSet(newDefaultInterestFee);
     }

@@ -450,6 +450,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @param withdraws A list of poolIds, and the amount to withdraw from them
     /// @param deposits A list of poolIds, and the amount to deposit to them
     function reallocate(ReallocateParams[] calldata withdraws, ReallocateParams[] calldata deposits) external {
+        accrue();
+
         if (!isAllocator[msg.sender] && msg.sender != Ownable.owner()) {
             revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
         }

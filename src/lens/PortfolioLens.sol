@@ -166,7 +166,7 @@ contract PortfolioLens {
 
     /// @dev Compute the ETH value scaled to 18 decimals for a given amount of an asset
     function _getValueInEth(address asset, uint256 amt) internal view returns (uint256) {
-        IOracle oracle = IOracle(RISK_ENGINE.getOracleFor(asset));
+        IOracle oracle = IOracle(RISK_ENGINE.oracleFor(asset));
 
         // oracles could revert, but lens calls must not
         try oracle.getValueInEth(asset, amt) returns (uint256 valueInEth) {

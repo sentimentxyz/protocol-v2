@@ -43,10 +43,9 @@ contract RiskEngineUnitTests is BaseTest {
         assertEq(testRiskEngine.maxLtv(), 0.8e18);
     }
 
-    function testNoOracleFound(address asset) public {
+    function testNoOracleFound(address asset) public view {
         vm.assume(asset != address(asset1) && asset != address(asset2));
-        vm.expectRevert(abi.encodeWithSelector(RiskEngine.RiskEngine_NoOracleFound.selector, asset));
-        riskEngine.getOracleFor(asset);
+        assertEq(riskEngine.oracleFor(asset), address(0));
     }
 
     function testOwnerCanUpdateLTV() public {

@@ -146,16 +146,14 @@ contract RiskModule {
             uint256 amt = debtData[i].amt;
             if (amt == type(uint256).max) amt = pool.getBorrowsOf(poolId, position);
             address poolAsset = pool.getPoolAssetFor(poolId);
-            IOracle oracle = IOracle(riskEngine.getOracleFor(poolAsset));
-            debtRepaidValue += oracle.getValueInEth(poolAsset, amt);
+            debtRepaidValue += riskEngine.getValueInEth(poolAsset, amt);
         }
 
         // compute value of assets seized by the liquidator
         uint256 assetSeizedValue;
         uint256 assetDataLength = assetData.length;
         for (uint256 i; i < assetDataLength; ++i) {
-            IOracle oracle = IOracle(riskEngine.getOracleFor(assetData[i].asset));
-            assetSeizedValue += oracle.getValueInEth(assetData[i].asset, assetData[i].amt);
+            assetSeizedValue += riskEngine.getValueInEth(assetData[i].asset, assetData[i].amt);
         }
 
         // max asset value that can be seized by the liquidator
@@ -165,13 +163,6 @@ contract RiskModule {
         }
     }
 
-    /// @notice Gets the ETH debt value a given position owes to a particular pool
-    function getDebtValueForPool(address position, uint256 poolId) public view returns (uint256) {
-        address asset = pool.getPoolAssetFor(poolId);
-        IOracle oracle = IOracle(riskEngine.getOracleFor(asset));
-        return oracle.getValueInEth(asset, pool.getBorrowsOf(poolId, position));
-    }
-
     /// @notice Gets the total debt owed by a position in ETH
     function getTotalDebtValue(address position) public view returns (uint256) {
         uint256[] memory debtPools = Position(payable(position)).getDebtPools();
@@ -179,17 +170,12 @@ contract RiskModule {
         uint256 totalDebtValue;
         uint256 debtPoolsLength = debtPools.length;
         for (uint256 i; i < debtPoolsLength; ++i) {
-            totalDebtValue += getDebtValueForPool(position, debtPools[i]);
+            address poolAsset = pool.getPoolAssetFor(debtPools[i]);
+            uint256 borrowAmt = pool.getBorrowsOf(debtPools[i], position);
+            totalDebtValue += riskEngine.getValueInEth(poolAsset, borrowAmt);
         }
 
         return totalDebtValue;
-    }
-
-    /// @notice Gets the ETH value for a particular asset in a given position
-    function getAssetValue(address position, address asset) public view returns (uint256) {
-        IOracle oracle = IOracle(riskEngine.getOracleFor(asset));
-        uint256 amt = IERC20(asset).balanceOf(position);
-        return oracle.getValueInEth(asset, amt);
     }
 
     /// @notice Gets the total ETH value of assets in a position
@@ -199,7 +185,8 @@ contract RiskModule {
         uint256 totalAssetValue;
         uint256 positionAssetsLength = positionAssets.length;
         for (uint256 i; i < positionAssetsLength; ++i) {
-            totalAssetValue += getAssetValue(position, positionAssets[i]);
+            uint256 amt = IERC20(positionAssets[i]).balanceOf(position);
+            totalAssetValue += riskEngine.getValueInEth(positionAssets[i], amt);
         }
 
         return totalAssetValue;
@@ -216,7 +203,9 @@ contract RiskModule {
 
         uint256 debtPoolsLength = debtPools.length;
         for (uint256 i; i < debtPoolsLength; ++i) {
-            uint256 debt = getDebtValueForPool(position, debtPools[i]);
+            address poolAsset = pool.getPoolAssetFor(debtPools[i]);
+            uint256 borrowAmt = pool.getBorrowsOf(debtPools[i], position);
+            uint256 debt = riskEngine.getValueInEth(poolAsset, borrowAmt);
             debtValueForPool[i] = debt;
             totalDebtValue += debt;
         }
@@ -236,7 +225,8 @@ contract RiskModule {
         uint256[] memory positionAssetData = new uint256[](positionAssetsLength);
 
         for (uint256 i; i < positionAssetsLength; ++i) {
-            uint256 assets = getAssetValue(position, positionAssets[i]);
+            uint256 amt = IERC20(positionAssets[i]).balanceOf(position);
+            uint256 assets = riskEngine.getValueInEth(positionAssets[i], amt);
             // positionAssetData[i] stores value of positionAssets[i] in eth
             positionAssetData[i] = assets;
             totalAssetValue += assets;

@@ -47,7 +47,7 @@ contract RiskEngine is Ownable {
     uint256 public maxLtv;
 
     /// @notice Sentiment Registry
-    Registry public immutable REGISTRY;
+    Registry public registry;
     /// @notice Sentiment Singleton Pool
     Pool public pool;
     /// @notice Sentiment Risk Module
@@ -64,6 +64,8 @@ contract RiskEngine is Ownable {
 
     /// @notice Pool address was updated
     event PoolSet(address pool);
+    /// @notice Registry address was updated
+    event RegistrySet(address registry);
     /// @notice Risk Module address was updated
     event RiskModuleSet(address riskModule);
     /// @notice Protocol LTV bounds were updated
@@ -106,7 +108,7 @@ contract RiskEngine is Ownable {
         if (maxLtv_ >= 1e18) revert RiskEngine_MaxLtvTooHigh();
         if (minLtv_ >= maxLtv_) revert RiskEngine_InvalidLtvLimits(minLtv_, maxLtv_);
 
-        REGISTRY = Registry(registry_);
+        registry = Registry(registry_);
         minLtv = minLtv_;
         maxLtv = maxLtv_;
 
@@ -115,8 +117,8 @@ contract RiskEngine is Ownable {
 
     /// @notice Fetch and update module addreses from the registry
     function updateFromRegistry() external {
-        pool = Pool(REGISTRY.addressFor(SENTIMENT_POOL_KEY));
-        riskModule = RiskModule(REGISTRY.addressFor(SENTIMENT_RISK_MODULE_KEY));
+        pool = Pool(registry.addressFor(SENTIMENT_POOL_KEY));
+        riskModule = RiskModule(registry.addressFor(SENTIMENT_RISK_MODULE_KEY));
 
         emit PoolSet(address(pool));
         emit RiskModuleSet(address(riskModule));
@@ -243,5 +245,10 @@ contract RiskEngine is Ownable {
         oracleFor[asset] = oracle;
 
         emit OracleSet(asset, oracle);
+    }
+
+    function setRegistry(address newRegistry) external onlyOwner {
+        registry = Registry(newRegistry);
+        emit RegistrySet(newRegistry);
     }
 }

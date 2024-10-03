@@ -247,6 +247,7 @@ contract RiskEngine is Ownable {
         emit OracleSet(asset, oracle);
     }
 
+    /// @notice Update the registry associated with this Risk Engine
     function setRegistry(address newRegistry) external onlyOwner {
         registry = Registry(newRegistry);
         emit RegistrySet(newRegistry);

@@ -56,6 +56,8 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
     error ChainlinkUsdOracle_NonPositivePrice(address asset);
     /// @notice Invalid oracle update round
     error ChainlinkUsdOracle_InvalidRound();
+    /// @notice Missing price feed
+    error ChainlinkUsdOracle_MissingPriceFeed(address asset);
 
     /// @param owner Oracle owner address
     /// @param arbSeqFeed Chainlink arbitrum sequencer feed
@@ -113,6 +115,8 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
     /// @dev Fetch price from chainlink feed with sanity checks
     function _getPriceWithSanityChecks(address asset) private view returns (uint256) {
         address feed = priceFeedFor[asset];
+        if (feed == address(0)) revert ChainlinkUsdOracle_MissingPriceFeed(asset);
+
         (, int256 price,, uint256 updatedAt,) = IAggegregatorV3(feed).latestRoundData();
         if (price <= 0) revert ChainlinkUsdOracle_NonPositivePrice(asset);
         if (updatedAt < block.timestamp - stalePriceThresholdFor[feed]) revert ChainlinkUsdOracle_StalePrice(asset);

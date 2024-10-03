@@ -10,6 +10,7 @@ import { Pool } from "./Pool.sol";
 import { AssetData, DebtData } from "./PositionManager.sol";
 import { Registry } from "./Registry.sol";
 import { RiskModule } from "./RiskModule.sol";
+import { IOracle } from "./interfaces/IOracle.sol";
 
 // contracts
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
@@ -54,7 +55,7 @@ contract RiskEngine is Ownable {
     RiskModule public riskModule;
 
     /// @dev Asset to Oracle mapping
-    mapping(address asset => address oracle) internal oracleFor;
+    mapping(address asset => address oracle) public oracleFor;
 
     /// @notice Fetch the ltv for a given asset in a pool
     mapping(uint256 poolId => mapping(address asset => uint256 ltv)) public ltvFor;
@@ -124,11 +125,12 @@ contract RiskEngine is Ownable {
         emit RiskModuleSet(address(riskModule));
     }
 
-    /// @notice Fetch oracle address for a given asset
-    function getOracleFor(address asset) public view returns (address) {
+    /// @notice Fetch value of given asset amount in ETH
+    function getValueInEth(address asset, uint256 amt) public view returns (uint256) {
+        if (amt == 0) return 0;
         address oracle = oracleFor[asset];
         if (oracle == address(0)) revert RiskEngine_NoOracleFound(asset);
-        return oracle;
+        return IOracle(oracle).getValueInEth(asset, amt);
     }
 
     /// @notice Check if the given position is healthy

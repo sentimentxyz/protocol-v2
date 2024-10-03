@@ -71,7 +71,7 @@ contract RiskModuleUnitTests is BaseTest {
         vm.stopPrank();
 
         assertEq(riskModule.getTotalAssetValue(position), 1e18);
-        assertEq(riskModule.getAssetValue(position, address(asset2)), 1e18);
+        assertEq(riskEngine.getValueInEth(address(asset2), asset2.balanceOf(position)), 1e18);
     }
 
     function testDebtValueFuncs() public {
@@ -92,7 +92,9 @@ contract RiskModuleUnitTests is BaseTest {
         vm.stopPrank();
 
         assertEq(riskModule.getTotalDebtValue(position), 1e18);
-        assertEq(riskModule.getDebtValueForPool(position, fixedRatePool), 1e18);
+        address poolAsset = pool.getPoolAssetFor(fixedRatePool);
+        uint256 borrowAmt = pool.getBorrowsOf(fixedRatePool, position);
+        assertEq(riskEngine.getValueInEth(poolAsset, borrowAmt), 1e18);
     }
 
     function testUnsupportedAsset() public {

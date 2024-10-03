@@ -458,7 +458,9 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         if (msg.sender != positionManager) revert Pool_OnlyPositionManager(poolId, msg.sender);
 
         // revert if borrow amount is too low
-        if (_getValueOf(pool.asset, amt) < minBorrow) revert Pool_BorrowAmountTooLow(poolId, pool.asset, amt);
+        if (RiskEngine(riskEngine).getValueInEth(pool.asset, amt) < minBorrow) {
+            revert Pool_BorrowAmountTooLow(poolId, pool.asset, amt);
+        }
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
@@ -481,7 +483,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
             pool.totalBorrowShares + borrowShares,
             Math.Rounding.Down
         );
-        if (_getValueOf(pool.asset, newBorrowAssets) < minDebt) {
+        if (RiskEngine(riskEngine).getValueInEth(pool.asset, newBorrowAssets) < minDebt) {
             revert Pool_DebtTooLow(poolId, pool.asset, newBorrowAssets);
         }
 
@@ -540,7 +542,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
             uint256 newBorrowAssets = _convertToAssets(
                 remainingShares, pool.totalBorrowAssets - amt, pool.totalBorrowShares - borrowShares, Math.Rounding.Down
             );
-            if (_getValueOf(pool.asset, newBorrowAssets) < minDebt) {
+            if (RiskEngine(riskEngine).getValueInEth(pool.asset, newBorrowAssets) < minDebt) {
                 revert Pool_DebtTooLow(poolId, pool.asset, newBorrowAssets);
             }
         }
@@ -580,11 +582,6 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         borrowSharesOf[poolId][position] = 0;
     }
 
-    function _getValueOf(address asset, uint256 amt) internal view returns (uint256) {
-        address oracle = RiskEngine(riskEngine).getOracleFor(asset);
-        return IOracle(oracle).getValueInEth(asset, amt);
-    }
-
     /// @notice Initialize a new pool
     /// @param owner Pool owner
     /// @param asset Pool debt asset
@@ -602,7 +599,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     {
         if (owner == address(0)) revert Pool_ZeroAddressOwner();
 
-        if (RiskEngine(riskEngine).getOracleFor(asset) == address(0)) revert Pool_OracleNotFound(asset);
+        if (RiskEngine(riskEngine).oracleFor(asset) == address(0)) revert Pool_OracleNotFound(asset);
 
         address rateModel = Registry(registry).rateModelFor(rateModelKey);
         if (rateModel == address(0)) revert Pool_RateModelNotFound(rateModelKey);

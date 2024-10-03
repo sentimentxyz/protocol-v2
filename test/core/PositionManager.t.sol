@@ -152,9 +152,7 @@ contract PositionManagerUnitTests is BaseTest {
         PositionManager(positionManager).processBatch(position, actions);
 
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 minReqAssetValue) = riskEngine.getRiskData(position);
-        assertEq(
-            totalAssetValue, IOracle(riskEngine.getOracleFor(address(asset2))).getValueInEth(address(asset2), amount)
-        );
+        assertEq(totalAssetValue, riskEngine.getValueInEth(address(asset2), amount));
         assertEq(totalDebtValue, 0);
         assertEq(minReqAssetValue, 0);
         assertEq(asset2.balanceOf(address(position)), amount);

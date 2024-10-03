@@ -738,11 +738,13 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     }
 
     function setDefaultOriginationFee(uint128 newDefaultOriginationFee) external onlyOwner {
+        if (newDefaultOriginationFee > 1e18) revert Pool_FeeTooHigh();
         defaultOriginationFee = newDefaultOriginationFee;
         emit DefaultOriginationFeeSet(newDefaultOriginationFee);
     }
 
     function setDefaultInterestFee(uint128 newDefaultInterestFee) external onlyOwner {
+        if (newDefaultInterestFee > 1e18) revert Pool_FeeTooHigh();
         defaultInterestFee = newDefaultInterestFee;
         emit DefaultInterestFeeSet(newDefaultInterestFee);
     }

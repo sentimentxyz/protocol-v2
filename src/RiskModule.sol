@@ -205,9 +205,9 @@ contract RiskModule {
         for (uint256 i; i < debtPoolsLength; ++i) {
             address poolAsset = pool.getPoolAssetFor(debtPools[i]);
             uint256 borrowAmt = pool.getBorrowsOf(debtPools[i], position);
-            uint256 debt = riskEngine.getValueInEth(poolAsset, borrowAmt);
-            debtValueForPool[i] = debt;
-            totalDebtValue += debt;
+            uint256 debtInEth = riskEngine.getValueInEth(poolAsset, borrowAmt);
+            debtValueForPool[i] = debtInEth; 
+            totalDebtValue += debtInEth;
         }
 
         return (totalDebtValue, debtPools, debtValueForPool);
@@ -226,10 +226,9 @@ contract RiskModule {
 
         for (uint256 i; i < positionAssetsLength; ++i) {
             uint256 amt = IERC20(positionAssets[i]).balanceOf(position);
-            uint256 assets = riskEngine.getValueInEth(positionAssets[i], amt);
-            // positionAssetData[i] stores value of positionAssets[i] in eth
-            positionAssetData[i] = assets;
-            totalAssetValue += assets;
+            uint256 assetsInEth = riskEngine.getValueInEth(positionAssets[i], amt);
+            positionAssetData[i] = assetsInEth;
+            totalAssetValue += assetsInEth;
         }
 
         if (totalAssetValue == 0) return (0, positionAssets, positionAssetData);

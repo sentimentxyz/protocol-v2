@@ -157,7 +157,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         ASSET = IERC20(asset_);
         DECIMALS = _tryGetAssetDecimals(ASSET);
 
-        if (fee > 1e18) revert SuperPool_FeeTooHigh();
+        if (fee_ > 1e18) revert SuperPool_FeeTooHigh();
         fee = fee_;
         feeRecipient = feeRecipient_;
         superPoolCap = superPoolCap_;
@@ -385,7 +385,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @notice Propose a new fee update for the SuperPool
     /// @dev overwrites any pending or expired updates
     function requestFeeUpdate(uint256 _fee) external onlyOwner {
-        if (fee > 1e18) revert SuperPool_FeeTooHigh();
+        if (_fee > 1e18) revert SuperPool_FeeTooHigh();
         pendingFeeUpdate = PendingFeeUpdate({ fee: _fee, validAfter: block.timestamp + TIMELOCK_DURATION });
         emit SuperPoolFeeUpdateRequested(_fee);
     }

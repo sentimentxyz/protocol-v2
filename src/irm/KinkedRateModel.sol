@@ -28,7 +28,7 @@ contract KinkedRateModel is IRateModel {
     uint256 private immutable MAX_EXCESS_UTIL; // 1e18 - OPTIMAL_UTIL
 
     constructor(uint256 minRate, uint256 slope1, uint256 slope2, uint256 optimalUtil) {
-        assert(optimalUtil < 1e18); // optimal utilisation < 100%
+        assert(optimalUtil > 0 && optimalUtil < 1e18); // optimal utilisation < 100% and > 0
 
         MIN_RATE_1 = minRate;
         SLOPE_1 = slope1;

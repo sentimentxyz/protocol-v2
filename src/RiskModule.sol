@@ -206,7 +206,7 @@ contract RiskModule {
             address poolAsset = pool.getPoolAssetFor(debtPools[i]);
             uint256 borrowAmt = pool.getBorrowsOf(debtPools[i], position);
             uint256 debtInEth = riskEngine.getValueInEth(poolAsset, borrowAmt);
-            debtValueForPool[i] = debtInEth; 
+            debtValueForPool[i] = debtInEth;
             totalDebtValue += debtInEth;
         }
 

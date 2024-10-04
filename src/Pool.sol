@@ -19,10 +19,11 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 // contracts
 import { ERC6909 } from "./lib/ERC6909.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
 /// @title Pool
 /// @notice Singleton pool for all pools that superpools lend to and positions borrow from
-contract Pool is OwnableUpgradeable, ERC6909 {
+contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -333,7 +334,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @param assets Amount of assets to be deposited
     /// @param receiver Address to deposit assets on behalf of
     /// @return shares Amount of pool deposit shares minted
-    function deposit(uint256 poolId, uint256 assets, address receiver) public returns (uint256 shares) {
+    function deposit(uint256 poolId, uint256 assets, address receiver) public whenNotPaused returns (uint256 shares) {
         PoolData storage pool = poolDataFor[poolId];
 
         if (pool.isPaused) revert Pool_PoolPaused(poolId);
@@ -370,9 +371,11 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         address owner
     )
         public
+        whenNotPaused
         returns (uint256 shares)
     {
         PoolData storage pool = poolDataFor[poolId];
+        if (pool.isPaused) revert Pool_PoolPaused(poolId);
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
@@ -449,7 +452,15 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @param position the position to mint shares to
     /// @param amt the amount of assets to borrow, denominated in notional asset units
     /// @return borrowShares the amount of shares minted
-    function borrow(uint256 poolId, address position, uint256 amt) external returns (uint256 borrowShares) {
+    function borrow(
+        uint256 poolId,
+        address position,
+        uint256 amt
+    )
+        external
+        whenNotPaused
+        returns (uint256 borrowShares)
+    {
         PoolData storage pool = poolDataFor[poolId];
 
         if (pool.isPaused) revert Pool_PoolPaused(poolId);
@@ -513,7 +524,15 @@ contract Pool is OwnableUpgradeable, ERC6909 {
     /// @param position the position for which debt is being repaid
     /// @param amt the notional amount of debt asset repaid
     /// @return remainingShares remaining debt in borrow shares owed by the position
-    function repay(uint256 poolId, address position, uint256 amt) external returns (uint256 remainingShares) {
+    function repay(
+        uint256 poolId,
+        address position,
+        uint256 amt
+    )
+        external
+        whenNotPaused
+        returns (uint256 remainingShares)
+    {
         PoolData storage pool = poolDataFor[poolId];
 
         // the only way to call repay() is through the position manager
@@ -559,7 +578,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         return remainingShares;
     }
 
-    function rebalanceBadDebt(uint256 poolId, address position) external {
+    function rebalanceBadDebt(uint256 poolId, address position) external whenNotPaused {
         PoolData storage pool = poolDataFor[poolId];
         accrue(pool, poolId);
 
@@ -595,6 +614,7 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         bytes32 rateModelKey
     )
         external
+        whenNotPaused
         returns (uint256 poolId)
     {
         if (owner == address(0)) revert Pool_ZeroAddressOwner();
@@ -635,6 +655,12 @@ contract Pool is OwnableUpgradeable, ERC6909 {
         PoolData storage pool = poolDataFor[poolId];
         pool.isPaused = !pool.isPaused;
         emit PoolPauseToggled(poolId, pool.isPaused);
+    }
+
+    /// @notice Pause all pools and functions
+    function togglePauseAll() external onlyOwner {
+        if (PausableUpgradeable.paused()) PausableUpgradeable._unpause();
+        else PausableUpgradeable._pause();
     }
 
     /// @notice Update pool asset cap to restrict total amount of assets deposited

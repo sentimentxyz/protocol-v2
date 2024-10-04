@@ -270,6 +270,11 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
         return poolDataFor[poolId].rateModel;
     }
 
+    /// @notice Fetch pool cap for a given pool
+    function getPoolCapFor(uint256 poolId) public view returns (uint256) {
+        return poolDataFor[poolId].poolCap;
+    }
+
     /// @notice Fetch the debt asset address for a given pool
     function getPoolAssetFor(uint256 poolId) public view returns (address) {
         return poolDataFor[poolId].asset;

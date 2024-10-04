@@ -9,7 +9,7 @@ import { PrimaryProdDataServiceConsumerBase } from
 // libraries
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract RedstoneCoreOracle is PrimaryProdDataServiceConsumerBase, IOracle {
+contract RedstoneOracle is PrimaryProdDataServiceConsumerBase, IOracle {
     using Math for uint256;
 
     uint256 internal constant THREE_MINUTES = 60 * 3;
@@ -33,8 +33,8 @@ contract RedstoneCoreOracle is PrimaryProdDataServiceConsumerBase, IOracle {
     // dataFeedIds[0] -> redstone feed id for ETH
     bytes32[] internal dataFeedIds = new bytes32[](2);
 
-    error RedstoneCoreOracle_ZeroPrice(address asset);
-    error RedstoneCoreOracle_StalePrice(address asset);
+    error RedstoneOracle_ZeroPrice(address asset);
+    error RedstoneOracle_StalePrice(address asset);
 
     constructor(address asset, bytes32 assetFeedId, bytes32 ethFeedId) {
         ASSET = asset;
@@ -53,8 +53,8 @@ contract RedstoneCoreOracle is PrimaryProdDataServiceConsumerBase, IOracle {
         // values are scaled to 8 decimals
         uint256[] memory values = getOracleNumericValuesFromTxMsg(dataFeedIds);
 
-        if (values[0] == 0) revert RedstoneCoreOracle_ZeroPrice(ASSET);
-        if (values[1] == 0) revert RedstoneCoreOracle_ZeroPrice(ETH);
+        if (values[0] == 0) revert RedstoneOracle_ZeroPrice(ASSET);
+        if (values[1] == 0) revert RedstoneOracle_ZeroPrice(ETH);
         assetUsdPrice = values[0];
         ethUsdPrice = values[1];
 
@@ -65,7 +65,7 @@ contract RedstoneCoreOracle is PrimaryProdDataServiceConsumerBase, IOracle {
     }
 
     function getValueInEth(address, uint256 amt) external view returns (uint256) {
-        if (priceTimestamp < block.timestamp - STALE_PRICE_THRESHOLD) revert RedstoneCoreOracle_StalePrice(ASSET);
+        if (priceTimestamp < block.timestamp - STALE_PRICE_THRESHOLD) revert RedstoneOracle_StalePrice(ASSET);
 
         // scale amt to 18 decimals
         if (ASSET_DECIMALS <= 18) amt = amt * 10 ** (18 - ASSET_DECIMALS);

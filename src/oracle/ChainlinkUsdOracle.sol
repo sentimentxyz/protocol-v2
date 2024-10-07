@@ -10,9 +10,9 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 /// @notice Chainlink Aggregator v3 interface
 interface IAggregatorV3 {
     function latestRoundData()
-    external
-    view
-    returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
+        external
+        view
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
 
     function decimals() external view returns (uint8);
 }
@@ -88,9 +88,9 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
         uint256 ethUsdPrice = _getPriceWithSanityChecks(ETH, priceFeedFor[ETH]);
 
         // scale amt to 18 decimals
-        uint scaledAmt;
-        uint assetDecimals = priceFeed.assetDecimals;
-        if (assetDecimals <= 18) scaledAmt = amt * (10 ** (18 - assetDecimals)); 
+        uint256 scaledAmt;
+        uint256 assetDecimals = priceFeed.assetDecimals;
+        if (assetDecimals <= 18) scaledAmt = amt * (10 ** (18 - assetDecimals));
         else scaledAmt = amt / (10 ** (assetDecimals - 18));
 
         return scaledAmt.mulDiv(assetUsdPrice, ethUsdPrice);
@@ -126,16 +126,16 @@ contract ChainlinkUsdOracle is Ownable, IOracle {
 
     /// @dev Fetch price from chainlink feed with sanity checks
     function _getPriceWithSanityChecks(address asset, PriceFeed storage priceFeed) private view returns (uint256) {
-        // check if asset/usd feed exists
+        // check if feed exists
         address feed = priceFeed.feed;
         if (feed == address(0)) revert ChainlinkUsdOracle_MissingPriceFeed(asset);
 
-        // fetch asset/usd price with checks
+        // fetch price with checks
         (, int256 price,, uint256 updatedAt,) = IAggregatorV3(feed).latestRoundData();
         if (price <= 0) revert ChainlinkUsdOracle_NonPositivePrice(asset);
         if (updatedAt < block.timestamp - priceFeed.stalePriceThreshold) revert ChainlinkUsdOracle_StalePrice(asset);
 
-        // scale asset/usd price to 18 decimals
+        // scale price to 18 decimals
         uint256 feedDecimals = priceFeed.feedDecimals;
         if (feedDecimals <= 18) return uint256(price) * (10 ** (18 - feedDecimals));
         else return uint256(price) / (10 ** (feedDecimals - 18));

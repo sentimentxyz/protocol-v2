@@ -177,7 +177,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     /// @notice Fee recipient must be non-zero
     error Pool_ZeroFeeRecipient();
     /// @notice Pool has zero assets and non-zero shares
-    error Pool_ZeroAssetsNonZeroShares(uint poolId);
+    error Pool_ZeroAssetsNonZeroShares(uint256 poolId);
 
     constructor() {
         _disableInitializers();

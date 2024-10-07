@@ -176,6 +176,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     error Pool_OracleNotFound(address asset);
     /// @notice Fee recipient must be non-zero
     error Pool_ZeroFeeRecipient();
+    /// @notice Pool has zero assets and non-zero shares
+    error Pool_ZeroAssetsNonZeroShares(uint poolId);
 
     constructor() {
         _disableInitializers();
@@ -343,6 +345,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
         PoolData storage pool = poolDataFor[poolId];
 
         if (pool.isPaused) revert Pool_PoolPaused(poolId);
+        if (pool.totalDepositAssets == 0 && pool.totalDepositShares != 0) revert Pool_ZeroAssetsNonZeroShares(poolId);
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
@@ -381,6 +384,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     {
         PoolData storage pool = poolDataFor[poolId];
         if (pool.isPaused) revert Pool_PoolPaused(poolId);
+        if (pool.totalDepositAssets == 0 && pool.totalDepositShares != 0) revert Pool_ZeroAssetsNonZeroShares(poolId);
 
         // update state to accrue interest since the last time accrue() was called
         accrue(pool, poolId);
@@ -469,6 +473,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
         PoolData storage pool = poolDataFor[poolId];
 
         if (pool.isPaused) revert Pool_PoolPaused(poolId);
+        if (pool.totalDepositAssets == 0 && pool.totalDepositShares != 0) revert Pool_ZeroAssetsNonZeroShares(poolId);
 
         // revert if the caller is not the position manager
         if (msg.sender != positionManager) revert Pool_OnlyPositionManager(poolId, msg.sender);
@@ -539,6 +544,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
         returns (uint256 remainingShares)
     {
         PoolData storage pool = poolDataFor[poolId];
+        if (pool.totalDepositAssets == 0 && pool.totalDepositShares != 0) revert Pool_ZeroAssetsNonZeroShares(poolId);
 
         // the only way to call repay() is through the position manager
         // PositionManager.repay() MUST transfer the assets to be repaid before calling Pool.repay()

@@ -60,10 +60,12 @@ contract BigTest is BaseTest {
         registry.setRateModel(BIG_RATE_MODEL3_KEY, fixedRateModel2);
         vm.stopPrank();
 
+        asset1.mint(poolOwner, 3e7);
         vm.startPrank(poolOwner);
-        fixedRatePool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL_KEY);
-        linearRatePool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL2_KEY);
-        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL3_KEY);
+        asset1.approve(address(pool), 3e7);
+        fixedRatePool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL_KEY, 1e7);
+        linearRatePool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL2_KEY, 1e7);
+        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL3_KEY, 1e7);
         vm.stopPrank();
 
         vm.startPrank(poolOwner);
@@ -94,14 +96,15 @@ contract BigTest is BaseTest {
         // 7. User should have profit from the borrowed amount
         // 8. feeTo should make money
         address feeTo = makeAddr("feeTo");
+        uint256 initialDepositAmt = 1e7;
 
         vm.prank(protocolOwner);
-        asset1.mint(address(this), 1e5);
-        asset1.approve(address(superPoolFactory), 1e5);
+        asset1.mint(address(this), initialDepositAmt);
+        asset1.approve(address(superPoolFactory), initialDepositAmt);
 
         SuperPool superPool = SuperPool(
             superPoolFactory.deploySuperPool(
-                poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, 1e5, "test", "test"
+                poolOwner, address(asset1), feeTo, 0.01 ether, 1_000_000 ether, initialDepositAmt, "test", "test"
             )
         );
 

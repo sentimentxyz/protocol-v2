@@ -17,7 +17,7 @@ contract SuperPoolFactory {
 
     address private constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
     /// @notice Minimum amount of initial shares to be burned
-    uint256 public constant MIN_BURNED_SHARES = 1000;
+    uint256 public constant MIN_BURNED_SHARES = 1_000_000;
 
     /// @notice All Pools exist on the Singleton Pool Contract, which is fixed per factory
     address public immutable POOL;

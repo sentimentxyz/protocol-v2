@@ -257,7 +257,10 @@ contract PositionManagerUnitTests is BaseTest {
         vm.prank(protocolOwner);
         registry.setRateModel(RATE_MODEL_KEY, rateModel);
 
-        uint256 corruptPool = pool.initializePool(address(0xdead), address(asset1), type(uint128).max, RATE_MODEL_KEY);
+        asset1.mint(address(this), 1e7);
+        asset1.approve(address(pool), 1e7);
+        uint256 corruptPool =
+            pool.initializePool(address(0xdead), address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
 
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(corruptPool, 2 ether);

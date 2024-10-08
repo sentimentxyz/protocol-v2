@@ -6,7 +6,7 @@ import { console2 } from "forge-std/console2.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract SuperPoolUnitTests is BaseTest {
-    uint256 initialDepositAmt = 1e5;
+    uint256 initialDepositAmt = 1e7;
 
     Pool pool;
     Registry registry;
@@ -98,8 +98,10 @@ contract SuperPoolUnitTests is BaseTest {
         vm.prank(protocolOwner);
         Registry(registry).setRateModel(RATE_MODEL_KEY, linearRateModel);
 
+        asset1.mint(poolOwner, 1e7);
         vm.startPrank(poolOwner);
-        uint256 linearPool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
+        asset1.approve(address(pool), 1e7);
+        uint256 linearPool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
         superPool.addPool(linearPool, 50 ether);
         vm.stopPrank();
     }
@@ -163,7 +165,7 @@ contract SuperPoolUnitTests is BaseTest {
         uint256 shares = superPool.deposit(100 ether, user);
         assertEq(shares, expectedShares);
 
-        assertEq(asset1.balanceOf(address(pool)), 100 ether);
+        assertGe(asset1.balanceOf(address(pool)), 100 ether);
         vm.stopPrank();
     }
 
@@ -250,7 +252,7 @@ contract SuperPoolUnitTests is BaseTest {
         uint256 shares = superPool.deposit(200 ether, user);
 
         assertEq(shares, expectedShares);
-        assertEq(asset1.balanceOf(address(pool)), 200 ether);
+        assertGe(asset1.balanceOf(address(pool)), 200 ether);
     }
 
     function testDepositMoreThanPoolCap() public {

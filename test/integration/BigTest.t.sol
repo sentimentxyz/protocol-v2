@@ -89,6 +89,9 @@ contract BigTest is BaseTest {
         riskEngine.acceptLtvUpdate(fixedRatePool2, address(asset3));
         riskEngine.requestLtvUpdate(fixedRatePool2, address(asset2), 0.75e18);
         riskEngine.acceptLtvUpdate(fixedRatePool2, address(asset2));
+
+        riskEngine.toggleAllowedPoolPair(fixedRatePool, linearRatePool);
+        riskEngine.toggleAllowedPoolPair(linearRatePool, fixedRatePool);
         vm.stopPrank();
     }
 
@@ -139,21 +142,16 @@ contract BigTest is BaseTest {
         (address position, Action memory _newPosition) = newPosition(user2, "test");
         positionManager.process(position, _newPosition);
 
-        Action memory addNewCollateral = addToken(address(asset2));
-        Action memory depositCollateral = deposit(address(asset2), 300 ether);
-        Action memory borrowAct = borrow(fixedRatePool, 15 ether);
-        Action memory approveAct = approve(address(mockswap), address(asset1), 15 ether);
-        bytes memory data = abi.encodeWithSelector(SWAP_FUNC_SELECTOR, address(asset1), address(asset3), 15 ether);
-        Action memory execAct = exec(address(mockswap), 0, data);
-        Action memory addAsset3 = addToken(address(asset3));
+        bytes memory data = abi.encodeWithSelector(SWAP_FUNC_SELECTOR, address(asset1), address(asset3), 30 ether);
 
-        Action[] memory actions = new Action[](6);
-        actions[0] = addNewCollateral;
-        actions[1] = depositCollateral;
-        actions[2] = borrowAct;
-        actions[3] = approveAct;
-        actions[4] = execAct;
-        actions[5] = addAsset3;
+        Action[] memory actions = new Action[](7);
+        actions[0] = addToken(address(asset2));
+        actions[1] = deposit(address(asset2), 300 ether);
+        actions[2] = borrow(fixedRatePool, 15 ether);
+        actions[3] = borrow(linearRatePool, 15 ether);
+        actions[4] = approve(address(mockswap), address(asset1), 30 ether);
+        actions[5] = exec(address(mockswap), 0, data);
+        actions[6] = addToken(address(asset3));
 
         positionManager.processBatch(position, actions);
         vm.stopPrank();
@@ -166,17 +164,22 @@ contract BigTest is BaseTest {
         vm.startPrank(user2);
         pool.accrue(fixedRatePool);
         uint256 debt = pool.getBorrowsOf(fixedRatePool, position);
+        uint256 debt2 = pool.getBorrowsOf(linearRatePool, position);
 
-        asset1.mint(position, debt);
+        asset1.mint(position, debt + debt2);
 
         Action memory _repay = Action({ op: Operation.Repay, data: abi.encode(fixedRatePool, debt) });
+        positionManager.process(position, _repay);
+
+        _repay = Action({ op: Operation.Repay, data: abi.encode(linearRatePool, debt2) });
         positionManager.process(position, _repay);
         vm.stopPrank();
 
         // 7. User should have profit from the borrowed amount
         vm.startPrank(user);
         superPool.accrue();
-        assertTrue(superPool.maxWithdraw(user) > initialAmountCanBeWithdrawn);
+        uint256 superPoolMaxWithdraw = superPool.maxWithdraw(user);
+        assertTrue(superPoolMaxWithdraw > initialAmountCanBeWithdrawn);
         vm.stopPrank();
     }
 }

@@ -62,13 +62,6 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @notice The addresses that are allowed to reallocate assets
     mapping(address user => bool isAllocator) public isAllocator;
 
-    struct PendingFeeUpdate {
-        uint256 fee;
-        uint256 validAfter;
-    }
-
-    PendingFeeUpdate pendingFeeUpdate;
-
     /// @notice Pool added to the deposit and withdraw queue
     event PoolAdded(uint256 poolId);
     /// @notice Pool removed from the deposit and withdraw queue
@@ -81,10 +74,6 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     event SuperPoolCapUpdated(uint256 superPoolCap);
     /// @notice SuperPool fee recipient was updated
     event SuperPoolFeeRecipientUpdated(address feeRecipient);
-    /// @notice SuperPool fee update was requested
-    event SuperPoolFeeUpdateRequested(uint256 fee);
-    /// @notice SuperPool fee update was rejected
-    event SuperPoolFeeUpdateRejected(uint256 fee);
     /// @notice Allocator status for a given address was updated
     event AllocatorUpdated(address allocator, bool isAllocator);
     /// @notice Assets were deposited to the SuperPool
@@ -384,44 +373,14 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         emit AllocatorUpdated(allocator, isAllocator[allocator]);
     }
 
-    /// @notice Propose a new fee update for the SuperPool
-    /// @dev overwrites any pending or expired updates
-    function requestFeeUpdate(uint256 _fee) external onlyOwner {
+    /// @notice Update SuperPool fee
+    function setSuperpoolFee(uint256 _fee) external onlyOwner {
         if (_fee > 1e18) revert SuperPool_FeeTooHigh();
-        pendingFeeUpdate = PendingFeeUpdate({ fee: _fee, validAfter: block.timestamp + TIMELOCK_DURATION });
-        emit SuperPoolFeeUpdateRequested(_fee);
-    }
+        if (_fee != 0 && feeRecipient == address(0)) revert SuperPool_ZeroFeeRecipient();
 
-    /// @notice Apply a pending fee update after sanity checks
-    function acceptFeeUpdate() external onlyOwner {
-        uint256 newFee = pendingFeeUpdate.fee;
-        uint256 validAfter = pendingFeeUpdate.validAfter;
-
-        // revert if there is no update to apply
-        if (validAfter == 0) revert SuperPool_NoFeeUpdate();
-
-        // revert if called before timelock delay has passed
-        if (block.timestamp < validAfter) revert SuperPool_TimelockPending(block.timestamp, validAfter);
-
-        // revert if timelock deadline has passed
-        if (block.timestamp > validAfter + TIMELOCK_DEADLINE) {
-            revert SuperPool_TimelockExpired(block.timestamp, validAfter);
-        }
-
-        // superpools with non zero fees cannot have zero fee recipients
-        if (newFee != 0 && feeRecipient == address(0)) revert SuperPool_ZeroFeeRecipient();
-
-        // update fee
         accrue();
-        fee = newFee;
-        emit SuperPoolFeeUpdated(newFee);
-        delete pendingFeeUpdate;
-    }
-
-    /// @notice Reject pending fee update
-    function rejectFeeUpdate() external onlyOwner {
-        emit SuperPoolFeeUpdateRejected(pendingFeeUpdate.fee);
-        delete pendingFeeUpdate;
+        fee = _fee;
+        emit SuperPoolFeeUpdated(_fee);
     }
 
     /// @notice Sets the cap of the total amount of assets in the SuperPool

@@ -316,15 +316,13 @@ contract SuperPoolUnitTests is BaseTest {
 
     function testSetSuperPoolFee() public {
         vm.startPrank(poolOwner);
-        superPool.requestFeeUpdate(0.04 ether);
-        vm.warp(26 hours);
-        superPool.acceptFeeUpdate();
+        superPool.setSuperpoolFee(0.04 ether);
         assertEq(superPool.fee(), 0.04 ether);
         vm.stopPrank();
 
         vm.startPrank(user);
         vm.expectRevert();
-        superPool.requestFeeUpdate(0.04 ether);
+        superPool.setSuperpoolFee(0.04 ether);
     }
 
     function testToggleAllocator() public {

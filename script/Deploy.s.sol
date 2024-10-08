@@ -109,7 +109,7 @@ contract Deploy is BaseScript {
             address(new TransparentUpgradeableProxy(positionManagerImpl, params.proxyAdmin, posmgrInitData))
         );
         // position
-        address positionImpl = address(new Position(address(pool), address(positionManager)));
+        address positionImpl = address(new Position(address(pool), address(positionManager), address(riskEngine)));
         positionBeacon = address(new UpgradeableBeacon(positionImpl));
         // lens
         superPoolLens = new SuperPoolLens(address(pool), address(riskEngine));

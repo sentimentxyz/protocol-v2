@@ -56,12 +56,12 @@ contract RiskEngine is Ownable {
 
     /// @dev Asset to Oracle mapping
     mapping(address asset => address oracle) public oracleFor;
-
     /// @notice Fetch the ltv for a given asset in a pool
     mapping(uint256 poolId => mapping(address asset => uint256 ltv)) public ltvFor;
-
     /// @notice Fetch pending LTV update details for a given pool and asset pair, if any
     mapping(uint256 poolId => mapping(address asset => LtvUpdate ltvUpdate)) public ltvUpdateFor;
+    /// @notice Check if poolA lends to positions that also borrow from poolB
+    mapping(uint256 poolA => mapping(uint256 poolB => bool isAllowed)) public isAllowedPair;
 
     /// @notice Pool address was updated
     event PoolSet(address pool);
@@ -79,6 +79,8 @@ contract RiskEngine is Ownable {
     event LtvUpdateAccepted(uint256 indexed poolId, address indexed asset, uint256 ltv);
     /// @notice LTV update was requested
     event LtvUpdateRequested(uint256 indexed poolId, address indexed asset, LtvUpdate ltvUpdate);
+    /// @notice Allowed base pool pair toggled
+    event PoolPairToggled(uint256 indexed poolA, uint256 indexed poolB, bool isAllowed);
 
     /// @notice There is no oracle associated with the given asset
     error RiskEngine_NoOracleFound(address asset);
@@ -100,6 +102,8 @@ contract RiskEngine is Ownable {
     error RiskEngine_CannotBorrowPoolAsset(uint256 poolId);
     /// @notice Min Ltv is not less than Max Ltv
     error RiskEngine_InvalidLtvLimits(uint256 minLtv, uint256 maxLtv);
+    /// @notice Base pool has not been initialized
+    error RiskEngine_InvalidBasePool(uint256 poolId);
 
     /// @param registry_ Sentiment Registry
     /// @param minLtv_ Minimum LTV bound
@@ -120,7 +124,6 @@ contract RiskEngine is Ownable {
     function updateFromRegistry() external {
         pool = Pool(registry.addressFor(SENTIMENT_POOL_KEY));
         riskModule = RiskModule(registry.addressFor(SENTIMENT_RISK_MODULE_KEY));
-
         emit PoolSet(address(pool));
         emit RiskModuleSet(address(riskModule));
     }
@@ -170,6 +173,15 @@ contract RiskEngine is Ownable {
 
     function getTotalDebtValue(address position) external view returns (uint256) {
         return riskModule.getTotalDebtValue(position);
+    }
+
+    /// @notice Allow poolA to lend against positions that also borrow from poolB
+    /// @dev When toggled or untoggled, only applies to future borrows
+    function toggleAllowedPoolPair(uint256 poolA, uint256 poolB) external {
+        if (pool.ownerOf(poolA) != msg.sender) revert RiskEngine_OnlyPoolOwner(poolA, msg.sender);
+        if (pool.ownerOf(poolB) == address(0)) revert RiskEngine_InvalidBasePool(poolB);
+        isAllowedPair[poolA][poolB] = !isAllowedPair[poolA][poolB];
+        emit PoolPairToggled(poolA, poolB, isAllowedPair[poolA][poolB]);
     }
 
     /// @notice Propose an LTV update for a given Pool-Asset pair

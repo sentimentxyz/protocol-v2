@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/*//////////////////////////////////////////////////////////////
-                                Pool
-//////////////////////////////////////////////////////////////*/
-
 // types
 import { Registry } from "./Registry.sol";
 import { RiskEngine } from "./RiskEngine.sol";
@@ -27,6 +23,9 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
+    address private constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    /// @notice Minimum amount of initial shares to be burned
+    uint256 public constant MIN_BURNED_SHARES = 1_000_000;
     /// @notice Timelock delay for pool rate model modification
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
     /// @notice Timelock deadline to enforce timely updates
@@ -178,6 +177,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     error Pool_ZeroFeeRecipient();
     /// @notice Pool has zero assets and non-zero shares
     error Pool_ZeroAssetsNonZeroShares(uint256 poolId);
+    /// @notice Less than MIN_BURNED_SHARES burned during pool initialization
+    error Pool_MinBurnedShares(uint256 shares);
 
     constructor() {
         _disableInitializers();
@@ -622,14 +623,14 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
         address owner,
         address asset,
         uint128 poolCap,
-        bytes32 rateModelKey
+        bytes32 rateModelKey,
+        uint256 initialDepositAmt
     )
         external
         whenNotPaused
         returns (uint256 poolId)
     {
         if (owner == address(0)) revert Pool_ZeroAddressOwner();
-
         if (RiskEngine(riskEngine).oracleFor(asset) == address(0)) revert Pool_OracleNotFound(asset);
 
         address rateModel = Registry(registry).rateModelFor(rateModelKey);
@@ -652,8 +653,11 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
             totalDepositAssets: 0,
             totalDepositShares: 0
         });
-
         poolDataFor[poolId] = poolData;
+
+        // burn initial deposit, assume msg.sender has approved
+        uint256 shares = deposit(poolId, initialDepositAmt, DEAD_ADDRESS);
+        if (shares < MIN_BURNED_SHARES) revert Pool_MinBurnedShares(shares);
 
         emit PoolInitialized(poolId, owner, asset);
         emit RateModelUpdated(poolId, rateModel);

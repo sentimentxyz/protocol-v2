@@ -6,6 +6,8 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
 
 contract PoolUnitTests is BaseTest {
+    uint256 private constant BURNED_SHARES = 4e7; // change if new pools are added
+
     // keccak(SENTIMENT_POSITION_MANAGER_KEY)
     bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
         0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
@@ -36,19 +38,24 @@ contract PoolUnitTests is BaseTest {
         bytes32 RATE_MODEL_KEY = 0xc6e8fa81936202e651519e9ac3074fa4a42c65daad3fded162373ba224d6ea96;
         vm.prank(protocolOwner);
         registry.setRateModel(RATE_MODEL_KEY, rateModel);
-        uint256 id = testPool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
+        asset1.mint(address(this), 1e7);
+        asset1.approve(address(testPool), 1e7);
+        uint256 id = testPool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
         assertEq(rateModel, testPool.getRateModelFor(id));
     }
 
-    /// @dev Foundry "fails" keyword
     function testFailsDoubleInit() public {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
         bytes32 RATE_MODEL_KEY = 0xc6e8fa81936202e651519e9ac3074fa4a42c65daad3fded162373ba224d6ea96;
         vm.prank(protocolOwner);
         registry.setRateModel(RATE_MODEL_KEY, rateModel);
 
-        pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
-        pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
+        asset1.mint(poolOwner, 2e7);
+        vm.startPrank(poolOwner);
+        asset1.approve(address(pool), 2e7);
+        pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
+        pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
+        vm.stopPrank();
     }
 
     function testCannotFrontRunDeployment() public {
@@ -58,11 +65,17 @@ contract PoolUnitTests is BaseTest {
         vm.prank(protocolOwner);
         registry.setRateModel(RATE_MODEL_KEY, rateModel);
 
-        vm.prank(poolOwner);
-        uint256 id = pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
+        asset1.mint(poolOwner, 1e7);
+        vm.startPrank(poolOwner);
+        asset1.approve(address(pool), 1e7);
+        uint256 id = pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
+        vm.stopPrank();
 
-        vm.prank(notPoolOwner);
-        uint256 id2 = pool.initializePool(notPoolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY);
+        asset1.mint(notPoolOwner, 1e7);
+        vm.startPrank(notPoolOwner);
+        asset1.approve(address(pool), 1e7);
+        uint256 id2 = pool.initializePool(notPoolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
+        vm.stopPrank();
 
         assert(id != id2);
     }
@@ -193,7 +206,7 @@ contract PoolUnitTests is BaseTest {
         pool.borrow(linearRatePool, user, assets / 5);
 
         assertEq(pool.getAssetsOf(linearRatePool, user), assets);
-        assertApproxEqAbs(asset1.balanceOf(address(pool)), assets * 4 / 5, 1);
+        assertApproxEqAbs(asset1.balanceOf(address(pool)), BURNED_SHARES + assets * 4 / 5, 1);
         assertApproxEqAbs(asset1.balanceOf(user), assets / 5, 1);
 
         assertEq(pool.getBorrowsOf(linearRatePool, user), assets / 5);

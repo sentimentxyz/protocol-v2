@@ -204,13 +204,13 @@ contract PositionManagerUnitTests is BaseTest {
         actions[0] = action;
 
         uint256 initialAssetBalance = asset1.balanceOf(position);
-        (,,,,,,, uint256 totalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, uint256 totalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
         assertEq(address(positionManager.pool()), address(pool));
 
         PositionManager(positionManager).processBatch(position, actions);
 
         assertGt(asset1.balanceOf(position), initialAssetBalance);
-        (,,,,,,, uint256 newTotalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, uint256 newTotalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
         assertEq(newTotalBorrowAssets, totalBorrowAssets + 2 ether);
     }
 
@@ -259,8 +259,9 @@ contract PositionManagerUnitTests is BaseTest {
 
         asset1.mint(address(this), 1e7);
         asset1.approve(address(pool), 1e7);
-        uint256 corruptPool =
-            pool.initializePool(address(0xdead), address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
+        uint256 corruptPool = pool.initializePool(
+            address(0xdead), address(asset1), RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7
+        );
 
         vm.startPrank(positionOwner);
         bytes memory data = abi.encode(corruptPool, 2 ether);
@@ -283,12 +284,12 @@ contract PositionManagerUnitTests is BaseTest {
         Action[] memory actions = new Action[](1);
         actions[0] = action;
 
-        (,,,,,,, uint256 totalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, uint256 totalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
         uint256 initialBorrow = pool.getBorrowsOf(linearRatePool, position);
 
         PositionManager(positionManager).processBatch(position, actions);
 
-        (,,,,,,, uint256 newTotalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, uint256 newTotalBorrowAssets,,,) = pool.poolDataFor(linearRatePool);
 
         uint256 borrow = pool.getBorrowsOf(linearRatePool, position);
 

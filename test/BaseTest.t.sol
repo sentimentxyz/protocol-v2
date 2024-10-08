@@ -109,16 +109,21 @@ contract BaseTest is Test {
         vm.startPrank(poolOwner);
         asset1.approve(address(protocol.pool()), type(uint256).max);
         asset2.approve(address(protocol.pool()), type(uint256).max);
-        fixedRatePool =
-            protocol.pool().initializePool(poolOwner, address(asset1), type(uint128).max, FIXED_RATE_MODEL_KEY, 1e7);
-        linearRatePool =
-            protocol.pool().initializePool(poolOwner, address(asset1), type(uint128).max, LINEAR_RATE_MODEL_KEY, 1e7);
-        fixedRatePool2 =
-            protocol.pool().initializePool(poolOwner, address(asset1), type(uint128).max, FIXED_RATE_MODEL2_KEY, 1e7);
-        linearRatePool2 =
-            protocol.pool().initializePool(poolOwner, address(asset1), type(uint128).max, LINEAR_RATE_MODEL2_KEY, 1e7);
-        alternateAssetPool =
-            protocol.pool().initializePool(poolOwner, address(asset2), type(uint128).max, FIXED_RATE_MODEL_KEY, 1e7);
+        fixedRatePool = protocol.pool().initializePool(
+            poolOwner, address(asset1), FIXED_RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7
+        );
+        linearRatePool = protocol.pool().initializePool(
+            poolOwner, address(asset1), LINEAR_RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7
+        );
+        fixedRatePool2 = protocol.pool().initializePool(
+            poolOwner, address(asset1), FIXED_RATE_MODEL2_KEY, type(uint256).max, type(uint256).max, 1e7
+        );
+        linearRatePool2 = protocol.pool().initializePool(
+            poolOwner, address(asset1), LINEAR_RATE_MODEL2_KEY, type(uint256).max, type(uint256).max, 1e7
+        );
+        alternateAssetPool = protocol.pool().initializePool(
+            poolOwner, address(asset2), FIXED_RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7
+        );
         vm.stopPrank();
     }
 

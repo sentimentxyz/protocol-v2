@@ -31,7 +31,7 @@ contract PoolUnitTests is BaseTest {
         // test constructor
         address poolImpl = address(new Pool());
         Pool testPool = Pool(address(new TransparentUpgradeableProxy(poolImpl, protocolOwner, new bytes(0))));
-        testPool.initialize(protocolOwner, 0, 0, address(registry), address(0xdEaD), 0, 0);
+        testPool.initialize(protocolOwner, address(registry), address(0xdEaD), 0, 0, 0, 0);
         assertEq(testPool.registry(), address(registry));
 
         address rateModel = address(new LinearRateModel(1e18, 2e18));
@@ -40,7 +40,9 @@ contract PoolUnitTests is BaseTest {
         registry.setRateModel(RATE_MODEL_KEY, rateModel);
         asset1.mint(address(this), 1e7);
         asset1.approve(address(testPool), 1e7);
-        uint256 id = testPool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
+        uint256 id = testPool.initializePool(
+            poolOwner, address(asset1), RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7
+        );
         assertEq(rateModel, testPool.getRateModelFor(id));
     }
 
@@ -53,8 +55,8 @@ contract PoolUnitTests is BaseTest {
         asset1.mint(poolOwner, 2e7);
         vm.startPrank(poolOwner);
         asset1.approve(address(pool), 2e7);
-        pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
-        pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
+        pool.initializePool(poolOwner, address(asset1), RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7);
+        pool.initializePool(poolOwner, address(asset1), RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7);
         vm.stopPrank();
     }
 
@@ -68,13 +70,16 @@ contract PoolUnitTests is BaseTest {
         asset1.mint(poolOwner, 1e7);
         vm.startPrank(poolOwner);
         asset1.approve(address(pool), 1e7);
-        uint256 id = pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
+        uint256 id =
+            pool.initializePool(poolOwner, address(asset1), RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7);
         vm.stopPrank();
 
         asset1.mint(notPoolOwner, 1e7);
         vm.startPrank(notPoolOwner);
         asset1.approve(address(pool), 1e7);
-        uint256 id2 = pool.initializePool(notPoolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
+        uint256 id2 = pool.initializePool(
+            notPoolOwner, address(asset1), RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7
+        );
         vm.stopPrank();
 
         assert(id != id2);
@@ -230,7 +235,7 @@ contract PoolUnitTests is BaseTest {
     function testTimeIncreasesDebt(uint96 assets) public {
         testBorrowWorksAsIntended(assets);
 
-        (,,,,,,, uint256 totalBorrowAssets, uint256 totalBorrowShares,,) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, uint256 totalBorrowAssets, uint256 totalBorrowShares,,) = pool.poolDataFor(linearRatePool);
 
         uint256 time = block.timestamp + 1 days;
         vm.warp(time + 86_400 * 7);
@@ -238,7 +243,7 @@ contract PoolUnitTests is BaseTest {
 
         pool.accrue(linearRatePool);
 
-        (,,,,,,, uint256 newTotalBorrowAssets, uint256 newTotalBorrowShares,,) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, uint256 newTotalBorrowAssets, uint256 newTotalBorrowShares,,) = pool.poolDataFor(linearRatePool);
 
         assertEq(newTotalBorrowShares, totalBorrowShares);
         assertGt(newTotalBorrowAssets, totalBorrowAssets);
@@ -247,7 +252,7 @@ contract PoolUnitTests is BaseTest {
     function testCanWithdrawEarnedInterest(uint96 assets) public {
         testTimeIncreasesDebt(assets);
 
-        (,,,,,,, uint256 totalBorrowAssets, uint256 totalBorrowShares,,) = pool.poolDataFor(linearRatePool);
+        (,,,,,,,, uint256 totalBorrowAssets, uint256 totalBorrowShares,,) = pool.poolDataFor(linearRatePool);
 
         assertGt(totalBorrowAssets, totalBorrowShares);
 
@@ -309,13 +314,13 @@ contract PoolUnitTests is BaseTest {
     }
 
     function testOwnerCanPause() public {
-        (bool isPaused,,,,,,,,,,) = pool.poolDataFor(linearRatePool);
+        (bool isPaused,,,,,,,,,,,) = pool.poolDataFor(linearRatePool);
         assertFalse(isPaused);
 
         vm.prank(poolOwner);
         pool.togglePause(linearRatePool);
 
-        (isPaused,,,,,,,,,,) = pool.poolDataFor(linearRatePool);
+        (isPaused,,,,,,,,,,,) = pool.poolDataFor(linearRatePool);
         assertTrue(isPaused);
     }
 
@@ -327,14 +332,14 @@ contract PoolUnitTests is BaseTest {
         pool.togglePause(linearRatePool);
     }
 
-    function testOwnerCanSetCap(uint128 newPoolCap) public {
-        (,,, uint256 poolCap,,,,,,,) = pool.poolDataFor(linearRatePool);
-        assert(poolCap == type(uint128).max);
+    function testOwnerCanSetCap(uint256 newPoolCap) public {
+        (,,,, uint256 poolCap,,,,,,,) = pool.poolDataFor(linearRatePool);
+        assert(poolCap == type(uint256).max);
 
         vm.prank(poolOwner);
         pool.setPoolCap(linearRatePool, newPoolCap);
 
-        (,,, poolCap,,,,,,,) = pool.poolDataFor(linearRatePool);
+        (,,,, poolCap,,,,,,,) = pool.poolDataFor(linearRatePool);
         assertEq(poolCap, newPoolCap);
     }
 
@@ -392,7 +397,7 @@ contract PoolUnitTests is BaseTest {
         vm.prank(poolOwner);
         pool.acceptRateModelUpdate(linearRatePool);
 
-        (,, address rateModel,,,,,,,,) = pool.poolDataFor(linearRatePool);
+        (,, address rateModel,,,,,,,,,) = pool.poolDataFor(linearRatePool);
         assertEq(rateModel, newRateModel);
     }
 

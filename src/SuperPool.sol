@@ -40,10 +40,13 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     Pool public immutable POOL;
     /// @notice The asset that is deposited in the superpool, and in turns its underling pools
     IERC20 internal immutable ASSET;
+
     /// @notice The fee, out of 1e18, taken from interest earned
     uint256 public fee;
     /// @notice The address that recieves all fees, taken in shares
     address public feeRecipient;
+    /// @notice Virtual asset balance of the SuperPool
+    uint256 public idleAssets;
     /// @notice The maximum amount of assets that can be deposited in the SuperPool
     uint256 public superPoolCap;
     /// @notice The total amount of assets in the SuperPool
@@ -52,6 +55,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     uint256[] public depositQueue;
     /// @notice The queue of pool ids, in order, for withdrawing assets
     uint256[] public withdrawQueue;
+
     /// @notice The caps of the pools, indexed by pool id
     /// @dev poolCapFor[x] == 0 -> x is not part of the queue
     mapping(uint256 poolId => uint256 cap) public poolCapFor;
@@ -181,13 +185,11 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
 
     /// @notice Fetch the total amount of assets under control of the SuperPool
     function totalAssets() public view returns (uint256) {
-        uint256 assets = ASSET.balanceOf(address(this));
-
+        uint256 assets = idleAssets;
         uint256 depositQueueLength = depositQueue.length;
         for (uint256 i; i < depositQueueLength; ++i) {
             assets += POOL.getAssetsOf(depositQueue[i], address(this));
         }
-
         return assets;
     }
 
@@ -460,6 +462,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         for (uint256 i; i < withdrawsLength; ++i) {
             if (poolCapFor[withdraws[i].poolId] == 0) revert SuperPool_PoolNotInQueue(withdraws[i].poolId);
             POOL.withdraw(withdraws[i].poolId, withdraws[i].assets, address(this), address(this));
+            idleAssets += withdraws[i].assets;
         }
 
         uint256 depositsLength = deposits.length;
@@ -472,6 +475,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
             if (assetsInPool + deposits[i].assets <= poolCap) {
                 ASSET.forceApprove(address(POOL), deposits[i].assets);
                 POOL.deposit(deposits[i].poolId, deposits[i].assets, address(this));
+                idleAssets -= deposits[i].assets;
             }
         }
     }
@@ -505,12 +509,11 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     }
 
     function _maxWithdraw(address _owner, uint256 _totalAssets, uint256 _totalShares) internal view returns (uint256) {
-        uint256 totalLiquidity; // max assets that can be withdrawn based on superpool and underlying pool liquidity
+        uint256 totalLiquidity = idleAssets; // max withdraw based on superpool and underlying pool liquidity
         uint256 depositQueueLength = depositQueue.length;
         for (uint256 i; i < depositQueueLength; ++i) {
             totalLiquidity += POOL.getLiquidityOf(depositQueue[i]);
         }
-        totalLiquidity += ASSET.balanceOf(address(this)); // unallocated assets in the superpool
 
         // return the minimum of totalLiquidity and _owner balance
         uint256 userAssets = _convertToAssets(ERC20.balanceOf(_owner), _totalAssets, _totalShares, Math.Rounding.Down);
@@ -533,7 +536,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         // Need to transfer before minting or ERC777s could reenter.
         ASSET.safeTransferFrom(msg.sender, address(this), assets);
         ERC20._mint(receiver, shares);
-        _supplyToPools(assets);
+        idleAssets += _supplyToPools(assets);
         lastTotalAssets += assets;
         emit Deposit(msg.sender, receiver, assets, shares);
     }
@@ -547,6 +550,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         _withdrawFromPools(assets);
         if (msg.sender != owner) ERC20._spendAllowance(owner, msg.sender, shares);
         ERC20._burn(owner, shares);
+        idleAssets -= assets;
         lastTotalAssets -= assets;
         ASSET.safeTransfer(receiver, assets);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
@@ -554,7 +558,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
 
     /// @dev Internal function to loop through all pools, depositing assets sequentially until the cap is reached
     /// @param assets The amount of assets to deposit
-    function _supplyToPools(uint256 assets) internal {
+    function _supplyToPools(uint256 assets) internal returns (uint256) {
         uint256 depositQueueLength = depositQueue.length;
         for (uint256 i; i < depositQueueLength; ++i) {
             uint256 poolId = depositQueue[i];
@@ -577,19 +581,19 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
                     assets -= depositAmt;
                 } catch { }
 
-                if (assets == 0) return;
+                if (assets == 0) return 0;
             }
         }
+        return assets; // remaining assets stay idle in the SuperPool
     }
 
     /// @dev Internal function to loop through all pools, withdrawing assets first from available balance
     ///     then sequentially until the cap is reached
     /// @param assets The amount of assets to withdraw
     function _withdrawFromPools(uint256 assets) internal {
-        uint256 assetsInSuperpool = ASSET.balanceOf(address(this));
+        if (idleAssets >= assets) return;
 
-        if (assetsInSuperpool >= assets) return;
-        else assets -= assetsInSuperpool;
+        assets -= idleAssets;
 
         uint256 withdrawQueueLength = withdrawQueue.length;
         for (uint256 i; i < withdrawQueueLength; ++i) {
@@ -609,6 +613,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
             if (withdrawAmt > 0) {
                 try POOL.withdraw(poolId, withdrawAmt, address(this), address(this)) {
                     assets -= withdrawAmt;
+                    idleAssets += withdrawAmt;
                 } catch { }
             }
 

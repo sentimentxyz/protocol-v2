@@ -63,9 +63,15 @@ contract BigTest is BaseTest {
         asset1.mint(poolOwner, 3e7);
         vm.startPrank(poolOwner);
         asset1.approve(address(pool), 3e7);
-        fixedRatePool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL_KEY, 1e7);
-        linearRatePool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL2_KEY, 1e7);
-        fixedRatePool2 = pool.initializePool(poolOwner, address(asset1), type(uint128).max, BIG_RATE_MODEL3_KEY, 1e7);
+        fixedRatePool = pool.initializePool(
+            poolOwner, address(asset1), BIG_RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7
+        );
+        linearRatePool = pool.initializePool(
+            poolOwner, address(asset1), BIG_RATE_MODEL2_KEY, type(uint256).max, type(uint256).max, 1e7
+        );
+        fixedRatePool2 = pool.initializePool(
+            poolOwner, address(asset1), BIG_RATE_MODEL3_KEY, type(uint256).max, type(uint256).max, 1e7
+        );
         vm.stopPrank();
 
         vm.startPrank(poolOwner);

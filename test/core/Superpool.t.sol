@@ -101,7 +101,8 @@ contract SuperPoolUnitTests is BaseTest {
         asset1.mint(poolOwner, 1e7);
         vm.startPrank(poolOwner);
         asset1.approve(address(pool), 1e7);
-        uint256 linearPool = pool.initializePool(poolOwner, address(asset1), type(uint128).max, RATE_MODEL_KEY, 1e7);
+        uint256 linearPool =
+            pool.initializePool(poolOwner, address(asset1), RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7);
         superPool.addPool(linearPool, 50 ether);
         vm.stopPrank();
     }

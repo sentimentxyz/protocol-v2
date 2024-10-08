@@ -90,12 +90,12 @@ contract Deploy is BaseScript {
         bytes memory poolInitData = abi.encodeWithSelector(
             Pool.initialize.selector,
             params.owner,
-            params.defaultInterestFee,
-            params.defaultOriginationFee,
             address(registry),
             params.feeRecipient,
+            params.minDebt,
             params.minBorrow,
-            params.minDebt
+            params.defaultInterestFee,
+            params.defaultOriginationFee
         );
         pool = Pool(address(new TransparentUpgradeableProxy(poolImpl, params.proxyAdmin, poolInitData)));
         // super pool factory

@@ -11,7 +11,7 @@ optimizer_runs = 1024
 deny_warnings = true
 bytecode_hash = "none"
 solc_version = '0.8.24'
-evm_version = 'shanghai'
+evm_version = 'paris'
 fs_permissions = [
     { access = "read", path = "./config" },
     { access = "read", path = "./script/config" },

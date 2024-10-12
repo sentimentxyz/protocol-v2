@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/*//////////////////////////////////////////////////////////////
-                            RiskModule
-//////////////////////////////////////////////////////////////*/
-
 // types
 import { Pool } from "./Pool.sol";
 import { Position } from "./Position.sol";
@@ -78,6 +74,8 @@ contract RiskModule {
         return weightedLtv.mulDiv(totalAssets, WAD) >= totalDebt; // (non-zero debt, non-zero assets)
     }
 
+    /// @notice Fetch risk data for a position - total assets and debt in ETH, and its weighted LTV
+    /// @dev weightedLtv is zero if either total assets or total debt is zero
     function getRiskData(address position) public view returns (uint256, uint256, uint256) {
         (uint256 totalDebt, uint256[] memory debtPools, uint256[] memory debtValue) = getDebtData(position);
         (uint256 totalAssets, address[] memory positionAssets, uint256[] memory assetValue) = getAssetData(position);
@@ -86,6 +84,7 @@ contract RiskModule {
         return (totalAssets, totalDebt, weightedLtv);
     }
 
+    /// @notice Fetch debt data for position - total debt in ETH, active debt pools, and debt for each pool in ETH
     function getDebtData(address position) public view returns (uint256, uint256[] memory, uint256[] memory) {
         uint256 totalDebt;
         uint256[] memory debtPools = Position(payable(position)).getDebtPools();
@@ -102,6 +101,7 @@ contract RiskModule {
         return (totalDebt, debtPools, debtValue);
     }
 
+    /// @notice Fetch asset data for a position - total assets in ETH, position assets, and value of each asset in ETH
     function getAssetData(address position) public view returns (uint256, address[] memory, uint256[] memory) {
         uint256 totalAssets;
         address[] memory positionAssets = Position(payable(position)).getPositionAssets();
@@ -117,6 +117,7 @@ contract RiskModule {
         return (totalAssets, positionAssets, assetValue);
     }
 
+    /// @notice Fetch weighted Ltv for a position
     function getWeightedLtv(address position) public view returns (uint256) {
         (uint256 totalDebt, uint256[] memory debtPools, uint256[] memory debtValue) = getDebtData(position);
         (uint256 totalAssets, address[] memory positionAssets, uint256[] memory assetValue) = getAssetData(position);

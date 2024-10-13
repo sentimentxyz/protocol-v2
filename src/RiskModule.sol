@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/*//////////////////////////////////////////////////////////////
-                            RiskModule
-//////////////////////////////////////////////////////////////*/
-
 // types
 import { Pool } from "./Pool.sol";
 import { Position } from "./Position.sol";
@@ -21,6 +17,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 contract RiskModule {
     using Math for uint256;
 
+    uint256 internal constant WAD = 1e18;
     /// @notice Sentiment Registry Pool registry key hash
     /// @dev keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
@@ -69,39 +66,93 @@ contract RiskModule {
         // 1. (zero debt, zero assets) -> healthy
         // 2. (zero debt, non-zero assets) -> healthy
         // 3. (non-zero debt, zero assets) -> unhealthy
-        // 4. (non-zero assets, non-zero debt) -> determined by weighted ltv
+        // 4. (non-zero debt, non-zero assets) -> determined by weighted ltv
 
-        (uint256 totalDebtValue, uint256[] memory debtPools, uint256[] memory debtValueForPool) =
-            _getPositionDebtData(position);
-        if (totalDebtValue == 0) return true; // (zero debt, zero assets) AND (zero debt, non-zero assets)
-
-        (uint256 totalAssetValue, address[] memory positionAssets, uint256[] memory positionAssetWeight) =
-            _getPositionAssetData(position);
-        if (totalAssetValue == 0) return false; // (non-zero debt, zero assets)
-
-        uint256 minReqAssetValue =
-            _getMinReqAssetValue(debtPools, debtValueForPool, positionAssets, positionAssetWeight, position);
-        return totalAssetValue >= minReqAssetValue; // (non-zero debt, non-zero assets)
+        (uint256 totalAssets, uint256 totalDebt, uint256 weightedLtv) = getRiskData(position);
+        if (totalDebt == 0) return true; // (zero debt, zero assets) AND (zero debt, non-zero assets)
+        if (totalAssets == 0) return false; // (non-zero debt, zero assets)
+        return weightedLtv.mulDiv(totalAssets, WAD) >= totalDebt; // (non-zero debt, non-zero assets)
     }
 
-    /// @notice Fetch risk-associated data for a given position
-    /// @param position The address of the position to get the risk data for
-    /// @return totalAssetValue The total asset value of the position
-    /// @return totalDebtValue The total debt value of the position
-    /// @return minReqAssetValue The minimum required asset value for the position to be healthy
-    function getRiskData(address position) external view returns (uint256, uint256, uint256) {
-        (uint256 totalAssetValue, address[] memory positionAssets, uint256[] memory positionAssetWeight) =
-            _getPositionAssetData(position);
+    /// @notice Fetch risk data for a position - total assets and debt in ETH, and its weighted LTV
+    /// @dev weightedLtv is zero if either total assets or total debt is zero
+    function getRiskData(address position) public view returns (uint256, uint256, uint256) {
+        (uint256 totalDebt, uint256[] memory debtPools, uint256[] memory debtValue) = getDebtData(position);
+        (uint256 totalAssets, address[] memory positionAssets, uint256[] memory assetValue) = getAssetData(position);
+        uint256 weightedLtv =
+            _getWeightedLtv(position, totalDebt, debtPools, debtValue, totalAssets, positionAssets, assetValue);
+        return (totalAssets, totalDebt, weightedLtv);
+    }
 
-        (uint256 totalDebtValue, uint256[] memory debtPools, uint256[] memory debtValueForPool) =
-            _getPositionDebtData(position);
+    /// @notice Fetch debt data for position - total debt in ETH, active debt pools, and debt for each pool in ETH
+    function getDebtData(address position) public view returns (uint256, uint256[] memory, uint256[] memory) {
+        uint256 totalDebt;
+        uint256[] memory debtPools = Position(payable(position)).getDebtPools();
+        uint256[] memory debtValue = new uint256[](debtPools.length);
 
-        if (totalAssetValue == 0 || totalDebtValue == 0) return (totalAssetValue, totalDebtValue, 0);
+        uint256 debtPoolsLength = debtPools.length;
+        for (uint256 i; i < debtPoolsLength; ++i) {
+            address poolAsset = pool.getPoolAssetFor(debtPools[i]);
+            uint256 borrowAmt = pool.getBorrowsOf(debtPools[i], position);
+            uint256 debtInEth = riskEngine.getValueInEth(poolAsset, borrowAmt);
+            debtValue[i] = debtInEth;
+            totalDebt += debtInEth;
+        }
+        return (totalDebt, debtPools, debtValue);
+    }
 
-        uint256 minReqAssetValue =
-            _getMinReqAssetValue(debtPools, debtValueForPool, positionAssets, positionAssetWeight, position);
+    /// @notice Fetch asset data for a position - total assets in ETH, position assets, and value of each asset in ETH
+    function getAssetData(address position) public view returns (uint256, address[] memory, uint256[] memory) {
+        uint256 totalAssets;
+        address[] memory positionAssets = Position(payable(position)).getPositionAssets();
+        uint256 positionAssetsLength = positionAssets.length;
+        uint256[] memory assetValue = new uint256[](positionAssetsLength);
 
-        return (totalAssetValue, totalDebtValue, minReqAssetValue);
+        for (uint256 i; i < positionAssetsLength; ++i) {
+            uint256 amt = IERC20(positionAssets[i]).balanceOf(position);
+            uint256 assetsInEth = riskEngine.getValueInEth(positionAssets[i], amt);
+            assetValue[i] = assetsInEth;
+            totalAssets += assetsInEth;
+        }
+        return (totalAssets, positionAssets, assetValue);
+    }
+
+    /// @notice Fetch weighted Ltv for a position
+    function getWeightedLtv(address position) public view returns (uint256) {
+        (uint256 totalDebt, uint256[] memory debtPools, uint256[] memory debtValue) = getDebtData(position);
+        (uint256 totalAssets, address[] memory positionAssets, uint256[] memory assetValue) = getAssetData(position);
+        return _getWeightedLtv(position, totalDebt, debtPools, debtValue, totalAssets, positionAssets, assetValue);
+    }
+
+    function _getWeightedLtv(
+        address position,
+        uint256 totalDebt,
+        uint256[] memory debtPools,
+        uint256[] memory debtValue,
+        uint256 totalAssets,
+        address[] memory positionAssets,
+        uint256[] memory assetValue
+    )
+        internal
+        view
+        returns (uint256 weightedLtv)
+    {
+        if (totalDebt == 0 || totalAssets == 0) return 0; // handle empty, zero-debt, and invalid position states
+
+        uint256 debtPoolsLen = debtPools.length;
+        uint256 positionAssetsLen = positionAssets.length;
+        // O(debtPools.length * positionAssets.length)
+        for (uint256 i; i < debtPoolsLen; ++i) {
+            for (uint256 j; j < positionAssetsLen; ++j) {
+                uint256 ltv = riskEngine.ltvFor(debtPools[i], positionAssets[j]);
+                // every position asset must have a non-zero ltv in every debt pool
+                if (ltv == 0) revert RiskModule_UnsupportedAsset(position, debtPools[i], positionAssets[j]);
+                // ltv is weighted over two dimensions - proportion of debt value owed to a pool as a share of the
+                // total position debt and proportion of position asset value as a share of total position value
+                weightedLtv += debtValue[i].mulDiv(assetValue[j], WAD).mulDiv(ltv, WAD);
+            }
+        }
+        weightedLtv = weightedLtv.mulDiv(WAD, totalAssets).mulDiv(WAD, totalDebt);
     }
 
     /// @notice Used to validate liquidator data and value of assets seized
@@ -190,89 +241,5 @@ contract RiskModule {
         }
 
         return totalAssetValue;
-    }
-
-    function _getPositionDebtData(address position)
-        internal
-        view
-        returns (uint256, uint256[] memory, uint256[] memory)
-    {
-        uint256 totalDebtValue;
-        uint256[] memory debtPools = Position(payable(position)).getDebtPools();
-        uint256[] memory debtValueForPool = new uint256[](debtPools.length);
-
-        uint256 debtPoolsLength = debtPools.length;
-        for (uint256 i; i < debtPoolsLength; ++i) {
-            address poolAsset = pool.getPoolAssetFor(debtPools[i]);
-            uint256 borrowAmt = pool.getBorrowsOf(debtPools[i], position);
-            uint256 debtInEth = riskEngine.getValueInEth(poolAsset, borrowAmt);
-            debtValueForPool[i] = debtInEth;
-            totalDebtValue += debtInEth;
-        }
-
-        return (totalDebtValue, debtPools, debtValueForPool);
-    }
-
-    function _getPositionAssetData(address position)
-        internal
-        view
-        returns (uint256, address[] memory, uint256[] memory)
-    {
-        uint256 totalAssetValue;
-
-        address[] memory positionAssets = Position(payable(position)).getPositionAssets();
-        uint256 positionAssetsLength = positionAssets.length;
-        uint256[] memory positionAssetData = new uint256[](positionAssetsLength);
-
-        for (uint256 i; i < positionAssetsLength; ++i) {
-            uint256 amt = IERC20(positionAssets[i]).balanceOf(position);
-            uint256 assetsInEth = riskEngine.getValueInEth(positionAssets[i], amt);
-            positionAssetData[i] = assetsInEth;
-            totalAssetValue += assetsInEth;
-        }
-
-        if (totalAssetValue == 0) return (0, positionAssets, positionAssetData);
-
-        for (uint256 i; i < positionAssetsLength; ++i) {
-            // positionAssetData[i] stores weight of positionAsset[i]
-            // wt of positionAsset[i] = (value of positionAsset[i]) / (total position assets value)
-            positionAssetData[i] = positionAssetData[i].mulDiv(1e18, totalAssetValue);
-        }
-
-        return (totalAssetValue, positionAssets, positionAssetData);
-    }
-
-    function _getMinReqAssetValue(
-        uint256[] memory debtPools,
-        uint256[] memory debtValuleForPool,
-        address[] memory positionAssets,
-        uint256[] memory wt,
-        address position
-    )
-        internal
-        view
-        returns (uint256)
-    {
-        uint256 minReqAssetValue;
-
-        // O(pools.len * positionAssets.len)
-        uint256 debtPoolsLength = debtPools.length;
-        uint256 positionAssetsLength = positionAssets.length;
-        for (uint256 i; i < debtPoolsLength; ++i) {
-            for (uint256 j; j < positionAssetsLength; ++j) {
-                uint256 ltv = riskEngine.ltvFor(debtPools[i], positionAssets[j]);
-
-                // revert with pool id and the asset that is not supported by the pool
-                if (ltv == 0) revert RiskModule_UnsupportedAsset(position, debtPools[i], positionAssets[j]);
-
-                // debt is weighted in proportion to value of position assets. if your position
-                // consists of 60% A and 40% B, then 60% of the debt is assigned to be backed by A
-                // and 40% by B. this is iteratively computed for each pool the position borrows from
-                minReqAssetValue += debtValuleForPool[i].mulDiv(wt[j], ltv, Math.Rounding.Up);
-            }
-        }
-
-        if (minReqAssetValue == 0) revert RiskModule_ZeroMinReqAssets();
-        return minReqAssetValue;
     }
 }

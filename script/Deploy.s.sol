@@ -102,8 +102,8 @@ contract Deploy is BaseScript {
         superPoolFactory = new SuperPoolFactory(address(pool));
         // position manager
         positionManagerImpl = address(new PositionManager());
-        bytes memory posmgrInitData = abi.encodeWithSelector(
-            PositionManager.initialize.selector, params.owner, address(registry));
+        bytes memory posmgrInitData =
+            abi.encodeWithSelector(PositionManager.initialize.selector, params.owner, address(registry));
         positionManager = PositionManager(
             address(new TransparentUpgradeableProxy(positionManagerImpl, params.proxyAdmin, posmgrInitData))
         );

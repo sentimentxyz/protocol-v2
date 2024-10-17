@@ -51,7 +51,7 @@ contract RiskModuleUnitTests is BaseTest {
         vm.stopPrank();
     }
 
-    function testRiskModuleInit(address testRegistry, uint256 liqDiscount, uint liquidationFee) public {
+    function testRiskModuleInit(address testRegistry, uint256 liqDiscount, uint256 liquidationFee) public {
         RiskModule testRiskModule = new RiskModule(testRegistry, liqDiscount, liquidationFee);
 
         assertEq(address(testRiskModule.REGISTRY()), testRegistry);

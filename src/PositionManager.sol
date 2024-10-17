@@ -461,7 +461,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         }
     }
 
-    function _transferAssetsToLiquidator(address position, uint256 fee, AssetData[] memory assetData) internal {
+    function _transferAssetsToLiquidator(
+        address position,
+        uint256 liquidationFee,
+        AssetData[] memory assetData
+    )
+        internal
+    {
         // transfer position assets to the liquidator and accrue protocol liquidation fees
         uint256 assetDataLength = assetData.length;
         for (uint256 i; i < assetDataLength; ++i) {
@@ -469,6 +475,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             if (Position(payable(position)).hasAsset(assetData[i].asset) == false) {
                 revert PositionManager_SeizeInvalidAsset(position, assetData[i].asset);
             }
+            // compute fee amt
+            uint256 fee = liquidationFee.mulDiv(assetData[i].amt, WAD);
             // transfer fee amt to protocol
             Position(payable(position)).transfer(owner(), assetData[i].asset, fee);
             // transfer difference to the liquidator

@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/*//////////////////////////////////////////////////////////////
-                            RiskEngine
-//////////////////////////////////////////////////////////////*/
-
 // types
 import { Pool } from "./Pool.sol";
 import { AssetData, DebtData } from "./PositionManager.sol";
@@ -136,10 +132,9 @@ contract RiskEngine is Ownable {
         return IOracle(oracle).getValueInEth(asset, amt);
     }
 
-    /// @notice Check if the given position is healthy
-    function isPositionHealthy(address position) external view returns (bool) {
-        // call health check implementation based on position type
-        return riskModule.isPositionHealthy(position);
+    /// @notice Fetch position health factor
+    function getPositionHealthFactor(address position) external view returns (uint256) {
+        return riskModule.getPositionHealthFactor(position);
     }
 
     /// @notice Valid liquidator data and value of assets seized
@@ -150,8 +145,9 @@ contract RiskEngine is Ownable {
     )
         external
         view
+        returns (uint256, uint256, DebtData[] memory, AssetData[] memory)
     {
-        riskModule.validateLiquidation(position, debtData, assetData);
+        return riskModule.validateLiquidation(position, debtData, assetData);
     }
 
     function validateBadDebt(address position) external view {

@@ -84,7 +84,7 @@ contract Deploy is BaseScript {
         // risk
         riskEngine = new RiskEngine(address(registry), params.minLtv, params.maxLtv);
         riskEngine.transferOwnership(params.owner);
-        riskModule = new RiskModule(address(registry), params.liquidationDiscount);
+        riskModule = new RiskModule(address(registry), params.liquidationDiscount, params.liquidationFee);
         // pool
         poolImpl = address(new Pool());
         bytes memory poolInitData = abi.encodeWithSelector(
@@ -103,8 +103,7 @@ contract Deploy is BaseScript {
         // position manager
         positionManagerImpl = address(new PositionManager());
         bytes memory posmgrInitData = abi.encodeWithSelector(
-            PositionManager.initialize.selector, params.owner, address(registry), params.liquidationFee
-        );
+            PositionManager.initialize.selector, params.owner, address(registry));
         positionManager = PositionManager(
             address(new TransparentUpgradeableProxy(positionManagerImpl, params.proxyAdmin, posmgrInitData))
         );

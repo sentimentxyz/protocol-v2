@@ -26,6 +26,8 @@ contract RiskModule {
     bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
         0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
 
+    /// @notice Protocol liquidation fee, out of 1e18
+    uint256 public immutable LIQUIDATION_FEE;
     /// @notice The discount on assets when liquidating, out of 1e18
     uint256 public immutable LIQUIDATION_DISCOUNT;
     /// @notice The updateable registry as a part of the 2step initialization process
@@ -49,9 +51,10 @@ contract RiskModule {
     /// @notice Constructor for Risk Module, which should be registered with the RiskEngine
     /// @param registry_ The address of the registry contract
     /// @param liquidationDiscount_ The discount on assets when liquidating, out of 1e18
-    constructor(address registry_, uint256 liquidationDiscount_) {
+    constructor(address registry_, uint256 liquidationDiscount_, uint256 liquidationFee_) {
         REGISTRY = Registry(registry_);
         LIQUIDATION_DISCOUNT = liquidationDiscount_;
+        LIQUIDATION_FEE = liquidationFee_;
     }
 
     /// @notice Updates the pool and risk engine from the registry
@@ -60,8 +63,8 @@ contract RiskModule {
         riskEngine = RiskEngine(REGISTRY.addressFor(SENTIMENT_RISK_ENGINE_KEY));
     }
 
-    /// @notice Evaluates whether a given position is healthy based on the debt and asset values
-    function isPositionHealthy(address position) public view returns (bool) {
+    /// @notice Fetch position health factor
+    function getPositionHealthFactor(address position) public view returns (uint256) {
         // a position can have four states:
         // 1. (zero debt, zero assets) -> healthy
         // 2. (zero debt, non-zero assets) -> healthy
@@ -69,9 +72,9 @@ contract RiskModule {
         // 4. (non-zero debt, non-zero assets) -> determined by weighted ltv
 
         (uint256 totalAssets, uint256 totalDebt, uint256 weightedLtv) = getRiskData(position);
-        if (totalDebt == 0) return true; // (zero debt, zero assets) AND (zero debt, non-zero assets)
-        if (totalAssets == 0) return false; // (non-zero debt, zero assets)
-        return weightedLtv.mulDiv(totalAssets, WAD) >= totalDebt; // (non-zero debt, non-zero assets)
+        if (totalDebt == 0) return type(uint256).max; // (zero debt, zero assets) AND (zero debt, non-zero assets)
+        if (totalAssets == 0) return 0; // (non-zero debt, zero assets)
+        return weightedLtv.mulDiv(totalAssets, totalDebt); // (non-zero debt, non-zero assets)
     }
 
     /// @notice Fetch risk data for a position - total assets and debt in ETH, and its weighted LTV
@@ -166,11 +169,69 @@ contract RiskModule {
     )
         external
         view
+        returns (uint256, uint256, DebtData[] memory, AssetData[] memory)
     {
-        // position must breach risk thresholds before liquidation
-        if (isPositionHealthy(position)) revert RiskModule_LiquidateHealthyPosition(position);
+        // ensure position is unhealthy
+        uint256 healthFactor = getPositionHealthFactor(position);
+        if (healthFactor >= WAD) revert RiskModule_LiquidateHealthyPosition(position);
 
-        _validateSeizedAssetValue(position, debtData, assetData, LIQUIDATION_DISCOUNT);
+        // parse data for repayment and seizure
+        (uint256 totalRepayValue, DebtData[] memory repayData) = _getRepayData(position, debtData);
+        (uint256 totalSeizeValue, AssetData[] memory seizeData) = _getAssetData(position, assetData);
+
+        // verify liquidator does not seize too much
+        uint256 maxSeizeValue = totalRepayValue.mulDiv(1e18, (1e18 - LIQUIDATION_DISCOUNT));
+        if (totalSeizeValue > maxSeizeValue) revert RiskModule_SeizedTooMuch(totalSeizeValue, maxSeizeValue);
+
+        // compute protocol liquidation fee as a portion of liquidator profit, if any
+        uint256 liqFee;
+        if (totalSeizeValue > totalRepayValue) {
+            liqFee = (totalSeizeValue - totalRepayValue).mulDiv(LIQUIDATION_FEE, totalSeizeValue);
+        }
+
+        return (healthFactor, liqFee, repayData, seizeData);
+    }
+
+    function _getRepayData(
+        address position,
+        DebtData[] calldata debtData
+    )
+        internal
+        view
+        returns (uint256 totalRepayValue, DebtData[] memory repayData)
+    {
+        uint256 debtDataLen = debtData.length;
+        repayData = debtData; // copy debtData and replace all type(uint).max with repay amounts
+        for (uint256 i; i < debtDataLen; ++i) {
+            uint256 poolId = repayData[i].poolId;
+            uint256 repayAmt = repayData[i].amt;
+            if (repayAmt == type(uint256).max) {
+                repayAmt = pool.getBorrowsOf(poolId, position);
+                repayData[i].amt = repayAmt;
+            }
+            totalRepayValue += riskEngine.getValueInEth(pool.getPoolAssetFor(poolId), repayAmt);
+        }
+    }
+
+    function _getAssetData(
+        address position,
+        AssetData[] calldata assetData
+    )
+        internal
+        view
+        returns (uint256 totalSeizeValue, AssetData[] memory seizeData)
+    {
+        uint256 assetDataLen = assetData.length;
+        seizeData = assetData; // copy assetData and replace all type(uint).max with position asset balances
+        for (uint256 i; i < assetDataLen; ++i) {
+            address asset = seizeData[i].asset;
+            uint256 seizeAmt = seizeData[i].amt;
+            if (seizeAmt == type(uint256).max) {
+                seizeAmt = IERC20(asset).balanceOf(position);
+                seizeData[i].amt = seizeAmt;
+            }
+            totalSeizeValue += riskEngine.getValueInEth(asset, seizeAmt);
+        }
     }
 
     /// @notice Verify if a given position has bad debt
@@ -178,40 +239,6 @@ contract RiskModule {
         uint256 totalDebtValue = getTotalDebtValue(position);
         uint256 totalAssetValue = getTotalAssetValue(position);
         if (totalAssetValue > totalDebtValue) revert RiskModule_NoBadDebt(position);
-    }
-
-    function _validateSeizedAssetValue(
-        address position,
-        DebtData[] calldata debtData,
-        AssetData[] calldata assetData,
-        uint256 discount
-    )
-        internal
-        view
-    {
-        // compute value of debt repaid by the liquidator
-        uint256 debtRepaidValue;
-        uint256 debtLength = debtData.length;
-        for (uint256 i; i < debtLength; ++i) {
-            uint256 poolId = debtData[i].poolId;
-            uint256 amt = debtData[i].amt;
-            if (amt == type(uint256).max) amt = pool.getBorrowsOf(poolId, position);
-            address poolAsset = pool.getPoolAssetFor(poolId);
-            debtRepaidValue += riskEngine.getValueInEth(poolAsset, amt);
-        }
-
-        // compute value of assets seized by the liquidator
-        uint256 assetSeizedValue;
-        uint256 assetDataLength = assetData.length;
-        for (uint256 i; i < assetDataLength; ++i) {
-            assetSeizedValue += riskEngine.getValueInEth(assetData[i].asset, assetData[i].amt);
-        }
-
-        // max asset value that can be seized by the liquidator
-        uint256 maxSeizedAssetValue = debtRepaidValue.mulDiv(1e18, (1e18 - discount));
-        if (assetSeizedValue > maxSeizedAssetValue) {
-            revert RiskModule_SeizedTooMuch(assetSeizedValue, maxSeizedAssetValue);
-        }
     }
 
     /// @notice Gets the total debt owed by a position in ETH

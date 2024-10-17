@@ -64,7 +64,7 @@ contract LiquidationTest is BaseTest {
         actions[6] = addToken(address(asset3));
         positionManager.processBatch(position, actions);
         vm.stopPrank();
-        assertTrue(riskEngine.isPositionHealthy(position));
+        assertGe(riskEngine.getPositionHealthFactor(position), 1e18);
 
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 weightedLtv) = riskEngine.getRiskData(position);
 
@@ -94,7 +94,7 @@ contract LiquidationTest is BaseTest {
         FixedPriceOracle pointOneEthOracle = new FixedPriceOracle(0.1e18);
         vm.prank(protocolOwner);
         riskEngine.setOracle(address(asset2), address(pointOneEthOracle));
-        assertFalse(riskEngine.isPositionHealthy(position));
+        assertLt(riskEngine.getPositionHealthFactor(position), 1e18);
 
         // liquidate
         vm.startPrank(liquidator);
@@ -119,7 +119,7 @@ contract LiquidationTest is BaseTest {
         actions[6] = addToken(address(asset3));
         positionManager.processBatch(position, actions);
         vm.stopPrank();
-        assertTrue(riskEngine.isPositionHealthy(position));
+        assertGe(riskEngine.getPositionHealthFactor(position), 1e18);
 
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 weightedLtv) = riskEngine.getRiskData(position);
 
@@ -131,7 +131,7 @@ contract LiquidationTest is BaseTest {
         FixedPriceOracle pointOneEthOracle = new FixedPriceOracle(0.1e18);
         vm.prank(protocolOwner);
         riskEngine.setOracle(address(asset2), address(pointOneEthOracle));
-        assertFalse(riskEngine.isPositionHealthy(position));
+        assertLt(riskEngine.getPositionHealthFactor(position), 1e18);
 
         // construct liquidator data
         DebtData memory debtData = DebtData({ poolId: fixedRatePool, amt: 0.1e18 });

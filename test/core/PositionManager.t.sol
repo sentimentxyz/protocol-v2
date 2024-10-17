@@ -76,7 +76,7 @@ contract PositionManagerUnitTests is BaseTest {
         address beacon = address((new TransparentUpgradeableProxy(positionManagerImpl, positionOwner, new bytes(0))));
         positionManager = PositionManager(beacon); // setup proxy
 
-        PositionManager(positionManager).initialize(protocolOwner, address(registry), 550);
+        PositionManager(positionManager).initialize(protocolOwner, address(registry));
 
         registry.setAddress(SENTIMENT_POSITION_BEACON_KEY, beacon);
         registry.setAddress(SENTIMENT_POOL_KEY, address(pool));
@@ -394,18 +394,6 @@ contract PositionManagerUnitTests is BaseTest {
         vm.stopPrank();
 
         assertEq(testContract.ping(), 1);
-    }
-
-    // Test setting the liquidation fee
-    function testSetLiquidationFee() public {
-        uint256 newFee = 100; // Example fee
-        vm.prank(positionManager.owner());
-        positionManager.setLiquidationFee(newFee);
-        assertEq(positionManager.liquidationFee(), newFee, "Liquidation fee should be updated");
-
-        vm.startPrank(makeAddr("nonOwner")); // Non-owner address
-        vm.expectRevert();
-        positionManager.setLiquidationFee(newFee);
     }
 
     // Test toggling known asset

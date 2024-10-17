@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/*//////////////////////////////////////////////////////////////
-                        Position Manager
-//////////////////////////////////////////////////////////////*/
-
 // types
 import { Pool } from "./Pool.sol";
 import { Position } from "./Position.sol";
@@ -74,6 +70,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     using Math for uint256;
     using SafeERC20 for IERC20;
 
+    uint256 internal constant WAD = 1e18;
     // keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
     // keccak(SENTIMENT_RISK_ENGINE_KEY)
@@ -91,10 +88,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     RiskEngine public riskEngine;
     /// @notice Position Beacon
     address public positionBeacon;
-
-    /// @notice Liquidation fee in percentage, scaled by 18 decimals
-    /// @dev accrued to the protocol on every liquidation
-    uint256 public liquidationFee;
 
     /// @notice Fetch owner for given position
     mapping(address position => address owner) public ownerOf;
@@ -122,8 +115,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     event BeaconSet(address beacon);
     /// @notice Protocol registry address was updated
     event RegistrySet(address registry);
-    /// @notice Protocol liquidation fee was updated
-    event LiquidationFeeSet(uint256 liquidationFee);
     /// @notice Position authorization was toggled
     event AuthToggled(address indexed position, address indexed user, bool isAuth);
     /// @notice Known state of an address was toggled
@@ -191,15 +182,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @notice Initializer for TransparentUpgradeableProxy
     /// @param owner_ PositionManager Owner
     /// @param registry_ Sentiment Registry
-    /// @param liquidationFee_ Protocol liquidation fee
-    function initialize(address owner_, address registry_, uint256 liquidationFee_) public initializer {
+    function initialize(address owner_, address registry_) public initializer {
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         OwnableUpgradeable.__Ownable_init();
         PausableUpgradeable.__Pausable_init();
         _transferOwnership(owner_);
 
         registry = Registry(registry_);
-        liquidationFee = liquidationFee_;
     }
 
     /// @notice Fetch and update module addreses from the registry
@@ -231,7 +220,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @param action Action config
     function process(address position, Action calldata action) external nonReentrant {
         _process(position, action);
-        if (!riskEngine.isPositionHealthy(position)) revert PositionManager_HealthCheckFailed(position);
+        if (riskEngine.getPositionHealthFactor(position) < WAD) revert PositionManager_HealthCheckFailed(position);
     }
 
     /// @notice Procces a batch of actions on a given position
@@ -245,7 +234,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             _process(position, actions[i]);
         }
         // after all the actions are processed, the position should be within risk thresholds
-        if (!riskEngine.isPositionHealthy(position)) revert PositionManager_HealthCheckFailed(position);
+        if (riskEngine.getPositionHealthFactor(position) < WAD) revert PositionManager_HealthCheckFailed(position);
     }
 
     function _process(address position, Action calldata action) internal {
@@ -438,14 +427,17 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         external
         nonReentrant
     {
-        riskEngine.validateLiquidation(position, debtData, assetData);
+        (uint256 prevHealthFactor, uint256 liqFee, DebtData[] memory repayData, AssetData[] memory seizeData) =
+            riskEngine.validateLiquidation(position, debtData, assetData);
 
         // liquidate
-        _transferAssetsToLiquidator(position, assetData);
-        _repayPositionDebt(position, debtData);
+        _transferAssetsToLiquidator(position, liqFee, seizeData);
+        _repayPositionDebt(position, repayData);
 
-        // position should be within risk thresholds after liquidation
-        if (!riskEngine.isPositionHealthy(position)) revert PositionManager_HealthCheckFailed(position);
+        // verify that position health improves
+        uint256 healthFactor = riskEngine.getPositionHealthFactor(position);
+        if (healthFactor <= prevHealthFactor) revert PositionManager_HealthCheckFailed(position);
+
         emit Liquidation(position, msg.sender, ownerOf[position]);
     }
 
@@ -469,7 +461,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         }
     }
 
-    function _transferAssetsToLiquidator(address position, AssetData[] calldata assetData) internal {
+    function _transferAssetsToLiquidator(
+        address position,
+        uint256 liquidationFee,
+        AssetData[] memory assetData
+    )
+        internal
+    {
         // transfer position assets to the liquidator and accrue protocol liquidation fees
         uint256 assetDataLength = assetData.length;
         for (uint256 i; i < assetDataLength; ++i) {
@@ -478,8 +476,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
                 revert PositionManager_SeizeInvalidAsset(position, assetData[i].asset);
             }
             // compute fee amt
-            // [ROUND] liquidation fee is rounded down, in favor of the liquidator
-            uint256 fee = liquidationFee.mulDiv(assetData[i].amt, 1e18);
+            uint256 fee = liquidationFee.mulDiv(assetData[i].amt, WAD);
             // transfer fee amt to protocol
             Position(payable(position)).transfer(owner(), assetData[i].asset, fee);
             // transfer difference to the liquidator
@@ -487,7 +484,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         }
     }
 
-    function _repayPositionDebt(address position, DebtData[] calldata debtData) internal {
+    function _repayPositionDebt(address position, DebtData[] memory debtData) internal {
         // sequentially repay position debts
         // assumes the position manager is approved to pull assets from the liquidator
         uint256 debtDataLength = debtData.length;
@@ -495,7 +492,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
             uint256 poolId = debtData[i].poolId;
             address poolAsset = pool.getPoolAssetFor(poolId);
             uint256 amt = debtData[i].amt;
-            if (amt == type(uint256).max) amt = pool.getBorrowsOf(poolId, position);
             // transfer debt asset from the liquidator to the pool
             IERC20(poolAsset).safeTransferFrom(msg.sender, address(pool), amt);
             // trigger pool repayment which assumes successful transfer of repaid assets
@@ -510,12 +506,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         registry = Registry(_registry);
         updateFromRegistry();
         emit RegistrySet(_registry);
-    }
-
-    /// @notice Update the protocol liquidation fee
-    function setLiquidationFee(uint256 _liquidationFee) external onlyOwner {
-        liquidationFee = _liquidationFee;
-        emit LiquidationFeeSet(_liquidationFee);
     }
 
     /// @notice Toggle asset inclusion in the known asset universe

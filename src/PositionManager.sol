@@ -71,6 +71,8 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     using SafeERC20 for IERC20;
 
     uint256 internal constant WAD = 1e18;
+    uint256 internal constant BAD_DEBT_LIQUIDATION_FEE = 0;
+
     // keccak(SENTIMENT_POOL_KEY)
     bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
     // keccak(SENTIMENT_RISK_ENGINE_KEY)
@@ -172,8 +174,6 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     error PositionManager_OnlyPositionAuthorized(address position, address sender);
     /// @notice Predicted position address does not match with deployed address
     error PositionManager_PredictedPositionMismatch(address position, address predicted);
-    /// @notice Seized asset does not belong to to the position's asset list
-    error PositionManager_SeizeInvalidAsset(address position, address asset);
 
     constructor() {
         _disableInitializers();
@@ -441,18 +441,17 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         emit Liquidation(position, msg.sender, ownerOf[position]);
     }
 
-    function liquidateBadDebt(address position) external onlyOwner {
-        riskEngine.validateBadDebt(position);
+    /// @notice Liquidate a position with bad debt
+    /// @dev Bad debt positions cannot be liquidated partially
+    function liquidateBadDebt(address position, DebtData[] calldata debtData) external nonReentrant {
+        (DebtData[] memory repayData, AssetData[] memory seizeData) =
+            riskEngine.validateBadDebtLiquidation(position, debtData);
 
-        // transfer any remaining position assets to the PositionManager owner
-        address[] memory positionAssets = Position(payable(position)).getPositionAssets();
-        uint256 positionAssetsLength = positionAssets.length;
-        for (uint256 i; i < positionAssetsLength; ++i) {
-            uint256 amt = IERC20(positionAssets[i]).balanceOf(position);
-            try Position(payable(position)).transfer(owner(), positionAssets[i], amt) { } catch { }
-        }
+        // liquidator repays some of the bad debt, and receives all of the position assets
+        _transferAssetsToLiquidator(position, BAD_DEBT_LIQUIDATION_FEE, seizeData); // zero protocol fee
+        _repayPositionDebt(position, repayData);
 
-        // clear all debt associated with the given position
+        // settle remaining bad debt for the given position
         uint256[] memory debtPools = Position(payable(position)).getDebtPools();
         uint256 debtPoolsLength = debtPools.length;
         for (uint256 i; i < debtPoolsLength; ++i) {
@@ -471,16 +470,13 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         // transfer position assets to the liquidator and accrue protocol liquidation fees
         uint256 assetDataLength = assetData.length;
         for (uint256 i; i < assetDataLength; ++i) {
-            // ensure assetData[i] is in the position asset list
-            if (Position(payable(position)).hasAsset(assetData[i].asset) == false) {
-                revert PositionManager_SeizeInvalidAsset(position, assetData[i].asset);
+            uint256 feeAssets;
+            if (liquidationFee > 0) {
+                feeAssets = liquidationFee.mulDiv(assetData[i].amt, WAD); // compute fee assets
+                Position(payable(position)).transfer(owner(), assetData[i].asset, feeAssets); // transfer fee assets
             }
-            // compute fee amt
-            uint256 fee = liquidationFee.mulDiv(assetData[i].amt, WAD);
-            // transfer fee amt to protocol
-            Position(payable(position)).transfer(owner(), assetData[i].asset, fee);
-            // transfer difference to the liquidator
-            Position(payable(position)).transfer(msg.sender, assetData[i].asset, assetData[i].amt - fee);
+            // transfer assets to the liquidator
+            Position(payable(position)).transfer(msg.sender, assetData[i].asset, assetData[i].amt - feeAssets);
         }
     }
 

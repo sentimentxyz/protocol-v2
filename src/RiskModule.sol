@@ -47,6 +47,8 @@ contract RiskModule {
     error RiskModule_LiquidateHealthyPosition(address position);
     /// @notice Position does not have any bad debt
     error RiskModule_NoBadDebt(address position);
+    /// @notice Seized asset does not belong to to the position's asset list
+    error RiskModule_SeizeInvalidAsset(address position, address asset);
 
     /// @notice Constructor for Risk Module, which should be registered with the RiskEngine
     /// @param registry_ The address of the registry contract
@@ -65,16 +67,17 @@ contract RiskModule {
 
     /// @notice Fetch position health factor
     function getPositionHealthFactor(address position) public view returns (uint256) {
-        // a position can have four states:
-        // 1. (zero debt, zero assets) -> healthy
-        // 2. (zero debt, non-zero assets) -> healthy
-        // 3. (non-zero debt, zero assets) -> unhealthy
-        // 4. (non-zero debt, non-zero assets) -> determined by weighted ltv
+        // a position can have multiple states:
+        // 1. (zero debt, zero assets) -> max health
+        // 2. (zero debt, non-zero assets) -> max health
+        // 3. (non-zero debt, zero assets) -> invalid state, zero health
+        // 4. (non-zero debt, non-zero assets) AND (debt > assets) -> bad debt, zero health
+        // 5. (non-zero debt, non-zero assets) AND (assets >= debt) -> determined by weighted ltv
 
         (uint256 totalAssets, uint256 totalDebt, uint256 weightedLtv) = getRiskData(position);
         if (totalDebt == 0) return type(uint256).max; // (zero debt, zero assets) AND (zero debt, non-zero assets)
-        if (totalAssets == 0) return 0; // (non-zero debt, zero assets)
-        return weightedLtv.mulDiv(totalAssets, totalDebt); // (non-zero debt, non-zero assets)
+        if (totalDebt > totalAssets) return 0; // (non-zero debt, zero assets) AND bad debt
+        return weightedLtv.mulDiv(totalAssets, totalDebt); // (non-zero debt, non-zero assets) AND no bad debt
     }
 
     /// @notice Fetch risk data for a position - total assets and debt in ETH, and its weighted LTV
@@ -140,7 +143,8 @@ contract RiskModule {
         view
         returns (uint256 weightedLtv)
     {
-        if (totalDebt == 0 || totalAssets == 0) return 0; // handle empty, zero-debt, and invalid position states
+        // handle empty, zero-debt, bad debt, and invalid position states
+        if (totalDebt == 0 || totalAssets == 0 || totalDebt > totalAssets) return 0;
 
         uint256 debtPoolsLen = debtPools.length;
         uint256 positionAssetsLen = positionAssets.length;
@@ -177,7 +181,7 @@ contract RiskModule {
 
         // parse data for repayment and seizure
         (uint256 totalRepayValue, DebtData[] memory repayData) = _getRepayData(position, debtData);
-        (uint256 totalSeizeValue, AssetData[] memory seizeData) = _getAssetData(position, assetData);
+        (uint256 totalSeizeValue, AssetData[] memory seizeData) = _getSeizeData(position, assetData);
 
         // verify liquidator does not seize too much
         uint256 maxSeizeValue = totalRepayValue.mulDiv(1e18, (1e18 - LIQUIDATION_DISCOUNT));
@@ -190,6 +194,33 @@ contract RiskModule {
         }
 
         return (healthFactor, liqFee, repayData, seizeData);
+    }
+
+    /// @notice validate bad debt liquidation call
+    /// @dev Positions with bad debt cannot be partially liquidated
+    function validateBadDebtLiquidation(
+        address position,
+        DebtData[] calldata debtData
+    )
+        external
+        view
+        returns (DebtData[] memory, AssetData[] memory)
+    {
+        // verify position has bad debt
+        (uint256 totalAssetValue, uint256 totalDebtValue,) = getRiskData(position);
+        if (totalAssetValue >= totalDebtValue) revert RiskModule_NoBadDebt(position);
+
+        // parse repayment data
+        (uint256 totalRepayValue, DebtData[] memory repayData) = _getRepayData(position, debtData);
+
+        // verify that liquidator repays enough to seize all position assets
+        uint256 maxSeizeValue = totalRepayValue.mulDiv(1e18, (1e18 - LIQUIDATION_DISCOUNT));
+        if (totalAssetValue > maxSeizeValue) revert RiskModule_SeizedTooMuch(totalAssetValue, maxSeizeValue);
+
+        // generate asset seizure data - since bad debt liquidations are not partial, all assets are seized
+        AssetData[] memory seizeData = _getBadDebtSeizeData(position);
+
+        return (repayData, seizeData);
     }
 
     function _getRepayData(
@@ -213,7 +244,7 @@ contract RiskModule {
         }
     }
 
-    function _getAssetData(
+    function _getSeizeData(
         address position,
         AssetData[] calldata assetData
     )
@@ -225,6 +256,10 @@ contract RiskModule {
         seizeData = assetData; // copy assetData and replace all type(uint).max with position asset balances
         for (uint256 i; i < assetDataLen; ++i) {
             address asset = seizeData[i].asset;
+            // ensure assetData[i] is in the position asset list
+            if (Position(payable(position)).hasAsset(asset) == false) {
+                revert RiskModule_SeizeInvalidAsset(position, asset);
+            }
             uint256 seizeAmt = seizeData[i].amt;
             if (seizeAmt == type(uint256).max) {
                 seizeAmt = IERC20(asset).balanceOf(position);
@@ -234,39 +269,17 @@ contract RiskModule {
         }
     }
 
-    /// @notice Verify if a given position has bad debt
-    function validateBadDebt(address position) external view {
-        uint256 totalDebtValue = getTotalDebtValue(position);
-        uint256 totalAssetValue = getTotalAssetValue(position);
-        if (totalAssetValue > totalDebtValue) revert RiskModule_NoBadDebt(position);
-    }
-
-    /// @notice Gets the total debt owed by a position in ETH
-    function getTotalDebtValue(address position) public view returns (uint256) {
-        uint256[] memory debtPools = Position(payable(position)).getDebtPools();
-
-        uint256 totalDebtValue;
-        uint256 debtPoolsLength = debtPools.length;
-        for (uint256 i; i < debtPoolsLength; ++i) {
-            address poolAsset = pool.getPoolAssetFor(debtPools[i]);
-            uint256 borrowAmt = pool.getBorrowsOf(debtPools[i], position);
-            totalDebtValue += riskEngine.getValueInEth(poolAsset, borrowAmt);
-        }
-
-        return totalDebtValue;
-    }
-
-    /// @notice Gets the total ETH value of assets in a position
-    function getTotalAssetValue(address position) public view returns (uint256) {
+    // since bad debt liquidations cannot be partial, all position assets are seized
+    function _getBadDebtSeizeData(address position) internal view returns (AssetData[] memory) {
         address[] memory positionAssets = Position(payable(position)).getPositionAssets();
-
-        uint256 totalAssetValue;
         uint256 positionAssetsLength = positionAssets.length;
-        for (uint256 i; i < positionAssetsLength; ++i) {
-            uint256 amt = IERC20(positionAssets[i]).balanceOf(position);
-            totalAssetValue += riskEngine.getValueInEth(positionAssets[i], amt);
-        }
+        AssetData[] memory seizeData = new AssetData[](positionAssets.length);
 
-        return totalAssetValue;
+        for (uint256 i; i < positionAssetsLength; ++i) {
+            address asset = positionAssets[i];
+            uint256 amt = IERC20(positionAssets[i]).balanceOf(position);
+            seizeData[i] = AssetData({ asset: asset, amt: amt });
+        }
+        return seizeData;
     }
 }

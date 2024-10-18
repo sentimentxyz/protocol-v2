@@ -137,7 +137,7 @@ contract RiskEngine is Ownable {
         return riskModule.getPositionHealthFactor(position);
     }
 
-    /// @notice Valid liquidator data and value of assets seized
+    /// @notice Validate liquidator data and value of assets seized
     function validateLiquidation(
         address position,
         DebtData[] calldata debtData,
@@ -150,8 +150,16 @@ contract RiskEngine is Ownable {
         return riskModule.validateLiquidation(position, debtData, assetData);
     }
 
-    function validateBadDebt(address position) external view {
-        riskModule.validateBadDebt(position);
+    /// @notice Validate liquidator data for assets to be repaid
+    function validateBadDebtLiquidation(
+        address position,
+        DebtData[] calldata debtData
+    )
+        external
+        view
+        returns (DebtData[] memory, AssetData[] memory)
+    {
+        return riskModule.validateBadDebtLiquidation(position, debtData);
     }
 
     /// @notice Fetch risk-associated data for a given position
@@ -161,14 +169,6 @@ contract RiskEngine is Ownable {
     /// @return minReqAssetValue The minimum required asset value for the position to be healthy
     function getRiskData(address position) external view returns (uint256, uint256, uint256) {
         return riskModule.getRiskData(position);
-    }
-
-    function getTotalAssetValue(address position) external view returns (uint256) {
-        return riskModule.getTotalAssetValue(position);
-    }
-
-    function getTotalDebtValue(address position) external view returns (uint256) {
-        return riskModule.getTotalDebtValue(position);
     }
 
     /// @notice Allow poolA to lend against positions that also borrow from poolB

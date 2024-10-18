@@ -175,4 +175,33 @@ contract PortfolioLens {
             return 0;
         }
     }
+
+    /// @notice Gets the total debt owed by a position in ETH
+    function getTotalDebtValue(address position) public view returns (uint256) {
+        uint256[] memory debtPools = Position(payable(position)).getDebtPools();
+
+        uint256 totalDebtValue;
+        uint256 debtPoolsLength = debtPools.length;
+        for (uint256 i; i < debtPoolsLength; ++i) {
+            address poolAsset = POOL.getPoolAssetFor(debtPools[i]);
+            uint256 borrowAmt = POOL.getBorrowsOf(debtPools[i], position);
+            totalDebtValue += RISK_ENGINE.getValueInEth(poolAsset, borrowAmt);
+        }
+
+        return totalDebtValue;
+    }
+
+    /// @notice Gets the total ETH value of assets in a position
+    function getTotalAssetValue(address position) public view returns (uint256) {
+        address[] memory positionAssets = Position(payable(position)).getPositionAssets();
+
+        uint256 totalAssetValue;
+        uint256 positionAssetsLength = positionAssets.length;
+        for (uint256 i; i < positionAssetsLength; ++i) {
+            uint256 amt = IERC20(positionAssets[i]).balanceOf(position);
+            totalAssetValue += RISK_ENGINE.getValueInEth(positionAssets[i], amt);
+        }
+
+        return totalAssetValue;
+    }
 }

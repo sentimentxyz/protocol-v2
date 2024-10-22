@@ -49,10 +49,10 @@ contract RiskModule {
     error RiskModule_NoBadDebt(address position);
     /// @notice Seized asset does not belong to to the position's asset list
     error RiskModule_SeizeInvalidAsset(address position, address asset);
-    /// @notice Liquidation DebtData was invalid due to duplicates or sort order
-    error RiskModule_InvalidDebtData();
-    /// @notice Liquidation AssetData was invalid due to duplicates or sort order
-    error RiskModule_InvalidAssetData();
+    /// @notice Liquidation DebtData is invalid
+    error RiskModule_InvalidDebtData(uint256 poolId);
+    /// @notice Liquidation AssetData is invalid
+    error RiskModule_InvalidAssetData(address asset);
 
     /// @notice Constructor for Risk Module, which should be registered with the RiskEngine
     /// @param registry_ The address of the registry contract
@@ -296,12 +296,12 @@ contract RiskModule {
         if (debtDataLen == 0) return;
 
         uint256 lastPoolId = debtData[0].poolId;
-        if (Position(payable(position)).hasDebt(lastPoolId) == false) revert RiskModule_InvalidDebtData();
+        if (Position(payable(position)).hasDebt(lastPoolId) == false) revert RiskModule_InvalidDebtData(lastPoolId);
 
         for (uint256 i = 1; i < debtDataLen; ++i) {
             uint256 poolId = debtData[i].poolId;
-            if (poolId <= lastPoolId) revert RiskModule_InvalidDebtData();
-            if (Position(payable(position)).hasDebt(poolId) == false) revert RiskModule_InvalidDebtData();
+            if (poolId <= lastPoolId) revert RiskModule_InvalidDebtData(poolId);
+            if (Position(payable(position)).hasDebt(poolId) == false) revert RiskModule_InvalidDebtData(poolId);
             lastPoolId = poolId;
         }
     }
@@ -313,12 +313,12 @@ contract RiskModule {
         if (assetDataLen == 0) return;
 
         address lastAsset = assetData[0].asset;
-        if (Position(payable(position)).hasAsset(lastAsset) == false) revert RiskModule_InvalidAssetData();
+        if (Position(payable(position)).hasAsset(lastAsset) == false) revert RiskModule_InvalidAssetData(lastAsset);
 
         for (uint256 i = 1; i < assetDataLen; ++i) {
             address asset = assetData[i].asset;
-            if (asset <= lastAsset) revert RiskModule_InvalidAssetData();
-            if (Position(payable(position)).hasAsset(asset) == false) revert RiskModule_InvalidAssetData();
+            if (asset <= lastAsset) revert RiskModule_InvalidAssetData(asset);
+            if (Position(payable(position)).hasAsset(asset) == false) revert RiskModule_InvalidAssetData(asset);
             lastAsset = asset;
         }
     }

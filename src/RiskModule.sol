@@ -235,7 +235,7 @@ contract RiskModule {
         view
         returns (uint256 totalRepayValue, DebtData[] memory repayData)
     {
-        _validateDebtData(debtData);
+        _validateDebtData(position, debtData);
         uint256 debtDataLen = debtData.length;
         repayData = debtData; // copy debtData and replace all type(uint).max with repay amounts
         for (uint256 i; i < debtDataLen; ++i) {
@@ -257,7 +257,7 @@ contract RiskModule {
         view
         returns (uint256 totalSeizeValue, AssetData[] memory seizeData)
     {
-        _validateAssetData(assetData);
+        _validateAssetData(position, assetData);
         uint256 assetDataLen = assetData.length;
         seizeData = assetData; // copy assetData and replace all type(uint).max with position asset balances
         for (uint256 i; i < assetDataLen; ++i) {
@@ -290,24 +290,36 @@ contract RiskModule {
     }
 
     // ensure DebtData has no duplicates by enforcing an ascending order of poolIds
-    function _validateDebtData(DebtData[] memory debtData) internal pure {
+    // ensure repaid pools are in the debt array for the position
+    function _validateDebtData(address position, DebtData[] memory debtData) internal view {
         uint256 debtDataLen = debtData.length;
         if (debtDataLen == 0) return;
+
         uint256 lastPoolId = debtData[0].poolId;
+        if (Position(payable(position)).hasDebt(lastPoolId) == false) revert RiskModule_InvalidDebtData();
+
         for (uint256 i = 1; i < debtDataLen; ++i) {
-            if (debtData[i].poolId <= lastPoolId) revert RiskModule_InvalidDebtData();
-            lastPoolId = debtData[i].poolId;
+            uint256 poolId = debtData[i].poolId;
+            if (poolId <= lastPoolId) revert RiskModule_InvalidDebtData();
+            if (Position(payable(position)).hasDebt(poolId) == false) revert RiskModule_InvalidDebtData();
+            lastPoolId = poolId;
         }
     }
 
     // ensure assetData has no duplicates by enforcing an ascending order of assets
-    function _validateAssetData(AssetData[] memory assetData) internal pure {
+    // ensure seized assets are in the assets array for the position
+    function _validateAssetData(address position, AssetData[] memory assetData) internal view {
         uint256 assetDataLen = assetData.length;
         if (assetDataLen == 0) return;
+
         address lastAsset = assetData[0].asset;
+        if (Position(payable(position)).hasAsset(lastAsset) == false) revert RiskModule_InvalidDebtData();
+
         for (uint256 i = 1; i < assetDataLen; ++i) {
-            if (assetData[i].asset <= lastAsset) revert RiskModule_InvalidAssetData();
-            lastAsset = assetData[i].asset;
+            address asset = assetData[i].asset;
+            if (asset <= lastAsset) revert RiskModule_InvalidAssetData();
+            if (Position(payable(position)).hasAsset(asset) == false) revert RiskModule_InvalidDebtData();
+            lastAsset = asset;
         }
     }
 }

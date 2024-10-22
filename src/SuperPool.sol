@@ -200,11 +200,13 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
 
     /// @notice Fetch the maximum amount of assets that can be deposited in the SuperPool
     function maxDeposit(address) public view returns (uint256) {
+        if (Pausable.paused()) return 0;
         return _maxDeposit(totalAssets());
     }
 
     /// @notice Fetch the maximum amount of shares that can be minted from the SuperPool
     function maxMint(address) public view returns (uint256) {
+        if (Pausable.paused()) return 0;
         (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
         return
             _convertToShares(_maxDeposit(newTotalAssets), newTotalAssets, totalSupply() + feeShares, Math.Rounding.Down);
@@ -212,12 +214,14 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
 
     /// @notice Fetch the maximum amount of assets that can be withdrawn by a depositor
     function maxWithdraw(address owner) public view returns (uint256) {
+        if (Pausable.paused()) return 0;
         (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
         return _maxWithdraw(owner, newTotalAssets, totalSupply() + feeShares);
     }
 
     /// @notice Fetch the maximum amount of shares that can be redeemed by a depositor
     function maxRedeem(address owner) public view returns (uint256) {
+        if (Pausable.paused()) return 0;
         (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
         uint256 newTotalShares = totalSupply() + feeShares;
         return _convertToShares(
@@ -471,7 +475,10 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         uint256 totalLiquidity = idleAssets; // max withdraw based on superpool and underlying pool liquidity
         uint256 depositQueueLength = depositQueue.length;
         for (uint256 i; i < depositQueueLength; ++i) {
-            totalLiquidity += POOL.getLiquidityOf(depositQueue[i]);
+            uint256 maxWithdrawFromPool = POOL.getAssetsOf(depositQueue[i], address(this)); // superpool assets in pool
+            uint256 poolLiquidity = POOL.getLiquidityOf(depositQueue[i]);
+            if (poolLiquidity < maxWithdrawFromPool) maxWithdrawFromPool = poolLiquidity; // minimum of two
+            totalLiquidity += maxWithdrawFromPool;
         }
 
         // return the minimum of totalLiquidity and _owner balance

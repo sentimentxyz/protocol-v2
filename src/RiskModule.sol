@@ -313,12 +313,12 @@ contract RiskModule {
         if (assetDataLen == 0) return;
 
         address lastAsset = assetData[0].asset;
-        if (Position(payable(position)).hasAsset(lastAsset) == false) revert RiskModule_InvalidDebtData();
+        if (Position(payable(position)).hasAsset(lastAsset) == false) revert RiskModule_InvalidAssetData();
 
         for (uint256 i = 1; i < assetDataLen; ++i) {
             address asset = assetData[i].asset;
             if (asset <= lastAsset) revert RiskModule_InvalidAssetData();
-            if (Position(payable(position)).hasAsset(asset) == false) revert RiskModule_InvalidDebtData();
+            if (Position(payable(position)).hasAsset(asset) == false) revert RiskModule_InvalidAssetData();
             lastAsset = asset;
         }
     }

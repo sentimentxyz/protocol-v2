@@ -419,6 +419,7 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @param position Position address
     /// @param debtData DebtData object for debts to be repaid
     /// @param assetData AssetData object for assets to be seized
+    /// @dev DebtData must be sorted by poolId, AssetData must be sorted by asset (ascending)
     function liquidate(
         address position,
         DebtData[] calldata debtData,

@@ -49,6 +49,10 @@ contract RiskModule {
     error RiskModule_NoBadDebt(address position);
     /// @notice Seized asset does not belong to to the position's asset list
     error RiskModule_SeizeInvalidAsset(address position, address asset);
+    /// @notice Liquidation DebtData was invalid due to duplicates or sort order
+    error RiskModule_InvalidDebtData();
+    /// @notice Liquidation AssetData was invalid due to duplicates or sort order
+    error RiskModule_InvalidAssetData();
 
     /// @notice Constructor for Risk Module, which should be registered with the RiskEngine
     /// @param registry_ The address of the registry contract
@@ -231,6 +235,7 @@ contract RiskModule {
         view
         returns (uint256 totalRepayValue, DebtData[] memory repayData)
     {
+        _validateDebtData(debtData);
         uint256 debtDataLen = debtData.length;
         repayData = debtData; // copy debtData and replace all type(uint).max with repay amounts
         for (uint256 i; i < debtDataLen; ++i) {
@@ -252,6 +257,7 @@ contract RiskModule {
         view
         returns (uint256 totalSeizeValue, AssetData[] memory seizeData)
     {
+        _validateAssetData(assetData);
         uint256 assetDataLen = assetData.length;
         seizeData = assetData; // copy assetData and replace all type(uint).max with position asset balances
         for (uint256 i; i < assetDataLen; ++i) {
@@ -281,5 +287,27 @@ contract RiskModule {
             seizeData[i] = AssetData({ asset: asset, amt: amt });
         }
         return seizeData;
+    }
+
+    // ensure DebtData has no duplicates by enforcing an ascending order of poolIds
+    function _validateDebtData(DebtData[] memory debtData) internal pure {
+        uint256 debtDataLen = debtData.length;
+        if (debtDataLen == 0) return;
+        uint256 lastPoolId = debtData[0].poolId;
+        for (uint256 i = 1; i < debtDataLen; ++i) {
+            if (debtData[i].poolId <= lastPoolId) revert RiskModule_InvalidDebtData();
+            lastPoolId = debtData[i].poolId;
+        }
+    }
+
+    // ensure assetData has no duplicates by enforcing an ascending order of assets
+    function _validateAssetData(AssetData[] memory assetData) internal pure {
+        uint256 assetDataLen = assetData.length;
+        if (assetDataLen == 0) return;
+        address lastAsset = assetData[0].asset;
+        for (uint256 i = 1; i < assetDataLen; ++i) {
+            if (assetData[i].asset <= lastAsset) revert RiskModule_InvalidAssetData();
+            lastAsset = assetData[i].asset;
+        }
     }
 }

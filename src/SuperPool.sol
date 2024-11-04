@@ -199,17 +199,19 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     }
 
     /// @notice Fetch the maximum amount of assets that can be deposited in the SuperPool
-    function maxDeposit(address) public view returns (uint256) {
-        if (Pausable.paused()) return 0;
-        return _maxDeposit(totalAssets());
+    function maxDeposit(address receiver) public view returns (uint256) {
+        if (receiver == address(0) || Pausable.paused()) return 0;
+        (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
+        return _maxDeposit(feeShares, newTotalAssets);
     }
 
     /// @notice Fetch the maximum amount of shares that can be minted from the SuperPool
-    function maxMint(address) public view returns (uint256) {
-        if (Pausable.paused()) return 0;
+    function maxMint(address receiver) public view returns (uint256) {
+        if (receiver == address(0) || Pausable.paused()) return 0;
         (uint256 feeShares, uint256 newTotalAssets) = simulateAccrue();
-        return
-            _convertToShares(_maxDeposit(newTotalAssets), newTotalAssets, totalSupply() + feeShares, Math.Rounding.Down);
+        return _convertToShares(
+            _maxDeposit(feeShares, newTotalAssets), newTotalAssets, totalSupply() + feeShares, Math.Rounding.Down
+        );
     }
 
     /// @notice Fetch the maximum amount of assets that can be withdrawn by a depositor
@@ -487,15 +489,19 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     }
 
     /// @notice Fetch the maximum amount of assets that can be deposited in the SuperPool
-    function _maxDeposit(uint256 _totalAssets) public view returns (uint256) {
-        return superPoolCap > _totalAssets ? (superPoolCap - _totalAssets) : 0;
+    function _maxDeposit(uint256 _feeShares, uint256 _totalAssets) public view returns (uint256) {
+        if (_totalAssets >= superPoolCap) return 0; // SuperPool has too many assets
+        // deposit() reverts when deposited assets are less than one share worth
+        // check that remaining asset capacity is worth more than one share
+        uint256 maxAssets = superPoolCap - _totalAssets;
+        uint256 shares = _convertToShares(maxAssets, _totalAssets, totalSupply() + _feeShares, Math.Rounding.Down);
+        return (shares > 0) ? maxAssets : 0;
     }
 
     /// @dev Internal function to process ERC4626 deposits and mints
     /// @param receiver The address to receive the shares
     /// @param assets The amount of assets to deposit
     /// @param shares The amount of shares to mint, should be equivalent to assets
-
     function _deposit(address receiver, uint256 assets, uint256 shares) internal {
         // assume that lastTotalAssets are up to date
         if (lastTotalAssets + assets > superPoolCap) revert SuperPool_SuperPoolCapReached();

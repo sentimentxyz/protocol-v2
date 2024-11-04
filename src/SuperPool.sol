@@ -344,7 +344,10 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     function removePool(uint256 poolId, bool forceRemove) external onlyOwner {
         if (poolCapFor[poolId] == 0) return; // no op if pool is not in queue
         uint256 assetsInPool = POOL.getAssetsOf(poolId, address(this));
-        if (forceRemove && assetsInPool > 0) POOL.withdraw(poolId, assetsInPool, address(this), address(this));
+        if (forceRemove && assetsInPool > 0) {
+            POOL.withdraw(poolId, assetsInPool, address(this), address(this));
+            idleAssets += assetsInPool;
+        }
         _removePool(poolId);
         poolCapFor[poolId] = 0;
         emit PoolCapSet(poolId, 0);

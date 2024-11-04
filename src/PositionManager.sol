@@ -113,10 +113,14 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @notice Check if a position can interact with a given target-function pair
     mapping(address target => mapping(bytes4 method => bool isAllowed)) public isKnownFunc;
 
+    /// @notice Pool address was updated
+    event PoolSet(address pool);
     /// @notice Position Beacon address was updated
     event BeaconSet(address beacon);
     /// @notice Protocol registry address was updated
     event RegistrySet(address registry);
+    /// @notice Risk Engine address was updated
+    event RiskEngineSet(address riskEngine);
     /// @notice Position authorization was toggled
     event AuthToggled(address indexed position, address indexed user, bool isAuth);
     /// @notice Known state of an address was toggled
@@ -196,6 +200,9 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
         pool = Pool(registry.addressFor(SENTIMENT_POOL_KEY));
         riskEngine = RiskEngine(registry.addressFor(SENTIMENT_RISK_ENGINE_KEY));
         positionBeacon = registry.addressFor(SENTIMENT_POSITION_BEACON_KEY);
+        emit PoolSet(address(pool));
+        emit RiskEngineSet(address(riskEngine));
+        emit BeaconSet(positionBeacon);
     }
 
     /// @notice Toggle pause state of the PositionManager

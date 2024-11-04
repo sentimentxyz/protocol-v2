@@ -37,6 +37,11 @@ contract RiskModule {
     /// @notice Sentiment Risk Engine
     RiskEngine public riskEngine;
 
+    /// @notice Pool address was updated
+    event PoolSet(address pool);
+    /// @notice Risk Engine address was updated
+    event RiskEngineSet(address riskEngine);
+
     /// @notice Value of assets seized by the liquidator exceeds liquidation discount
     error RiskModule_SeizedTooMuch(uint256 seizedValue, uint256 maxSeizedValue);
     /// @notice Position contains an asset that is not supported by a pool that it borrows from
@@ -67,6 +72,8 @@ contract RiskModule {
     function updateFromRegistry() external {
         pool = Pool(REGISTRY.addressFor(SENTIMENT_POOL_KEY));
         riskEngine = RiskEngine(REGISTRY.addressFor(SENTIMENT_RISK_ENGINE_KEY));
+        emit PoolSet(address(pool));
+        emit RiskEngineSet(address(riskEngine));
     }
 
     /// @notice Fetch position health factor

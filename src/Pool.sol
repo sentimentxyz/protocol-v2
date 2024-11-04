@@ -95,6 +95,10 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     /// @notice Fetch pending rate model updates for a given pool id
     mapping(uint256 poolId => RateModelUpdate rateModelUpdate) public rateModelUpdateFor;
 
+    /// @notice Position Manager addresss was updated
+    event PositionManagerSet(address positionManager);
+    /// @notice Risk Engine address was updated
+    event RiskEngineSet(address riskEngine);
     /// @notice Minimum debt amount set
     event MinDebtSet(uint256 minDebt);
     /// @notice Minimum borrow amount set
@@ -228,6 +232,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     function updateFromRegistry() public {
         positionManager = Registry(registry).addressFor(SENTIMENT_POSITION_MANAGER_KEY);
         riskEngine = Registry(registry).addressFor(SENTIMENT_RISK_ENGINE_KEY);
+        emit PositionManagerSet(positionManager);
+        emit RiskEngineSet(riskEngine);
     }
 
     /// @notice Fetch amount of liquid assets currently held in a given pool

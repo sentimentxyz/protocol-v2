@@ -74,7 +74,7 @@ contract ChainlinkEthOracle is Ownable, IOracle {
 
         PriceFeed storage priceFeed = priceFeedFor[asset];
         // [ROUND] price is rounded down. this is used for both debt and asset math, neutral effect.
-        return amt.mulDiv(_getPriceWithSanityChecks(asset, priceFeed), priceFeed.assetDecimals);
+        return amt.mulDiv(_getPriceWithSanityChecks(asset, priceFeed), (10 ** priceFeed.assetDecimals));
     }
 
     /// @notice Set Chainlink ETH-denominated feed for an asset

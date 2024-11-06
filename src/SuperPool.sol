@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/*//////////////////////////////////////////////////////////////
-                            SuperPool
-//////////////////////////////////////////////////////////////*/
-
 // types
 import { Pool } from "./Pool.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -512,10 +508,6 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     }
 
     /// @dev Internal function to process ERC4626 deposits and mints
-    /// @param receiver The address to receive the shares
-    /// @param assets The amount of assets to deposit
-    /// @param shares The amount of shares to mint, should be equivalent to assets
-    /// @param lastTotalShares The total amount deposit shares issued by the SuperPool
     function _deposit(address receiver, uint256 assets, uint256 shares, uint256 lastTotalShares) internal {
         // assume lastTotalAssets and lastTotalShares are up to date
         if (lastTotalAssets + assets > superPoolCap) revert SuperPool_SuperPoolCapReached();

@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/*//////////////////////////////////////////////////////////////
-                            SuperPool
-//////////////////////////////////////////////////////////////*/
-
 // types
 import { Pool } from "./Pool.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -30,6 +26,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     uint256 internal constant WAD = 1e18;
     /// @notice The maximum length of the deposit and withdraw queues
     uint256 public constant MAX_QUEUE_LENGTH = 10;
+    /// @notice The maximum supply of deposit shares for the SuperPool
+    uint256 public constant MAX_DEPOSIT_SHARES = type(uint112).max;
     /// @notice Timelock delay for fee modification
     uint256 public constant TIMELOCK_DURATION = 24 * 60 * 60; // 24 hours
     /// @notice Timelock deadline to enforce timely updates
@@ -125,6 +123,8 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     error SuperPool_ZeroPoolCap(uint256 poolId);
     /// @notice Reordered queue length does not match original queue length
     error SuperPool_ReorderQueueLength();
+    /// @notice Total SuperPool shares exceeded MAX_DEPOSIT_SHARES
+    error SuperPool_MaxDepositShares();
 
     /// @notice This function should only be called by the SuperPool Factory
     /// @param pool_ The address of the singelton pool contract
@@ -257,9 +257,10 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @return shares The amount of shares minted
     function deposit(uint256 assets, address receiver) public nonReentrant whenNotPaused returns (uint256 shares) {
         accrue();
-        shares = _convertToShares(assets, lastTotalAssets, totalSupply(), Math.Rounding.Down);
+        uint256 lastTotalShares = totalSupply();
+        shares = _convertToShares(assets, lastTotalAssets, lastTotalShares, Math.Rounding.Down);
         if (shares == 0) revert SuperPool_ZeroShareDeposit(address(this), assets);
-        _deposit(receiver, assets, shares);
+        _deposit(receiver, assets, shares, lastTotalShares);
     }
 
     /// @notice Mints shares into the SuperPool
@@ -268,9 +269,10 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @return assets The amount of assets deposited
     function mint(uint256 shares, address receiver) public nonReentrant whenNotPaused returns (uint256 assets) {
         accrue();
-        assets = _convertToAssets(shares, lastTotalAssets, totalSupply(), Math.Rounding.Up);
+        uint256 lastTotalShares = totalSupply();
+        assets = _convertToAssets(shares, lastTotalAssets, lastTotalShares, Math.Rounding.Up);
         if (assets == 0) revert SuperPool_ZeroAssetMint(address(this), shares);
-        _deposit(receiver, assets, shares);
+        _deposit(receiver, assets, shares, lastTotalShares);
     }
 
     /// @notice Withdraws assets from the SuperPool
@@ -496,18 +498,20 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         if (_totalAssets >= superPoolCap) return 0; // SuperPool has too many assets
         // deposit() reverts when deposited assets are less than one share worth
         // check that remaining asset capacity is worth more than one share
+        // check that total shares after deposit does not exceed MAX_DEPOSIT_SHARES
         uint256 maxAssets = superPoolCap - _totalAssets;
-        uint256 shares = _convertToShares(maxAssets, _totalAssets, totalSupply() + _feeShares, Math.Rounding.Down);
-        return (shares > 0) ? maxAssets : 0;
+        uint256 totalShares = totalSupply() + _feeShares; // total deposit shares after accrue but before deposit
+        uint256 shares = _convertToShares(maxAssets, _totalAssets, totalShares, Math.Rounding.Down);
+        if (shares == 0) return 0;
+        if (shares + totalShares > MAX_DEPOSIT_SHARES) return 0;
+        return maxAssets;
     }
 
     /// @dev Internal function to process ERC4626 deposits and mints
-    /// @param receiver The address to receive the shares
-    /// @param assets The amount of assets to deposit
-    /// @param shares The amount of shares to mint, should be equivalent to assets
-    function _deposit(address receiver, uint256 assets, uint256 shares) internal {
-        // assume that lastTotalAssets are up to date
+    function _deposit(address receiver, uint256 assets, uint256 shares, uint256 lastTotalShares) internal {
+        // assume lastTotalAssets and lastTotalShares are up to date
         if (lastTotalAssets + assets > superPoolCap) revert SuperPool_SuperPoolCapReached();
+        if (shares + lastTotalShares > MAX_DEPOSIT_SHARES) revert SuperPool_MaxDepositShares();
         // Need to transfer before minting or ERC777s could reenter.
         ASSET.safeTransferFrom(msg.sender, address(this), assets);
         ERC20._mint(receiver, shares);

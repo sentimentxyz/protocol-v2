@@ -151,7 +151,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     /// @notice Pool is paused
     error Pool_PoolPaused(uint256 poolId);
     /// @notice Total Base Pool shares exceeds MAX_DEPOSIT_SHARES
-    error Pool_MaxDepositShares(uint poolId);
+    error Pool_MaxDepositShares(uint256 poolId);
     /// @notice Total borrow shares exceed MAX_BORROW_SHARES
     error Pool_MaxBorrowShares(uint256 poolId);
     /// @notice Pool borrow cap exceeded

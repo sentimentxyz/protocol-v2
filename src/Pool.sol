@@ -24,6 +24,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     using SafeERC20 for IERC20;
 
     address private constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    /// @notice Maximum amount of deposit shares per base pool
+    uint256 public constant MAX_DEPOSIT_SHARES = type(uint112).max;
     /// @notice Maximum amount of borrow shares per base pool
     uint256 public constant MAX_BORROW_SHARES = type(uint112).max;
     /// @notice Minimum amount of initial shares to be burned
@@ -148,6 +150,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     error Pool_ZeroAddressOwner();
     /// @notice Pool is paused
     error Pool_PoolPaused(uint256 poolId);
+    /// @notice Total Base Pool shares exceeds MAX_DEPOSIT_SHARES
+    error Pool_MaxDepositShares(uint poolId);
     /// @notice Total borrow shares exceed MAX_BORROW_SHARES
     error Pool_MaxBorrowShares(uint256 poolId);
     /// @notice Pool borrow cap exceeded
@@ -380,6 +384,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
         pool.totalDepositAssets += assets;
         pool.totalDepositShares += shares;
         if (pool.totalDepositAssets > pool.depositCap) revert Pool_PoolCapExceeded(poolId);
+        if (pool.totalDepositShares > MAX_DEPOSIT_SHARES) revert Pool_MaxDepositShares(poolId);
 
         _mint(receiver, poolId, shares);
 

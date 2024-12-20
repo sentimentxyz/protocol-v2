@@ -2,8 +2,9 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
-import { Registry } from "src/Registry.sol";
+
 import { console2 } from "forge-std/console2.sol";
+import { Registry } from "src/Registry.sol";
 
 contract RegisterIRM is BaseScript {
     bytes32 key;
@@ -19,7 +20,6 @@ contract RegisterIRM is BaseScript {
         console2.log("Registered Key:");
         console2.logBytes32(key);
         console2.log("For IRM: ", irm);
-
     }
 
     function getParams() internal {

@@ -44,15 +44,14 @@ contract DeploySuperPool is BaseScript {
         name = vm.parseJsonString(config, "$.DeploySuperPool.name");
         symbol = vm.parseJsonString(config, "$.DeploySuperPool.symbol");
 
-        console2.log("symbol: ", symbol); 
-        console2.log("name: ", name); 
-        console2.log("initialDepositAmt: ", initialDepositAmt); 
-        console2.log("superPoolCap: ", superPoolCap); 
-        console2.log("fee: ", fee); 
-        console2.log("feeRecipient: ", feeRecipient); 
-        console2.log("asset: ", asset); 
+        console2.log("symbol: ", symbol);
+        console2.log("name: ", name);
+        console2.log("initialDepositAmt: ", initialDepositAmt);
+        console2.log("superPoolCap: ", superPoolCap);
+        console2.log("fee: ", fee);
+        console2.log("feeRecipient: ", feeRecipient);
+        console2.log("asset: ", asset);
         console2.log("owner: ", owner);
         console2.log("superPoolFactory: ", superPoolFactory);
-
     }
 }

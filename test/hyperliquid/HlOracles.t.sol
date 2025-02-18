@@ -2,18 +2,12 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
-import { Pool } from "src/Pool.sol";
-
-import { Action, Operation, PositionManager } from "src/PositionManager.sol";
 
 import { HlUsdcOracle } from "src/oracle/HlUsdcOracle.sol";
 import { HyperliquidOracle } from "src/oracle/HyperliquidOracle.sol";
 import { MockPrecompile } from "test/mocks/MockPrecompile.sol";
-import { ActionUtils } from "test/utils/ActionUtils.sol";
 
 contract HlOracleTest is Test {
-    using ActionUtils for Action;
-
     HlUsdcOracle hlUsdcOracle;
     HyperliquidOracle hlOracle;
 

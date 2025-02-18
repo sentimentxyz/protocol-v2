@@ -6,7 +6,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 interface ISystemOracle {
-    function markPxs(uint256 index) external view returns (uint256 price);
+    function markPx(uint16 index) external view returns (uint64 price);
 }
 
 /// @title HyperliquidOracle
@@ -14,18 +14,18 @@ interface ISystemOracle {
 contract HyperliquidOracle is IOracle {
     using Math for uint256;
 
-    uint256 public constant ETH_INDEX = 4;
+    uint16 public constant ETH_INDEX = 4;
     uint256 public constant ETH_PRICE_SCALE = 1e16;
-    ISystemOracle public constant SYSTEM_ORACLE = ISystemOracle(0x1111111111111111111111111111111111111111);
+    ISystemOracle public constant SYSTEM_ORACLE = ISystemOracle(0x0000000000000000000000000000000000000806);
 
     address public immutable ASSET;
-    uint256 public immutable ASSET_INDEX;
+    uint16 public immutable ASSET_INDEX;
     uint256 public immutable ASSET_AMT_SCALE;
     uint256 public immutable ASSET_PRICE_SCALE;
 
     error HyperLiquidOracle_InvalidAsset(address, address);
 
-    constructor(address asset, uint256 assetIndex, uint256 assetAmtScale, uint256 assetPriceScale) {
+    constructor(address asset, uint16 assetIndex, uint256 assetAmtScale, uint256 assetPriceScale) {
         ASSET = asset;
         ASSET_INDEX = assetIndex;
         ASSET_AMT_SCALE = assetAmtScale;
@@ -36,8 +36,8 @@ contract HyperliquidOracle is IOracle {
         if (asset != ASSET) revert HyperLiquidOracle_InvalidAsset(asset, ASSET);
 
         uint256 assetAmt = amt * ASSET_AMT_SCALE;
-        uint256 ethPrice = SYSTEM_ORACLE.markPxs(ETH_INDEX) * ETH_PRICE_SCALE;
-        uint256 assetPrice = SYSTEM_ORACLE.markPxs(ASSET_INDEX) * ASSET_PRICE_SCALE;
+        uint256 ethPrice = SYSTEM_ORACLE.markPx(ETH_INDEX) * ETH_PRICE_SCALE;
+        uint256 assetPrice = SYSTEM_ORACLE.markPx(ASSET_INDEX) * ASSET_PRICE_SCALE;
 
         return assetAmt.mulDiv(assetPrice, ethPrice);
     }

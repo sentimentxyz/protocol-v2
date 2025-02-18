@@ -7,7 +7,7 @@ import { HyperliquidOracle } from "src/oracle/HyperliquidOracle.sol";
 
 contract DeployHyperliquidOracle is BaseScript {
     address public immutable asset = 0x9cf99220F7dA086048D9fd4455407Ca8D65A6588;
-    uint256 public immutable assetIndex = 125;
+    uint16 public immutable assetIndex = 125;
     uint256 public immutable assetAmtScale = 1;
     uint256 public immutable assetPriceScale = 1e12;
 

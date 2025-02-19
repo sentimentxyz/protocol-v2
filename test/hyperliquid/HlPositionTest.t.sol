@@ -19,20 +19,20 @@ contract HlPositionTest is Test {
     bytes32 constant SALT = "TESTSALT";
     address immutable LP1 = makeAddr("LP1");
     address immutable GUY = makeAddr("GUY");
-    address constant OWNER = 0xA89ADa44E48380e61D59887Fa3EFc14373Efd063;
+    address constant OWNER = 0xB290f2F3FAd4E540D0550985951Cdad2711ac34A;
 
-    Pool constant POOL = Pool(0xA845F26dc7ecEc6fbC8f2E0C1eEB41EB6f4fC34C);
-    MockERC20 constant USDC = MockERC20(0x3e8aAB9Aad036f37bFC52B9Ae0B99AE1CB0C3959);
-    MockERC20 constant HYPE = MockERC20(0x13C34BDf455Eacc3907a23363094d6f36d8603ea);
-    RiskEngine constant RISK_ENGINE = RiskEngine(0x83D69EC5dBd6b58e2Ba9C115b5949c8dDd1D14F7);
-    PortfolioLens constant PORTFOLIO_LENS = PortfolioLens(0x3C3ee15c91f254c571E99f0A935efA9A152B6aF7);
-    PositionManager constant POSITION_MANAGER = PositionManager(0x0404ef74CcBa8Ff746509F375D024A030b1C6f79);
+    Pool constant POOL = Pool(0xCF5e73C836f40fA83ED634259978F9c3A3FC26f8);
+    MockERC20 constant USDC = MockERC20(0xdeC702aa5a18129Bd410961215674A7A130A12e5);
+    MockERC20 constant HYPE = MockERC20(0xB3fB66C10fD75E7ceB7E491d8dF505De0d91d340);
+    RiskEngine constant RISK_ENGINE = RiskEngine(0x71Bc92B8B848c287F82a56EfE1f30a439b1976B2);
+    PortfolioLens constant PORTFOLIO_LENS = PortfolioLens(0xE4114fc09A19A2D34E7f9f9DA1C9474070623EFd);
+    PositionManager constant POSITION_MANAGER = PositionManager(0x4D088E22F1c659bCDDf9982c6EF23147e5cb309f);
 
     uint256 constant LP1_AMT = 1e12; // 1e11 = 100k USDC
     uint256 constant GUY_COL_AMT = 100e18;
     uint256 constant GUY_BOR_AMT = 10_000e6;
     uint256 constant HYPE_USDC_POOL =
-        69_988_853_007_494_869_570_679_472_471_558_759_754_575_509_158_247_760_694_841_827_597_378_811_233_810;
+        102631104641534854069380865616741013922326953286420920971394834166600192052271;
 
     function setUp() public {
         FixedPriceOracle usdcOracle = new FixedPriceOracle(25e13); // 1 USDC = 0.00025 ETH

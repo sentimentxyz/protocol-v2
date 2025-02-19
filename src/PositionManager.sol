@@ -98,11 +98,11 @@ contract PositionManager is ReentrancyGuardUpgradeable, OwnableUpgradeable, Paus
     /// @dev [caller][position] => [isAuthorized] stores if caller is authorized to operate on position
     mapping(address position => mapping(address caller => bool isAuthz)) public isAuth;
 
-    // universe mappings:
+    // Universe Mappings:
     // the following two mappings define the universe of the protocol. this is used to define a
-    // subset of the network that a position can freely interact with. isKnownAddress defines
+    // subset of the network that a position can freely interact with. isKnownAsset defines
     // recognized addresses. these include assets that a position interacts with and addresses that
-    // can approved as spenders' for assets in a position. isKnownFunc defines the exec universe
+    // can approved as spenders' for assets in a position. isKnownSpender defines the exec universe
     // for a function by creating a mapping of particular target-function pairs that can be called
     // by a position.
 

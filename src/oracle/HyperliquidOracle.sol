@@ -4,19 +4,15 @@ pragma solidity ^0.8.24;
 import { IOracle } from "../interfaces/IOracle.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-
-interface ISystemOracle {
-    function markPx(uint16 index) external view returns (uint64 price);
-}
+import { L1Read } from "src/lib/L1Read.sol";
 
 /// @title HyperliquidOracle
 /// @notice Oracle implementation to price assets using ETH-denominated Hyperliquid feeds
-contract HyperliquidOracle is IOracle {
+contract HyperliquidOracle is L1Read, IOracle {
     using Math for uint256;
 
     uint16 public constant ETH_INDEX = 4;
     uint256 public constant ETH_PRICE_SCALE = 1e16;
-    ISystemOracle public constant SYSTEM_ORACLE = ISystemOracle(0x0000000000000000000000000000000000000806);
 
     address public immutable ASSET;
     uint16 public immutable ASSET_INDEX;
@@ -36,8 +32,8 @@ contract HyperliquidOracle is IOracle {
         if (asset != ASSET) revert HyperLiquidOracle_InvalidAsset(asset, ASSET);
 
         uint256 assetAmt = amt * ASSET_AMT_SCALE;
-        uint256 ethPrice = SYSTEM_ORACLE.markPx(ETH_INDEX) * ETH_PRICE_SCALE;
-        uint256 assetPrice = SYSTEM_ORACLE.markPx(ASSET_INDEX) * ASSET_PRICE_SCALE;
+        uint256 ethPrice = markPx(ETH_INDEX) * ETH_PRICE_SCALE;
+        uint256 assetPrice = markPx(ASSET_INDEX) * ASSET_PRICE_SCALE;
 
         return assetAmt.mulDiv(assetPrice, ethPrice);
     }

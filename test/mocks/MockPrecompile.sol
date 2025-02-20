@@ -2,13 +2,9 @@
 pragma solidity ^0.8.24;
 
 contract MockPrecompile {
-    mapping (uint16 index => uint64) private _prices;
+    uint256 public price;
 
-    function markPx(uint16 index) external view returns (uint64) {
-        return _prices[index];
+    fallback(bytes calldata) external returns (bytes memory) {
+        return abi.encode(price);
     }
-
-    function setMarkPrice(uint16 index, uint64 price) external {    
-        _prices[index] = price;
-  }
 }

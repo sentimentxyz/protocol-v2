@@ -11,7 +11,7 @@ contract HlOracleTest is Test {
     HlUsdcOracle hlUsdcOracle;
     HyperliquidOracle hlOracle;
 
-    address public immutable systemOracle = 0x0000000000000000000000000000000000000806;
+    address public immutable MARK_PX_PRECOMPILE_ADDRESS = 0x0000000000000000000000000000000000000806;
 
     uint16 public immutable ethIndex = 4;
 
@@ -22,18 +22,21 @@ contract HlOracleTest is Test {
 
     function setUp() public {
         hlUsdcOracle = new HlUsdcOracle();
-        console2.log("setting up");
-        console2.log("usdc oracle price", hlUsdcOracle.getValueInEth(0xB290f2F3FAd4E540D0550985951Cdad2711ac34A, 1e6));
         hlOracle = new HyperliquidOracle(asset, assetIndex, assetAmtScale, assetPriceScale);
 
         MockPrecompile mockPrecompile = new MockPrecompile();
 
-        vm.etch(systemOracle, address(mockPrecompile).code);
+        vm.etch(MARK_PX_PRECOMPILE_ADDRESS, address(mockPrecompile).code);
 
-        mockPrecompile = MockPrecompile(systemOracle);
+        // set mark price
+        vm.store(MARK_PX_PRECOMPILE_ADDRESS, bytes32(uint256(0)), bytes32(uint256(275380)));
 
-        mockPrecompile.setMarkPrice(ethIndex, 1e18);
-        mockPrecompile.setMarkPrice(assetIndex, 1e18);
+        bool success;
+        bytes memory result;
+        (success, result) = MARK_PX_PRECOMPILE_ADDRESS.staticcall(abi.encode(assetIndex));
+        console2.log(success);
+        console2.logBytes(result);
+        console2.log(abi.decode(result, (uint64)));
     }
 
     function testPerpOracles() public view {

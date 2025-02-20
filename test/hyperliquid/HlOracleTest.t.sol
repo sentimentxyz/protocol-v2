@@ -22,6 +22,8 @@ contract HlOracleTest is Test {
 
     function setUp() public {
         hlUsdcOracle = new HlUsdcOracle();
+        console2.log("setting up");
+        console2.log("usdc oracle price", hlUsdcOracle.getValueInEth(0xB290f2F3FAd4E540D0550985951Cdad2711ac34A, 1e6));
         hlOracle = new HyperliquidOracle(asset, assetIndex, assetAmtScale, assetPriceScale);
 
         MockPrecompile mockPrecompile = new MockPrecompile();

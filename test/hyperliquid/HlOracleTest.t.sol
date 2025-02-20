@@ -6,8 +6,11 @@ import "forge-std/Test.sol";
 import { HlUsdcOracle } from "src/oracle/HlUsdcOracle.sol";
 import { HyperliquidOracle } from "src/oracle/HyperliquidOracle.sol";
 import { MockPrecompile } from "test/mocks/MockPrecompile.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract HlOracleTest is Test {
+    using Math for uint256;
+
     HlUsdcOracle hlUsdcOracle;
     HyperliquidOracle hlOracle;
 
@@ -29,7 +32,7 @@ contract HlOracleTest is Test {
         vm.etch(MARK_PX_PRECOMPILE_ADDRESS, address(mockPrecompile).code);
 
         // set mark price
-        vm.store(MARK_PX_PRECOMPILE_ADDRESS, bytes32(uint256(0)), bytes32(uint256(275380)));
+        vm.store(MARK_PX_PRECOMPILE_ADDRESS, bytes32(uint256(0)), bytes32(uint256(270000))); // 2700.00
 
         bool success;
         bytes memory result;
@@ -40,10 +43,13 @@ contract HlOracleTest is Test {
     }
 
     function testPerpOracles() public view {
-        uint256 usdcPrice = hlUsdcOracle.getValueInEth(asset, 1e6);
-        uint256 assetPrice = hlOracle.getValueInEth(asset, 1e18);
-        console2.log("usdcPrice: ", usdcPrice);
-        console2.log("assetPrice: ", assetPrice);
+        uint256 amt = 1e6;
+        uint256 asset_amt_scale = 1e12;
+
+        uint256 usdcPrice = hlUsdcOracle.getValueInEth(asset, amt);
+        //uint256 assetPrice = hlOracle.getValueInEth(asset, 1e18);
+        uint256 expectedPrice = amt * asset_amt_scale / 2700;
+        assertEq(expectedPrice, usdcPrice);
     }
 
     // TODO

@@ -9,7 +9,7 @@ contract DeployHyperliquidOracle is BaseScript {
     address asset;
     uint16 assetIndex;
     uint256 assetAmtScale;
-    uint256 assetPriceScale;    
+    uint256 assetPriceScale;
 
     HyperliquidOracle oracle;
 

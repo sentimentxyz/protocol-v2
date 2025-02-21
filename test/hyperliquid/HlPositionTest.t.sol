@@ -32,7 +32,7 @@ contract HlPositionTest is Test {
     uint256 constant GUY_COL_AMT = 100e18;
     uint256 constant GUY_BOR_AMT = 10_000e6;
     uint256 constant HYPE_USDC_POOL =
-        102631104641534854069380865616741013922326953286420920971394834166600192052271;
+        102_631_104_641_534_854_069_380_865_616_741_013_922_326_953_286_420_920_971_394_834_166_600_192_052_271;
 
     function setUp() public {
         FixedPriceOracle usdcOracle = new FixedPriceOracle(25e13); // 1 USDC = 0.00025 ETH

@@ -3,10 +3,10 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
 
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { HlUsdcOracle } from "src/oracle/HlUsdcOracle.sol";
 import { HyperliquidOracle } from "src/oracle/HyperliquidOracle.sol";
 import { MockPrecompile } from "test/mocks/MockPrecompile.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract HlOracleTest is Test {
     using Math for uint256;
@@ -46,7 +46,7 @@ contract HlOracleTest is Test {
         uint256 amt = 1e6;
         uint256 asset_amt_scale = 1e12;
 
-        setMarkPrice(270000); // 2700.00
+        setMarkPrice(270_000); // 2700.00
 
         uint256 price = hlUsdcOracle.getValueInEth(asset, amt);
         uint256 expectedPrice = amt * asset_amt_scale / 2700;
@@ -63,6 +63,6 @@ contract HlOracleTest is Test {
     }
 
     function setMarkPrice(uint256 price) public {
-        vm.store(MARK_PX_PRECOMPILE_ADDRESS, bytes32(uint256(0)), bytes32(uint256(price))); 
+        vm.store(MARK_PX_PRECOMPILE_ADDRESS, bytes32(uint256(0)), bytes32(uint256(price)));
     }
 }

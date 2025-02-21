@@ -18,7 +18,7 @@ contract DeployHyperliquidOracle is BaseScript {
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         oracle = new HyperliquidOracle(asset, assetIndex, assetAmtScale, assetPriceScale);
-        console2.log("FixedPriceOracle: ", address(oracle));
+        console2.log("HyperliquidOracle: ", address(oracle));
     }
 
     function getParams() internal {

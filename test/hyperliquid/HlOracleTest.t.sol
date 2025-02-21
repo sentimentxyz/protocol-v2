@@ -31,8 +31,7 @@ contract HlOracleTest is Test {
 
         vm.etch(MARK_PX_PRECOMPILE_ADDRESS, address(mockPrecompile).code);
 
-        // set mark price
-        vm.store(MARK_PX_PRECOMPILE_ADDRESS, bytes32(uint256(0)), bytes32(uint256(270000))); // 2700.00
+        setMarkPrice(1e6);
 
         bool success;
         bytes memory result;
@@ -42,16 +41,28 @@ contract HlOracleTest is Test {
         console2.log(abi.decode(result, (uint64)));
     }
 
-    function testPerpOracles() public view {
+    function testPerpOracles() public {
+        // hlUsdcOracle
         uint256 amt = 1e6;
         uint256 asset_amt_scale = 1e12;
 
-        uint256 usdcPrice = hlUsdcOracle.getValueInEth(asset, amt);
-        //uint256 assetPrice = hlOracle.getValueInEth(asset, 1e18);
+        setMarkPrice(270000); // 2700.00
+
+        uint256 price = hlUsdcOracle.getValueInEth(asset, amt);
         uint256 expectedPrice = amt * asset_amt_scale / 2700;
-        assertEq(expectedPrice, usdcPrice);
+        assertEq(expectedPrice, price);
+
+        // hlOracle
+        amt = 1e18;
+        asset_amt_scale = 1;
+        setMarkPrice(2500); // 25.00
+
+        price = hlOracle.getValueInEth(asset, amt);
+        expectedPrice = 1e18 * (2500 * 1e12) / uint256(2500 * 1e16);
+        assertEq(expectedPrice, price);
     }
 
-    // TODO
-    function testDecimals() public view {}
+    function setMarkPrice(uint256 price) public {
+        vm.store(MARK_PX_PRECOMPILE_ADDRESS, bytes32(uint256(0)), bytes32(uint256(price))); 
+    }
 }

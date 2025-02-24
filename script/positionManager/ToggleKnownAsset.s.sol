@@ -14,13 +14,13 @@ contract ToggleKnownAsset is BaseScript {
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
         PositionManager(positionManager).toggleKnownAsset(target);
-        console2.log("ToggleKnownAddress: ", target);
+        console2.log("ToggleKnownAsset: ", target);
     }
 
     function getParams() internal {
         string memory config = getConfig();
 
-        target = vm.parseJsonAddress(config, "$.ToggleKnownAddress.target");
-        positionManager = vm.parseJsonAddress(config, "$.ToggleKnownAddress.positionManager");
+        target = vm.parseJsonAddress(config, "$.ToggleKnownAsset.target");
+        positionManager = vm.parseJsonAddress(config, "$.ToggleKnownAsset.positionManager");
     }
 }

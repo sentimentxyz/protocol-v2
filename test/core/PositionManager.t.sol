@@ -349,7 +349,7 @@ contract PositionManagerUnitTests is BaseTest {
         actions[0] = action;
 
         // vm.prank(positionManager.owner());
-        // positionManager.toggleKnownAddress(address(testContract));
+        // positionManager.ToggleKnownAsset(address(testContract));
         vm.prank(positionManager.owner());
         positionManager.toggleKnownFunc(address(testContract), bytes4(keccak256("testCall()")));
 
@@ -375,7 +375,7 @@ contract PositionManagerUnitTests is BaseTest {
         vm.stopPrank();
 
         // vm.prank(positionManager.owner());
-        // positionManager.toggleKnownAddress(address(testContract));
+        // positionManager.ToggleKnownAsset(address(testContract));
 
         assertEq(testContract.ping(), 0);
 

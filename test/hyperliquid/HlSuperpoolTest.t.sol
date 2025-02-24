@@ -7,8 +7,8 @@ import { MockERC20 } from "test/mocks/MockERC20.sol";
 
 contract HlSuperPoolTest is Test {
     address immutable GUY = makeAddr("GUY");
-    MockERC20 constant USDC = MockERC20(0x3e8aAB9Aad036f37bFC52B9Ae0B99AE1CB0C3959);
-    SuperPool constant SUPERPOOL = SuperPool(0x8F1dCB9394025c61F34cA76b42b047c29f92c7c2);
+    MockERC20 constant USDC = MockERC20(0xdeC702aa5a18129Bd410961215674A7A130A12e5);
+    SuperPool constant SUPERPOOL = SuperPool(0xF9BFAbBEa21170905A94399B8Cab724009B0639c);
 
     function testSuperPoolDeposit(uint256 amt) public {
         assert(GUY != address(0));

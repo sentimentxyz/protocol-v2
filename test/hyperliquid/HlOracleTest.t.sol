@@ -5,14 +5,14 @@ import "forge-std/Test.sol";
 
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { HlUsdcOracle } from "src/oracle/HlUsdcOracle.sol";
-import { HyperliquidOracle } from "src/oracle/HyperliquidOracle.sol";
+import { HlOracle } from "src/oracle/HlOracle.sol";
 import { MockPrecompile } from "test/mocks/MockPrecompile.sol";
 
 contract HlOracleTest is Test {
     using Math for uint256;
 
     HlUsdcOracle hlUsdcOracle;
-    HyperliquidOracle hlOracle;
+    HlOracle hlOracle;
 
     address public immutable MARK_PX_PRECOMPILE_ADDRESS = 0x0000000000000000000000000000000000000806;
 
@@ -25,7 +25,7 @@ contract HlOracleTest is Test {
 
     function setUp() public {
         hlUsdcOracle = new HlUsdcOracle();
-        hlOracle = new HyperliquidOracle(asset, assetIndex, assetAmtScale, assetPriceScale);
+        hlOracle = new HlOracle(asset, assetIndex, assetAmtScale, assetPriceScale);
 
         MockPrecompile mockPrecompile = new MockPrecompile();
 

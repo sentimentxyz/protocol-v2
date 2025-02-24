@@ -4,8 +4,9 @@ pragma solidity ^0.8.24;
 import "forge-std/Test.sol";
 
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { HlUsdcOracle } from "src/oracle/HlUsdcOracle.sol";
+
 import { HlOracle } from "src/oracle/HlOracle.sol";
+import { HlUsdcOracle } from "src/oracle/HlUsdcOracle.sol";
 import { MockPrecompile } from "test/mocks/MockPrecompile.sol";
 
 contract HlOracleTest is Test {

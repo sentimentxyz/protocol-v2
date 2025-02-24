@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IOracle} from "../interfaces/IOracle.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {L1Read} from "src/lib/L1Read.sol";
+import { IOracle } from "../interfaces/IOracle.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { L1Read } from "src/lib/L1Read.sol";
 
 /// @title HlOracle
 /// @notice Oracle implementation to price assets using ETH-denominated Hyperliquid feeds
@@ -21,22 +21,14 @@ contract HlOracle is L1Read, IOracle {
 
     error HlOracle_InvalidAsset(address, address);
 
-    constructor(
-        address asset,
-        uint16 assetIndex,
-        uint256 assetAmtScale,
-        uint256 assetPriceScale
-    ) {
+    constructor(address asset, uint16 assetIndex, uint256 assetAmtScale, uint256 assetPriceScale) {
         ASSET = asset;
         ASSET_INDEX = assetIndex;
         ASSET_AMT_SCALE = assetAmtScale;
         ASSET_PRICE_SCALE = assetPriceScale;
     }
 
-    function getValueInEth(
-        address asset,
-        uint256 amt
-    ) external view returns (uint256) {
+    function getValueInEth(address asset, uint256 amt) external view returns (uint256) {
         if (asset != ASSET) revert HlOracle_InvalidAsset(asset, ASSET);
 
         uint256 assetAmt = amt * ASSET_AMT_SCALE;

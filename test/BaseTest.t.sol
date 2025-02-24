@@ -52,7 +52,7 @@ contract BaseTest is Test {
             owner: protocolOwner,
             proxyAdmin: proxyAdmin,
             feeRecipient: address(this),
-            minLtv: 2e17, // 0.1
+            minLtv: 2e17, // 0.2
             maxLtv: 8e17, // 0.8
             minDebt: 0,
             minBorrow: 0,

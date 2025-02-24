@@ -20,7 +20,7 @@ contract ToggleKnownAsset is BaseScript {
     function getParams() internal {
         string memory config = getConfig();
 
-        target = vm.parseJsonAddress(config, "$.ToggleKnownAddress.target");
-        positionManager = vm.parseJsonAddress(config, "$.ToggleKnownAddress.positionManager");
+        target = vm.parseJsonAddress(config, "$.ToggleKnownAsset.target");
+        positionManager = vm.parseJsonAddress(config, "$.ToggleKnownAsset.positionManager");
     }
 }

@@ -5,8 +5,9 @@ import { BaseScript } from "../BaseScript.s.sol";
 import { console2 } from "forge-std/console2.sol";
 
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
-import { MockERC20 } from "test/mocks/MockERC20.sol";
+
 import { Pool } from "src/Pool.sol";
+import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { MockERC20 } from "test/mocks/MockERC20.sol";
 
 contract InitializePool is BaseScript {

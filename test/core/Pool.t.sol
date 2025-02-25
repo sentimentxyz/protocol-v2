@@ -46,7 +46,7 @@ contract PoolUnitTests is BaseTest {
         assertEq(rateModel, testPool.getRateModelFor(id));
     }
 
-    function testFailsDoubleInit() public {
+    function testRevertIfDoubleInit() public {
         address rateModel = address(new LinearRateModel(1e18, 2e18));
         bytes32 RATE_MODEL_KEY = 0xc6e8fa81936202e651519e9ac3074fa4a42c65daad3fded162373ba224d6ea96;
         vm.prank(protocolOwner);
@@ -56,6 +56,7 @@ contract PoolUnitTests is BaseTest {
         vm.startPrank(poolOwner);
         asset1.approve(address(pool), 2e7);
         pool.initializePool(poolOwner, address(asset1), RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7);
+        vm.expectRevert();
         pool.initializePool(poolOwner, address(asset1), RATE_MODEL_KEY, type(uint256).max, type(uint256).max, 1e7);
         vm.stopPrank();
     }

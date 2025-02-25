@@ -24,8 +24,8 @@ contract DeployChainlinkUsdOracle is BaseScript {
         string memory config = getConfig();
 
         owner = vm.parseJsonAddress(config, "$.DeployChainlinkUsdOracle.owner");
-        arbSeqFeed = vm.parseJsonAddress(config, "$.DeployChainLinkUsdOracle.arbSeqFeed");
+        arbSeqFeed = vm.parseJsonAddress(config, "$.DeployChainlinkUsdOracle.arbSeqFeed");
         ethUsdFeed = vm.parseJsonAddress(config, "$.DeployChainlinkUsdOracle.ethUsdFeed");
-        ethUsdThreshold = vm.parseJsonUint(config, "$.DeployChainlinkUsdOracle.ethUsdFeed");
+        ethUsdThreshold = vm.parseJsonUint(config, "$.DeployChainlinkUsdOracle.ethUsdThreshold");
     }
 }

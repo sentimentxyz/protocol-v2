@@ -16,9 +16,14 @@ contract SetLtv is BaseScript {
         getParams();
 
         require(ltv < 1e18, "LTV < 100%");
-        vm.broadcast(vm.envUint("PRIVATE_KEY"));
+        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         riskEngine.requestLtvUpdate(poolId, asset, ltv);
-        console2.log("SetLtv: ", poolId, asset, ltv);
+        console2.log("Request Ltv Update: ", poolId, asset, ltv);
+        if (riskEngine.ltvFor(poolId, asset) == 0) {
+            riskEngine.acceptLtvUpdate(poolId, asset);
+            console2.log("Set Ltv: ", poolId, asset, ltv);
+        }
+        vm.stopBroadcast();
     }
 
     function getParams() internal {

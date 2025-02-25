@@ -21,7 +21,6 @@ contract InitializePool is BaseScript {
 
     function run() public {
         getParams();
-        // vm.broadcast(vm.envUint("PRIVATE_KEY"));
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         MockERC20(asset).mint(owner, initialDepositAmt);
         IERC20(asset).approve(pool, initialDepositAmt);

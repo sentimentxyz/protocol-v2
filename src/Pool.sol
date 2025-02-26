@@ -134,14 +134,19 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
     /// @notice New pool was initialized
     event PoolInitialized(uint256 indexed poolId, address indexed owner, address indexed asset);
     /// @notice Assets were deposited to a pool
-    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
+    event Deposit(uint256 indexed poolId, address indexed receiver, uint256 assets, uint256 shares, address caller);
     /// @notice Debt was repaid from a position to a pool
     event Repay(address indexed position, uint256 indexed poolId, address indexed asset, uint256 amount);
     /// @notice Assets were borrowed from a position to a pool
     event Borrow(address indexed position, uint256 indexed poolId, address indexed asset, uint256 amount);
     /// @notice Assets were withdrawn from a pool
     event Withdraw(
-        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
+        uint256 indexed poolId,
+        address indexed owner,
+        address indexed receiver,
+        uint256 assets,
+        uint256 shares,
+        address caller
     );
 
     /// @notice Given fee value is greater than 100%
@@ -388,7 +393,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
 
         _mint(receiver, poolId, shares);
 
-        emit Deposit(msg.sender, receiver, assets, shares);
+        emit Deposit(poolId, receiver, assets, shares, msg.sender);
     }
 
     /// @notice Withdraw assets from a pool
@@ -432,7 +437,7 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
 
         _burn(owner, poolId, shares);
 
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        emit Withdraw(poolId, owner, receiver, assets, shares, msg.sender);
 
         IERC20(pool.asset).safeTransfer(receiver, assets);
     }

@@ -6,9 +6,9 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { L1Read } from "src/lib/L1Read.sol";
 
-/// @title HlOracle
+/// @title HyperliquidOracle
 /// @notice Oracle implementation to price assets using ETH-denominated Hyperliquid feeds
-contract HlOracle is L1Read, IOracle {
+contract HyperliquidOracle is L1Read, IOracle {
     using Math for uint256;
 
     uint16 public constant ETH_INDEX = 4;

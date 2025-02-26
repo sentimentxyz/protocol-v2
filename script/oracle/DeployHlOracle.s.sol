@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
 import { console2 } from "forge-std/console2.sol";
-import { HlOracle } from "src/oracle/HlOracle.sol";
+import { HyperliquidOracle } from "src/oracle/HyperliquidOracle.sol";
 
 contract DeployHlOracle is BaseScript {
     address asset;
@@ -11,13 +11,13 @@ contract DeployHlOracle is BaseScript {
     uint256 assetAmtScale;
     uint256 assetPriceScale;
 
-    HlOracle oracle;
+    HyperliquidOracle oracle;
 
     function run() public {
         getParams();
 
         vm.broadcast(vm.envUint("PRIVATE_KEY"));
-        oracle = new HlOracle(asset, assetIndex, assetAmtScale, assetPriceScale);
+        oracle = new HyperliquidOracle(asset, assetIndex, assetAmtScale, assetPriceScale);
         console2.log("HlOracle: ", address(oracle));
     }
 

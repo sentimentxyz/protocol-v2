@@ -45,4 +45,10 @@ library ActionUtils {
         Action memory action = Action({ op: Operation.Transfer, data: data });
         return action;
     }
+
+    function repay(uint256 poolId, uint256 amt) internal pure returns (Action memory) {
+        bytes memory data = abi.encodePacked(poolId, amt);
+        Action memory action = Action({ op: Operation.Repay, data: data });
+        return action;
+    }
 }

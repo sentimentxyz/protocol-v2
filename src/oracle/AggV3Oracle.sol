@@ -11,27 +11,29 @@ interface IAggregatorV3 {
         returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
 }
 
+// @notice Latest price update for `asset` was older than the accepted threshold
 error AggV3Oracle_StalePrice(address asset);
 
 // @title AggV3Oracle
+// @notice General purpose AggregatorV3-compliant price oracle
 contract AggV3Oracle is IOracle {
     using Math for uint256;
 
     address public immutable ASSET;
     address public immutable ASSET_FEED;
-    uint256 public immutable ASSET_DECIMALS;
-    uint256 public immutable ASSET_FEED_DECIMALS;
-    bool public immutable ASSET_FEED_CHECK_TIMESTAMP;
-    uint256 public immutable ASSET_STALE_PRICE_THRESHOLD;
+    uint256 public immutable ASSET_DECIMALS; // Decimals for ASSET
+    uint256 public immutable ASSET_FEED_DECIMALS; // Decimals for ASSET_FEED
+    bool public immutable ASSET_FEED_CHECK_TIMESTAMP; // true if ASSET_FEED prices must be checked for staleness
+    uint256 public immutable ASSET_STALE_PRICE_THRESHOLD; // in seconds
 
     bool public immutable IS_USD_FEED; // true if ASSET_FEED is USD-denominated
 
     // if IS_USD_FEED is false, the following variables will not be set
     address public immutable ETH;
     address public immutable ETH_FEED;
-    uint256 public immutable ETH_FEED_DECIMALS;
-    bool public immutable ETH_FEED_CHECK_TIMESTAMP;
-    uint256 public immutable ETH_STALE_PRICE_THRESHOLD;
+    uint256 public immutable ETH_FEED_DECIMALS; // Decimals for ETH_FEED
+    bool public immutable ETH_FEED_CHECK_TIMESTAMP; // true if ETH_FEED prices must be checked for staleness
+    uint256 public immutable ETH_STALE_PRICE_THRESHOLD; // in seconds
 
     constructor(
         address asset,
@@ -69,7 +71,7 @@ contract AggV3Oracle is IOracle {
         uint256 assetPrice =
             _getPrice(ASSET_FEED, ASSET_FEED_CHECK_TIMESTAMP, ASSET_STALE_PRICE_THRESHOLD, ASSET_FEED_DECIMALS, ASSET);
 
-        uint256 ethPrice = 1e18; // Default value used when ASSET_FEED is ETH-denominated
+        uint256 ethPrice = 1e18; // Default value when ASSET_FEED is ETH-denominated
         if (IS_USD_FEED) {
             ethPrice = _getPrice(ETH_FEED, ETH_FEED_CHECK_TIMESTAMP, ETH_STALE_PRICE_THRESHOLD, ETH_FEED_DECIMALS, ETH);
         }

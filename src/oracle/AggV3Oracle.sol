@@ -24,8 +24,9 @@ contract AggV3Oracle is IOracle {
     bool public immutable ASSET_FEED_CHECK_TIMESTAMP;
     uint256 public immutable ASSET_STALE_PRICE_THRESHOLD;
 
-    bool public immutable IS_USD_FEED;
+    bool public immutable IS_USD_FEED; // true if ASSET_FEED is USD-denominated
 
+    // if IS_USD_FEED is false, the following variables will not be set
     address public immutable ETH;
     address public immutable ETH_FEED;
     uint256 public immutable ETH_FEED_DECIMALS;
@@ -51,8 +52,9 @@ contract AggV3Oracle is IOracle {
         ASSET_DECIMALS = assetDecimals;
         ASSET_FEED_DECIMALS = assetFeedDecimals;
         ASSET_FEED_CHECK_TIMESTAMP = assetFeedCheckTimestamp;
+        ASSET_STALE_PRICE_THRESHOLD = assetStalePriceThreshold;
 
-        IS_USD_FEED = isUsdFeed;
+        IS_USD_FEED = isUsdFeed; // if false, the feed is assumed to be ETH-denominated
 
         if (isUsdFeed) {
             ETH = eth;
@@ -60,7 +62,6 @@ contract AggV3Oracle is IOracle {
             ETH_FEED_DECIMALS = ethFeedDecimals;
             ETH_FEED_CHECK_TIMESTAMP = ethFeedCheckTimestamp;
             ETH_STALE_PRICE_THRESHOLD = ethStalePriceThreshold;
-            ASSET_STALE_PRICE_THRESHOLD = assetStalePriceThreshold;
         }
     }
 
@@ -68,7 +69,7 @@ contract AggV3Oracle is IOracle {
         uint256 assetPrice =
             _getPrice(ASSET_FEED, ASSET_FEED_CHECK_TIMESTAMP, ASSET_STALE_PRICE_THRESHOLD, ASSET_FEED_DECIMALS, ASSET);
 
-        uint256 ethPrice = 1e18;
+        uint256 ethPrice = 1e18; // Default value used when ASSET_FEED is ETH-denominated
         if (IS_USD_FEED) {
             ethPrice = _getPrice(ETH_FEED, ETH_FEED_CHECK_TIMESTAMP, ETH_STALE_PRICE_THRESHOLD, ETH_FEED_DECIMALS, ETH);
         }
@@ -94,9 +95,7 @@ contract AggV3Oracle is IOracle {
     {
         (, int256 answer,, uint256 updatedAt,) = IAggregatorV3(feed).latestRoundData();
 
-        if (checkTimestamp) {
-            if (updatedAt < block.timestamp - stalePriceThreshold) revert AggV3Oracle_StalePrice(asset);
-        }
+        if (checkTimestamp) if (updatedAt < block.timestamp - stalePriceThreshold) revert AggV3Oracle_StalePrice(asset);
 
         scaledPrice = uint256(answer);
         if (feedDecimals < 18) scaledPrice = scaledPrice * (10 ** (18 - feedDecimals));

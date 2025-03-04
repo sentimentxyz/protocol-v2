@@ -11,62 +11,74 @@ interface IAggregatorV3 {
         returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
 }
 
-error AggV3UsdOracle_StalePrice(address asset);
+error AggV3Oracle_StalePrice(address asset);
 
-// @title AggV3UsdOracle
-contract AggV3UsdOracle is IOracle {
+// @title AggV3Oracle
+contract AggV3Oracle is IOracle {
     using Math for uint256;
 
-    address public immutable ETH;
     address public immutable ASSET;
-    address public immutable ETH_FEED;
     address public immutable ASSET_FEED;
-    uint256 public immutable ETH_FEED_DECIMALS;
-    uint256 public immutable ASSET_FEED_DECIMALS;
     uint256 public immutable ASSET_DECIMALS;
-    bool public immutable ETH_CHECK_TIMESTAMP;
-    bool public immutable ASSET_CHECK_TIMESTAMP;
-    uint256 public immutable ETH_STALE_PRICE_THRESHOLD;
+    uint256 public immutable ASSET_FEED_DECIMALS;
+    bool public immutable ASSET_FEED_CHECK_TIMESTAMP;
     uint256 public immutable ASSET_STALE_PRICE_THRESHOLD;
 
+    bool public immutable IS_USD_FEED;
+
+    address public immutable ETH;
+    address public immutable ETH_FEED;
+    uint256 public immutable ETH_FEED_DECIMALS;
+    bool public immutable ETH_FEED_CHECK_TIMESTAMP;
+    uint256 public immutable ETH_STALE_PRICE_THRESHOLD;
+
     constructor(
-        address eth,
         address asset,
-        address ethFeed,
         address assetFeed,
-        uint256 ethFeedDecimals,
-        uint256 assetFeedDecimals,
         uint256 assetDecimals,
-        bool ethCheckTimestamp,
-        bool assetCheckTimestamp,
-        uint256 ethStalePriceThreshold,
-        uint256 assetStalePriceThreshold
+        uint256 assetFeedDecimals,
+        bool assetFeedCheckTimestamp,
+        uint256 assetStalePriceThreshold,
+        bool isUsdFeed,
+        address eth,
+        address ethFeed,
+        uint256 ethFeedDecimals,
+        bool ethFeedCheckTimestamp,
+        uint256 ethStalePriceThreshold
     ) {
-        ETH = eth;
         ASSET = asset;
-        ETH_FEED = ethFeed;
         ASSET_FEED = assetFeed;
-        ETH_FEED_DECIMALS = ethFeedDecimals;
-        ASSET_FEED_DECIMALS = assetFeedDecimals;
         ASSET_DECIMALS = assetDecimals;
-        ETH_CHECK_TIMESTAMP = ethCheckTimestamp;
-        ASSET_CHECK_TIMESTAMP = assetCheckTimestamp;
-        ETH_STALE_PRICE_THRESHOLD = ethStalePriceThreshold;
-        ASSET_STALE_PRICE_THRESHOLD = assetStalePriceThreshold;
+        ASSET_FEED_DECIMALS = assetFeedDecimals;
+        ASSET_FEED_CHECK_TIMESTAMP = assetFeedCheckTimestamp;
+
+        IS_USD_FEED = isUsdFeed;
+
+        if (isUsdFeed) {
+            ETH = eth;
+            ETH_FEED = ethFeed;
+            ETH_FEED_DECIMALS = ethFeedDecimals;
+            ETH_FEED_CHECK_TIMESTAMP = ethFeedCheckTimestamp;
+            ETH_STALE_PRICE_THRESHOLD = ethStalePriceThreshold;
+            ASSET_STALE_PRICE_THRESHOLD = assetStalePriceThreshold;
+        }
     }
 
     function getValueInEth(address, uint256 amt) external view returns (uint256 value) {
-        uint256 ethUsdPrice =
-            _getPrice(ETH_FEED, ETH_CHECK_TIMESTAMP, ETH_STALE_PRICE_THRESHOLD, ETH_FEED_DECIMALS, ETH);
-        uint256 assetUsdPrice =
-            _getPrice(ASSET_FEED, ASSET_CHECK_TIMESTAMP, ASSET_STALE_PRICE_THRESHOLD, ASSET_FEED_DECIMALS, ASSET);
+        uint256 assetPrice =
+            _getPrice(ASSET_FEED, ASSET_FEED_CHECK_TIMESTAMP, ASSET_STALE_PRICE_THRESHOLD, ASSET_FEED_DECIMALS, ASSET);
+
+        uint256 ethPrice = 1e18;
+        if (IS_USD_FEED) {
+            ethPrice = _getPrice(ETH_FEED, ETH_FEED_CHECK_TIMESTAMP, ETH_STALE_PRICE_THRESHOLD, ETH_FEED_DECIMALS, ETH);
+        }
 
         // scale amt to 18 decimals
         uint256 scaledAmt = amt;
         if (ASSET_DECIMALS < 18) scaledAmt = amt * (10 ** (18 - ASSET_DECIMALS));
         if (ASSET_DECIMALS > 18) scaledAmt = amt / (10 ** (ASSET_DECIMALS - 18));
 
-        return scaledAmt.mulDiv(assetUsdPrice, ethUsdPrice);
+        return scaledAmt.mulDiv(assetPrice, ethPrice);
     }
 
     function _getPrice(
@@ -83,7 +95,7 @@ contract AggV3UsdOracle is IOracle {
         (, int256 answer,, uint256 updatedAt,) = IAggregatorV3(feed).latestRoundData();
 
         if (checkTimestamp) {
-            if (updatedAt < block.timestamp - stalePriceThreshold) revert AggV3UsdOracle_StalePrice(asset);
+            if (updatedAt < block.timestamp - stalePriceThreshold) revert AggV3Oracle_StalePrice(asset);
         }
 
         scaledPrice = uint256(answer);

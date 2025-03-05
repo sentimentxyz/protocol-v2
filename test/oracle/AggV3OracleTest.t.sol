@@ -19,15 +19,36 @@ contract AggV3OracleTest is BaseTest {
 
     address private constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    uint256 public STALE_PRICE_THRESHOLD = 360;
+    uint256 public STALE_PRICE_THRESHOLD = 60 minutes;
 
     function setUp() public override {
         super.setUp;
 
-        vm.warp(block.timestamp + 60 minutes);
+        vm.warp(block.timestamp + 1 days);
         mockEthFeed = new MockV3Aggregator(18, 2e18);
         mockUsdFeed = new MockV3Aggregator(6, 1e6);
         mockEthPriceFeed = new MockV3Aggregator(8, 2220e8);
+    }
+
+    function testRevertIfStale() public {
+        MockV3Aggregator mockFeed = new MockV3Aggregator(18, 1e18);
+        aggV3Oracle = new AggV3Oracle(
+            address(asset1),
+            address(mockFeed),
+            18,
+            18,
+            true,
+            STALE_PRICE_THRESHOLD,
+            false,
+            address(0),
+            address(0),
+            0,
+            false,
+            0
+        );
+        mockFeed.updateRoundData(1, 1e18, block.timestamp - 61 minutes, block.timestamp - 61 minutes);
+        vm.expectRevert();
+        aggV3Oracle.getValueInEth(address(0), 1e18);
     }
 
     function testEthOracle() public {

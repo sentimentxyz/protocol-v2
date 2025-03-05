@@ -23,17 +23,17 @@ contract AggV3Oracle is IOracle {
     address public immutable ASSET_FEED;
     uint256 public immutable ASSET_DECIMALS; // Decimals for ASSET
     uint256 public immutable ASSET_FEED_DECIMALS; // Decimals for ASSET_FEED
-    bool public immutable ASSET_FEED_CHECK_TIMESTAMP; // true if ASSET_FEED prices must be checked for staleness
-    uint256 public immutable ASSET_STALE_PRICE_THRESHOLD; // in seconds
+    bool public immutable ASSET_FEED_CHECK_TIMESTAMP; // True if ASSET_FEED prices must be checked for staleness
+    uint256 public immutable ASSET_STALE_PRICE_THRESHOLD; // In seconds
 
-    bool public immutable IS_USD_FEED; // true if ASSET_FEED is USD-denominated
+    bool public immutable IS_USD_FEED; // True if ASSET_FEED is USD-denominated
 
-    // if IS_USD_FEED is false, the following variables will not be set
+    // If IS_USD_FEED is false, the following variables will not be set or used
     address public immutable ETH;
     address public immutable ETH_FEED;
     uint256 public immutable ETH_FEED_DECIMALS; // Decimals for ETH_FEED
-    bool public immutable ETH_FEED_CHECK_TIMESTAMP; // true if ETH_FEED prices must be checked for staleness
-    uint256 public immutable ETH_STALE_PRICE_THRESHOLD; // in seconds
+    bool public immutable ETH_FEED_CHECK_TIMESTAMP; // True if ETH_FEED prices must be checked for staleness
+    uint256 public immutable ETH_STALE_PRICE_THRESHOLD; // In seconds
 
     constructor(
         address asset,
@@ -56,7 +56,7 @@ contract AggV3Oracle is IOracle {
         ASSET_FEED_CHECK_TIMESTAMP = assetFeedCheckTimestamp;
         ASSET_STALE_PRICE_THRESHOLD = assetStalePriceThreshold;
 
-        IS_USD_FEED = isUsdFeed; // if false, the feed is assumed to be ETH-denominated
+        IS_USD_FEED = isUsdFeed; // If false, the feed is assumed to be ETH-denominated
 
         if (isUsdFeed) {
             ETH = eth;
@@ -76,7 +76,7 @@ contract AggV3Oracle is IOracle {
             ethPrice = _getPrice(ETH_FEED, ETH_FEED_CHECK_TIMESTAMP, ETH_STALE_PRICE_THRESHOLD, ETH_FEED_DECIMALS, ETH);
         }
 
-        // scale amt to 18 decimals
+        // Scale amt to 18 decimals
         uint256 scaledAmt = amt;
         if (ASSET_DECIMALS < 18) scaledAmt = amt * (10 ** (18 - ASSET_DECIMALS));
         if (ASSET_DECIMALS > 18) scaledAmt = amt / (10 ** (ASSET_DECIMALS - 18));

@@ -83,7 +83,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @notice SuperPool interest and fees were accrued
     event SuperPoolAccrued(uint256 feeShares, uint256 newTotalAssets, uint256 idleAssets);
     /// @notice SuperPool assets were reallocated
-    event SuperPoolReallocated(bytes calldata_);
+    event SuperPoolReallocated(ReallocateParams[] withdraws, ReallocateParams[] deposits);
     /// @notice Deposit queue was reordered
     event DepositQueueReordered(uint256[] newOrder);
     /// @notice Withdraw queue was reordered
@@ -459,7 +459,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
                 idleAssets -= deposits[i].assets;
             }
         }
-        emit SuperPoolReallocated(abi.encode(withdraws, deposits));
+        emit SuperPoolReallocated(withdraws, deposits);
     }
 
     function _convertToShares(

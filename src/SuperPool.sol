@@ -83,7 +83,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
     /// @notice SuperPool interest and fees were accrued
     event SuperPoolAccrued(uint256 feeShares, uint256 newTotalAssets, uint256 idleAssets);
     /// @notice SuperPool assets were reallocated
-    event SuperPoolReallocated(uint256 totalWithdrawn, uint256 totalDeposited);
+    event SuperPoolReallocated(bytes calldata_);
     /// @notice Deposit queue was reordered
     event DepositQueueReordered(uint256[] newOrder);
     /// @notice Withdraw queue was reordered
@@ -439,16 +439,13 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
             revert SuperPool_OnlyAllocatorOrOwner(address(this), msg.sender);
         }
 
-        uint256 idleAssets_ = idleAssets;
         uint256 withdrawsLength = withdraws.length;
         for (uint256 i; i < withdrawsLength; ++i) {
             if (poolCapFor[withdraws[i].poolId] == 0) revert SuperPool_PoolNotInQueue(withdraws[i].poolId);
             POOL.withdraw(withdraws[i].poolId, withdraws[i].assets, address(this), address(this));
             idleAssets += withdraws[i].assets;
         }
-        uint256 totalWithdrawn = idleAssets - idleAssets_;
 
-        idleAssets_ = idleAssets;
         uint256 depositsLength = deposits.length;
         for (uint256 i; i < depositsLength; ++i) {
             uint256 poolCap = poolCapFor[deposits[i].poolId];
@@ -462,8 +459,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
                 idleAssets -= deposits[i].assets;
             }
         }
-        uint256 totalDeposited = idleAssets_ - idleAssets;
-        emit SuperPoolReallocated(totalWithdrawn, totalDeposited);
+        emit SuperPoolReallocated(abi.encode(withdraws, deposits));
     }
 
     function _convertToShares(

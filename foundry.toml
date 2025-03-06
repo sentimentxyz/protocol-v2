@@ -25,6 +25,7 @@ remappings = [
     "ds-test/=lib/openzeppelin-contracts-upgradeable/lib/forge-std/lib/ds-test/src/",
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts",
 ]
+ignored_warnings_from = ["src/lib/PythAggregatorV3.sol"]
 
 [profile.default.optimizer_details]
 yul = true

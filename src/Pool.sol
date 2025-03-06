@@ -148,6 +148,14 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
         uint256 shares,
         address caller
     );
+    /// @notice Interest was accrued for a pool
+    event Accrued(
+        uint256 indexed poolId,
+        uint256 interestAccrued,
+        uint256 feeShares,
+        uint256 newTotalBorrowAssets,
+        uint256 newTotalDepositAssets
+    );
 
     /// @notice Given fee value is greater than 100%
     error Pool_FeeTooHigh();
@@ -484,6 +492,8 @@ contract Pool is OwnableUpgradeable, PausableUpgradeable, ERC6909 {
         // store a timestamp for this accrue() call
         // used to compute the pending interest next time accrue() is called
         pool.lastUpdated = block.timestamp;
+
+        emit Accrued(id, interestAccrued, feeShares, pool.totalBorrowAssets, pool.totalDepositAssets);
     }
 
     /// @notice Mint borrow shares and send borrowed assets to the borrowing position

@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
 import { console2 } from "forge-std/console2.sol";
-import { PythAggregatorV3 } from "src/lib/PythAggregatorV3.sol";
+import { PythAggregatorV3 } from "script/lib/PythAggregatorV3.sol";
 
 contract DeployPythFeed is BaseScript {
     PythAggregatorV3 pythAggV3;

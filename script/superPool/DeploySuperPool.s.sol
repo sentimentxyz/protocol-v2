@@ -22,7 +22,7 @@ contract DeploySuperPool is BaseScript {
         getParams();
 
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-        MockERC20(asset).mint(owner, initialDepositAmt);
+        //MockERC20(asset).mint(owner, initialDepositAmt);
         MockERC20(asset).approve(superPoolFactory, initialDepositAmt);
         address superPool = SuperPoolFactory(superPoolFactory).deploySuperPool(
             owner, asset, feeRecipient, fee, superPoolCap, initialDepositAmt, name, symbol

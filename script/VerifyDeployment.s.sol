@@ -123,6 +123,7 @@ contract VerifyDeployment is BaseScript {
         console2.log("borrowAsset price: ", oracle2.getValueInEth(borrowAsset, 1e18));
 
         // PositionManager
+        console2.log("positionManager proxy owner: ", positionManager.owner());
         console2.log("borrowAsset toggled: ", positionManager.isKnownAsset(borrowAsset));
         console2.log("collateralAsset toggled: ", positionManager.isKnownAsset(collateralAsset));
 

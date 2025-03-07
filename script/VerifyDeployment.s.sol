@@ -70,6 +70,8 @@ contract VerifyDeployment is BaseScript {
     address public constant borrowAsset = 0x5555555555555555555555555555555555555555; // wHype
     address public constant collateralAsset = 0x94e8396e0869c9F2200760aF0621aFd240E1CF38; // wstHype
 
+    address constant USER = USER;
+
     bytes32 constant SALT = "INITIAL_TEST_SALT";
 
     function run() public {
@@ -131,18 +133,18 @@ contract VerifyDeployment is BaseScript {
 
         // Deposit liquidity
         /*IERC20(borrowAsset).approve(address(superPool), 1e17);
-        superPool.deposit(1e17, 0xB290f2F3FAd4E540D0550985951Cdad2711ac34A);
+        superPool.deposit(1e17, USER);
         (address position, bool available) =
-            portfolioLens.predictAddress(0xB290f2F3FAd4E540D0550985951Cdad2711ac34A, SALT);
+            portfolioLens.predictAddress(USER, SALT);
         available;
 
         // Open new position, deposit, and borrow
         Action[] memory actions = new Action[](5);
-        actions[0] = ActionUtils.newPosition(0xB290f2F3FAd4E540D0550985951Cdad2711ac34A, SALT);
+        actions[0] = ActionUtils.newPosition(USER, SALT);
         actions[1] = ActionUtils.deposit(address(collateralAsset), 2e17);
         actions[2] = ActionUtils.addToken(address(collateralAsset));
         actions[3] = ActionUtils.borrow(poolId, 1e16);
-        actions[4] = ActionUtils.transfer(0xB290f2F3FAd4E540D0550985951Cdad2711ac34A, address(borrowAsset), 1e16);
+        actions[4] = ActionUtils.transfer(USER, address(borrowAsset), 1e16);
         
         IERC20(collateralAsset).approve(address(positionManager), 2e17);
         positionManager.processBatch(position, actions);

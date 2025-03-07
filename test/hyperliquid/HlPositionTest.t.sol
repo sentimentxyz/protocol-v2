@@ -10,7 +10,7 @@ import { SuperPool } from "src/SuperPool.sol";
 
 import { PortfolioLens } from "src/lens/PortfolioLens.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
-import { MockERC20 } from "test/mocks/MockERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ActionUtils } from "test/utils/ActionUtils.sol";
 
 contract HlPositionTest is Test {
@@ -21,72 +21,88 @@ contract HlPositionTest is Test {
     address immutable GUY = makeAddr("GUY");
     address constant OWNER = 0xB290f2F3FAd4E540D0550985951Cdad2711ac34A;
 
-    Pool constant POOL = Pool(0xCF5e73C836f40fA83ED634259978F9c3A3FC26f8);
-    MockERC20 constant USDC = MockERC20(0xdeC702aa5a18129Bd410961215674A7A130A12e5);
-    MockERC20 constant HYPE = MockERC20(0xB3fB66C10fD75E7ceB7E491d8dF505De0d91d340);
-    RiskEngine constant RISK_ENGINE = RiskEngine(0x71Bc92B8B848c287F82a56EfE1f30a439b1976B2);
-    PortfolioLens constant PORTFOLIO_LENS = PortfolioLens(0xE4114fc09A19A2D34E7f9f9DA1C9474070623EFd);
-    PositionManager constant POSITION_MANAGER = PositionManager(0x4D088E22F1c659bCDDf9982c6EF23147e5cb309f);
+    Pool constant POOL = Pool(0xE5B81a2bdaE122EE8E538CF866d721F09539556F);
+    IERC20 constant borrowAsset = IERC20(0x5555555555555555555555555555555555555555);
+    IERC20 constant collateralAsset = IERC20(0x94e8396e0869c9F2200760aF0621aFd240E1CF38);
+    RiskEngine constant RISK_ENGINE = RiskEngine(0x5f7e170Be9ac684fF221b55B956d95b10eaBA3C8);
+    PortfolioLens constant PORTFOLIO_LENS = PortfolioLens(0xF3487f4731f63B9AD94aAEa1F8A97a38Ec64c2E9);
+    PositionManager constant POSITION_MANAGER = PositionManager(0xE709523Bf6902b757B1A741187b5c10F2e24e463);
 
-    uint256 constant LP1_AMT = 1e12; // 1e11 = 100k USDC
-    uint256 constant GUY_COL_AMT = 100e18;
-    uint256 constant GUY_BOR_AMT = 10_000e6;
-    uint256 constant HYPE_USDC_POOL =
-        102_631_104_641_534_854_069_380_865_616_741_013_922_326_953_286_420_920_971_394_834_166_600_192_052_271;
+    uint256 constant LP1_AMT = 300e18; 
+    uint256 constant GUY_COL_AMT = 30e18;
+    uint256 constant GUY_BOR_AMT = 10e18;
+    uint256 constant poolId =
+        86638265068603793307491732110632390757630691719682137516485622823921024666224;
+
+    address constant borrowAssetWhale = 0x8D64d8273a3D50E44Cc0e6F43d927f78754EdefB;
+    address constant collateralAssetWhale = 0x67e70761E88C77ffF2174d5a4EaD42B44Df3F64a;
 
     function setUp() public {
-        FixedPriceOracle usdcOracle = new FixedPriceOracle(25e13); // 1 USDC = 0.00025 ETH
-        FixedPriceOracle hypeOracle = new FixedPriceOracle(25e16); // 1 HYPE = 0.25 ETH
+        FixedPriceOracle borrowAssetOracle = new FixedPriceOracle(0.1e18); // 1 borrowAsset = 0.1 ETH
+        FixedPriceOracle collateralAssetOracle = new FixedPriceOracle(0.1e18); // 1 collateralAsset = 0.1 ETH
 
         vm.startPrank(OWNER);
-        RISK_ENGINE.setOracle(address(USDC), address(usdcOracle));
-        RISK_ENGINE.setOracle(address(HYPE), address(hypeOracle));
+
+        RISK_ENGINE.setOracle(address(borrowAsset), address(borrowAssetOracle));
+        RISK_ENGINE.setOracle(address(collateralAsset), address(collateralAssetOracle));
         vm.stopPrank();
 
-        assertEq(RISK_ENGINE.getValueInEth(address(HYPE), GUY_COL_AMT), 25e18);
-        assertEq(RISK_ENGINE.getValueInEth(address(USDC), 1e6), 25e13);
+        assertEq(RISK_ENGINE.getValueInEth(address(collateralAsset), GUY_COL_AMT), 3e18);
+        assertEq(RISK_ENGINE.getValueInEth(address(borrowAsset), 10e18), 1e18);
+
+        // Some tokens do not work with deal()
+        vm.prank(borrowAssetWhale);
+        borrowAsset.transfer(LP1, LP1_AMT);
 
         vm.startPrank(LP1);
-        USDC.mint(LP1, LP1_AMT);
-        USDC.approve(address(POOL), LP1_AMT);
-        POOL.deposit(HYPE_USDC_POOL, LP1_AMT, LP1);
+        //deal(address(borrowAsset), LP1, LP1_AMT);
+        borrowAsset.approve(address(POOL), LP1_AMT);
+        POOL.deposit(poolId, LP1_AMT, LP1);
         vm.stopPrank();
-
-        HYPE.mint(GUY, GUY_COL_AMT);
     }
 
-    function testBorrowUsdcForHype() public {
+    function testBorrowborrowAssetForCollateralAsset() public {
+        //deal(address(collateralAsset), GUY, GUY_COL_AMT);
+        vm.startPrank(collateralAssetWhale);
+        collateralAsset.transfer(GUY, GUY_COL_AMT);
+        
         (address position, bool available) = PORTFOLIO_LENS.predictAddress(GUY, SALT);
         assertTrue(available);
 
         Action[] memory actions = new Action[](5);
         actions[0] = ActionUtils.newPosition(GUY, SALT);
-        actions[1] = ActionUtils.deposit(address(HYPE), GUY_COL_AMT);
-        actions[2] = ActionUtils.addToken(address(HYPE));
-        actions[3] = ActionUtils.borrow(HYPE_USDC_POOL, GUY_BOR_AMT);
-        actions[4] = ActionUtils.transfer(GUY, address(USDC), GUY_BOR_AMT);
+        actions[1] = ActionUtils.deposit(address(collateralAsset), GUY_COL_AMT);
+        actions[2] = ActionUtils.addToken(address(collateralAsset));
+        actions[3] = ActionUtils.borrow(poolId, GUY_BOR_AMT);
+        actions[4] = ActionUtils.transfer(GUY, address(borrowAsset), GUY_BOR_AMT);
 
         vm.startPrank(GUY);
-        HYPE.approve(address(POSITION_MANAGER), GUY_COL_AMT);
+        collateralAsset.approve(address(POSITION_MANAGER), GUY_COL_AMT);
         POSITION_MANAGER.processBatch(position, actions);
         vm.stopPrank();
 
-        console2.log("GUY USDC: ", USDC.balanceOf(GUY));
+        console2.log("GUY borrowAsset: ", borrowAsset.balanceOf(GUY));
+        console2.log("GUY collateralAsset: ", collateralAsset.balanceOf(GUY));
     }
 
-    function testRepayUsdcAndWithdrawHype() public {
+    function testRepayBorrowAssetAndWithdrawCollateralAsset() public {
+        vm.startPrank(collateralAssetWhale);
+        collateralAsset.transfer(GUY, GUY_COL_AMT);
+        vm.startPrank(borrowAssetWhale);
+        borrowAsset.transfer(GUY, 1); // account for rounding on borrowBalance
+
         (address position, bool available) = PORTFOLIO_LENS.predictAddress(GUY, SALT);
         assertTrue(available);
 
         Action[] memory actions = new Action[](5);
         actions[0] = ActionUtils.newPosition(GUY, SALT);
-        actions[1] = ActionUtils.deposit(address(HYPE), GUY_COL_AMT);
-        actions[2] = ActionUtils.addToken(address(HYPE));
-        actions[3] = ActionUtils.borrow(HYPE_USDC_POOL, GUY_BOR_AMT);
-        actions[4] = ActionUtils.transfer(GUY, address(USDC), GUY_BOR_AMT);
+        actions[1] = ActionUtils.deposit(address(collateralAsset), GUY_COL_AMT);
+        actions[2] = ActionUtils.addToken(address(collateralAsset));
+        actions[3] = ActionUtils.borrow(poolId, GUY_BOR_AMT);
+        actions[4] = ActionUtils.transfer(GUY, address(borrowAsset), GUY_BOR_AMT);
 
         vm.startPrank(GUY);
-        HYPE.approve(address(POSITION_MANAGER), GUY_COL_AMT);
+        collateralAsset.approve(address(POSITION_MANAGER), GUY_COL_AMT);
         POSITION_MANAGER.processBatch(position, actions);
         vm.stopPrank();
 
@@ -94,16 +110,16 @@ contract HlPositionTest is Test {
         // Repay
         //
         actions = new Action[](4);
-        actions[0] = ActionUtils.deposit(address(USDC), GUY_BOR_AMT);
-        actions[1] = ActionUtils.repay(HYPE_USDC_POOL, type(uint256).max);
-        actions[2] = ActionUtils.removeToken(address(HYPE));
-        actions[3] = ActionUtils.transfer(GUY, address(HYPE), GUY_COL_AMT);
+        actions[0] = ActionUtils.deposit(address(borrowAsset), GUY_BOR_AMT + 1);
+        actions[1] = ActionUtils.repay(poolId, type(uint256).max);
+        actions[2] = ActionUtils.removeToken(address(collateralAsset));
+        actions[3] = ActionUtils.transfer(GUY, address(collateralAsset), GUY_COL_AMT);
 
         vm.startPrank(GUY);
-        USDC.approve(address(POSITION_MANAGER), GUY_BOR_AMT);
+        borrowAsset.approve(address(POSITION_MANAGER), GUY_BOR_AMT + 1);
         POSITION_MANAGER.processBatch(position, actions);
         vm.stopPrank();
 
-        console2.log("GUY HYPE: ", HYPE.balanceOf(GUY));
+        console2.log("GUY collateralAsset: ", collateralAsset.balanceOf(GUY));
     }
 }

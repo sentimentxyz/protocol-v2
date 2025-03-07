@@ -113,7 +113,7 @@ contract VerifyDeployment is BaseScript {
         console2.log("pool minDebt: ", pool.minDebt());
         console2.log("pool minBorrow: ", pool.minBorrow());
 
-        //RiskEngine
+        // RiskEngine
         console2.log("RiskEngine: ", address(riskEngine));
         console2.log("collateralAsset ltv: ", riskEngine.ltvFor(poolId, collateralAsset));
         console2.log("borrowAsset ltv: ", riskEngine.ltvFor(poolId, borrowAsset));

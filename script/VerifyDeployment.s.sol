@@ -67,8 +67,8 @@ contract VerifyDeployment is BaseScript {
         0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
 
     // Assets
-    address public constant borrowAsset = 0x5555555555555555555555555555555555555555;
-    address public constant collateralAsset = 0x94e8396e0869c9F2200760aF0621aFd240E1CF38;
+    address public constant borrowAsset = 0x5555555555555555555555555555555555555555; // wHype
+    address public constant collateralAsset = 0x94e8396e0869c9F2200760aF0621aFd240E1CF38; // wstHype
 
     bytes32 constant SALT = "INITIAL_TEST_SALT";
 
@@ -109,7 +109,9 @@ contract VerifyDeployment is BaseScript {
         console2.log("pool asset: ", pool.getPoolAssetFor(poolId));
         console2.log("pool rateModel: ", pool.getRateModelFor(poolId));
         console2.log("poolCap: ", pool.getPoolCapFor(poolId));
-        console2.log("borrowCap: ", pool.getBorrowCapFor(poolId));
+        console2.log("pool borrowCap: ", pool.getBorrowCapFor(poolId));
+        console2.log("pool minDebt: ", pool.minDebt());
+        console2.log("pool minBorrow: ", pool.minBorrow());
 
         //RiskEngine
         console2.log("RiskEngine: ", address(riskEngine));

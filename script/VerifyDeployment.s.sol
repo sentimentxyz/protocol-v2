@@ -70,7 +70,7 @@ contract VerifyDeployment is BaseScript {
     address public constant borrowAsset = 0x5555555555555555555555555555555555555555; // wHype
     address public constant collateralAsset = 0x94e8396e0869c9F2200760aF0621aFd240E1CF38; // wstHype
 
-    address constant USER = USER;
+    address constant USER = 0xB290f2F3FAd4E540D0550985951Cdad2711ac34A;
 
     bytes32 constant SALT = "INITIAL_TEST_SALT";
 

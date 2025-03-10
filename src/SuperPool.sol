@@ -464,7 +464,6 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
             }
         }
         emit SuperPoolReallocated(withdraws, deposits_);
-        delete deposits_;
     }
 
     function _convertToShares(

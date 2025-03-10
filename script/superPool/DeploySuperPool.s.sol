@@ -3,8 +3,9 @@ pragma solidity ^0.8.24;
 
 import { BaseScript } from "../BaseScript.s.sol";
 import { console2 } from "forge-std/console2.sol";
-import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
+
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
 
 contract DeploySuperPool is BaseScript {
     address superPoolFactory;

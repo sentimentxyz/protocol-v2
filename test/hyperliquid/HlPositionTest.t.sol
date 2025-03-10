@@ -8,9 +8,9 @@ import { Action, Operation, PositionManager } from "src/PositionManager.sol";
 import { RiskEngine } from "src/RiskEngine.sol";
 import { SuperPool } from "src/SuperPool.sol";
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PortfolioLens } from "src/lens/PortfolioLens.sol";
 import { FixedPriceOracle } from "src/oracle/FixedPriceOracle.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ActionUtils } from "test/utils/ActionUtils.sol";
 
 contract HlPositionTest is Test {
@@ -28,11 +28,11 @@ contract HlPositionTest is Test {
     PortfolioLens constant PORTFOLIO_LENS = PortfolioLens(0xF3487f4731f63B9AD94aAEa1F8A97a38Ec64c2E9);
     PositionManager constant POSITION_MANAGER = PositionManager(0xE709523Bf6902b757B1A741187b5c10F2e24e463);
 
-    uint256 constant LP1_AMT = 300e18; 
+    uint256 constant LP1_AMT = 300e18;
     uint256 constant GUY_COL_AMT = 30e18;
     uint256 constant GUY_BOR_AMT = 10e18;
     uint256 constant poolId =
-        86638265068603793307491732110632390757630691719682137516485622823921024666224;
+        86_638_265_068_603_793_307_491_732_110_632_390_757_630_691_719_682_137_516_485_622_823_921_024_666_224;
 
     address constant borrowAssetWhale = 0x8D64d8273a3D50E44Cc0e6F43d927f78754EdefB;
     address constant collateralAssetWhale = 0x67e70761E88C77ffF2174d5a4EaD42B44Df3F64a;
@@ -65,7 +65,7 @@ contract HlPositionTest is Test {
         //deal(address(collateralAsset), GUY, GUY_COL_AMT);
         vm.startPrank(collateralAssetWhale);
         collateralAsset.transfer(GUY, GUY_COL_AMT);
-        
+
         (address position, bool available) = PORTFOLIO_LENS.predictAddress(GUY, SALT);
         assertTrue(available);
 

@@ -429,8 +429,6 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         uint256 assets;
     }
 
-    ReallocateParams[] deposits_;
-
     /// @notice Reallocate assets between underlying pools
     /// @param withdraws A list of poolIds, and the amount to withdraw from them
     /// @param deposits A list of poolIds, and the amount to deposit to them
@@ -449,6 +447,7 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
         }
 
         uint256 depositsLength = deposits.length;
+        ReallocateParams[] memory deposits_ = new ReallocateParams[](depositsLength);
         for (uint256 i; i < depositsLength; ++i) {
             uint256 poolCap = poolCapFor[deposits[i].poolId];
             // disallow deposits to pool not associated with this SuperPool
@@ -458,8 +457,10 @@ contract SuperPool is Ownable, Pausable, ReentrancyGuard, ERC20 {
             if (assetsInPool + deposits[i].assets <= poolCap) {
                 ASSET.forceApprove(address(POOL), deposits[i].assets);
                 POOL.deposit(deposits[i].poolId, deposits[i].assets, address(this));
-                deposits_.push(deposits[i]); // track successful deposits
+                deposits_[i] = deposits[i];
                 idleAssets -= deposits[i].assets;
+            } else {
+                deposits_[i] = ReallocateParams({ poolId: deposits[i].poolId, assets: 0 });
             }
         }
         emit SuperPoolReallocated(withdraws, deposits_);

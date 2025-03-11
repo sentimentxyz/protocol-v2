@@ -119,6 +119,8 @@ contract VerifyDeployment is BaseScript {
         console2.log("RiskEngine: ", address(riskEngine));
         console2.log("collateralAsset ltv: ", riskEngine.ltvFor(poolId, collateralAsset));
         console2.log("borrowAsset ltv: ", riskEngine.ltvFor(poolId, borrowAsset));
+        console2.log("collateralAsset oracle: ", riskEngine.oracleFor(collateralAsset));
+        console2.log("borrowAsset oracle: ", riskEngine.oracleFor(borrowAsset));
 
         // Oracles
         console2.log("collateralAsset price: ", oracle1.getValueInEth(collateralAsset, 1e18));

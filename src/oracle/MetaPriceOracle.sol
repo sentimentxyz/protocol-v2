@@ -19,10 +19,10 @@ contract MetaPriceOracle is IOracle {
         C = c;
     }
 
-    function getValueInEth(address addr, uint256 amt) external view returns (uint256 value) {
-        uint256 valueA = address(A) == address(0) ? 1e18 : A.getValueInEth(addr, amt);
-        uint256 valueB = address(B) == address(0) ? 1e18 : B.getValueInEth(addr, amt);
-        uint256 valueC = address(C) == address(0) ? 1e18 : C.getValueInEth(addr, amt);
+    function getValueInEth(address asset, uint256 amt) external view returns (uint256 value) {
+        uint256 valueA = address(A) == address(0) ? 1e18 : A.getValueInEth(asset, amt);
+        uint256 valueB = address(B) == address(0) ? 1e18 : B.getValueInEth(asset, amt);
+        uint256 valueC = address(C) == address(0) ? 1e18 : C.getValueInEth(asset, amt);
 
         value = valueA.mulDiv(valueB, valueC);
     }

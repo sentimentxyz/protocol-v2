@@ -29,6 +29,6 @@ contract MetaOracle is IOracle {
         uint256 valueC = address(C) == address(0) ? 1e18 : C.getValueInEth(asset, WAD);
 
         value = valueA.mulDiv(valueB, valueC);
-        value = amt.mulDiv(value, ASSET_DECIMALS);
+        value = amt.mulDiv(value, 10 ** ASSET_DECIMALS);
     }
 }

@@ -4,9 +4,9 @@ pragma solidity ^0.8.24;
 import { IOracle } from "../interfaces/IOracle.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
-// @title MetaPriceOracle
-// @notice General purpose Meta Price Oracle for chaining price feeds
-contract MetaPriceOracle is IOracle {
+// @title MetaOracle
+// @notice General purpose Meta Oracle for chaining price feeds
+contract MetaOracle is IOracle {
     using Math for uint256;
 
     IOracle public immutable A;
@@ -14,11 +14,13 @@ contract MetaPriceOracle is IOracle {
     IOracle public immutable C;
 
     uint256 public immutable WAD = 1e18;
+    uint256 public immutable ASSET_DECIMALS;
 
-    constructor(IOracle a, IOracle b, IOracle c) {
+    constructor(IOracle a, IOracle b, IOracle c, uint256 assetDecimals) {
         A = a;
         B = b;
         C = c;
+        ASSET_DECIMALS = assetDecimals;
     }
 
     function getValueInEth(address asset, uint256 amt) external view returns (uint256 value) {
@@ -27,6 +29,6 @@ contract MetaPriceOracle is IOracle {
         uint256 valueC = address(C) == address(0) ? 1e18 : C.getValueInEth(asset, WAD);
 
         value = valueA.mulDiv(valueB, valueC);
-        value = amt.mulDiv(value, WAD);
+        value = amt.mulDiv(value, ASSET_DECIMALS);
     }
 }

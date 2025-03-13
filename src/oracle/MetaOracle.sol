@@ -24,9 +24,9 @@ contract MetaOracle is IOracle {
     }
 
     function getValueInEth(address asset, uint256 amt) external view returns (uint256 value) {
-        uint256 valueA = address(A) == address(0) ? 1e18 : A.getValueInEth(asset, WAD);
-        uint256 valueB = address(B) == address(0) ? 1e18 : B.getValueInEth(asset, WAD);
-        uint256 valueC = address(C) == address(0) ? 1e18 : C.getValueInEth(asset, WAD);
+        uint256 valueA = address(A) == address(0) ? WAD : A.getValueInEth(asset, WAD);
+        uint256 valueB = address(B) == address(0) ? WAD : B.getValueInEth(asset, WAD);
+        uint256 valueC = address(C) == address(0) ? WAD : C.getValueInEth(asset, WAD);
 
         value = valueA.mulDiv(valueB, valueC);
         value = amt.mulDiv(value, 10 ** ASSET_DECIMALS);

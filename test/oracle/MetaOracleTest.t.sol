@@ -6,8 +6,9 @@ import { console2 } from "forge-std/console2.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import { IOracle } from "src/interfaces/IOracle.sol";
-import { MetaOracle } from "src/oracle/MetaOracle.sol";
+
 import { AggV3Oracle } from "src/oracle/AggV3Oracle.sol";
+import { MetaOracle } from "src/oracle/MetaOracle.sol";
 import { BaseTest } from "test/BaseTest.t.sol";
 import { MockV3Aggregator } from "test/mocks/MockV3Aggregator.sol";
 
@@ -31,7 +32,7 @@ contract MetaOracleTest is BaseTest {
 
     function testMetaOracle() public {
         aggV3OracleA = AggV3Oracle(0x712047cC3e4b0023Fccc09Ae412648CF23C65ed3); // wHype
-        aggV3OracleB = AggV3Oracle(0xb4AEd75ec810729Ee0fD375Ff3ADe8eD03d1eA96); // wstHype/wHype RR
+        aggV3OracleB = AggV3Oracle(0xb4AEd75ec810729Ee0fD375Ff3ADe8eD03d1eA96); // wstHype/wHype RR, returns 18 decimals
 
         metaOracle = new MetaOracle(aggV3OracleA, aggV3OracleB, IOracle(address(0)), 18);
         console2.log("aggV3OracleA price: ", aggV3OracleA.getValueInEth(address(0), 1e18));

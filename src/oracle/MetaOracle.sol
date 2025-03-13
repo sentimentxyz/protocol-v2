@@ -5,7 +5,7 @@ import { IOracle } from "../interfaces/IOracle.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // @title MetaOracle
-// @notice General purpose Meta Oracle for chaining price feeds
+// @notice General purpose MetaOracle for chaining price feeds
 contract MetaOracle is IOracle {
     using Math for uint256;
 
@@ -28,7 +28,6 @@ contract MetaOracle is IOracle {
         uint256 valueB = address(B) == address(0) ? WAD : B.getValueInEth(asset, WAD);
         uint256 valueC = address(C) == address(0) ? WAD : C.getValueInEth(asset, WAD);
 
-        value = valueA.mulDiv(valueB, valueC);
-        value = amt.mulDiv(value, 10 ** ASSET_DECIMALS);
+        value = amt.mulDiv(valueA.mulDiv(valueB, valueC), 10 ** ASSET_DECIMALS);
     }
 }

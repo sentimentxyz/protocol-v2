@@ -78,11 +78,11 @@ contract VerifyDeployment is BaseScript {
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
 
         // Set live contract addresses
-        superPool = SuperPool(0x17D9bA6c4276A5A679221B7128Ad3301d2b857B1);
-        pool = Pool(0xE5B81a2bdaE122EE8E538CF866d721F09539556F);
-        riskEngine = RiskEngine(0x5f7e170Be9ac684fF221b55B956d95b10eaBA3C8);
-        portfolioLens = PortfolioLens(0xF3487f4731f63B9AD94aAEa1F8A97a38Ec64c2E9);
-        positionManager = PositionManager(0xE709523Bf6902b757B1A741187b5c10F2e24e463);
+        superPool = SuperPool(0x2831775cb5e64B1D892853893858A261E898FbEb);
+        pool = Pool(0x36BFD6b40e2c9BbCfD36a6B1F1Aa65974f4fFA5D);
+        riskEngine = RiskEngine(0xd22dE451Ba71fA6F06C65962649ba4E2Aea10863);
+        portfolioLens = PortfolioLens(0x9700750001dDD7C4542684baC66C64D74fA833c0);
+        positionManager = PositionManager(0xE019Ce6e80dFe505bca229752A1ad727E14085a4);
 
         oracle1 = AggV3Oracle(0x79479c3d10b7fF49D6c18A5ADC601c86472D4767);
         oracle2 = AggV3Oracle(0x712047cC3e4b0023Fccc09Ae412648CF23C65ed3);
@@ -134,8 +134,8 @@ contract VerifyDeployment is BaseScript {
         /// Deposit/borrow/repay scenarios
 
         // Deposit liquidity
-        /*IERC20(borrowAsset).approve(address(superPool), 1e17);
-        superPool.deposit(1e17, USER);
+        IERC20(borrowAsset).approve(address(superPool), 7.7e18);
+        superPool.deposit(7.7e18, USER);
         (address position, bool available) =
             portfolioLens.predictAddress(USER, SALT);
         available;
@@ -143,12 +143,12 @@ contract VerifyDeployment is BaseScript {
         // Open new position, deposit, and borrow
         Action[] memory actions = new Action[](5);
         actions[0] = ActionUtils.newPosition(USER, SALT);
-        actions[1] = ActionUtils.deposit(address(collateralAsset), 2e17);
+        actions[1] = ActionUtils.deposit(address(collateralAsset), 15.18e18);
         actions[2] = ActionUtils.addToken(address(collateralAsset));
-        actions[3] = ActionUtils.borrow(poolId, 1e16);
-        actions[4] = ActionUtils.transfer(USER, address(borrowAsset), 1e16);
+        actions[3] = ActionUtils.borrow(poolId, 7.44e18);
+        actions[4] = ActionUtils.transfer(USER, address(borrowAsset), 7.44e18);
         
-        IERC20(collateralAsset).approve(address(positionManager), 2e17);
+        IERC20(collateralAsset).approve(address(positionManager), 15.18e18);
         positionManager.processBatch(position, actions);
 
         // Partially repay borrowed asset
@@ -157,6 +157,6 @@ contract VerifyDeployment is BaseScript {
         actions[1] = ActionUtils.repay(poolId, 1e10);
         
         IERC20(borrowAsset).approve(address(positionManager), 1e10);
-        positionManager.processBatch(position, actions);*/
+        positionManager.processBatch(position, actions);
     }
 }

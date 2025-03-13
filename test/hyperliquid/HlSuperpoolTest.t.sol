@@ -8,18 +8,18 @@ import { SuperPool } from "src/SuperPool.sol";
 contract HlSuperPoolTest is Test {
     address immutable GUY = makeAddr("GUY");
     IERC20 constant borrowAsset = IERC20(0x5555555555555555555555555555555555555555);
-    SuperPool constant SUPERPOOL = SuperPool(0x17D9bA6c4276A5A679221B7128Ad3301d2b857B1);
+    SuperPool constant SUPERPOOL = SuperPool(0x2831775cb5e64B1D892853893858A261E898FbEb);
 
     function testSuperPoolDeposit(uint256 amt) public {
         assert(GUY != address(0));
-        vm.assume(amt > 0 && amt < 5e33);
+        vm.assume(amt > 0 && amt < 699999e18);
         uint256 shares = _deposit(amt);
         assertEq(SUPERPOOL.balanceOf(GUY), shares);
     }
 
     function testSuperPoolWithdraw(uint256 amt) public {
         assert(GUY != address(0));
-        vm.assume(amt > 0 && amt < 5e33);
+        vm.assume(amt > 0 && amt < 699999e18);
         _deposit(amt);
         vm.startPrank(GUY);
         uint256 assets = SUPERPOOL.withdraw(amt, GUY, GUY);

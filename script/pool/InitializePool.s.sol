@@ -22,7 +22,6 @@ contract InitializePool is BaseScript {
     function run() public {
         getParams();
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-        MockERC20(asset).mint(owner, initialDepositAmt);
         IERC20(asset).approve(pool, initialDepositAmt);
         uint256 poolId = Pool(pool).initializePool(owner, asset, rateModelKey, depositCap, borrowCap, initialDepositAmt);
         console2.log("poolId: ", poolId);

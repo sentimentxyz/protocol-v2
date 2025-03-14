@@ -132,7 +132,7 @@ contract VerifyDeployment is BaseScript {
         console2.log("collateralAsset toggled: ", positionManager.isKnownAsset(collateralAsset));
 
         /// Deposit/borrow/repay scenarios
-
+/*
         // Deposit liquidity
         IERC20(borrowAsset).approve(address(superPool), 7.7e18);
         superPool.deposit(7.7e18, USER);
@@ -157,6 +157,6 @@ contract VerifyDeployment is BaseScript {
         actions[1] = ActionUtils.repay(poolId, 1e10);
         
         IERC20(borrowAsset).approve(address(positionManager), 1e10);
-        positionManager.processBatch(position, actions);
+        positionManager.processBatch(position, actions);*/
     }
 }

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { IOracle } from "../interfaces/IOracle.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IOracle } from "src/interfaces/IOracle.sol";
 
 interface IAggregatorV3 {
     function latestRoundData()

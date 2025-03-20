@@ -33,7 +33,18 @@ contract MetaOracleTest is BaseTest {
     function testMetaOracle() public {
         aggV3OracleA = AggV3Oracle(0x712047cC3e4b0023Fccc09Ae412648CF23C65ed3); // wHype
         aggV3OracleB = AggV3Oracle(0xb4AEd75ec810729Ee0fD375Ff3ADe8eD03d1eA96); // wstHype/wHype RR, returns 18 decimals
-        metaOracle = new MetaOracle(aggV3OracleA, aggV3OracleB, IOracle(address(0)), 18, 18, 18, 18);
+        metaOracle = new MetaOracle(
+            address(aggV3OracleA),
+            address(aggV3OracleB),
+            address(0),
+            aggV3OracleA.ASSET(),
+            aggV3OracleB.ASSET(),
+            address(0),
+            18,
+            18,
+            18,
+            18
+        );
 
         console2.log("aggV3OracleA price: ", aggV3OracleA.getValueInEth(address(0), 1e18));
         console2.log("aggV3OracleB price: ", aggV3OracleB.getValueInEth(address(0), 1e18));
@@ -76,8 +87,20 @@ contract MetaOracleTest is BaseTest {
             true,
             STALE_PRICE_THRESHOLD
         );
+
         uint256 assetDecimals = 18;
-        metaOracle = new MetaOracle(aggV3OracleA, aggV3OracleB, IOracle(address(0)), assetDecimals, 18, 6, 18);
+        metaOracle = new MetaOracle(
+            address(aggV3OracleA),
+            address(aggV3OracleB),
+            address(0),
+            aggV3OracleA.ASSET(),
+            aggV3OracleB.ASSET(),
+            address(0),
+            assetDecimals,
+            18,
+            6,
+            18
+        );
 
         assertEq(
             metaOracle.getValueInEth(address(0), 1e18),

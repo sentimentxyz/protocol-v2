@@ -11,8 +11,6 @@ contract MetaOracle is IOracle {
 
     uint256 public constant WAD = 1e18;
 
-    uint256 public immutable ASSET_DECIMALS;
-
     IOracle public immutable A;
     IOracle public immutable B;
     IOracle public immutable C;
@@ -25,6 +23,8 @@ contract MetaOracle is IOracle {
     uint256 public immutable FEED_DECIMALS_A;
     uint256 public immutable FEED_DECIMALS_C;
 
+    uint256 public immutable ASSET_DECIMALS;
+
     constructor(
         address a,
         address b,
@@ -32,10 +32,10 @@ contract MetaOracle is IOracle {
         address feedAssetA,
         address feedAssetB,
         address feedAssetC,
-        uint256 assetDecimals,
         uint256 feedDecimalsA,
         uint256 feedDecimalsB,
-        uint256 feedDecimalsC
+        uint256 feedDecimalsC,
+        uint256 assetDecimals
     ) {
         A = IOracle(a);
         B = IOracle(b);
@@ -45,11 +45,11 @@ contract MetaOracle is IOracle {
         FEED_ASSET_B = feedAssetB;
         FEED_ASSET_C = feedAssetC;
 
-        ASSET_DECIMALS = assetDecimals;
-
         FEED_DECIMALS_A = feedDecimalsA;
         FEED_DECIMALS_B = feedDecimalsB;
         FEED_DECIMALS_C = feedDecimalsC;
+
+        ASSET_DECIMALS = assetDecimals;
     }
 
     function getValueInEth(address, uint256 amt) external view returns (uint256 value) {

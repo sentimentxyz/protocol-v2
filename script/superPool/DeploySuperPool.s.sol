@@ -3,8 +3,9 @@ pragma solidity ^0.8.24;
 
 import { BaseScript } from "../BaseScript.s.sol";
 import { console2 } from "forge-std/console2.sol";
+
+import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
-import { MockERC20 } from "test/mocks/MockERC20.sol";
 
 contract DeploySuperPool is BaseScript {
     address superPoolFactory;
@@ -22,8 +23,7 @@ contract DeploySuperPool is BaseScript {
         getParams();
 
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-        MockERC20(asset).mint(owner, initialDepositAmt);
-        MockERC20(asset).approve(superPoolFactory, initialDepositAmt);
+        IERC20(asset).approve(superPoolFactory, initialDepositAmt);
         address superPool = SuperPoolFactory(superPoolFactory).deploySuperPool(
             owner, asset, feeRecipient, fee, superPoolCap, initialDepositAmt, name, symbol
         );

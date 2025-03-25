@@ -1,36 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "forge-std/Test.sol";
 import { SuperPool } from "src/SuperPool.sol";
-import { MockERC20 } from "test/mocks/MockERC20.sol";
 
 contract HlSuperPoolTest is Test {
     address immutable GUY = makeAddr("GUY");
-    MockERC20 constant USDC = MockERC20(0xdeC702aa5a18129Bd410961215674A7A130A12e5);
-    SuperPool constant SUPERPOOL = SuperPool(0xF9BFAbBEa21170905A94399B8Cab724009B0639c);
+    IERC20 constant borrowAsset = IERC20(0x5555555555555555555555555555555555555555);
+    SuperPool constant SUPERPOOL = SuperPool(0x2831775cb5e64B1D892853893858A261E898FbEb);
 
     function testSuperPoolDeposit(uint256 amt) public {
         assert(GUY != address(0));
-        vm.assume(amt > 0 && amt < 5e33);
+        vm.assume(amt > 0 && amt < 699999e18);
         uint256 shares = _deposit(amt);
         assertEq(SUPERPOOL.balanceOf(GUY), shares);
     }
 
     function testSuperPoolWithdraw(uint256 amt) public {
         assert(GUY != address(0));
-        vm.assume(amt > 0 && amt < 5e33);
+        vm.assume(amt > 0 && amt < 699999e18);
         _deposit(amt);
         vm.startPrank(GUY);
         uint256 assets = SUPERPOOL.withdraw(amt, GUY, GUY);
         vm.stopPrank();
-        assertEq(USDC.balanceOf(GUY), assets);
+        assertEq(borrowAsset.balanceOf(GUY), assets);
     }
 
     function _deposit(uint256 amt) internal returns (uint256 shares) {
-        USDC.mint(GUY, amt);
+        deal(address(borrowAsset), GUY, amt);
         vm.startPrank(GUY);
-        USDC.approve(address(SUPERPOOL), amt);
+        borrowAsset.approve(address(SUPERPOOL), amt);
         shares = SUPERPOOL.deposit(amt, GUY);
         vm.stopPrank();
     }

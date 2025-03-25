@@ -96,10 +96,10 @@ contract MetaOracleTest is BaseTest {
             aggV3OracleA.ASSET(),
             aggV3OracleB.ASSET(),
             address(0),
-            assetDecimals,
             18,
             6,
-            18
+            18,
+            assetDecimals
         );
 
         assertEq(

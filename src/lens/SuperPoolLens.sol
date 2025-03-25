@@ -229,15 +229,15 @@ contract SuperPoolLens {
 
         if (totalAssets == 0) return 0;
 
-        uint256 weightedAssets;
+        uint256 weightedInterestRate;
         uint256[] memory pools = superPool.pools();
         uint256 poolsLength = pools.length;
         for (uint256 i; i < poolsLength; ++i) {
             uint256 assets = POOL.getAssetsOf(pools[i], _superPool);
-            weightedAssets += assets * getPoolBorrowRate(pools[i]);
+            weightedInterestRate += assets.mulDiv(getPoolSupplyRate(pools[i]), 1e18);
         }
 
-        return weightedAssets / totalAssets;
+        return weightedInterestRate;
     }
 
     /// @dev Compute the ETH value scaled to 18 decimals for a given amount of an asset

@@ -82,7 +82,8 @@ contract SuperPoolLens {
         uint256 poolId;
         uint256 amount; // amount of assets deposited from the super pool into this pool
         uint256 valueInEth;
-        uint256 interestRate;
+        uint256 borrowInterestRate;
+        uint256 supplyInterestRate;
     }
 
     /// @notice Fetch data for SuperPool deposits in a given pool
@@ -105,7 +106,8 @@ contract SuperPoolLens {
             amount: amount,
             poolId: poolId,
             valueInEth: _getValueInEth(asset, amount),
-            interestRate: getPoolBorrowRate(poolId)
+            borrowInterestRate: getPoolBorrowRate(poolId),
+            supplyInterestRate: getPoolSupplyRate(poolId)
         });
     }
 

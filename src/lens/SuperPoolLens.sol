@@ -222,22 +222,20 @@ contract SuperPoolLens {
 
     /// @notice Fetch the weighted interest yield for a given super pool
     /// @param _superPool Address of the super pool
-    /// @return interestRate current weighted interest yield for the given super pool
-    function getSuperPoolInterestRate(address _superPool) public view returns (uint256 interestRate) {
+    /// @return weightedInterestRate current weighted interest yield for the given super pool
+    function getSuperPoolInterestRate(address _superPool) public view returns (uint256 weightedInterestRate) {
         SuperPool superPool = SuperPool(_superPool);
         uint256 totalAssets = superPool.totalAssets();
 
         if (totalAssets == 0) return 0;
 
-        uint256 weightedInterestRate;
         uint256[] memory pools = superPool.pools();
         uint256 poolsLength = pools.length;
         for (uint256 i; i < poolsLength; ++i) {
             uint256 assets = POOL.getAssetsOf(pools[i], _superPool);
-            weightedInterestRate += assets.mulDiv(getPoolSupplyRate(pools[i]), 1e18);
+            uint256 utilization = assets.mulDiv(1e18, totalAssets);
+            weightedInterestRate += utilization.mulDiv(getPoolSupplyRate(pools[i]), 1e18);
         }
-
-        return weightedInterestRate;
     }
 
     /// @dev Compute the ETH value scaled to 18 decimals for a given amount of an asset

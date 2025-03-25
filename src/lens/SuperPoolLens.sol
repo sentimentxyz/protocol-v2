@@ -194,6 +194,15 @@ contract SuperPoolLens {
         });
     }
 
+    /// @notice Fetch current utilization rate for a given pool
+    /// @param poolId Id of the underlying pool
+    /// @return utilizationRate current utilization rate of the given pool
+    function getPoolUtilizationRate(uint256 poolId) public view returns (uint256 utilizationRate) {
+        uint256 totalBorrows = POOL.getTotalBorrows(poolId);
+        uint256 totalAssets = POOL.getTotalAssets(poolId);
+        utilizationRate = totalAssets == 0 ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Up);
+    }
+
     /// @notice Fetch current borrow interest rate for a given pool
     /// @param poolId Id of the underlying pool
     /// @return interestRate current borrow interest rate for the given pool
@@ -207,9 +216,7 @@ contract SuperPoolLens {
     /// @return interestRate current supply interest rate for the given pool
     function getPoolSupplyRate(uint256 poolId) public view returns (uint256 interestRate) {
         uint256 borrowRate = getPoolBorrowRate(poolId);
-        uint256 totalBorrows = POOL.getTotalBorrows(poolId);
-        uint256 totalAssets = POOL.getTotalAssets(poolId);
-        uint256 util = (totalAssets == 0) ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Up);
+        uint256 util = getPoolUtilizationRate(poolId);
         return borrowRate.mulDiv(util, 1e18);
     }
 

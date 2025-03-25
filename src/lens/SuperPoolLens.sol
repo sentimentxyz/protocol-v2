@@ -105,7 +105,7 @@ contract SuperPoolLens {
             amount: amount,
             poolId: poolId,
             valueInEth: _getValueInEth(asset, amount),
-            interestRate: getPoolInterestRate(poolId)
+            interestRate: getPoolBorrowRate(poolId)
         });
     }
 
@@ -196,10 +196,21 @@ contract SuperPoolLens {
 
     /// @notice Fetch current borrow interest rate for a given pool
     /// @param poolId Id of the underlying pool
-    /// @return interestRate current interest rate for the given pool
-    function getPoolInterestRate(uint256 poolId) public view returns (uint256 interestRate) {
+    /// @return interestRate current borrow interest rate for the given pool
+    function getPoolBorrowRate(uint256 poolId) public view returns (uint256 interestRate) {
         IRateModel irm = IRateModel(POOL.getRateModelFor(poolId));
         return irm.getInterestRate(POOL.getTotalBorrows(poolId), POOL.getTotalAssets(poolId));
+    }
+
+    /// @notice Fetch current supply interest rate for a given pool
+    /// @param poolId Id of the underlying pool
+    /// @return interestRate current supply interest rate for the given pool
+    function getPoolSupplyRate(uint256 poolId) public view returns (uint256 interestRate) {
+        uint256 borrowRate = getPoolBorrowRate(poolId);
+        uint256 totalBorrows = POOL.getTotalBorrows(poolId);
+        uint256 totalAssets = POOL.getTotalAssets(poolId);
+        uint256 util = (totalAssets == 0) ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Up);
+        return borrowRate.mulDiv(util, 1e18);
     }
 
     /// @notice Fetch the weighted interest yield for a given super pool
@@ -216,7 +227,7 @@ contract SuperPoolLens {
         uint256 poolsLength = pools.length;
         for (uint256 i; i < poolsLength; ++i) {
             uint256 assets = POOL.getAssetsOf(pools[i], _superPool);
-            weightedAssets += assets * getPoolInterestRate(pools[i]);
+            weightedAssets += assets * getPoolBorrowRate(pools[i]);
         }
 
         return weightedAssets / totalAssets;

@@ -88,9 +88,9 @@ contract SuperPoolLensTests is BaseTest {
         assertEq(address(testLens.RISK_ENGINE()), address(riskEngine));
     }
 
-    function testPoolInterestRate() public view {
-        assertEq(superPoolLens.getPoolInterestRate(fixedRatePool), 1e18);
-        assertEq(superPoolLens.getPoolInterestRate(linearRatePool), 1e18);
+    function testPoolBorrowRate() public view {
+        assertEq(superPoolLens.getPoolBorrowRate(fixedRatePool), 1e18);
+        assertEq(superPoolLens.getPoolBorrowRate(linearRatePool), 1e18);
     }
 
     function testSuperPoolData() public view {

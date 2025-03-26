@@ -84,8 +84,8 @@ contract VerifyDeployment is BaseScript {
         portfolioLens = PortfolioLens(0x9700750001dDD7C4542684baC66C64D74fA833c0);
         positionManager = PositionManager(0xE019Ce6e80dFe505bca229752A1ad727E14085a4);
 
-        oracle1 = AggV3Oracle(0x79479c3d10b7fF49D6c18A5ADC601c86472D4767);
-        oracle2 = AggV3Oracle(0x712047cC3e4b0023Fccc09Ae412648CF23C65ed3);
+        oracle1 = AggV3Oracle(riskEngine.oracleFor(collateralAsset));
+        oracle2 = AggV3Oracle(riskEngine.oracleFor(borrowAsset));
 
         _run();
     }

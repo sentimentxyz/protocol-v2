@@ -8,19 +8,27 @@ import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/trans
 import { Test } from "forge-std/Test.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
-
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Pool } from "src/Pool.sol";
-
 import { RiskEngine } from "src/RiskEngine.sol";
 import { SuperPool } from "src/SuperPool.sol";
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IRateModel } from "src/interfaces/IRateModel.sol";
 import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
 
+interface IAggregatorV3 {
+    function latestRoundData()
+        external
+        view
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
+}
+
 /// @dev to run script:
 /// forge script RiskView --sig "getSuperPoolData(address)" {SuperPool address} --rpc-url \
 /// https://rpc.hyperliquid.xyz/evm
 contract RiskView is BaseScript, Test {
+    using Math for uint256;
+
     // pool
     address poolImpl;
     Pool public POOL;
@@ -33,6 +41,8 @@ contract RiskView is BaseScript, Test {
 
     // Risk Engine
     RiskEngine public RISK_ENGINE;
+
+    address public constant ethUsdFeed = 0x1b27A24642B1a5a3c54452DDc02F278fb6F63229;
 
     struct SuperPoolData {
         address pool;
@@ -86,17 +96,15 @@ contract RiskView is BaseScript, Test {
         // fetch data for each underlying pool
         uint256 poolsLength = pools.length;
         PoolDepositData[] memory deposits = new PoolDepositData[](poolsLength);
+        uint256[] memory withdrawQueue = new uint256[](pools.length);
         for (uint256 i; i < poolsLength; ++i) {
             deposits[i] = getPoolDepositData(superPool_, pools[i]);
+            withdrawQueue[i] = superPool.withdrawQueue(i);
         }
 
         // aggregate data from underlying pools
         address asset = address(superPool.asset());
         uint256 totalAssets = superPool.totalAssets();
-
-        // get withdraw queue
-        uint256[] memory withdrawQueue = new uint256[](1);
-        //uint256[] memory withdrawQueue = new uint256[](superPool.withdrawQueue().length());
 
         SuperPoolData memory superPoolData = SuperPoolData({
             decimals: superPool.decimals(),
@@ -108,15 +116,16 @@ contract RiskView is BaseScript, Test {
             feeRecipient: superPool.feeRecipient(),
             fee: superPool.fee(),
             idleAssets: IERC20(asset).balanceOf(superPool_),
-            idleAssetsUsd: ethToUsd(IERC20(asset).balanceOf(superPool_)),
+            idleAssetsUsd: ethToUsd(_getValueInEth(asset, IERC20(asset).balanceOf(superPool_))),
             totalAssets: totalAssets,
-            totalAssetsUsd: ethToUsd(totalAssets),
+            totalAssetsUsd: ethToUsd(_getValueInEth(asset, totalAssets)),
             supplyRate: getSuperPoolInterestRate(superPool_),
             superPoolCap: superPool.superPoolCap(),
             depositQueue: superPool.pools(),
-            withdrawQueue: withdrawQueue, //superPool.withdrawQueue(),
+            withdrawQueue: withdrawQueue, 
             poolDepositData: deposits
         });
+
         console2.log("superPool address: ", superPoolData.pool);
         console2.log("decimals: ", superPoolData.decimals);
         console2.log("name: ", superPoolData.name);
@@ -128,15 +137,25 @@ contract RiskView is BaseScript, Test {
         console2.log("idleAssets: ", superPoolData.idleAssets);
         console2.log("idleAssetsUsd: ", superPoolData.idleAssetsUsd);
         console2.log("totalAssets: ", superPoolData.totalAssets);
-        console2.log("totalAssetsUsd: ", superPoolData.totalAssets);
+        console2.log("totalAssetsUsd: ", superPoolData.totalAssetsUsd);
         console2.log("supplyRate: ", superPoolData.supplyRate);
         console2.log("superPoolCap: ", superPoolData.superPoolCap);
+        console2.log("");
         console2.log("depositQueue: ");
         emit log_array(superPoolData.depositQueue);
+        console2.log("");
         console2.log("withdrawQueue: ");
         emit log_array(superPoolData.withdrawQueue);
+        console2.log("");
         console2.log("poolDepositData: ");
-        //emit log_array(superPoolData.deposits);
+        for (uint256 i = 0; i < poolsLength; ++i) {
+            console2.log("pool #: ", i);
+            console2.log("asset: ", deposits[i].asset);
+            console2.log("poolId: ", deposits[i].poolId);
+            console2.log("amount of assets: ", deposits[i].amount);
+            console2.log("valueInEth: ", deposits[i].valueInEth);
+            console2.log("borrowRate: ", deposits[i].interestRate);
+        }
     }
 
     function getPoolDepositData(
@@ -191,8 +210,11 @@ contract RiskView is BaseScript, Test {
         return irm.getInterestRate(POOL.getTotalBorrows(poolId), POOL.getTotalAssets(poolId));
     }
 
-    function ethToUsd(uint256 amt) public pure returns (uint256 price) {
-        amt;
-        price;
+    function ethToUsd(uint256 amt) public view returns (uint256 usd) {
+        (, int256 answer,,,) = IAggregatorV3(ethUsdFeed).latestRoundData();
+        console2.log("answer", answer);
+        console2.log("amt", amt);
+        usd = (amt.mulDiv(uint256(answer), 1e8) / 1e18);
+        console2.log("usd", usd);
     }
 }

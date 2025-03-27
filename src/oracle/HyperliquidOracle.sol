@@ -11,17 +11,17 @@ import { L1Read } from "src/lib/L1Read.sol";
 contract HyperliquidOracle is L1Read, IOracle {
     using Math for uint256;
 
-    uint16 public constant ETH_INDEX = 4;
+    uint32 public constant ETH_INDEX = 4;
     uint256 public constant ETH_PRICE_SCALE = 1e16;
 
     address public immutable ASSET;
-    uint16 public immutable ASSET_INDEX;
+    uint32 public immutable ASSET_INDEX;
     uint256 public immutable ASSET_AMT_SCALE;
     uint256 public immutable ASSET_PRICE_SCALE;
 
     error HlOracle_InvalidAsset(address, address);
 
-    constructor(address asset, uint16 assetIndex, uint256 assetAmtScale, uint256 assetPriceScale) {
+    constructor(address asset, uint32 assetIndex, uint256 assetAmtScale, uint256 assetPriceScale) {
         ASSET = asset;
         ASSET_INDEX = assetIndex;
         ASSET_AMT_SCALE = assetAmtScale;

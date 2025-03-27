@@ -212,9 +212,6 @@ contract RiskView is BaseScript, Test {
 
     function ethToUsd(uint256 amt) public view returns (uint256 usd) {
         (, int256 answer,,,) = IAggregatorV3(ethUsdFeed).latestRoundData();
-        console2.log("answer", answer);
-        console2.log("amt", amt);
-        usd = (amt.mulDiv(uint256(answer), 1e8) / 1e18);
-        console2.log("usd", usd);
+        usd = amt.mulDiv(uint256(answer), 1e8) / 1e18;
     }
 }

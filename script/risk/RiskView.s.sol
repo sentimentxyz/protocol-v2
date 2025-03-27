@@ -135,9 +135,9 @@ contract RiskView is BaseScript, Test {
         console2.log("feeRecipient: ", superPoolData.feeRecipient);
         console2.log("fee: ", superPoolData.fee);
         console2.log("idleAssets: ", superPoolData.idleAssets / 1e18, IERC20(superPoolData.asset).symbol());
-        console2.log("idleAssetsUsd: ", superPoolData.idleAssetsUsd);
+        console2.log("idleAssetsUsd: ", superPoolData.idleAssetsUsd, "USD");
         console2.log("totalAssets: ", superPoolData.totalAssets / 1e18, IERC20(superPoolData.asset).symbol());
-        console2.log("totalAssetsUsd: ", superPoolData.totalAssetsUsd);
+        console2.log("totalAssetsUsd: ", superPoolData.totalAssetsUsd, "USD");
         console2.log("supplyRate: ", superPoolData.supplyRate);
         console2.log("superPoolCap: ", superPoolData.superPoolCap / 1e18);
         console2.log("");
@@ -154,7 +154,7 @@ contract RiskView is BaseScript, Test {
             console2.log("poolId: ", deposits[i].poolId);
             console2.log("amount of assets: ", deposits[i].amount / 1e18);
             console2.log("valueInEth: ", deposits[i].valueInEth / 1e18, "ETH");
-            console2.log("valueInUsd: ", ethToUsd(deposits[i].valueInEth));
+            console2.log("valueInUsd: ", ethToUsd(deposits[i].valueInEth), "USD");
             console2.log("borrowRate: ", deposits[i].interestRate);
         }
     }

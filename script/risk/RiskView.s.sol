@@ -5,10 +5,10 @@ import { BaseScript } from "../BaseScript.s.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Test } from "forge-std/Test.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Pool } from "src/Pool.sol";
 import { RiskEngine } from "src/RiskEngine.sol";
 import { SuperPool } from "src/SuperPool.sol";
@@ -123,7 +123,7 @@ contract RiskView is BaseScript, Test {
             supplyRate: getSuperPoolInterestRate(superPool_),
             superPoolCap: superPool.superPoolCap(),
             depositQueue: superPool.pools(),
-            withdrawQueue: withdrawQueue, 
+            withdrawQueue: withdrawQueue,
             poolDepositData: deposits
         });
 
@@ -141,13 +141,13 @@ contract RiskView is BaseScript, Test {
         console2.log("totalAssetsUsd: ", superPoolData.totalAssetsUsd, "USD");
         console2.log("supplyRate: %4e%", superPoolData.supplyRate / 1e12);
         console2.log("superPoolCap: ", superPoolData.superPoolCap / 1e18, IERC20(superPoolData.asset).symbol());
+        console2.log("superPool utilization rate: %2e%", getSuperPoolUtilizationRate() / 1e14);
         console2.log("");
         console2.log("depositQueue: ");
         emit log_array(superPoolData.depositQueue);
         console2.log("");
         console2.log("withdrawQueue: ");
         emit log_array(superPoolData.withdrawQueue);
-        console2.log("superPool utilization rate: %2e%", getSuperPoolUtilizationRate() / 1e14);
         console2.log("");
         console2.log("poolDepositData: ");
         for (uint256 i = 0; i < poolsLength; ++i) {
@@ -159,10 +159,20 @@ contract RiskView is BaseScript, Test {
             console2.log("valueInUsd: ", ethToUsd(deposits[i].valueInEth), "USD");
             console2.log("borrowRate: %4e%", deposits[i].borrowInterestRate / 1e12);
             console2.log("supplyRate: %4e%", deposits[i].supplyInterestRate / 1e12);
-            console2.log("totalBorrows: ", POOL.getTotalBorrows(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol());
-            console2.log("pool borrow cap: ", POOL.getBorrowCapFor(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol());
-            console2.log("total supplied: ", POOL.getTotalAssets(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol());
-            console2.log("pool supply cap: ", POOL.getPoolCapFor(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol());
+            console2.log(
+                "totalBorrows: ", POOL.getTotalBorrows(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
+            );
+            console2.log(
+                "pool borrow cap: ",
+                POOL.getBorrowCapFor(deposits[i].poolId) / 1e18,
+                IERC20(superPoolData.asset).symbol()
+            );
+            console2.log(
+                "total supplied: ", POOL.getTotalAssets(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
+            );
+            console2.log(
+                "pool supply cap: ", POOL.getPoolCapFor(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
+            );
             console2.log("pool utilization rate: %2e%", getPoolUtilizationRate(deposits[i].poolId) / 1e14);
         }
     }

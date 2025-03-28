@@ -159,6 +159,8 @@ contract RiskView is BaseScript, Test {
             console2.log("valueInUsd: ", ethToUsd(deposits[i].valueInEth), "USD");
             console2.log("borrowRate: %4e%", deposits[i].borrowInterestRate / 1e12);
             console2.log("supplyRate: %4e%", deposits[i].supplyInterestRate / 1e12);
+            console2.log("totalBorrows: ", POOL.getTotalBorrows(deposits[i].poolId) / 1e18);
+            console2.log("totalAssets: ", POOL.getTotalAssets(deposits[i].poolId) / 1e18);
             console2.log("pool utilization rate: %2e%", getPoolUtilizationRate(deposits[i].poolId) / 1e14);
         }
     }

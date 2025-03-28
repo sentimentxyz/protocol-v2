@@ -53,6 +53,7 @@ contract RiskView is BaseScript, Test {
     address public constant ethUsdFeed = 0x1b27A24642B1a5a3c54452DDc02F278fb6F63229;
 
     mapping(address pool => uint256 poolId) public poolMap;
+    address[] collateralAssets;
 
     struct SuperPoolData {
         address pool;
@@ -86,9 +87,12 @@ contract RiskView is BaseScript, Test {
     function _run() internal {
         poolMap[0x36BFD6b40e2c9BbCfD36a6B1F1Aa65974f4fFA5D] =
             14_778_331_100_793_740_007_929_971_613_900_703_995_604_470_186_100_539_494_274_894_855_699_577_891_585;
+        collateralAssets.push(0x94e8396e0869c9F2200760aF0621aFd240E1CF38); // wstHype
     }
 
     function getSuperPoolData(address superPool_) public {
+        _run();
+
         superPool = SuperPool(superPool_);
         pool = superPool.POOL();
         riskEngine = RiskEngine(pool.riskEngine());
@@ -186,11 +190,12 @@ contract RiskView is BaseScript, Test {
         console2.log("oracle eth price: %18e", _getValueInEth(superPoolData.asset, 1e18), "ETH");
         console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(superPoolData.asset, 1e18)) / 1e16, "USD");
 
-        address collateralAsset = 0x94e8396e0869c9F2200760aF0621aFd240E1CF38; // wstHype
-        console2.log("collateralAsset: ", collateralAsset);
-        console2.log("oracle addr: ", riskEngine.oracleFor(collateralAsset));
-        console2.log("oracle eth price: %18e", _getValueInEth(collateralAsset, 1e18), "ETH");
-        console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(collateralAsset, 1e18)) / 1e16, "USD");
+        for (uint256 i = 0; i < collateralAssets.length; ++i) {
+            console2.log("collateralAsset: ", collateralAssets[i]);
+            console2.log("oracle addr: ", riskEngine.oracleFor(collateralAssets[i]));
+            console2.log("oracle eth price: %18e", _getValueInEth(collateralAssets[i], 1e18), "ETH");
+            console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(collateralAssets[i], 1e18)) / 1e16, "USD");
+        }
     }
 
     function getPoolData(address pool_) public {
@@ -208,6 +213,8 @@ contract RiskView is BaseScript, Test {
     }
 
     function getPositionData(address position_) public {
+        _run();
+
         position = Position(payable(position_));
         pool = Pool(position.POOL());
         riskEngine = RiskEngine(position.RISK_ENGINE());

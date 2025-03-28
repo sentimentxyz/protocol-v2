@@ -14,7 +14,6 @@ import { RiskEngine } from "src/RiskEngine.sol";
 import { SuperPool } from "src/SuperPool.sol";
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IRateModel } from "src/interfaces/IRateModel.sol";
-import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
 
 interface IAggregatorV3 {
     function latestRoundData()
@@ -30,17 +29,13 @@ contract RiskView is BaseScript, Test {
     using Math for uint256;
 
     // pool
-    address poolImpl;
-    Pool public POOL;
+    Pool public pool;
 
     // superPool
     SuperPool public superPool;
 
-    // lens
-    SuperPoolLens public superPoolLens;
-
     // Risk Engine
-    RiskEngine public RISK_ENGINE;
+    RiskEngine public riskEngine;
 
     address public constant ethUsdFeed = 0x1b27A24642B1a5a3c54452DDc02F278fb6F63229;
 
@@ -89,8 +84,8 @@ contract RiskView is BaseScript, Test {
 
     function getSuperPoolData(address superPool_) public {
         superPool = SuperPool(superPool_);
-        POOL = superPool.POOL();
-        RISK_ENGINE = RiskEngine(POOL.riskEngine());
+        pool = superPool.POOL();
+        riskEngine = RiskEngine(pool.riskEngine());
 
         uint256[] memory pools = superPool.pools(); // fetch underlying pools for given super pool
 
@@ -160,18 +155,18 @@ contract RiskView is BaseScript, Test {
             console2.log("borrowRate: %4e%", deposits[i].borrowInterestRate / 1e12);
             console2.log("supplyRate: %4e%", deposits[i].supplyInterestRate / 1e12);
             console2.log(
-                "totalBorrows: ", POOL.getTotalBorrows(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
+                "totalBorrows: ", pool.getTotalBorrows(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
             );
             console2.log(
                 "pool borrow cap: ",
-                POOL.getBorrowCapFor(deposits[i].poolId) / 1e18,
+                pool.getBorrowCapFor(deposits[i].poolId) / 1e18,
                 IERC20(superPoolData.asset).symbol()
             );
             console2.log(
-                "total supplied: ", POOL.getTotalAssets(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
+                "total supplied: ", pool.getTotalAssets(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
             );
             console2.log(
-                "pool supply cap: ", POOL.getPoolCapFor(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
+                "pool supply cap: ", pool.getPoolCapFor(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
             );
             console2.log("pool utilization rate: %2e%", getPoolUtilizationRate(deposits[i].poolId) / 1e14);
         }
@@ -185,8 +180,8 @@ contract RiskView is BaseScript, Test {
         view
         returns (PoolDepositData memory poolDepositData)
     {
-        address asset = POOL.getPoolAssetFor(poolId);
-        uint256 amount = POOL.getAssetsOf(poolId, superPool_);
+        address asset = pool.getPoolAssetFor(poolId);
+        uint256 amount = pool.getAssetsOf(poolId, superPool_);
 
         return PoolDepositData({
             asset: asset,
@@ -199,8 +194,8 @@ contract RiskView is BaseScript, Test {
     }
 
     function getPoolUtilizationRate(uint256 poolId) public view returns (uint256 utilizationRate) {
-        uint256 totalBorrows = POOL.getTotalBorrows(poolId);
-        uint256 totalAssets = POOL.getTotalAssets(poolId);
+        uint256 totalBorrows = pool.getTotalBorrows(poolId);
+        uint256 totalAssets = pool.getTotalAssets(poolId);
         utilizationRate = totalAssets == 0 ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Up);
     }
 
@@ -213,14 +208,14 @@ contract RiskView is BaseScript, Test {
         uint256[] memory pools = superPool.pools();
         uint256 poolsLength = pools.length;
         for (uint256 i; i < poolsLength; ++i) {
-            totalBorrows += POOL.getTotalBorrows(pools[i]);
+            totalBorrows += pool.getTotalBorrows(pools[i]);
         }
 
         utilizationRate = totalBorrows == 0 ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Up);
     }
 
     function _getValueInEth(address asset, uint256 amt) internal view returns (uint256) {
-        IOracle oracle = IOracle(RISK_ENGINE.oracleFor(asset));
+        IOracle oracle = IOracle(riskEngine.oracleFor(asset));
 
         // oracles could revert, but lens calls must not
         try oracle.getValueInEth(asset, amt) returns (uint256 valueInEth) {
@@ -238,15 +233,15 @@ contract RiskView is BaseScript, Test {
         uint256[] memory pools = superPool.pools();
         uint256 poolsLength = pools.length;
         for (uint256 i; i < poolsLength; ++i) {
-            uint256 assets = POOL.getAssetsOf(pools[i], _superPool);
+            uint256 assets = pool.getAssetsOf(pools[i], _superPool);
             uint256 utilization = assets.mulDiv(1e18, totalAssets);
             weightedInterestRate += utilization.mulDiv(getPoolSupplyRate(pools[i]), 1e18);
         }
     }
 
     function getPoolBorrowRate(uint256 poolId) public view returns (uint256 interestRate) {
-        IRateModel irm = IRateModel(POOL.getRateModelFor(poolId));
-        return irm.getInterestRate(POOL.getTotalBorrows(poolId), POOL.getTotalAssets(poolId));
+        IRateModel irm = IRateModel(pool.getRateModelFor(poolId));
+        return irm.getInterestRate(pool.getTotalBorrows(poolId), pool.getTotalAssets(poolId));
     }
 
     function getPoolSupplyRate(uint256 poolId) public view returns (uint256 interestRate) {

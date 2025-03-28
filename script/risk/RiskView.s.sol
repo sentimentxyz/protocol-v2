@@ -69,7 +69,8 @@ contract RiskView is BaseScript, Test {
         uint256 poolId;
         uint256 amount; // amount of assets deposited from the super pool into this pool
         uint256 valueInEth;
-        uint256 interestRate;
+        uint256 borrowInterestRate;
+        uint256 supplyInterestRate;
     }
 
     struct BasePoolData {
@@ -138,7 +139,7 @@ contract RiskView is BaseScript, Test {
         console2.log("idleAssetsUsd: ", superPoolData.idleAssetsUsd, "USD");
         console2.log("totalAssets: ", superPoolData.totalAssets / 1e18, IERC20(superPoolData.asset).symbol());
         console2.log("totalAssetsUsd: ", superPoolData.totalAssetsUsd, "USD");
-        console2.log("supplyRate: ", superPoolData.supplyRate);
+        console2.log("supplyRate: %4e%", superPoolData.supplyRate / 1e12);
         console2.log("superPoolCap: ", superPoolData.superPoolCap / 1e18);
         console2.log("");
         console2.log("depositQueue: ");
@@ -146,16 +147,19 @@ contract RiskView is BaseScript, Test {
         console2.log("");
         console2.log("withdrawQueue: ");
         emit log_array(superPoolData.withdrawQueue);
+        console2.log("superPool utilization rate: %2e%", getSuperPoolUtilizationRate() / 1e14);
         console2.log("");
         console2.log("poolDepositData: ");
         for (uint256 i = 0; i < poolsLength; ++i) {
-            console2.log("pool #: ", i);
+            console2.log("pool #: ", i + 1);
             console2.log("asset: ", deposits[i].asset);
             console2.log("poolId: ", deposits[i].poolId);
-            console2.log("amount of assets: ", deposits[i].amount / 1e18);
+            console2.log("amount of assets: ", deposits[i].amount / 1e18, IERC20(superPoolData.asset).symbol());
             console2.log("valueInEth: ", deposits[i].valueInEth / 1e18, "ETH");
             console2.log("valueInUsd: ", ethToUsd(deposits[i].valueInEth), "USD");
-            console2.log("borrowRate: ", deposits[i].interestRate);
+            console2.log("borrowRate: %4e%", deposits[i].borrowInterestRate / 1e12);
+            console2.log("supplyRate: %4e%", deposits[i].supplyInterestRate / 1e12);
+            console2.log("pool utilization rate: %2e%", getPoolUtilizationRate(deposits[i].poolId) / 1e14);
         }
     }
 
@@ -175,8 +179,30 @@ contract RiskView is BaseScript, Test {
             amount: amount,
             poolId: poolId,
             valueInEth: _getValueInEth(asset, amount),
-            interestRate: getPoolInterestRate(poolId)
+            borrowInterestRate: getPoolBorrowRate(poolId),
+            supplyInterestRate: getPoolSupplyRate(poolId)
         });
+    }
+
+    function getPoolUtilizationRate(uint256 poolId) public view returns (uint256 utilizationRate) {
+        uint256 totalBorrows = POOL.getTotalBorrows(poolId);
+        uint256 totalAssets = POOL.getTotalAssets(poolId);
+        utilizationRate = totalAssets == 0 ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Up);
+    }
+
+    function getSuperPoolUtilizationRate() public view returns (uint256 utilizationRate) {
+        uint256 totalAssets = superPool.totalAssets();
+
+        if (totalAssets == 0) return 0;
+        uint256 totalBorrows;
+
+        uint256[] memory pools = superPool.pools();
+        uint256 poolsLength = pools.length;
+        for (uint256 i; i < poolsLength; ++i) {
+            totalBorrows += POOL.getTotalBorrows(pools[i]);
+        }
+
+        utilizationRate = totalBorrows == 0 ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Up);
     }
 
     function _getValueInEth(address asset, uint256 amt) internal view returns (uint256) {
@@ -190,25 +216,29 @@ contract RiskView is BaseScript, Test {
         }
     }
 
-    function getSuperPoolInterestRate(address _superPool) public view returns (uint256 interestRate) {
+    function getSuperPoolInterestRate(address _superPool) public view returns (uint256 weightedInterestRate) {
         uint256 totalAssets = superPool.totalAssets();
 
         if (totalAssets == 0) return 0;
 
-        uint256 weightedAssets;
         uint256[] memory pools = superPool.pools();
         uint256 poolsLength = pools.length;
         for (uint256 i; i < poolsLength; ++i) {
             uint256 assets = POOL.getAssetsOf(pools[i], _superPool);
-            weightedAssets += assets * getPoolInterestRate(pools[i]);
+            uint256 utilization = assets.mulDiv(1e18, totalAssets);
+            weightedInterestRate += utilization.mulDiv(getPoolSupplyRate(pools[i]), 1e18);
         }
-
-        return weightedAssets / totalAssets;
     }
 
-    function getPoolInterestRate(uint256 poolId) public view returns (uint256 interestRate) {
+    function getPoolBorrowRate(uint256 poolId) public view returns (uint256 interestRate) {
         IRateModel irm = IRateModel(POOL.getRateModelFor(poolId));
         return irm.getInterestRate(POOL.getTotalBorrows(poolId), POOL.getTotalAssets(poolId));
+    }
+
+    function getPoolSupplyRate(uint256 poolId) public view returns (uint256 interestRate) {
+        uint256 borrowRate = getPoolBorrowRate(poolId);
+        uint256 util = getPoolUtilizationRate(poolId);
+        return borrowRate.mulDiv(util, 1e18);
     }
 
     function ethToUsd(uint256 amt) public view returns (uint256 usd) {

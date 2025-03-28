@@ -10,10 +10,11 @@ import { Test } from "forge-std/Test.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 import { Pool } from "src/Pool.sol";
+
+import { Position } from "src/Position.sol";
 import { RiskEngine } from "src/RiskEngine.sol";
 import { RiskModule } from "src/RiskModule.sol";
 import { SuperPool } from "src/SuperPool.sol";
-import { Position } from "src/Position.sol";
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IRateModel } from "src/interfaces/IRateModel.sol";
 
@@ -49,6 +50,8 @@ contract RiskView is BaseScript, Test {
 
     address public constant ethUsdFeed = 0x1b27A24642B1a5a3c54452DDc02F278fb6F63229;
 
+    mapping(address pool => uint256 poolId) public poolMap;
+
     struct SuperPoolData {
         address pool;
         uint8 decimals;
@@ -72,13 +75,16 @@ contract RiskView is BaseScript, Test {
     struct PoolDepositData {
         address asset;
         uint256 poolId;
-        uint256 amount; // amount of assets deposited from the super pool into this pool
-        uint256 valueInEth;
         uint256 borrowInterestRate;
         uint256 supplyInterestRate;
     }
 
     function run() public { }
+
+    function _run() internal {
+        poolMap[0x36BFD6b40e2c9BbCfD36a6B1F1Aa65974f4fFA5D] =
+            14_778_331_100_793_740_007_929_971_613_900_703_995_604_470_186_100_539_494_274_894_855_699_577_891_585;
+    }
 
     function getSuperPoolData(address superPool_) public {
         superPool = SuperPool(superPool_);
@@ -92,7 +98,7 @@ contract RiskView is BaseScript, Test {
         PoolDepositData[] memory deposits = new PoolDepositData[](poolsLength);
         uint256[] memory withdrawQueue = new uint256[](pools.length);
         for (uint256 i; i < poolsLength; ++i) {
-            deposits[i] = getPoolDepositData(superPool_, pools[i]);
+            deposits[i] = getPoolDepositData(pools[i]);
             withdrawQueue[i] = superPool.withdrawQueue(i);
         }
 
@@ -144,13 +150,15 @@ contract RiskView is BaseScript, Test {
         console2.log("");
         console2.log("poolDepositData: ");
         for (uint256 i = 0; i < poolsLength; ++i) {
+            uint256 amount = pool.getAssetsOf(deposits[i].poolId, superPool_);
+            uint256 valueInEth = _getValueInEth(deposits[i].asset, amount);
             console2.log("pool #: ", i + 1);
             console2.log("asset: ", deposits[i].asset);
             console2.log("poolId: ", deposits[i].poolId);
-            console2.log("amount of assets: ", deposits[i].amount / 1e18, IERC20(superPoolData.asset).symbol());
             console2.log("rateModel: ", pool.getRateModelFor(deposits[i].poolId));
-            console2.log("valueInEth: ", deposits[i].valueInEth / 1e18, "ETH");
-            console2.log("valueInUsd: ", ethToUsd(deposits[i].valueInEth) / 1e18, "USD");
+            console2.log("amount of superPool assets deposited: ", amount / 1e18, IERC20(superPoolData.asset).symbol());
+            console2.log("valueInEth of superPool deposited assets: ", valueInEth / 1e18, "ETH");
+            console2.log("valueInUsd: ", ethToUsd(valueInEth) / 1e18, "USD");
             console2.log("borrowRate: %4e%", deposits[i].borrowInterestRate / 1e12);
             console2.log("supplyRate: %4e%", deposits[i].supplyInterestRate / 1e12);
             console2.log(
@@ -183,6 +191,20 @@ contract RiskView is BaseScript, Test {
         console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(collateralAsset, 1e18)) / 1e16, "USD");
     }
 
+    function getPoolData(address pool_) public {
+        _run();
+
+        pool = Pool(pool_);
+        uint256 poolId = poolMap[pool_];
+        riskEngine = RiskEngine(pool.riskEngine());
+
+        console2.log("Pool: ", pool_);
+        console2.log("asset: ", pool.getPoolAssetFor(poolId));
+        console2.log("poolId: ", poolId);
+        console2.log("borrowRate: %4e%", getPoolBorrowRate(poolId) / 1e12);
+        console2.log("supplyRate: %4e%", getPoolSupplyRate(poolId) / 1e12);
+    }
+
     function getPositionData(address position_) public {
         position = Position(payable(position_));
         pool = Pool(position.POOL());
@@ -198,7 +220,7 @@ contract RiskView is BaseScript, Test {
         emit log_array(position.getPositionAssets());
         //console2.log("debtAsset: ", pool.getPoolAssetFor());
 
-        (uint256 totalAssetValue, uint256 totalDebtValue, uint256 weightedLtv)= riskEngine.getRiskData(position_);
+        (uint256 totalAssetValue, uint256 totalDebtValue, uint256 weightedLtv) = riskEngine.getRiskData(position_);
         console2.log("getRiskData:");
         console2.log("totalAssetValue: ");
         console2.log("%4e ETH, %2e USD", totalAssetValue / 1e14, ethToUsd(totalAssetValue) / 1e16);
@@ -209,22 +231,12 @@ contract RiskView is BaseScript, Test {
         console2.log("position healthFactor: %4e", riskModule.getPositionHealthFactor(position_) / 1e14);
     }
 
-    function getPoolDepositData(
-        address superPool_,
-        uint256 poolId
-    )
-        public
-        view
-        returns (PoolDepositData memory poolDepositData)
-    {
+    function getPoolDepositData(uint256 poolId) public view returns (PoolDepositData memory poolDepositData) {
         address asset = pool.getPoolAssetFor(poolId);
-        uint256 amount = pool.getAssetsOf(poolId, superPool_);
 
-        return PoolDepositData({
+        poolDepositData = PoolDepositData({
             asset: asset,
-            amount: amount,
             poolId: poolId,
-            valueInEth: _getValueInEth(asset, amount),
             borrowInterestRate: getPoolBorrowRate(poolId),
             supplyInterestRate: getPoolSupplyRate(poolId)
         });

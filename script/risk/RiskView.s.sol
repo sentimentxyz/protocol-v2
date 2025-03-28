@@ -112,9 +112,9 @@ contract RiskView is BaseScript, Test {
             feeRecipient: superPool.feeRecipient(),
             fee: superPool.fee(),
             idleAssets: IERC20(asset).balanceOf(superPool_),
-            idleAssetsUsd: ethToUsd(_getValueInEth(asset, IERC20(asset).balanceOf(superPool_))),
+            idleAssetsUsd: ethToUsd(_getValueInEth(asset, IERC20(asset).balanceOf(superPool_)) / 1e18),
             totalAssets: totalAssets,
-            totalAssetsUsd: ethToUsd(_getValueInEth(asset, totalAssets)),
+            totalAssetsUsd: ethToUsd(_getValueInEth(asset, totalAssets) / 1e18),
             supplyRate: getSuperPoolInterestRate(superPool_),
             superPoolCap: superPool.superPoolCap(),
             depositQueue: superPool.pools(),
@@ -151,7 +151,7 @@ contract RiskView is BaseScript, Test {
             console2.log("poolId: ", deposits[i].poolId);
             console2.log("amount of assets: ", deposits[i].amount / 1e18, IERC20(superPoolData.asset).symbol());
             console2.log("valueInEth: ", deposits[i].valueInEth / 1e18, "ETH");
-            console2.log("valueInUsd: ", ethToUsd(deposits[i].valueInEth), "USD");
+            console2.log("valueInUsd: ", ethToUsd(deposits[i].valueInEth) / 1e18, "USD");
             console2.log("borrowRate: %4e%", deposits[i].borrowInterestRate / 1e12);
             console2.log("supplyRate: %4e%", deposits[i].supplyInterestRate / 1e12);
             console2.log(
@@ -170,6 +170,18 @@ contract RiskView is BaseScript, Test {
             );
             console2.log("pool utilization rate: %2e%", getPoolUtilizationRate(deposits[i].poolId) / 1e14);
         }
+        console2.log("");
+        console2.log("oracles:");
+        console2.log("borrowAsset: ", superPoolData.asset);
+        console2.log("oracle addr: ", riskEngine.oracleFor(superPoolData.asset));
+        console2.log("oracle eth price: %18e", _getValueInEth(superPoolData.asset, 1e18), "ETH");
+        console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(superPoolData.asset, 1e18)) / 1e16, "USD");
+
+        address collateralAsset = 0x94e8396e0869c9F2200760aF0621aFd240E1CF38; // wstHype
+        console2.log("collateralAsset: ", collateralAsset);
+        console2.log("oracle addr: ", riskEngine.oracleFor(collateralAsset));
+        console2.log("oracle eth price: %18e", _getValueInEth(collateralAsset, 1e18), "ETH");
+        console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(collateralAsset, 1e18)) / 1e16, "USD");
     }
 
     function getPoolDepositData(
@@ -252,6 +264,6 @@ contract RiskView is BaseScript, Test {
 
     function ethToUsd(uint256 amt) public view returns (uint256 usd) {
         (, int256 answer,,,) = IAggregatorV3(ethUsdFeed).latestRoundData();
-        usd = amt.mulDiv(uint256(answer), 1e8) / 1e18;
+        usd = amt.mulDiv(uint256(answer), 1e8);
     }
 }

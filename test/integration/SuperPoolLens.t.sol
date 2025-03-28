@@ -89,8 +89,8 @@ contract SuperPoolLensTests is BaseTest {
     }
 
     function testPoolInterestRate() public view {
-        assertEq(superPoolLens.getPoolInterestRate(fixedRatePool), 1e18);
-        assertEq(superPoolLens.getPoolInterestRate(linearRatePool), 1e18);
+        assertEq(superPoolLens.getPoolBorrowRate(fixedRatePool), 1e18);
+        assertEq(superPoolLens.getPoolBorrowRate(linearRatePool), 1e18);
     }
 
     function testSuperPoolData() public view {
@@ -106,13 +106,13 @@ contract SuperPoolLensTests is BaseTest {
         assertEq(superPoolData.deposits[0].poolId, uint256(fixedRatePool));
         assertEq(superPoolData.deposits[0].amount, uint256(50e18));
         assertEq(superPoolData.deposits[0].valueInEth, uint256(50e18));
-        assertEq(superPoolData.deposits[0].interestRate, uint256(1e18));
+        assertEq(superPoolData.deposits[0].borrowInterestRate, uint256(1e18));
 
         assertEq(superPoolData.deposits[1].asset, address(asset1));
         assertEq(superPoolData.deposits[1].poolId, uint256(linearRatePool));
         assertEq(superPoolData.deposits[1].amount, uint256(50e18));
         assertEq(superPoolData.deposits[1].valueInEth, uint256(50e18));
-        assertEq(superPoolData.deposits[1].interestRate, uint256(1e18));
+        assertEq(superPoolData.deposits[1].borrowInterestRate, uint256(1e18));
     }
 
     function testPoolDepositData() public view {
@@ -123,7 +123,7 @@ contract SuperPoolLensTests is BaseTest {
         assertEq(poolDepositData.poolId, fixedRatePool);
         assertEq(poolDepositData.amount, uint256(50e18));
         assertEq(poolDepositData.valueInEth, uint256(50e18));
-        assertEq(poolDepositData.interestRate, uint256(1e18));
+        assertEq(poolDepositData.borrowInterestRate, uint256(1e18));
     }
 
     function testSuperPoolDepositData() public view {

@@ -82,7 +82,8 @@ contract SuperPoolLens {
         uint256 poolId;
         uint256 amount; // amount of assets deposited from the super pool into this pool
         uint256 valueInEth;
-        uint256 interestRate;
+        uint256 borrowInterestRate;
+        uint256 supplyInterestRate;
     }
 
     /// @notice Fetch data for SuperPool deposits in a given pool
@@ -105,7 +106,8 @@ contract SuperPoolLens {
             amount: amount,
             poolId: poolId,
             valueInEth: _getValueInEth(asset, amount),
-            interestRate: getPoolInterestRate(poolId)
+            borrowInterestRate: getPoolBorrowRate(poolId),
+            supplyInterestRate: getPoolSupplyRate(poolId)
         });
     }
 
@@ -194,32 +196,48 @@ contract SuperPoolLens {
         });
     }
 
+    /// @notice Fetch current utilization rate for a given pool
+    /// @param poolId Id of the underlying pool
+    /// @return utilizationRate current utilization rate of the given pool
+    function getPoolUtilizationRate(uint256 poolId) public view returns (uint256 utilizationRate) {
+        uint256 totalBorrows = POOL.getTotalBorrows(poolId);
+        uint256 totalAssets = POOL.getTotalAssets(poolId);
+        utilizationRate = totalAssets == 0 ? 0 : totalBorrows.mulDiv(1e18, totalAssets, Math.Rounding.Up);
+    }
+
     /// @notice Fetch current borrow interest rate for a given pool
     /// @param poolId Id of the underlying pool
-    /// @return interestRate current interest rate for the given pool
-    function getPoolInterestRate(uint256 poolId) public view returns (uint256 interestRate) {
+    /// @return interestRate current borrow interest rate for the given pool
+    function getPoolBorrowRate(uint256 poolId) public view returns (uint256 interestRate) {
         IRateModel irm = IRateModel(POOL.getRateModelFor(poolId));
         return irm.getInterestRate(POOL.getTotalBorrows(poolId), POOL.getTotalAssets(poolId));
     }
 
+    /// @notice Fetch current supply interest rate for a given pool
+    /// @param poolId Id of the underlying pool
+    /// @return interestRate current supply interest rate for the given pool
+    function getPoolSupplyRate(uint256 poolId) public view returns (uint256 interestRate) {
+        uint256 borrowRate = getPoolBorrowRate(poolId);
+        uint256 util = getPoolUtilizationRate(poolId);
+        return borrowRate.mulDiv(util, 1e18);
+    }
+
     /// @notice Fetch the weighted interest yield for a given super pool
     /// @param _superPool Address of the super pool
-    /// @return interestRate current weighted interest yield for the given super pool
-    function getSuperPoolInterestRate(address _superPool) public view returns (uint256 interestRate) {
+    /// @return weightedInterestRate current weighted interest yield for the given super pool
+    function getSuperPoolInterestRate(address _superPool) public view returns (uint256 weightedInterestRate) {
         SuperPool superPool = SuperPool(_superPool);
         uint256 totalAssets = superPool.totalAssets();
 
         if (totalAssets == 0) return 0;
 
-        uint256 weightedAssets;
         uint256[] memory pools = superPool.pools();
         uint256 poolsLength = pools.length;
         for (uint256 i; i < poolsLength; ++i) {
             uint256 assets = POOL.getAssetsOf(pools[i], _superPool);
-            weightedAssets += assets * getPoolInterestRate(pools[i]);
+            uint256 utilization = assets.mulDiv(1e18, totalAssets);
+            weightedInterestRate += utilization.mulDiv(getPoolSupplyRate(pools[i]), 1e18);
         }
-
-        return weightedAssets / totalAssets;
     }
 
     /// @dev Compute the ETH value scaled to 18 decimals for a given amount of an asset

@@ -28,6 +28,8 @@ interface IAggregatorV3 {
 /// @dev to run script:
 /// forge script RiskView --sig "getSuperPoolData(address)" {SuperPool address} --rpc-url \
 /// https://rpc.hyperliquid.xyz/evm
+/// forge script RiskView --sig "getPoolData(address)" {Pool address} --rpc-url \
+/// https://rpc.hyperliquid.xyz/evm
 /// forge script RiskView --sig "getPositionData(address)" {Position address} --rpc-url \
 /// https://rpc.hyperliquid.xyz/evm
 contract RiskView is BaseScript, Test {
@@ -210,15 +212,13 @@ contract RiskView is BaseScript, Test {
         pool = Pool(position.POOL());
         riskEngine = RiskEngine(position.RISK_ENGINE());
         riskModule = RiskModule(riskEngine.riskModule());
-        console2.log("riskEngine", address(riskEngine));
-        console2.log("riskModule", address(riskModule));
 
         console2.log("Position:");
         console2.log("debtPools: ");
         emit log_array(position.getDebtPools());
         console2.log("positionAssets: ");
         emit log_array(position.getPositionAssets());
-        //console2.log("debtAsset: ", pool.getPoolAssetFor());
+        console2.log("debtAsset: ", pool.getPoolAssetFor(poolMap[address(pool)]));
 
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 weightedLtv) = riskEngine.getRiskData(position_);
         console2.log("getRiskData:");

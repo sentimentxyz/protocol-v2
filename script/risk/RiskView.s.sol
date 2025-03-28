@@ -134,13 +134,13 @@ contract RiskView is BaseScript, Test {
         console2.log("asset: ", superPoolData.asset);
         console2.log("owner: ", superPoolData.owner);
         console2.log("feeRecipient: ", superPoolData.feeRecipient);
-        console2.log("fee: ", superPoolData.fee);
+        console2.log("fee: ", superPoolData.fee, "USD");
         console2.log("idleAssets: ", superPoolData.idleAssets / 1e18, IERC20(superPoolData.asset).symbol());
         console2.log("idleAssetsUsd: ", superPoolData.idleAssetsUsd, "USD");
         console2.log("totalAssets: ", superPoolData.totalAssets / 1e18, IERC20(superPoolData.asset).symbol());
         console2.log("totalAssetsUsd: ", superPoolData.totalAssetsUsd, "USD");
         console2.log("supplyRate: %4e%", superPoolData.supplyRate / 1e12);
-        console2.log("superPoolCap: ", superPoolData.superPoolCap / 1e18);
+        console2.log("superPoolCap: ", superPoolData.superPoolCap / 1e18, IERC20(superPoolData.asset).symbol());
         console2.log("");
         console2.log("depositQueue: ");
         emit log_array(superPoolData.depositQueue);
@@ -159,8 +159,10 @@ contract RiskView is BaseScript, Test {
             console2.log("valueInUsd: ", ethToUsd(deposits[i].valueInEth), "USD");
             console2.log("borrowRate: %4e%", deposits[i].borrowInterestRate / 1e12);
             console2.log("supplyRate: %4e%", deposits[i].supplyInterestRate / 1e12);
-            console2.log("totalBorrows: ", POOL.getTotalBorrows(deposits[i].poolId) / 1e18);
-            console2.log("totalAssets: ", POOL.getTotalAssets(deposits[i].poolId) / 1e18);
+            console2.log("totalBorrows: ", POOL.getTotalBorrows(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol());
+            console2.log("pool borrow cap: ", POOL.getBorrowCapFor(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol());
+            console2.log("total supplied: ", POOL.getTotalAssets(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol());
+            console2.log("pool supply cap: ", POOL.getPoolCapFor(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol());
             console2.log("pool utilization rate: %2e%", getPoolUtilizationRate(deposits[i].poolId) / 1e14);
         }
     }

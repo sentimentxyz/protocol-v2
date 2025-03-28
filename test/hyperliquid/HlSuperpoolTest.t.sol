@@ -12,14 +12,14 @@ contract HlSuperPoolTest is Test {
 
     function testSuperPoolDeposit(uint256 amt) public {
         assert(GUY != address(0));
-        vm.assume(amt > 0 && amt < 699999e18);
+        vm.assume(amt > 0 && amt < 699_999e18);
         uint256 shares = _deposit(amt);
         assertEq(SUPERPOOL.balanceOf(GUY), shares);
     }
 
     function testSuperPoolWithdraw(uint256 amt) public {
         assert(GUY != address(0));
-        vm.assume(amt > 0 && amt < 699999e18);
+        vm.assume(amt > 0 && amt < 699_999e18);
         _deposit(amt);
         vm.startPrank(GUY);
         uint256 assets = SUPERPOOL.withdraw(amt, GUY, GUY);

@@ -84,7 +84,9 @@ contract RiskView is BaseScript, Test {
 
     function run() public { }
 
+    // @dev Add hardcoded mainnet deployed pool ids and collateral assets here
     function _run() internal {
+        // pool address => poolId
         poolMap[0x36BFD6b40e2c9BbCfD36a6B1F1Aa65974f4fFA5D] =
             14_778_331_100_793_740_007_929_971_613_900_703_995_604_470_186_100_539_494_274_894_855_699_577_891_585;
         collateralAssets.push(0x94e8396e0869c9F2200760aF0621aFd240E1CF38); // wstHype
@@ -222,17 +224,28 @@ contract RiskView is BaseScript, Test {
 
         console2.log("Position:");
         console2.log("debtPools: ");
-        emit log_array(position.getDebtPools());
-        console2.log("positionAssets: ");
-        emit log_array(position.getPositionAssets());
+        uint256[] memory debtPools = position.getDebtPools();
+        emit log_array(debtPools);
+        console2.log("collateral assets: ");
+        address[] memory positionAssets = position.getPositionAssets();
+        emit log_array(positionAssets);
         console2.log("debtAsset: ", pool.getPoolAssetFor(poolMap[address(pool)]));
 
         (uint256 totalAssetValue, uint256 totalDebtValue, uint256 weightedLtv) = riskEngine.getRiskData(position_);
-        console2.log("getRiskData:");
+        console2.log("*getRiskData*");
         console2.log("totalAssetValue: ");
         console2.log("%4e ETH, %2e USD", totalAssetValue / 1e14, ethToUsd(totalAssetValue) / 1e16);
+        console2.log("collateral asset balances:");
+        for (uint256 i = 0; i < positionAssets.length; ++i) {
+            console2.log("asset: %o, balance: %2e", positionAssets[i], IERC20(positionAssets[i]).balanceOf(position_) / 1e16); //, IERC20(positionAssets[i]).symbol());
+        }
         console2.log("totalDebtValue: ");
         console2.log("%4e ETH, %2e USD", totalDebtValue / 1e14, ethToUsd(totalDebtValue) / 1e16);
+        console2.log("debt asset balances:");
+        for (uint256 i = 0; i < debtPools.length; ++i) {
+            console2.log("asset: %s, balance: %2e", pool.getPoolAssetFor(debtPools[i]), pool.getBorrowsOf(debtPools[i], position_) / 1e16);
+        }
+        console2.log("current position ltv: %4e", totalDebtValue * 1e18 / totalAssetValue / 1e14);
         console2.log("weightedLtv: ");
         console2.log("%4e", weightedLtv / 1e14);
         console2.log("position healthFactor: %4e", riskModule.getPositionHealthFactor(position_) / 1e14);

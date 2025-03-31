@@ -32,7 +32,7 @@ contract HlPositionTest is Test {
     uint256 constant GUY_COL_AMT = 30e18;
     uint256 constant GUY_BOR_AMT = 10e18;
     uint256 constant poolId =
-        14778331100793740007929971613900703995604470186100539494274894855699577891585;
+        14_778_331_100_793_740_007_929_971_613_900_703_995_604_470_186_100_539_494_274_894_855_699_577_891_585;
 
     address constant borrowAssetWhale = 0x8D64d8273a3D50E44Cc0e6F43d927f78754EdefB;
     address constant collateralAssetWhale = 0x67e70761E88C77ffF2174d5a4EaD42B44Df3F64a;

@@ -237,13 +237,19 @@ contract RiskView is BaseScript, Test {
         console2.log("%4e ETH, %2e USD", totalAssetValue / 1e14, ethToUsd(totalAssetValue) / 1e16);
         console2.log("collateral asset balances:");
         for (uint256 i = 0; i < positionAssets.length; ++i) {
-            console2.log("asset: %o, balance: %2e", positionAssets[i], IERC20(positionAssets[i]).balanceOf(position_) / 1e16); //, IERC20(positionAssets[i]).symbol());
+            console2.log(
+                "asset: %o, balance: %2e", positionAssets[i], IERC20(positionAssets[i]).balanceOf(position_) / 1e16
+            );
         }
         console2.log("totalDebtValue: ");
         console2.log("%4e ETH, %2e USD", totalDebtValue / 1e14, ethToUsd(totalDebtValue) / 1e16);
         console2.log("debt asset balances:");
         for (uint256 i = 0; i < debtPools.length; ++i) {
-            console2.log("asset: %s, balance: %2e", pool.getPoolAssetFor(debtPools[i]), pool.getBorrowsOf(debtPools[i], position_) / 1e16);
+            console2.log(
+                "asset: %s, balance: %2e",
+                pool.getPoolAssetFor(debtPools[i]),
+                pool.getBorrowsOf(debtPools[i], position_) / 1e16
+            );
         }
         console2.log("current position ltv: %4e", totalDebtValue * 1e18 / totalAssetValue / 1e14);
         console2.log("weightedLtv: ");

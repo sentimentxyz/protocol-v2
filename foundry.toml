@@ -24,6 +24,7 @@ remappings = [
     "erc4626-tests/=lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/",
     "ds-test/=lib/openzeppelin-contracts-upgradeable/lib/forge-std/lib/ds-test/src/",
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts",
+    "@fuzzlib/=lib/fuzzlib.git/src/"
 ]
 ignored_warnings_from = ["src/lib/PythAggregatorV3.sol"]
 

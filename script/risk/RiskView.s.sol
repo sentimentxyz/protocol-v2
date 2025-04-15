@@ -13,7 +13,7 @@ import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IRateModel } from "src/interfaces/IRateModel.sol";
 
-// Define new interfaces instead of importing contracts
+// Interfaces
 interface IPool {
     function riskEngine() external view returns (address);
     function getRateModelFor(uint256 poolId) external view returns (address);

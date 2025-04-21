@@ -246,7 +246,7 @@ contract RiskView is BaseScript, Test {
         console2.log("debt asset balances:");
         for (uint256 i = 0; i < debtPools.length; ++i) {
             console2.log(
-                "asset: %s, balance: %2e",
+                "asset: %o, balance: %2e",
                 pool.getPoolAssetFor(debtPools[i]),
                 pool.getBorrowsOf(debtPools[i], position_) / 1e16
             );

@@ -9,14 +9,57 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Test } from "forge-std/Test.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
-import { Pool } from "src/Pool.sol";
 
-import { Position } from "src/Position.sol";
-import { RiskEngine } from "src/RiskEngine.sol";
-import { RiskModule } from "src/RiskModule.sol";
-import { SuperPool } from "src/SuperPool.sol";
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IRateModel } from "src/interfaces/IRateModel.sol";
+
+// Interfaces
+interface IPool {
+    function riskEngine() external view returns (address);
+    function getRateModelFor(uint256 poolId) external view returns (address);
+    function getPoolAssetFor(uint256 poolId) external view returns (address);
+    function getTotalBorrows(uint256 poolId) external view returns (uint256);
+    function getTotalAssets(uint256 poolId) external view returns (uint256);
+    function getAssetsOf(uint256 poolId, address account) external view returns (uint256);
+    function getBorrowsOf(uint256 poolId, address account) external view returns (uint256);
+    function getBorrowCapFor(uint256 poolId) external view returns (uint256);
+    function getPoolCapFor(uint256 poolId) external view returns (uint256);
+}
+
+interface ISuperPool {
+    function pool() external view returns (IPool);
+    function decimals() external view returns (uint8);
+    function name() external view returns (string memory);
+    function paused() external view returns (bool);
+    function asset() external view returns (IERC20);
+    function owner() external view returns (address);
+    function feeRecipient() external view returns (address);
+    function fee() external view returns (uint256);
+    function totalAssets() external view returns (uint256);
+    function superPoolCap() external view returns (uint256);
+    function pools() external view returns (uint256[] memory);
+    function withdrawQueue(uint256 index) external view returns (uint256);
+}
+
+interface IRiskEngine {
+    function oracleFor(address asset) external view returns (address);
+    function riskModule() external view returns (address);
+    function getRiskData(address position)
+        external
+        view
+        returns (uint256 totalAssetValue, uint256 totalDebtValue, uint256 weightedLtv);
+}
+
+interface IRiskModule {
+    function getPositionHealthFactor(address position) external view returns (uint256);
+}
+
+interface IPosition {
+    function pool() external view returns (address);
+    function riskEngine() external view returns (address);
+    function getDebtPools() external view returns (uint256[] memory);
+    function getPositionAssets() external view returns (address[] memory);
+}
 
 interface IAggregatorV3 {
     function latestRoundData()
@@ -36,24 +79,24 @@ contract RiskView is BaseScript, Test {
     using Math for uint256;
 
     // pool
-    Pool public pool;
+    IPool public pool;
 
     // superPool
-    SuperPool public superPool;
+    ISuperPool public superPool;
 
     // Risk Engine
-    RiskEngine public riskEngine;
+    IRiskEngine public riskEngine;
 
     // Risk Module
-    RiskModule public riskModule;
+    IRiskModule public riskModule;
 
     // Position
-    Position public position;
+    IPosition public position;
 
-    address public constant ethUsdFeed = 0x1b27A24642B1a5a3c54452DDc02F278fb6F63229;
+    address public constant ETH_USD_FEED = 0x1b27A24642B1a5a3c54452DDc02F278fb6F63229;
 
     mapping(address pool => uint256 poolId) public poolMap;
-    address[] collateralAssets;
+    address[] private _collateralAssets;
 
     struct SuperPoolData {
         address pool;
@@ -89,15 +132,15 @@ contract RiskView is BaseScript, Test {
         // pool address => poolId
         poolMap[0x36BFD6b40e2c9BbCfD36a6B1F1Aa65974f4fFA5D] =
             14_778_331_100_793_740_007_929_971_613_900_703_995_604_470_186_100_539_494_274_894_855_699_577_891_585;
-        collateralAssets.push(0x94e8396e0869c9F2200760aF0621aFd240E1CF38); // wstHype
+        _collateralAssets.push(0x94e8396e0869c9F2200760aF0621aFd240E1CF38); // wstHype
     }
 
     function getSuperPoolData(address superPool_) public {
         _run();
 
-        superPool = SuperPool(superPool_);
-        pool = superPool.POOL();
-        riskEngine = RiskEngine(pool.riskEngine());
+        superPool = ISuperPool(superPool_);
+        pool = superPool.pool();
+        riskEngine = IRiskEngine(pool.riskEngine());
 
         uint256[] memory pools = superPool.pools(); // fetch underlying pools for given super pool
 
@@ -192,20 +235,20 @@ contract RiskView is BaseScript, Test {
         console2.log("oracle eth price: %18e", _getValueInEth(superPoolData.asset, 1e18), "ETH");
         console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(superPoolData.asset, 1e18)) / 1e16, "USD");
 
-        for (uint256 i = 0; i < collateralAssets.length; ++i) {
-            console2.log("collateralAsset: ", collateralAssets[i]);
-            console2.log("oracle addr: ", riskEngine.oracleFor(collateralAssets[i]));
-            console2.log("oracle eth price: %18e", _getValueInEth(collateralAssets[i], 1e18), "ETH");
-            console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(collateralAssets[i], 1e18)) / 1e16, "USD");
+        for (uint256 i = 0; i < _collateralAssets.length; ++i) {
+            console2.log("collateralAsset: ", _collateralAssets[i]);
+            console2.log("oracle addr: ", riskEngine.oracleFor(_collateralAssets[i]));
+            console2.log("oracle eth price: %18e", _getValueInEth(_collateralAssets[i], 1e18), "ETH");
+            console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(_collateralAssets[i], 1e18)) / 1e16, "USD");
         }
     }
 
     function getPoolData(address pool_) public {
         _run();
 
-        pool = Pool(pool_);
+        pool = IPool(pool_);
         uint256 poolId = poolMap[pool_];
-        riskEngine = RiskEngine(pool.riskEngine());
+        riskEngine = IRiskEngine(pool.riskEngine());
 
         console2.log("Pool: ", pool_);
         console2.log("asset: ", pool.getPoolAssetFor(poolId));
@@ -217,12 +260,12 @@ contract RiskView is BaseScript, Test {
     function getPositionData(address position_) public {
         _run();
 
-        position = Position(payable(position_));
-        pool = Pool(position.POOL());
-        riskEngine = RiskEngine(position.RISK_ENGINE());
-        riskModule = RiskModule(riskEngine.riskModule());
+        position = IPosition(position_);
+        pool = IPool(position.pool());
+        riskEngine = IRiskEngine(position.riskEngine());
+        riskModule = IRiskModule(riskEngine.riskModule());
 
-        console2.log("Position:");
+        console2.log("Position:", position_);
         console2.log("debtPools: ");
         uint256[] memory debtPools = position.getDebtPools();
         emit log_array(debtPools);
@@ -251,7 +294,7 @@ contract RiskView is BaseScript, Test {
                 pool.getBorrowsOf(debtPools[i], position_) / 1e16
             );
         }
-        console2.log("current position ltv: %4e", totalDebtValue * 1e18 / totalAssetValue / 1e14);
+        console2.log("current position ltv: %4e", (totalDebtValue * 1e18) / totalAssetValue / 1e14);
         console2.log("weightedLtv: ");
         console2.log("%4e", weightedLtv / 1e14);
         console2.log("position healthFactor: %4e", riskModule.getPositionHealthFactor(position_) / 1e14);
@@ -326,7 +369,7 @@ contract RiskView is BaseScript, Test {
     }
 
     function ethToUsd(uint256 amt) public view returns (uint256 usd) {
-        (, int256 answer,,,) = IAggregatorV3(ethUsdFeed).latestRoundData();
+        (, int256 answer,,,) = IAggregatorV3(ETH_USD_FEED).latestRoundData();
         usd = amt.mulDiv(uint256(answer), 1e8);
     }
 }

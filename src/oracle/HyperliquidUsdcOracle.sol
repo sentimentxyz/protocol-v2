@@ -11,7 +11,7 @@ import { L1Read } from "src/lib/L1Read.sol";
 contract HyperliquidUsdcOracle is L1Read, IOracle {
     using Math for uint256;
 
-    uint16 public constant ETH_INDEX = 4;
+    uint32 public constant ETH_INDEX = 4;
     uint256 public constant ETH_PRICE_SCALE = 1e16;
     uint256 public constant ASSET_AMT_SCALE = 1e12;
 

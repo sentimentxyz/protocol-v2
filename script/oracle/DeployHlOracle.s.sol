@@ -22,9 +22,9 @@ contract DeployHlOracle is BaseScript {
     }
 
     function getParams() internal {
-        asset = vm.parseJsonAddress(getConfig(), "$.DeployHlOracle.asset");
-        assetIndex = uint16(vm.parseJsonUint(getConfig(), "$.DeployHlOracle.assetIndex"));
-        assetAmtScale = vm.parseJsonUint(getConfig(), "$.DeployHlOracle.assetAmtScale");
-        assetPriceScale = vm.parseJsonUint(getConfig(), "$.DeployHlOracle.assetPriceScale");
+        asset = vm.parseJsonAddress(getConfig(), "$.DeployHyperliquidOracle.asset");
+        assetIndex = uint16(vm.parseJsonUint(getConfig(), "$.DeployHyperliquidOracle.assetIndex"));
+        assetAmtScale = vm.parseJsonUint(getConfig(), "$.DeployHyperliquidOracle.assetAmtScale");
+        assetPriceScale = vm.parseJsonUint(getConfig(), "$.DeployHyperliquidOracle.assetPriceScale");
     }
 }

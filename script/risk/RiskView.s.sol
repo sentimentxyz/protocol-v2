@@ -27,7 +27,7 @@ interface IPool {
 }
 
 interface ISuperPool {
-    function pool() external view returns (IPool);
+    function POOL() external view returns (address);
     function decimals() external view returns (uint8);
     function name() external view returns (string memory);
     function paused() external view returns (bool);
@@ -139,7 +139,7 @@ contract RiskView is BaseScript, Test {
         _run();
 
         superPool = ISuperPool(superPool_);
-        pool = superPool.pool();
+        pool = IPool(superPool.POOL());
         riskEngine = IRiskEngine(pool.riskEngine());
 
         uint256[] memory pools = superPool.pools(); // fetch underlying pools for given super pool

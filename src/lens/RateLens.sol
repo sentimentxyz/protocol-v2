@@ -60,7 +60,7 @@ contract RateLens {
     /// @param poolId Id of the underlying pool
     /// @param depositAmount The amount to deposit
     /// @return The projected supply rate (in 1e18)
-    function projectedSupplyRateOnDeposit(uint256 poolId, uint256 depositAmount) external view returns (uint256) {
+    function projectedSupplyRateOnDeposit(uint256 poolId, uint256 depositAmount) public view returns (uint256) {
         IRateModel irm = IRateModel(POOL.getRateModelFor(poolId));
 
         uint256 totalBorrows = POOL.getTotalBorrows(poolId);
@@ -83,7 +83,7 @@ contract RateLens {
     /// @param poolId Id of the underlying pool
     /// @param withdrawAmount The amount to withdraw
     /// @return The projected supply rate (in 1e18)
-    function projectedSupplyRateOnWithdraw(uint256 poolId, uint256 withdrawAmount) external view returns (uint256) {
+    function projectedSupplyRateOnWithdraw(uint256 poolId, uint256 withdrawAmount) public view returns (uint256) {
         IRateModel irm = IRateModel(POOL.getRateModelFor(poolId));
 
         uint256 totalBorrows = POOL.getTotalBorrows(poolId);
@@ -123,14 +123,50 @@ contract RateLens {
 
         if (newTotalAssets == 0) return 0;
 
-        uint256[] memory pools = superPool.pools();
+        // Split the function to reduce stack variables
+        (uint256[] memory pools, uint256[] memory newPoolAssets) =
+            _simulatePoolAssetsAfterDeposit(superPool, depositAmount);
+
+        // Calculate weighted interest rate based on simulated asset distribution
+        uint256 poolsLength = pools.length;
+        for (uint256 i; i < poolsLength; ++i) {
+            uint256 poolId = pools[i];
+            uint256 newUtilization = newPoolAssets[i].mulDiv(1e18, newTotalAssets);
+
+            // Calculate how much was deposited into this pool
+            uint256 currentAssets = POOL.getAssetsOf(poolId, _superPool);
+            uint256 depositedIntoPool = newPoolAssets[i] > currentAssets ? newPoolAssets[i] - currentAssets : 0;
+
+            // Get the projected supply rate for this pool after the deposit
+            uint256 supplyRate = depositedIntoPool > 0
+                ? projectedSupplyRateOnDeposit(poolId, depositedIntoPool)
+                : getPoolSupplyRate(poolId);
+
+            // Add the weighted contribution to the overall rate
+            weightedInterestRate += newUtilization.mulDiv(supplyRate, 1e18);
+        }
+    }
+
+    /// @notice Helper function to simulate pool assets after deposit
+    /// @param superPool The super pool
+    /// @param depositAmount The amount to deposit
+    /// @return pools Array of pool IDs
+    /// @return newPoolAssets Array of updated pool assets after deposit
+    function _simulatePoolAssetsAfterDeposit(
+        SuperPool superPool,
+        uint256 depositAmount
+    )
+        private
+        view
+        returns (uint256[] memory pools, uint256[] memory newPoolAssets)
+    {
+        pools = superPool.pools();
         uint256 poolsLength = pools.length;
 
         // Create a copy of the current assets distribution to simulate changes
-        uint256[] memory newPoolAssets = new uint256[](poolsLength);
+        newPoolAssets = new uint256[](poolsLength);
         for (uint256 i; i < poolsLength; ++i) {
-            uint256 poolId = pools[i];
-            newPoolAssets[i] = POOL.getAssetsOf(poolId, _superPool);
+            newPoolAssets[i] = POOL.getAssetsOf(pools[i], address(superPool));
         }
 
         // Simulate sequential deposit following the deposit queue logic
@@ -150,6 +186,7 @@ contract RateLens {
                 // Also respect base pool cap
                 uint256 basePoolCap = POOL.getPoolCapFor(poolId);
                 uint256 basePoolTotalAssets = POOL.getTotalAssets(poolId);
+
                 if (basePoolCap > basePoolTotalAssets) {
                     uint256 basePoolCapLeft = basePoolCap - basePoolTotalAssets;
                     if (basePoolCapLeft < depositAmt) depositAmt = basePoolCapLeft;
@@ -162,18 +199,6 @@ contract RateLens {
                     remainingDeposit -= depositAmt;
                 }
             }
-        }
-
-        // Calculate weighted interest rate based on simulated asset distribution
-        for (uint256 i; i < poolsLength; ++i) {
-            uint256 poolId = pools[i];
-            uint256 newUtilization = newPoolAssets[i].mulDiv(1e18, newTotalAssets);
-
-            // Get the supply rate for this pool
-            uint256 supplyRate = getPoolSupplyRate(poolId);
-
-            // Add the weighted contribution to the overall rate
-            weightedInterestRate += newUtilization.mulDiv(supplyRate, 1e18);
         }
     }
 
@@ -201,8 +226,15 @@ contract RateLens {
             uint256 poolId = pools[i];
             uint256 newUtilization = newPoolAssets[i].mulDiv(1e18, newTotalAssets);
 
-            // Get the supply rate for this pool
-            uint256 supplyRate = getPoolSupplyRate(poolId);
+            // Calculate how much was withdrawn from this pool
+            uint256 withdrawnFromPool = POOL.getAssetsOf(poolId, _superPool) > newPoolAssets[i]
+                ? POOL.getAssetsOf(poolId, _superPool) - newPoolAssets[i]
+                : 0;
+
+            // Get the projected supply rate for this pool after the withdrawal
+            uint256 supplyRate = withdrawnFromPool > 0
+                ? projectedSupplyRateOnWithdraw(poolId, withdrawnFromPool)
+                : getPoolSupplyRate(poolId);
 
             // Add the weighted contribution to the overall rate
             weightedInterestRate += newUtilization.mulDiv(supplyRate, 1e18);

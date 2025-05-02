@@ -504,10 +504,7 @@ contract RiskView is BaseScript, Test {
             uint256 currentForkId = vm.activeFork();
             string memory archiveRpcUrl = "https://rpc.hyperlend.finance/archive";
 
-            // Use the oldest block number that was passed as a parameter
-            // This is the same block number used for the oldest NAV calculation
-
-            // Create a fork at the oldest block to get the collateral price at that time
+            // Get historical collateral price at oldest block
             vm.selectFork(vm.createFork(archiveRpcUrl, oldestBlockNumber));
 
             // Re-initialize contracts in historical context
@@ -526,7 +523,7 @@ contract RiskView is BaseScript, Test {
                 oldEthValue = 0;
             }
 
-            // Return to current fork
+            // Return to current fork for current price
             vm.selectFork(currentForkId);
 
             // Get current collateral value in ETH
@@ -534,8 +531,13 @@ contract RiskView is BaseScript, Test {
 
             if (oldEthValue == 0 || newEthValue == 0) {
                 console2.log("Error getting collateral price for one or both time periods");
+                console2.log("Historical collateral price: ", oldEthValue);
+                console2.log("Current collateral price: ", newEthValue);
                 return; // Avoid division by zero
             }
+
+            console2.log("Historical collateral price (ETH): ", _formatEthValue(oldEthValue / 1e14));
+            console2.log("Current collateral price (ETH): ", _formatEthValue(newEthValue / 1e14));
 
             _displayCollateralNavChange(collateralAsset, oldNav, newNav, oldEthValue, newEthValue);
         } catch {
@@ -588,8 +590,8 @@ contract RiskView is BaseScript, Test {
 
         // Format percentage part first to reduce stack usage
         string memory percentStr = string.concat(
-            percentChange >= 0 ? "+" : "",
-            vm.toString(percentChange / 100),
+            percentChange > 0 ? "+" : (percentChange == 0 ? "=" : "-"),
+            vm.toString(percentChange < 0 ? (-percentChange) / 100 : percentChange / 100),
             ".",
             vm.toString(percentChange < 0 ? -percentChange % 100 : percentChange % 100),
             "%"
@@ -604,6 +606,12 @@ contract RiskView is BaseScript, Test {
     /// @param navValue The NAV value in ETH
     /// @param percentChange The percentage change from the previous day
     function _displayHistoricalNavLine(uint256 blockNumber, uint256 navValue, int256 percentChange) internal view {
+        // Format the percentage change with a clearer sign prefix
+        string memory signPrefix;
+        if (percentChange >= 0) signPrefix = "+"; // Ensure positive values have a visible plus sign
+
+        else signPrefix = ""; // No prefix needed for negative values (will have minus sign)
+
         console2.log(
             string.concat(
                 vm.toString(blockNumber),
@@ -612,7 +620,7 @@ contract RiskView is BaseScript, Test {
                 " ETH, ",
                 _formatUsdValue(ethToUsd(navValue) / 1e16),
                 " USD | ",
-                percentChange > 0 ? "+" : (percentChange == 0 ? "+" : ""),
+                signPrefix,
                 vm.toString(percentChange / 100),
                 ".",
                 vm.toString(percentChange < 0 ? -percentChange % 100 : percentChange % 100),

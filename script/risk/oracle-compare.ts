@@ -25,7 +25,7 @@ const DEFAULT_TOKENS: Record<string, string> = {
   wstHype: '0x94e8396e0869c9F2200760aF0621aFd240E1CF38'
 };
 
-// ETH/USD price feed (from RiskView.s.sol)
+// ETH/USD price feed
 const ETH_USD_FEED = '0x1b27A24642B1a5a3c54452DDc02F278fb6F63229';
 
 // Oracle ABI - minimal interface just for the functions we need

@@ -132,6 +132,12 @@ function loadExistingLog(): void {
 // Save log to file
 function saveLog(): void {
   try {
+    // Create directory structure if it doesn't exist
+    const logDir = CONFIG.logFile.substring(0, CONFIG.logFile.lastIndexOf('/'));
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    
     fs.writeFileSync(CONFIG.logFile, JSON.stringify(priceLog, null, 2));
     console.log(`Saved log to ${CONFIG.logFile}`);
   } catch (error) {

@@ -12,4 +12,4 @@
   },
   "include": ["script/**/*"],
   "exclude": ["node_modules", "dist"]
-} 
+}

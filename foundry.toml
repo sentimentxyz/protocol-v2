@@ -13,7 +13,7 @@ bytecode_hash = "none"
 solc_version = '0.8.24'
 evm_version = 'shanghai'
 fs_permissions = [
-    { access = "read", path = "./config" },
+    { access = "read-write", path = "./config" },
     { access = "read", path = "./script/config" },
     { "access" = "write", path = "./script/logs" },
 ]

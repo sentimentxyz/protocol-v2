@@ -1,162 +1,353 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.19;
 
 import { BaseScript } from "./BaseScript.s.sol";
-import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+
+import { Vm, VmSafe } from "forge-std/Vm.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 import { Pool } from "src/Pool.sol";
-
-import { Position } from "src/Position.sol";
 import { PositionManager } from "src/PositionManager.sol";
-
-import { Action, Operation, PositionManager } from "src/PositionManager.sol";
 import { Registry } from "src/Registry.sol";
 import { RiskEngine } from "src/RiskEngine.sol";
-import { RiskModule } from "src/RiskModule.sol";
+
 import { SuperPool } from "src/SuperPool.sol";
 import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
-import { PortfolioLens } from "src/lens/PortfolioLens.sol";
-import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
-import { AggV3Oracle } from "src/oracle/AggV3Oracle.sol";
-import { ActionUtils } from "test/utils/ActionUtils.sol";
+import { KinkedRateModel } from "src/irm/KinkedRateModel.sol";
 
+/**
+ * @title VerifyDeployment
+ * @notice Script to verify that all components of the protocol were deployed correctly
+ * Reads the most recent deployment log file and checks that everything is working
+ */
 contract VerifyDeployment is BaseScript {
-    using ActionUtils for Action;
-
-    // registry
-    Registry public registry;
-    // superpool factory
-    SuperPoolFactory public superPoolFactory;
-    // position manager
-    address positionManagerImpl;
-    PositionManager public positionManager;
-    // risk
-    RiskEngine public riskEngine;
-    RiskModule public riskModule;
-    // pool
-    address poolImpl;
-    Pool public pool;
-    // superPool
-    SuperPool public superPool;
-    // position
-    address public positionBeacon;
-    // lens
-    SuperPoolLens public superPoolLens;
-    PortfolioLens public portfolioLens;
-    // oracles
-    AggV3Oracle public oracle1;
-    AggV3Oracle public oracle2;
-
-    uint256 public poolId;
-
-    // keccak(SENTIMENT_POSITION_MANAGER_KEY)
-    bytes32 public constant SENTIMENT_POSITION_MANAGER_KEY =
-        0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148;
-    // keccak(SENTIMENT_POOL_KEY)
-    bytes32 public constant SENTIMENT_POOL_KEY = 0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728;
-    // keccak(SENTIMENT_RISK_ENGINE_KEY)
-    bytes32 public constant SENTIMENT_RISK_ENGINE_KEY =
-        0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555;
-    // keccak(SENIMENT_POSITION_BEACON_KEY)
-    bytes32 public constant SENTIMENT_POSITION_BEACON_KEY =
-        0x6e7384c78b0e09fb848f35d00a7b14fc1ad10ae9b10117368146c0e09b6f2fa2;
-    // keccak(SENTIMENT_RISK_MODULE_KEY)
-    bytes32 public constant SENTIMENT_RISK_MODULE_KEY =
-        0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77;
-
-    // Assets
-    address public constant borrowAsset = 0x5555555555555555555555555555555555555555; // wHype
-    address public constant collateralAsset = 0x94e8396e0869c9F2200760aF0621aFd240E1CF38; // wstHype
-
-    address constant USER = 0xB290f2F3FAd4E540D0550985951Cdad2711ac34A;
-
-    bytes32 constant SALT = "INITIAL_TEST_SALT";
-
-    function run() public {
-        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-
-        // Set live contract addresses
-        superPool = SuperPool(0x2831775cb5e64B1D892853893858A261E898FbEb);
-        pool = Pool(0x36BFD6b40e2c9BbCfD36a6B1F1Aa65974f4fFA5D);
-        riskEngine = RiskEngine(0xd22dE451Ba71fA6F06C65962649ba4E2Aea10863);
-        portfolioLens = PortfolioLens(0x9700750001dDD7C4542684baC66C64D74fA833c0);
-        positionManager = PositionManager(0xE019Ce6e80dFe505bca229752A1ad727E14085a4);
-
-        oracle1 = AggV3Oracle(0x79479c3d10b7fF49D6c18A5ADC601c86472D4767);
-        oracle2 = AggV3Oracle(0x712047cC3e4b0023Fccc09Ae412648CF23C65ed3);
-
-        _run();
+    // Verification status struct
+    struct VerificationStatus {
+        bool registryOk;
+        bool poolOk;
+        bool riskEngineOk;
+        bool riskModuleOk;
+        bool positionManagerOk;
+        bool superPoolFactoryOk;
+        bool positionBeaconOk;
+        bool irmOk;
+        bool poolInitOk;
+        bool ltvSetOk;
+        bool superPoolOk;
+        bool poolCapSetOk;
+        bool assetsWhitelistedOk;
     }
 
-    function _run() internal {
-        // SuperPool
-        console2.log("superpool: ", superPool.name());
-        console2.log("asset: ", superPool.asset());
-        console2.log("owner: ", superPool.owner());
-        poolId = superPool.pools()[0];
-        console2.log("pool id: ", poolId);
-        console2.log("fee: ", superPool.fee());
-        console2.log("fee recipient: ", superPool.feeRecipient());
-        console2.log("superPoolCap: ", superPool.superPoolCap());
+    // Deployed addresses
+    address public registry;
+    address public pool;
+    address public riskEngine;
+    address public riskModule;
+    address public positionManager;
+    address public superPoolFactory;
+    address public positionBeacon;
+    address public superPoolLens;
+    address public portfolioLens;
+    address public kinkedRateModel;
+    bytes32 public kinkedRateModelKey;
+    uint256 public poolId;
+    address public superPool;
 
-        // Pool
-        console2.log("pool: ");
-        console2.log("proxy owner: ", pool.owner());
-        console2.log("pool owner: ", pool.ownerOf(poolId));
-        console2.log("fee recipient: ", pool.feeRecipient());
-        console2.log("positionManager: ", pool.positionManager());
-        console2.log("riskEngine: ", pool.riskEngine());
-        console2.log("pool asset: ", pool.getPoolAssetFor(poolId));
-        console2.log("pool rateModel: ", pool.getRateModelFor(poolId));
-        console2.log("poolCap: ", pool.getPoolCapFor(poolId));
-        console2.log("pool borrowCap: ", pool.getBorrowCapFor(poolId));
-        console2.log("pool minDebt: ", pool.minDebt());
-        console2.log("pool minBorrow: ", pool.minBorrow());
+    // Assets
+    address public borrowAsset;
+    address public borrowAssetOracle;
+    address public collateralAsset;
+    address public collateralAssetOracle;
+    uint256 public collateralLtv;
 
-        // RiskEngine
-        console2.log("RiskEngine: ", address(riskEngine));
-        console2.log("collateralAsset ltv: ", riskEngine.ltvFor(poolId, collateralAsset));
-        console2.log("borrowAsset ltv: ", riskEngine.ltvFor(poolId, borrowAsset));
-        console2.log("collateralAsset oracle: ", riskEngine.oracleFor(collateralAsset));
-        console2.log("borrowAsset oracle: ", riskEngine.oracleFor(borrowAsset));
+    // Overall status
+    VerificationStatus public status;
 
-        // Oracles
-        console2.log("collateralAsset price: ", oracle1.getValueInEth(collateralAsset, 1e18));
-        console2.log("borrowAsset price: ", oracle2.getValueInEth(borrowAsset, 1e18));
+    function run() public {
+        // Find most recent deployment log
+        VmSafe.DirEntry[] memory dirEntries = vm.readDir(getLogPathBase());
+        string memory latestLog = "";
+        uint256 latestTimestamp = 0;
 
-        // PositionManager
-        console2.log("positionManager proxy owner: ", positionManager.owner());
-        console2.log("borrowAsset toggled: ", positionManager.isKnownAsset(borrowAsset));
-        console2.log("collateralAsset toggled: ", positionManager.isKnownAsset(collateralAsset));
+        for (uint256 i = 0; i < dirEntries.length; i++) {
+            string memory fileName = dirEntries[i].path;
 
-        /// Deposit/borrow/repay scenarios
-        /*
-        // Deposit liquidity
-        IERC20(borrowAsset).approve(address(superPool), 7.7e18);
-        superPool.deposit(7.7e18, USER);
-        (address position, bool available) =
-            portfolioLens.predictAddress(USER, SALT);
-        available;
+            // Extract just the filename from the path
+            bytes memory fileNameBytes = bytes(fileName);
+            uint256 fileNameLastSlashPos = 0;
+            for (uint256 j = 0; j < fileNameBytes.length; j++) {
+                if (fileNameBytes[j] == bytes1("/")) fileNameLastSlashPos = j + 1;
+            }
 
-        // Open new position, deposit, and borrow
-        Action[] memory actions = new Action[](5);
-        actions[0] = ActionUtils.newPosition(USER, SALT);
-        actions[1] = ActionUtils.deposit(address(collateralAsset), 15.18e18);
-        actions[2] = ActionUtils.addToken(address(collateralAsset));
-        actions[3] = ActionUtils.borrow(poolId, 7.44e18);
-        actions[4] = ActionUtils.transfer(USER, address(borrowAsset), 7.44e18);
-        
-        IERC20(collateralAsset).approve(address(positionManager), 15.18e18);
-        positionManager.processBatch(position, actions);
+            string memory fileNameOnly = "";
+            if (fileNameLastSlashPos < fileNameBytes.length) {
+                uint256 nameLength = fileNameBytes.length - fileNameLastSlashPos;
+                bytes memory nameBytes = new bytes(nameLength);
+                for (uint256 j = 0; j < nameLength; j++) {
+                    nameBytes[j] = fileNameBytes[fileNameLastSlashPos + j];
+                }
+                fileNameOnly = string(nameBytes);
+            }
 
-        // Partially repay borrowed asset
-        actions = new Action[](2);
-        actions[0] = ActionUtils.deposit(address(borrowAsset), 1e10);
-        actions[1] = ActionUtils.repay(poolId, 1e10);
-        
-        IERC20(borrowAsset).approve(address(positionManager), 1e10);
-        positionManager.processBatch(position, actions);*/
+            // Check if file contains DeploymentOrchestrator
+            bool isDeploymentOrchestratorLog = false;
+            bytes memory deploymentOrchestratorPrefix = bytes("DeploymentOrchestrator-");
+            bytes memory fileNameOnlyBytes = bytes(fileNameOnly);
+
+            if (fileNameOnlyBytes.length >= deploymentOrchestratorPrefix.length) {
+                isDeploymentOrchestratorLog = true;
+                for (uint256 j = 0; j < deploymentOrchestratorPrefix.length; j++) {
+                    if (fileNameOnlyBytes[j] != deploymentOrchestratorPrefix[j]) {
+                        isDeploymentOrchestratorLog = false;
+                        break;
+                    }
+                }
+            }
+
+            if (isDeploymentOrchestratorLog) {
+                // Extract timestamp from filename
+                uint256 prefixLength = deploymentOrchestratorPrefix.length;
+                uint256 suffixLength = 5; // ".json"
+                uint256 timestampLength = fileNameOnlyBytes.length - prefixLength - suffixLength;
+
+                bytes memory timestampBytes = new bytes(timestampLength);
+                for (uint256 j = 0; j < timestampLength; j++) {
+                    timestampBytes[j] = fileNameOnlyBytes[prefixLength + j];
+                }
+
+                string memory timestamp = string(timestampBytes);
+                uint256 fileTimestamp = vm.parseUint(timestamp);
+
+                if (fileTimestamp > latestTimestamp) {
+                    latestTimestamp = fileTimestamp;
+                    latestLog = fileName;
+                }
+            }
+        }
+
+        if (bytes(latestLog).length == 0) {
+            console2.log("No deployment logs found");
+            return;
+        }
+
+        // Extract just the filename part for logging
+        string memory logFileName = "";
+        bytes memory logPathBytes = bytes(latestLog);
+        uint256 logPathLastSlashPos = 0;
+        for (uint256 j = 0; j < logPathBytes.length; j++) {
+            if (logPathBytes[j] == bytes1("/")) logPathLastSlashPos = j + 1;
+        }
+
+        if (logPathLastSlashPos < logPathBytes.length) {
+            uint256 nameLength = logPathBytes.length - logPathLastSlashPos;
+            bytes memory nameBytes = new bytes(nameLength);
+            for (uint256 j = 0; j < nameLength; j++) {
+                nameBytes[j] = logPathBytes[logPathLastSlashPos + j];
+            }
+            logFileName = string(nameBytes);
+        }
+
+        console2.log("Using log file:", logFileName);
+        string memory logContent = vm.readFile(latestLog);
+
+        // Read addresses from log
+        registry = vm.parseJsonAddress(logContent, "$.registry");
+        pool = vm.parseJsonAddress(logContent, "$.pool");
+        riskEngine = vm.parseJsonAddress(logContent, "$.riskEngine");
+        riskModule = vm.parseJsonAddress(logContent, "$.riskModule");
+        positionManager = vm.parseJsonAddress(logContent, "$.positionManager");
+        superPoolFactory = vm.parseJsonAddress(logContent, "$.superPoolFactory");
+        positionBeacon = vm.parseJsonAddress(logContent, "$.positionBeacon");
+        superPoolLens = vm.parseJsonAddress(logContent, "$.superPoolLens");
+        portfolioLens = vm.parseJsonAddress(logContent, "$.portfolioLens");
+        kinkedRateModel = vm.parseJsonAddress(logContent, "$.kinkedRateModel");
+        kinkedRateModelKey = vm.parseJsonBytes32(logContent, "$.kinkedRateModelKey");
+        poolId = vm.parseJsonUint(logContent, "$.poolId");
+        superPool = vm.parseJsonAddress(logContent, "$.superPool");
+
+        borrowAsset = vm.parseJsonAddress(logContent, "$.borrowAsset");
+        borrowAssetOracle = vm.parseJsonAddress(logContent, "$.borrowAssetOracle");
+        collateralAsset = vm.parseJsonAddress(logContent, "$.collateralAsset");
+        collateralAssetOracle = vm.parseJsonAddress(logContent, "$.collateralAssetOracle");
+
+        // Start verification
+        console2.log("\n=== PROTOCOL DEPLOYMENT VERIFICATION ===");
+
+        // 1. Verify core protocol contracts
+        _verifyProtocol();
+
+        // 2. Verify IRM
+        _verifyIRM();
+
+        // 3. Verify oracles
+        _verifyOracles();
+
+        // 4. Verify pool initialization
+        _verifyPool();
+
+        // 5. Verify LTV
+        _verifyLTV();
+
+        // 6. Verify SuperPool
+        _verifySuperPool();
+
+        // 7. Verify asset whitelisting
+        _verifyAssetWhitelisting();
+
+        // Print overall status
+        _printStatus();
+    }
+
+    function _verifyProtocol() internal {
+        console2.log("\n1. Verifying core protocol contracts...");
+
+        // Check registry
+        status.registryOk = registry != address(0) && registry.code.length > 0;
+        console2.log("Registry:", status.registryOk ? "OK" : "FAIL", registry);
+
+        // Check pool
+        status.poolOk = pool != address(0) && pool.code.length > 0;
+        console2.log("Pool:", status.poolOk ? "OK" : "FAIL", pool);
+
+        // Check risk engine
+        status.riskEngineOk = riskEngine != address(0) && riskEngine.code.length > 0;
+        console2.log("RiskEngine:", status.riskEngineOk ? "OK" : "FAIL", riskEngine);
+
+        // Check risk module
+        status.riskModuleOk = riskModule != address(0) && riskModule.code.length > 0;
+        console2.log("RiskModule:", status.riskModuleOk ? "OK" : "FAIL", riskModule);
+
+        // Check position manager
+        status.positionManagerOk = positionManager != address(0) && positionManager.code.length > 0;
+        console2.log("PositionManager:", status.positionManagerOk ? "OK" : "FAIL", positionManager);
+
+        // Check SuperPoolFactory
+        status.superPoolFactoryOk = superPoolFactory != address(0) && superPoolFactory.code.length > 0;
+        console2.log("SuperPoolFactory:", status.superPoolFactoryOk ? "OK" : "FAIL", superPoolFactory);
+
+        // Check position beacon
+        status.positionBeaconOk = positionBeacon != address(0) && positionBeacon.code.length > 0;
+        console2.log("PositionBeacon:", status.positionBeaconOk ? "OK" : "FAIL", positionBeacon);
+    }
+
+    function _verifyIRM() internal {
+        console2.log("\n2. Verifying Interest Rate Model...");
+
+        // Check KinkedRateModel deployment
+        bool irmDeployed = kinkedRateModel != address(0) && kinkedRateModel.code.length > 0;
+        console2.log("KinkedRateModel deployed:", irmDeployed ? "OK" : "FAIL", kinkedRateModel);
+
+        // Check IRM registration
+        address registeredIrm = Registry(registry).rateModelFor(kinkedRateModelKey);
+        bool irmRegistered = registeredIrm == kinkedRateModel;
+        console2.log("KinkedRateModel registered:", irmRegistered ? "OK" : "FAIL");
+
+        status.irmOk = irmDeployed && irmRegistered;
+    }
+
+    function _verifyOracles() internal view {
+        console2.log("\n3. Verifying Oracles...");
+
+        // Check borrow asset oracle
+        address registeredBorrowOracle = RiskEngine(riskEngine).oracleFor(borrowAsset);
+        bool borrowOracleOk = registeredBorrowOracle == borrowAssetOracle;
+        console2.log("Borrow asset oracle:", borrowOracleOk ? "OK" : "FAIL");
+
+        // Check collateral asset oracle
+        address registeredCollateralOracle = RiskEngine(riskEngine).oracleFor(collateralAsset);
+        bool collateralOracleOk = registeredCollateralOracle == collateralAssetOracle;
+        console2.log("Collateral asset oracle:", collateralOracleOk ? "OK" : "FAIL");
+    }
+
+    function _verifyPool() internal {
+        console2.log("\n4. Verifying Pool Initialization...");
+
+        // Check if pool exists
+        address poolOwner = Pool(pool).ownerOf(poolId);
+        bool poolExists = poolOwner != address(0);
+        console2.log("Pool exists:", poolExists ? "OK" : "FAIL", "ID:", poolId);
+
+        // Check pool asset
+        address poolAsset = Pool(pool).getPoolAssetFor(poolId);
+        bool correctAsset = poolAsset == borrowAsset;
+        console2.log("Pool asset:", correctAsset ? "OK" : "FAIL");
+
+        // Check rate model
+        address poolRateModel = Pool(pool).getRateModelFor(poolId);
+        bool correctRateModel = poolRateModel == kinkedRateModel;
+        console2.log("Pool rate model:", correctRateModel ? "OK" : "FAIL");
+
+        status.poolInitOk = poolExists && correctAsset && correctRateModel;
+    }
+
+    function _verifyLTV() internal {
+        console2.log("\n5. Verifying LTV Settings...");
+
+        // Check LTV for collateral asset
+        uint256 ltv = RiskEngine(riskEngine).ltvFor(poolId, collateralAsset);
+        bool ltvSet = ltv > 0;
+        console2.log("Collateral LTV set:", ltvSet ? "OK" : "FAIL", "Value:", ltv);
+
+        status.ltvSetOk = ltvSet;
+    }
+
+    function _verifySuperPool() internal {
+        console2.log("\n6. Verifying SuperPool...");
+
+        // Check SuperPool deployment
+        bool superPoolDeployed = superPool != address(0) && superPool.code.length > 0;
+        console2.log("SuperPool deployed:", superPoolDeployed ? "OK" : "FAIL", superPool);
+
+        if (superPoolDeployed) {
+            // Check SuperPool asset
+            address superPoolAsset = SuperPool(superPool).asset();
+            bool correctSuperPoolAsset = superPoolAsset == collateralAsset;
+            console2.log("SuperPool asset:", correctSuperPoolAsset ? "OK" : "FAIL");
+
+            // Check if pool is in SuperPool
+            uint256 poolCap = SuperPool(superPool).poolCapFor(poolId);
+            bool poolInSuperPool = poolCap > 0;
+            console2.log("Pool added to SuperPool:", poolInSuperPool ? "OK" : "FAIL", "Cap:", poolCap);
+
+            status.superPoolOk = superPoolDeployed && correctSuperPoolAsset;
+            status.poolCapSetOk = poolInSuperPool;
+        }
+    }
+
+    function _verifyAssetWhitelisting() internal {
+        console2.log("\n7. Verifying Asset Whitelisting...");
+
+        // Check if borrowAsset is whitelisted
+        bool borrowAssetWhitelisted = PositionManager(positionManager).isKnownAsset(borrowAsset);
+        console2.log("Borrow asset whitelisted:", borrowAssetWhitelisted ? "OK" : "FAIL");
+
+        // Check if collateralAsset is whitelisted
+        bool collateralAssetWhitelisted = PositionManager(positionManager).isKnownAsset(collateralAsset);
+        console2.log("Collateral asset whitelisted:", collateralAssetWhitelisted ? "OK" : "FAIL");
+
+        status.assetsWhitelistedOk = borrowAssetWhitelisted && collateralAssetWhitelisted;
+    }
+
+    function _printStatus() internal view {
+        console2.log("\n=== DEPLOYMENT VERIFICATION SUMMARY ===");
+        console2.log("Core Protocol:", _getAllCoreOk() ? "PASS" : "FAIL");
+        console2.log("IRM:", status.irmOk ? "PASS" : "FAIL");
+        console2.log("Pool Initialization:", status.poolInitOk ? "PASS" : "FAIL");
+        console2.log("LTV Settings:", status.ltvSetOk ? "PASS" : "FAIL");
+        console2.log("SuperPool:", status.superPoolOk ? "PASS" : "FAIL");
+        console2.log("Pool Cap in SuperPool:", status.poolCapSetOk ? "PASS" : "FAIL");
+        console2.log("Asset Whitelisting:", status.assetsWhitelistedOk ? "PASS" : "FAIL");
+
+        bool allOk = _getAllCoreOk() && status.irmOk && status.poolInitOk && status.ltvSetOk && status.superPoolOk
+            && status.poolCapSetOk && status.assetsWhitelistedOk;
+
+        console2.log("\nOVERALL STATUS:", allOk ? "DEPLOYMENT SUCCESSFUL" : "DEPLOYMENT ISSUES DETECTED");
+
+        if (!allOk) console2.log("\nPlease check the logs above to identify and fix any issues.");
+    }
+
+    function _getAllCoreOk() internal view returns (bool) {
+        return status.registryOk && status.poolOk && status.riskEngineOk && status.riskModuleOk
+            && status.positionManagerOk && status.superPoolFactoryOk && status.positionBeaconOk;
     }
 }

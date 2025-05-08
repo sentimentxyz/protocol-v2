@@ -251,12 +251,14 @@ contract VerifyDeployment is BaseScript {
         // Check borrow asset oracle
         address registeredBorrowOracle = RiskEngine(riskEngine).oracleFor(borrowAsset);
         bool borrowOracleOk = registeredBorrowOracle == borrowAssetOracle;
-        console2.log("Borrow asset oracle:", borrowOracleOk ? "OK" : "FAIL");
+        console2.log("Borrow asset:", borrowAsset);
+        console2.log("Borrow asset oracle:", borrowOracleOk ? "OK" : "FAIL", "Address:", borrowAssetOracle);
 
         // Check collateral asset oracle
         address registeredCollateralOracle = RiskEngine(riskEngine).oracleFor(collateralAsset);
         bool collateralOracleOk = registeredCollateralOracle == collateralAssetOracle;
-        console2.log("Collateral asset oracle:", collateralOracleOk ? "OK" : "FAIL");
+        console2.log("Collateral asset:", collateralAsset);
+        console2.log("Collateral asset oracle:", collateralOracleOk ? "OK" : "FAIL", "Address:", collateralAssetOracle);
     }
 
     function _verifyPool() internal {
@@ -286,7 +288,13 @@ contract VerifyDeployment is BaseScript {
         // Check LTV for collateral asset
         uint256 ltv = RiskEngine(riskEngine).ltvFor(poolId, collateralAsset);
         bool ltvSet = ltv > 0;
+        console2.log("Collateral asset:", collateralAsset);
         console2.log("Collateral LTV set:", ltvSet ? "OK" : "FAIL", "Value:", ltv);
+
+        // Also check LTV for borrow asset (should be 0)
+        uint256 borrowLtv = RiskEngine(riskEngine).ltvFor(poolId, borrowAsset);
+        console2.log("Borrow asset:", borrowAsset);
+        console2.log("Borrow asset LTV value:", borrowLtv);
 
         status.ltvSetOk = ltvSet;
     }
@@ -301,7 +309,7 @@ contract VerifyDeployment is BaseScript {
         if (superPoolDeployed) {
             // Check SuperPool asset
             address superPoolAsset = SuperPool(superPool).asset();
-            bool correctSuperPoolAsset = superPoolAsset == collateralAsset;
+            bool correctSuperPoolAsset = superPoolAsset == borrowAsset;
             console2.log("SuperPool asset:", correctSuperPoolAsset ? "OK" : "FAIL");
 
             // Check if pool is in SuperPool

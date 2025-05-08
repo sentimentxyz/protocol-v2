@@ -15,7 +15,7 @@ evm_version = 'shanghai'
 fs_permissions = [
     { access = "read-write", path = "./config" },
     { access = "read", path = "./script/config" },
-    { "access" = "write", path = "./script/logs" },
+    { access = "read-write", path = "./script/logs" },
 ]
 remappings = [
     "forge-std/=lib/forge-std/src/",

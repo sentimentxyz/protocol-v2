@@ -24,6 +24,9 @@ contract VerifyContracts is BaseScript {
     mapping(string => ContractInfo) public contracts;
     string[] public contractNames;
 
+    // Track addresses to avoid duplications
+    mapping(address => bool) private _addressesProcessed;
+
     // Chain info
     uint256 public chainId;
     string public verifierUrl = "https://sourcify.parsec.finance/verify";
@@ -147,25 +150,37 @@ contract VerifyContracts is BaseScript {
 
         // Position Manager is a proxy with implementation
         address positionManager = vm.parseJsonAddress(logContent, "$.positionManager");
-        address positionManagerImpl = vm.parseJsonAddress(logContent, "$.positionManagerImpl");
+        // Try to get positionManagerImpl, or use a placeholder if not available
+        address positionManagerImpl;
+        try vm.parseJsonAddress(logContent, "$.positionManagerImpl") returns (address addr) {
+            positionManagerImpl = addr;
+        } catch {
+            // If positionManagerImpl is not in the log, use a placeholder
+            positionManagerImpl = 0x4AEa23D94197414df05D544647B4EE6F194458Fe; // Set this to the actual address if known
+            console2.log("Warning: positionManagerImpl not found in log, using hardcoded address:", positionManagerImpl);
+        }
         _storeContractInfo(
             "positionManager", positionManager, "src/PositionManager.sol:PositionManager", "", true, positionManagerImpl
-        );
-        _storeContractInfo(
-            "positionManagerImpl", positionManagerImpl, "src/PositionManager.sol:PositionManager", "", false, address(0)
         );
 
         // Pool is a proxy with implementation
         address pool = vm.parseJsonAddress(logContent, "$.pool");
-        address poolImpl = vm.parseJsonAddress(logContent, "$.poolImpl");
+        // Try to get poolImpl, or use a placeholder if not available
+        address poolImpl;
+        try vm.parseJsonAddress(logContent, "$.poolImpl") returns (address addr) {
+            poolImpl = addr;
+        } catch {
+            // If poolImpl is not in the log, use a placeholder
+            poolImpl = 0x90AE6cD9Bd8fA354A94AFa256074bf1E3009F73F; // Set this to the actual address if known
+            console2.log("Warning: poolImpl not found in log, using hardcoded address:", poolImpl);
+        }
         _storeContractInfo("pool", pool, "src/Pool.sol:Pool", "", true, poolImpl);
-        _storeContractInfo("poolImpl", poolImpl, "src/Pool.sol:Pool", "", false, address(0));
 
         // Position Beacon
         _storeContractInfo(
             "positionBeacon",
             vm.parseJsonAddress(logContent, "$.positionBeacon"),
-            "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol:UpgradeableBeacon",
+            "lib/openzeppelin-contracts/contracts/proxy/beacon/UpgradeableBeacon.sol:UpgradeableBeacon",
             "",
             false,
             address(0)
@@ -233,6 +248,9 @@ contract VerifyContracts is BaseScript {
     )
         internal
     {
+        // Skip if address is zero
+        if (addr == address(0)) return;
+
         ContractInfo storage info = contracts[name];
         info.addr = addr;
         info.contractPath = contractPath;
@@ -249,72 +267,96 @@ contract VerifyContracts is BaseScript {
         verifyScript = string.concat(verifyScript, "# Auto-generated verification script for deployment\n");
         verifyScript = string.concat(verifyScript, "# Chain ID: ", vm.toString(chainId), "\n\n");
 
+        // Add utility functions
+        verifyScript = string.concat(
+            verifyScript,
+            "# Function to verify a contract with timeout\n",
+            "verify_contract() {\n",
+            '  local address="$1"\n',
+            '  local contract="$2"\n',
+            '  local name="$3"\n',
+            '  local args="$4"\n\n',
+            '  echo "==================================================="\n',
+            '  echo "Verifying $name at $address"\n',
+            '  echo "==================================================="\n\n',
+            "  # Simple timeout mechanism - kill after 30 seconds\n",
+            "  timeout_cmd() {\n",
+            "    ( $@ ) & pid=$!\n",
+            "    ( sleep 30 && kill -9 $pid 2>/dev/null ) & watcher=$!\n",
+            "    wait $pid 2>/dev/null\n",
+            "    status=$?\n",
+            "    kill -9 $watcher 2>/dev/null\n",
+            "    return $status\n",
+            "  }\n\n",
+            "  # Try to verify, but don't worry if it fails\n",
+            '  cmd="forge verify-contract $address $contract --chain-id ',
+            vm.toString(chainId),
+            " --verifier sourcify --verifier-url ",
+            verifierUrl,
+            '"\n',
+            '  if [ -n "$args" ]; then\n',
+            '    cmd="$cmd --constructor-args $args"\n',
+            "  fi\n\n",
+            "  # Run with timeout\n",
+            '  timeout_cmd $cmd || echo "Verification failed or timed out, continuing..."\n',
+            '  echo ""\n',
+            "}\n\n"
+        );
+
         // Add verification commands for each contract
         for (uint256 i = 0; i < contractNames.length; i++) {
             string memory name = contractNames[i];
             ContractInfo memory info = contracts[name];
 
             // Skip if address is zero
-            if (info.addr == address(0)) continue;
+            if (info.addr == address(0) || _addressesProcessed[info.addr]) continue;
 
             // Generate verification command
             string memory cmd = string.concat(
-                'echo "Verifying ',
-                name,
-                " at ",
-                vm.toString(info.addr),
-                '"\n',
-                "forge verify-contract ",
+                "verify_contract ",
                 vm.toString(info.addr),
                 " ",
                 info.contractPath,
-                " \\\n",
-                "  --chain-id ",
-                vm.toString(chainId),
-                " \\\n",
-                "  --verifier sourcify \\\n",
-                "  --verifier-url ",
-                verifierUrl
+                ' "',
+                name,
+                '" "',
+                info.constructorArgs,
+                '"\n'
             );
 
-            // Add constructor args if provided
-            if (bytes(info.constructorArgs).length > 0) {
-                cmd = string.concat(cmd, " \\\n  --constructor-args ", info.constructorArgs);
-            }
+            // Add to script with spacing
+            verifyScript = string.concat(verifyScript, cmd);
+
+            // Mark this address as processed
+            _addressesProcessed[info.addr] = true;
 
             // Add proxy implementation verification if it's a proxy
-            if (info.isProxy && info.implementation != address(0)) {
+            if (info.isProxy && info.implementation != address(0) && !_addressesProcessed[info.implementation]) {
                 cmd = string.concat(
-                    cmd,
-                    "\n\n",
-                    "# Verify implementation for ",
+                    "# Implementation for ",
                     name,
                     "\n",
-                    'echo "Verifying implementation for ',
-                    name,
-                    " at ",
-                    vm.toString(info.implementation),
-                    '"\n',
-                    "forge verify-contract ",
+                    "verify_contract ",
                     vm.toString(info.implementation),
                     " ",
                     info.contractPath,
-                    " \\\n",
-                    "  --chain-id ",
-                    vm.toString(chainId),
-                    " \\\n",
-                    "  --verifier sourcify \\\n",
-                    "  --verifier-url ",
-                    verifierUrl
+                    ' "',
+                    name,
+                    ' implementation" "',
+                    info.constructorArgs,
+                    '"\n'
                 );
-            }
 
-            // Add to script with spacing
-            verifyScript = string.concat(verifyScript, cmd, "\n\n");
+                // Add to script
+                verifyScript = string.concat(verifyScript, cmd);
+
+                // Mark implementation as processed
+                _addressesProcessed[info.implementation] = true;
+            }
         }
 
         // Add final echo
-        verifyScript = string.concat(verifyScript, 'echo "Verification complete"\n');
+        verifyScript = string.concat(verifyScript, '\necho "Verification script completed"\n');
 
         // Write script to file
         string memory scriptPath = string.concat("script/logs/verify-", vm.toString(block.timestamp), ".sh");

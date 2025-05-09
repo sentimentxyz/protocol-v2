@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.24;
 
 import { BaseScript } from "./BaseScript.s.sol";
 import { Vm, VmSafe } from "forge-std/Vm.sol";

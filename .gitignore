@@ -24,5 +24,6 @@ report.txt
 .DS_Store
 
 # config
+!config/example/
 config/
 script/config/

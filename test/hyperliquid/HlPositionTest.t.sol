@@ -19,18 +19,18 @@ contract HlPositionTest is Test {
     address immutable GUY = makeAddr("GUY");
     address constant OWNER = 0xB290f2F3FAd4E540D0550985951Cdad2711ac34A;
 
-    Pool constant POOL = Pool(0x613489d76e2EA423c7912d9218B0b7CccA821e50);
+    Pool constant POOL = Pool(0x36BFD6b40e2c9BbCfD36a6B1F1Aa65974f4fFA5D);
     IERC20 constant borrowAsset = IERC20(0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34);
     IERC20 constant collateralAsset = IERC20(0x94e8396e0869c9F2200760aF0621aFd240E1CF38);
-    RiskEngine constant RISK_ENGINE = RiskEngine(0x81E892432F6Db3015B2D757732776cdC4431f4D5);
-    PortfolioLens constant PORTFOLIO_LENS = PortfolioLens(0x00Fa8056FFA2d86c0D66337a8b97588aF7B31d8f);
-    PositionManager constant POSITION_MANAGER = PositionManager(0xF1F7b79e62c73bF6b31C0f1C2baF5d6c7CCD6D10);
+    RiskEngine constant RISK_ENGINE = RiskEngine(0xd22dE451Ba71fA6F06C65962649ba4E2Aea10863);
+    PortfolioLens constant PORTFOLIO_LENS = PortfolioLens(0x9700750001dDD7C4542684baC66C64D74fA833c0);
+    PositionManager constant POSITION_MANAGER = PositionManager(0xE019Ce6e80dFe505bca229752A1ad727E14085a4);
 
-    uint256 constant LP1_AMT = 300e18;
-    uint256 constant GUY_COL_AMT = 30e18;
-    uint256 constant GUY_BOR_AMT = 10e18;
+    uint256 constant LP1_AMT = 3000e18;
+    uint256 constant GUY_COL_AMT = 1000e18;
+    uint256 constant GUY_BOR_AMT = 500e18;
     uint256 constant poolId =
-        82_774_160_771_612_458_739_060_611_965_474_582_854_395_427_599_635_384_211_921_965_558_483_033_366_514;
+        35_549_059_506_791_825_930_759_374_493_305_863_417_254_935_666_006_142_339_056_302_529_054_626_325_948;
 
     // Corrected checksum for the address
     address constant borrowAssetWhale = 0xAc38a7473c31A1989A999C0A5DA9a4E0d57F2574;
@@ -49,8 +49,11 @@ contract HlPositionTest is Test {
 
         // Set the mock oracles in the RiskEngine
         vm.startPrank(OWNER);
-        RISK_ENGINE.setOracle(address(borrowAsset), address(borrowAssetOracle));
-        RISK_ENGINE.setOracle(address(collateralAsset), address(collateralAssetOracle));
+        //RISK_ENGINE.setOracle(address(borrowAsset), address(borrowAssetOracle));
+        //RISK_ENGINE.setOracle(
+        //    address(collateralAsset),
+        //    address(collateralAssetOracle)
+        //);
         vm.stopPrank();
         console2.log("Set oracles in RiskEngine");
 

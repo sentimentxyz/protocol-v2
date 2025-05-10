@@ -2,12 +2,13 @@
 pragma solidity ^0.8.24;
 
 import { BaseScript } from "../BaseScript.s.sol";
+import { StringUtils } from "../StringUtils.s.sol";
 import { console2 } from "forge-std/console2.sol";
 
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
 
-contract DeploySuperPool is BaseScript {
+contract DeploySuperPool is BaseScript, StringUtils {
     address superPoolFactory;
 
     address owner;
@@ -38,9 +39,16 @@ contract DeploySuperPool is BaseScript {
         owner = vm.parseJsonAddress(config, "$.DeploySuperPool.owner");
         asset = vm.parseJsonAddress(config, "$.DeploySuperPool.asset");
         feeRecipient = vm.parseJsonAddress(config, "$.DeploySuperPool.feeRecipient");
-        fee = vm.parseJsonUint(config, "$.DeploySuperPool.fee");
-        superPoolCap = vm.parseJsonUint(config, "$.DeploySuperPool.superPoolCap");
-        initialDepositAmt = vm.parseJsonUint(config, "$.DeploySuperPool.initialDepositAmt");
+
+        // Parse numeric parameters with scientific notation support
+        string memory feeStr = vm.parseJsonString(config, "$.DeploySuperPool.fee");
+        string memory superPoolCapStr = vm.parseJsonString(config, "$.DeploySuperPool.superPoolCap");
+        string memory initialDepositAmtStr = vm.parseJsonString(config, "$.DeploySuperPool.initialDepositAmt");
+
+        fee = parseScientificNotation(feeStr);
+        superPoolCap = parseScientificNotation(superPoolCapStr);
+        initialDepositAmt = parseScientificNotation(initialDepositAmtStr);
+
         name = vm.parseJsonString(config, "$.DeploySuperPool.name");
         symbol = vm.parseJsonString(config, "$.DeploySuperPool.symbol");
 

@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {BaseScript} from "./BaseScript.s.sol";
+import { BaseScript } from "./BaseScript.s.sol";
 
-import {Deploy} from "./Deploy.s.sol";
+import { Deploy } from "./Deploy.s.sol";
 
-import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {console2} from "forge-std/console2.sol";
-import {IERC20} from "forge-std/interfaces/IERC20.sol";
-import {Pool} from "src/Pool.sol";
-import {Position} from "src/Position.sol";
-import {PositionManager} from "src/PositionManager.sol";
-import {Registry} from "src/Registry.sol";
-import {RiskEngine} from "src/RiskEngine.sol";
-import {RiskModule} from "src/RiskModule.sol";
+import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import { console2 } from "forge-std/console2.sol";
+import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { Pool } from "src/Pool.sol";
+import { Position } from "src/Position.sol";
+import { PositionManager } from "src/PositionManager.sol";
+import { Registry } from "src/Registry.sol";
+import { RiskEngine } from "src/RiskEngine.sol";
+import { RiskModule } from "src/RiskModule.sol";
 
-import {SuperPool} from "src/SuperPool.sol";
-import {SuperPoolFactory} from "src/SuperPoolFactory.sol";
-import {KinkedRateModel} from "src/irm/KinkedRateModel.sol";
+import { SuperPool } from "src/SuperPool.sol";
+import { SuperPoolFactory } from "src/SuperPoolFactory.sol";
+import { KinkedRateModel } from "src/irm/KinkedRateModel.sol";
 
-import {PortfolioLens} from "src/lens/PortfolioLens.sol";
-import {SuperPoolLens} from "src/lens/SuperPoolLens.sol";
+import { PortfolioLens } from "src/lens/PortfolioLens.sol";
+import { SuperPoolLens } from "src/lens/SuperPoolLens.sol";
 
 /**
  * @title DeploymentOrchestrator
@@ -56,8 +56,7 @@ contract DeploymentOrchestrator is BaseScript {
 
     // Deployed interest rate model
     address public kinkedRateModel;
-    bytes32 public kinkedRateModelKey =
-        0x049334b29cf15884b80a41f637935fc255f34ee10a5529fa58dd36d6f35e4333;
+    bytes32 public kinkedRateModelKey = 0x049334b29cf15884b80a41f637935fc255f34ee10a5529fa58dd36d6f35e4333;
 
     // Pool variables
     uint256 public poolId;
@@ -225,23 +224,11 @@ contract DeploymentOrchestrator is BaseScript {
         string memory timestampStr = vm.toString(vm.getBlockTimestamp());
 
         // Main log file
-        string memory logFilename = string.concat(
-            logDir,
-            "deployment_",
-            chainIdStr,
-            "_",
-            timestampStr,
-            ".json"
-        );
+        string memory logFilename = string.concat(logDir, "deployment_", chainIdStr, "_", timestampStr, ".json");
         vm.writeFile(logFilename, logJson);
 
         // Latest log file
-        string memory latestLogFilename = string.concat(
-            logDir,
-            "latest_",
-            chainIdStr,
-            ".json"
-        );
+        string memory latestLogFilename = string.concat(logDir, "latest_", chainIdStr, ".json");
         vm.writeFile(latestLogFilename, logJson);
 
         console2.log("Logs saved to:", logFilename);
@@ -343,17 +330,11 @@ contract DeploymentOrchestrator is BaseScript {
      * @param notation The scientific notation string
      * @return The parsed uint256 value
      */
-    function _parseScientificNotation(
-        string memory notation
-    ) internal pure returns (uint256) {
+    function _parseScientificNotation(string memory notation) internal pure returns (uint256) {
         // Handle "max" special value
         bytes memory notationBytes = bytes(notation);
-        if (
-            notationBytes.length == 3 &&
-            notationBytes[0] == "m" &&
-            notationBytes[1] == "a" &&
-            notationBytes[2] == "x"
-        ) {
+        if (notationBytes.length == 3 && notationBytes[0] == "m" && notationBytes[1] == "a" && notationBytes[2] == "x")
+        {
             return _MAX_UINT256;
         }
 
@@ -378,10 +359,7 @@ contract DeploymentOrchestrator is BaseScript {
     }
 
     // Helper function to reduce stack depth by splitting function logic
-    function _parseWithExponent(
-        bytes memory notationBytes,
-        uint256 ePosition
-    ) internal pure returns (uint256) {
+    function _parseWithExponent(bytes memory notationBytes, uint256 ePosition) internal pure returns (uint256) {
         // Extract coefficient
         string memory coeffStr = "";
         {
@@ -428,7 +406,11 @@ contract DeploymentOrchestrator is BaseScript {
         string memory coeffStr,
         uint256 decimalPos,
         string memory expStr
-    ) internal pure returns (uint256) {
+    )
+        internal
+        pure
+        returns (uint256)
+    {
         bytes memory coeffBytes = bytes(coeffStr);
 
         // Prepare coefficient without decimal point
@@ -482,10 +464,7 @@ contract DeploymentOrchestrator is BaseScript {
         console2.log("Configuration loaded:");
         console2.log("minLtv:", _protocolParams.minLtv);
         console2.log("maxLtv:", _protocolParams.maxLtv);
-        console2.log(
-            "borrowAssetPoolCap:",
-            _borrowPoolParams.borrowAssetPoolCap
-        );
+        console2.log("borrowAssetPoolCap:", _borrowPoolParams.borrowAssetPoolCap);
         console2.log("collateralLtv:", _ltvSettings.collateralLtv);
     }
 
@@ -499,210 +478,124 @@ contract DeploymentOrchestrator is BaseScript {
     // Split protocol params loading to reduce stack depth
     function _loadProtocolOwnerInfo(string memory configJson) internal {
         // Protocol ownership params
-        _protocolParams.owner = vm.parseJsonAddress(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.owner"
-        );
-        _protocolParams.proxyAdmin = vm.parseJsonAddress(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.proxyAdmin"
-        );
-        _protocolParams.feeRecipient = vm.parseJsonAddress(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.feeRecipient"
-        );
+        _protocolParams.owner = vm.parseJsonAddress(configJson, "$.DeploymentOrchestrator.protocolParams.owner");
+        _protocolParams.proxyAdmin =
+            vm.parseJsonAddress(configJson, "$.DeploymentOrchestrator.protocolParams.proxyAdmin");
+        _protocolParams.feeRecipient =
+            vm.parseJsonAddress(configJson, "$.DeploymentOrchestrator.protocolParams.feeRecipient");
     }
 
     // Handle LTV and rates separately
     function _loadProtocolLtvRates(string memory configJson) internal {
         // LTV params
-        string memory minLtvStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.minLtv"
-        );
+        string memory minLtvStr = vm.parseJsonString(configJson, "$.DeploymentOrchestrator.protocolParams.minLtv");
         _protocolParams.minLtv = _parseScientificNotation(minLtvStr);
 
-        string memory maxLtvStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.maxLtv"
-        );
+        string memory maxLtvStr = vm.parseJsonString(configJson, "$.DeploymentOrchestrator.protocolParams.maxLtv");
         _protocolParams.maxLtv = _parseScientificNotation(maxLtvStr);
 
         // Min amounts
-        string memory minDebtStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.minDebt"
-        );
+        string memory minDebtStr = vm.parseJsonString(configJson, "$.DeploymentOrchestrator.protocolParams.minDebt");
         _protocolParams.minDebt = _parseScientificNotation(minDebtStr);
 
-        string memory minBorrowStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.minBorrow"
-        );
+        string memory minBorrowStr = vm.parseJsonString(configJson, "$.DeploymentOrchestrator.protocolParams.minBorrow");
         _protocolParams.minBorrow = _parseScientificNotation(minBorrowStr);
     }
 
     // Handle fee information separately
     function _loadProtocolFeeInfo(string memory configJson) internal {
         // Liquidation related parameters
-        string memory liquidationFeeStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.liquidationFee"
-        );
-        _protocolParams.liquidationFee = _parseScientificNotation(
-            liquidationFeeStr
-        );
+        string memory liquidationFeeStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.protocolParams.liquidationFee");
+        _protocolParams.liquidationFee = _parseScientificNotation(liquidationFeeStr);
 
-        string memory liquidationDiscountStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.liquidationDiscount"
-        );
-        _protocolParams.liquidationDiscount = _parseScientificNotation(
-            liquidationDiscountStr
-        );
+        string memory liquidationDiscountStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.protocolParams.liquidationDiscount");
+        _protocolParams.liquidationDiscount = _parseScientificNotation(liquidationDiscountStr);
 
-        string memory badDebtLiquidationDiscountStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.badDebtLiquidationDiscount"
-        );
-        _protocolParams.badDebtLiquidationDiscount = _parseScientificNotation(
-            badDebtLiquidationDiscountStr
-        );
+        string memory badDebtLiquidationDiscountStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.protocolParams.badDebtLiquidationDiscount");
+        _protocolParams.badDebtLiquidationDiscount = _parseScientificNotation(badDebtLiquidationDiscountStr);
 
         // Fee parameters
-        string memory defaultInterestFeeStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.defaultInterestFee"
-        );
-        _protocolParams.defaultInterestFee = _parseScientificNotation(
-            defaultInterestFeeStr
-        );
+        string memory defaultInterestFeeStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.protocolParams.defaultInterestFee");
+        _protocolParams.defaultInterestFee = _parseScientificNotation(defaultInterestFeeStr);
 
-        string memory defaultOriginationFeeStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.protocolParams.defaultOriginationFee"
-        );
-        _protocolParams.defaultOriginationFee = _parseScientificNotation(
-            defaultOriginationFeeStr
-        );
+        string memory defaultOriginationFeeStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.protocolParams.defaultOriginationFee");
+        _protocolParams.defaultOriginationFee = _parseScientificNotation(defaultOriginationFeeStr);
     }
 
     function _loadRateModelParams(string memory configJson) internal {
         // KinkedRateModel parameters
-        string memory minRateStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.kinkedRateModelParams.minRate"
-        );
+        string memory minRateStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.kinkedRateModelParams.minRate");
         _rateModelParams.minRate = _parseScientificNotation(minRateStr);
 
-        string memory slope1Str = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.kinkedRateModelParams.slope1"
-        );
+        string memory slope1Str =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.kinkedRateModelParams.slope1");
         _rateModelParams.slope1 = _parseScientificNotation(slope1Str);
 
-        string memory slope2Str = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.kinkedRateModelParams.slope2"
-        );
+        string memory slope2Str =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.kinkedRateModelParams.slope2");
         _rateModelParams.slope2 = _parseScientificNotation(slope2Str);
 
-        string memory optimalUtilStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.kinkedRateModelParams.optimalUtil"
-        );
+        string memory optimalUtilStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.kinkedRateModelParams.optimalUtil");
         _rateModelParams.optimalUtil = _parseScientificNotation(optimalUtilStr);
     }
 
     function _loadAssetParams(string memory configJson) internal {
         // Assets
-        _assetParams.borrowAsset = vm.parseJsonAddress(
-            configJson,
-            "$.DeploymentOrchestrator.assetParams.borrowAsset"
-        );
-        _assetParams.borrowAssetOracle = vm.parseJsonAddress(
-            configJson,
-            "$.DeploymentOrchestrator.assetParams.borrowAssetOracle"
-        );
-        _assetParams.collateralAsset = vm.parseJsonAddress(
-            configJson,
-            "$.DeploymentOrchestrator.assetParams.collateralAsset"
-        );
-        _assetParams.collateralAssetOracle = vm.parseJsonAddress(
-            configJson,
-            "$.DeploymentOrchestrator.assetParams.collateralAssetOracle"
-        );
+        _assetParams.borrowAsset = vm.parseJsonAddress(configJson, "$.DeploymentOrchestrator.assetParams.borrowAsset");
+        _assetParams.borrowAssetOracle =
+            vm.parseJsonAddress(configJson, "$.DeploymentOrchestrator.assetParams.borrowAssetOracle");
+        _assetParams.collateralAsset =
+            vm.parseJsonAddress(configJson, "$.DeploymentOrchestrator.assetParams.collateralAsset");
+        _assetParams.collateralAssetOracle =
+            vm.parseJsonAddress(configJson, "$.DeploymentOrchestrator.assetParams.collateralAssetOracle");
     }
 
     function _loadBorrowPoolParams(string memory configJson) internal {
         // Borrow asset pool parameters
-        string memory borrowAssetPoolCapStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.borrowPoolParams.borrowAssetPoolCap"
-        );
-        _borrowPoolParams.borrowAssetPoolCap = _parseScientificNotation(
-            borrowAssetPoolCapStr
-        );
+        string memory borrowAssetPoolCapStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.borrowPoolParams.borrowAssetPoolCap");
+        _borrowPoolParams.borrowAssetPoolCap = _parseScientificNotation(borrowAssetPoolCapStr);
 
-        string memory borrowAssetBorrowCapStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.borrowPoolParams.borrowAssetBorrowCap"
-        );
-        _borrowPoolParams.borrowAssetBorrowCap = _parseScientificNotation(
-            borrowAssetBorrowCapStr
-        );
+        string memory borrowAssetBorrowCapStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.borrowPoolParams.borrowAssetBorrowCap");
+        _borrowPoolParams.borrowAssetBorrowCap = _parseScientificNotation(borrowAssetBorrowCapStr);
 
-        string memory borrowAssetInitialDepositStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.borrowPoolParams.borrowAssetInitialDeposit"
-        );
-        _borrowPoolParams.borrowAssetInitialDeposit = _parseScientificNotation(
-            borrowAssetInitialDepositStr
-        );
+        string memory borrowAssetInitialDepositStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.borrowPoolParams.borrowAssetInitialDeposit");
+        _borrowPoolParams.borrowAssetInitialDeposit = _parseScientificNotation(borrowAssetInitialDepositStr);
     }
 
     function _loadSuperPoolParams(string memory configJson) internal {
         // SuperPool parameters
-        string memory superPoolCapStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.superPoolParams.superPoolCap"
-        );
-        _superPoolParams.superPoolCap = _parseScientificNotation(
-            superPoolCapStr
-        );
+        string memory superPoolCapStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.superPoolParams.superPoolCap");
+        _superPoolParams.superPoolCap = _parseScientificNotation(superPoolCapStr);
 
-        string memory superPoolFeeStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.superPoolParams.superPoolFee"
-        );
-        _superPoolParams.superPoolFee = _parseScientificNotation(
-            superPoolFeeStr
-        );
+        string memory superPoolFeeStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.superPoolParams.superPoolFee");
+        _superPoolParams.superPoolFee = _parseScientificNotation(superPoolFeeStr);
 
-        string memory superPoolInitialDepositStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.superPoolParams.superPoolInitialDeposit"
-        );
-        _superPoolParams.superPoolInitialDeposit = _parseScientificNotation(
-            superPoolInitialDepositStr
-        );
+        string memory superPoolInitialDepositStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.superPoolParams.superPoolInitialDeposit");
+        _superPoolParams.superPoolInitialDeposit = _parseScientificNotation(superPoolInitialDepositStr);
 
-        _superPoolParams.superPoolName = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.superPoolParams.superPoolName"
-        );
-        _superPoolParams.superPoolSymbol = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.superPoolParams.superPoolSymbol"
-        );
+        _superPoolParams.superPoolName =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.superPoolParams.superPoolName");
+        _superPoolParams.superPoolSymbol =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.superPoolParams.superPoolSymbol");
     }
 
     function _loadLtvSettings(string memory configJson) internal {
         // LTV settings
-        string memory collateralLtvStr = vm.parseJsonString(
-            configJson,
-            "$.DeploymentOrchestrator.ltvSettings.collateralLtv"
-        );
+        string memory collateralLtvStr =
+            vm.parseJsonString(configJson, "$.DeploymentOrchestrator.ltvSettings.collateralLtv");
         _ltvSettings.collateralLtv = _parseScientificNotation(collateralLtvStr);
     }
 
@@ -733,24 +626,15 @@ contract DeploymentOrchestrator is BaseScript {
 
     // Deploy RiskEngine
     function _deployRiskEngine() internal {
-        RiskEngine riskEngineImpl = new RiskEngine(
-            registry,
-            _protocolParams.minLtv,
-            _protocolParams.maxLtv
-        );
+        RiskEngine riskEngineImpl = new RiskEngine(registry, _protocolParams.minLtv, _protocolParams.maxLtv);
         riskEngine = address(riskEngineImpl);
         console2.log("RiskEngine deployed:", riskEngine);
     }
 
     // Deploy RiskModule
     function _deployRiskModule() internal {
-        riskModule = address(
-            new RiskModule(
-                registry,
-                _protocolParams.liquidationDiscount,
-                _protocolParams.liquidationFee
-            )
-        );
+        riskModule =
+            address(new RiskModule(registry, _protocolParams.liquidationDiscount, _protocolParams.liquidationFee));
         console2.log("RiskModule deployed:", riskModule);
     }
 
@@ -789,21 +673,14 @@ contract DeploymentOrchestrator is BaseScript {
         // Deploy PositionManager implementation
         PositionManager _positionManagerImpl = new PositionManager();
         positionManagerImpl = address(_positionManagerImpl);
-        console2.log(
-            "PositionManager implementation deployed:",
-            positionManagerImpl
-        );
+        console2.log("PositionManager implementation deployed:", positionManagerImpl);
 
         // Deploy PositionManager proxy
         TransparentUpgradeableProxy positionManagerProxy = new TransparentUpgradeableProxy(
-                positionManagerImpl,
-                _protocolParams.proxyAdmin,
-                abi.encodeWithSelector(
-                    PositionManager.initialize.selector,
-                    _protocolParams.owner,
-                    registry
-                )
-            );
+            positionManagerImpl,
+            _protocolParams.proxyAdmin,
+            abi.encodeWithSelector(PositionManager.initialize.selector, _protocolParams.owner, registry)
+        );
         positionManager = address(positionManagerProxy);
         console2.log("PositionManager proxy deployed:", positionManager);
 
@@ -822,34 +699,21 @@ contract DeploymentOrchestrator is BaseScript {
         superPoolLens = address(new SuperPoolLens(pool, riskEngine));
         console2.log("SuperPoolLens deployed:", superPoolLens);
 
-        portfolioLens = address(
-            new PortfolioLens(pool, riskEngine, positionManager)
-        );
+        portfolioLens = address(new PortfolioLens(pool, riskEngine, positionManager));
         console2.log("PortfolioLens deployed:", portfolioLens);
     }
 
     // Set up the Registry with all components
     function _setupRegistry() internal {
         Registry(registry).setAddress(
-            0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148,
-            positionManager
+            0xd4927490fbcbcafca716cca8e8c8b7d19cda785679d224b14f15ce2a9a93e148, positionManager
         );
+        Registry(registry).setAddress(0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728, pool);
+        Registry(registry).setAddress(0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555, riskEngine);
         Registry(registry).setAddress(
-            0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728,
-            pool
+            0x6e7384c78b0e09fb848f35d00a7b14fc1ad10ae9b10117368146c0e09b6f2fa2, positionBeacon
         );
-        Registry(registry).setAddress(
-            0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555,
-            riskEngine
-        );
-        Registry(registry).setAddress(
-            0x6e7384c78b0e09fb848f35d00a7b14fc1ad10ae9b10117368146c0e09b6f2fa2,
-            positionBeacon
-        );
-        Registry(registry).setAddress(
-            0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77,
-            riskModule
-        );
+        Registry(registry).setAddress(0x881469d14b8443f6c918bdd0a641e9d7cae2592dc28a4f922a2c4d7ca3d19c77, riskModule);
     }
 
     // Update relationships between contracts
@@ -866,46 +730,26 @@ contract DeploymentOrchestrator is BaseScript {
         // Deploy KinkedRateModel
         kinkedRateModel = address(
             new KinkedRateModel(
-                _rateModelParams.minRate,
-                _rateModelParams.slope1,
-                _rateModelParams.slope2,
-                _rateModelParams.optimalUtil
+                _rateModelParams.minRate, _rateModelParams.slope1, _rateModelParams.slope2, _rateModelParams.optimalUtil
             )
         );
         console2.log("KinkedRateModel deployed:", kinkedRateModel);
 
         // Register KinkedRateModel in Registry
         Registry(registry).setRateModel(kinkedRateModelKey, kinkedRateModel);
-        console2.log(
-            "KinkedRateModel registered with key:",
-            vm.toString(kinkedRateModelKey)
-        );
+        console2.log("KinkedRateModel registered with key:", vm.toString(kinkedRateModelKey));
     }
 
     function _registerOraclesInternal() internal {
         console2.log("3. Registering oracles...");
 
         // Set oracles for both assets
-        RiskEngine(riskEngine).setOracle(
-            _assetParams.borrowAsset,
-            _assetParams.borrowAssetOracle
-        );
-        console2.log(
-            "Oracle set for borrowAsset:",
-            _assetParams.borrowAsset,
-            "=>",
-            _assetParams.borrowAssetOracle
-        );
+        RiskEngine(riskEngine).setOracle(_assetParams.borrowAsset, _assetParams.borrowAssetOracle);
+        console2.log("Oracle set for borrowAsset:", _assetParams.borrowAsset, "=>", _assetParams.borrowAssetOracle);
 
-        RiskEngine(riskEngine).setOracle(
-            _assetParams.collateralAsset,
-            _assetParams.collateralAssetOracle
-        );
+        RiskEngine(riskEngine).setOracle(_assetParams.collateralAsset, _assetParams.collateralAssetOracle);
         console2.log(
-            "Oracle set for collateralAsset:",
-            _assetParams.collateralAsset,
-            "=>",
-            _assetParams.collateralAssetOracle
+            "Oracle set for collateralAsset:", _assetParams.collateralAsset, "=>", _assetParams.collateralAssetOracle
         );
     }
 
@@ -914,14 +758,8 @@ contract DeploymentOrchestrator is BaseScript {
 
         // Approve tokens based on configuration
         if (_borrowPoolParams.borrowAssetInitialDeposit > 0) {
-            IERC20(_assetParams.borrowAsset).approve(
-                pool,
-                _borrowPoolParams.borrowAssetInitialDeposit
-            );
-            console2.log(
-                "Approved borrow asset for initial deposit:",
-                _borrowPoolParams.borrowAssetInitialDeposit
-            );
+            IERC20(_assetParams.borrowAsset).approve(pool, _borrowPoolParams.borrowAssetInitialDeposit);
+            console2.log("Approved borrow asset for initial deposit:", _borrowPoolParams.borrowAssetInitialDeposit);
         }
 
         // Initialize pool for the borrow asset
@@ -941,28 +779,12 @@ contract DeploymentOrchestrator is BaseScript {
         console2.log("5. Setting LTV...");
 
         // Request and accept LTV update for the collateral asset
-        RiskEngine(riskEngine).requestLtvUpdate(
-            poolId,
-            _assetParams.collateralAsset,
-            _ltvSettings.collateralLtv
-        );
+        RiskEngine(riskEngine).requestLtvUpdate(poolId, _assetParams.collateralAsset, _ltvSettings.collateralLtv);
 
         // Since this is a first-time LTV setting, we can accept it immediately without timelock
-        if (
-            RiskEngine(riskEngine).ltvFor(
-                poolId,
-                _assetParams.collateralAsset
-            ) == 0
-        ) {
-            RiskEngine(riskEngine).acceptLtvUpdate(
-                poolId,
-                _assetParams.collateralAsset
-            );
-            console2.log(
-                "LTV set for collateralAsset in pool:",
-                poolId,
-                _ltvSettings.collateralLtv
-            );
+        if (RiskEngine(riskEngine).ltvFor(poolId, _assetParams.collateralAsset) == 0) {
+            RiskEngine(riskEngine).acceptLtvUpdate(poolId, _assetParams.collateralAsset);
+            console2.log("LTV set for collateralAsset in pool:", poolId, _ltvSettings.collateralLtv);
         }
     }
 
@@ -971,14 +793,8 @@ contract DeploymentOrchestrator is BaseScript {
 
         // Approve tokens based on configuration
         if (_superPoolParams.superPoolInitialDeposit > 0) {
-            IERC20(_assetParams.borrowAsset).approve(
-                superPoolFactory,
-                _superPoolParams.superPoolInitialDeposit
-            );
-            console2.log(
-                "Approved borrow asset for SuperPool Factory:",
-                _superPoolParams.superPoolInitialDeposit
-            );
+            IERC20(_assetParams.borrowAsset).approve(superPoolFactory, _superPoolParams.superPoolInitialDeposit);
+            console2.log("Approved borrow asset for SuperPool Factory:", _superPoolParams.superPoolInitialDeposit);
         }
 
         console2.log("Deploying SuperPool with parameters:");
@@ -987,10 +803,7 @@ contract DeploymentOrchestrator is BaseScript {
         console2.log("- Fee Recipient:", _protocolParams.feeRecipient);
         console2.log("- SuperPool Fee:", _superPoolParams.superPoolFee);
         console2.log("- SuperPool Cap:", _superPoolParams.superPoolCap);
-        console2.log(
-            "- Initial Deposit:",
-            _superPoolParams.superPoolInitialDeposit
-        );
+        console2.log("- Initial Deposit:", _superPoolParams.superPoolInitialDeposit);
         console2.log("- Name:", _superPoolParams.superPoolName);
         console2.log("- Symbol:", _superPoolParams.superPoolSymbol);
 
@@ -1012,32 +825,19 @@ contract DeploymentOrchestrator is BaseScript {
         console2.log("7. Setting pool cap in SuperPool...");
 
         // Add pool to SuperPool with cap
-        SuperPool(deployedSuperPool).addPool(
-            poolId,
-            _superPoolParams.superPoolCap
-        );
-        console2.log(
-            "Pool added to SuperPool with cap:",
-            _superPoolParams.superPoolCap
-        );
+        SuperPool(deployedSuperPool).addPool(poolId, _superPoolParams.superPoolCap);
+        console2.log("Pool added to SuperPool with cap:", _superPoolParams.superPoolCap);
     }
 
     function _whitelistAssets() internal {
         console2.log("8. Whitelisting assets in PositionManager...");
 
         // Whitelist borrow and collateral assets
-        PositionManager(positionManager).toggleKnownAsset(
-            _assetParams.borrowAsset
-        );
+        PositionManager(positionManager).toggleKnownAsset(_assetParams.borrowAsset);
         console2.log("Whitelisted borrowAsset:", _assetParams.borrowAsset);
 
-        PositionManager(positionManager).toggleKnownAsset(
-            _assetParams.collateralAsset
-        );
-        console2.log(
-            "Whitelisted collateralAsset:",
-            _assetParams.collateralAsset
-        );
+        PositionManager(positionManager).toggleKnownAsset(_assetParams.collateralAsset);
+        console2.log("Whitelisted collateralAsset:", _assetParams.collateralAsset);
     }
 
     function _logToConsole() internal view {
@@ -1064,10 +864,7 @@ contract DeploymentOrchestrator is BaseScript {
         console2.log("- BorrowAsset:", _assetParams.borrowAsset);
         console2.log("- BorrowAssetOracle:", _assetParams.borrowAssetOracle);
         console2.log("- CollateralAsset:", _assetParams.collateralAsset);
-        console2.log(
-            "- CollateralAssetOracle:",
-            _assetParams.collateralAssetOracle
-        );
+        console2.log("- CollateralAssetOracle:", _assetParams.collateralAssetOracle);
 
         console2.log("SuperPool:");
         console2.log("- DeployedSuperPool:", deployedSuperPool);

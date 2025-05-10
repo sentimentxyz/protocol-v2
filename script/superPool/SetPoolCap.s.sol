@@ -2,10 +2,11 @@
 pragma solidity ^0.8.24;
 
 import { BaseScript } from "../BaseScript.s.sol";
+import { StringUtils } from "../StringUtils.s.sol";
 import { console2 } from "forge-std/console2.sol";
 import { SuperPool } from "src/SuperPool.sol";
 
-contract SetPoolCap is BaseScript {
+contract SetPoolCap is BaseScript, StringUtils {
     uint256 poolId;
     uint256 poolCap;
     SuperPool superPool;
@@ -22,7 +23,11 @@ contract SetPoolCap is BaseScript {
         string memory config = getConfig();
 
         poolId = vm.parseJsonUint(config, "$.SetPoolCap.poolId");
-        poolCap = vm.parseJsonUint(config, "$.SetPoolCap.poolCap");
+
+        // Parse poolCap with scientific notation support
+        string memory poolCapStr = vm.parseJsonString(config, "$.SetPoolCap.poolCap");
+        poolCap = parseScientificNotation(poolCapStr);
+
         superPool = SuperPool(vm.parseJsonAddress(config, "$.SetPoolCap.superPool"));
     }
 }

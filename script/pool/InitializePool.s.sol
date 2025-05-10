@@ -2,15 +2,15 @@
 pragma solidity ^0.8.24;
 
 import { BaseScript } from "../BaseScript.s.sol";
+import { StringUtils } from "../StringUtils.s.sol";
 import { console2 } from "forge-std/console2.sol";
 
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 
 import { Pool } from "src/Pool.sol";
 import { MockERC20 } from "test/mocks/MockERC20.sol";
-import { MockERC20 } from "test/mocks/MockERC20.sol";
 
-contract InitializePool is BaseScript {
+contract InitializePool is BaseScript, StringUtils {
     address pool;
     address owner;
     address asset;
@@ -34,9 +34,15 @@ contract InitializePool is BaseScript {
         owner = vm.parseJsonAddress(config, "$.InitializePool.owner");
         asset = vm.parseJsonAddress(config, "$.InitializePool.asset");
         rateModelKey = vm.parseJsonBytes32(config, "$.InitializePool.rateModelKey");
-        borrowCap = vm.parseJsonUint(config, "$.InitializePool.borrowCap");
-        depositCap = vm.parseJsonUint(config, "$.InitializePool.depositCap");
-        initialDepositAmt = (vm.parseJsonUint(config, "$.InitializePool.initialDepositAmt"));
+
+        // Parse numeric parameters with scientific notation support
+        string memory borrowCapStr = vm.parseJsonString(config, "$.InitializePool.borrowCap");
+        string memory depositCapStr = vm.parseJsonString(config, "$.InitializePool.depositCap");
+        string memory initialDepositStr = vm.parseJsonString(config, "$.InitializePool.initialDepositAmt");
+
+        borrowCap = parseScientificNotation(borrowCapStr);
+        depositCap = parseScientificNotation(depositCapStr);
+        initialDepositAmt = parseScientificNotation(initialDepositStr);
 
         console2.log("pool: ", pool);
         console2.log("owner: ", owner);

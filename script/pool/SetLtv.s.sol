@@ -2,10 +2,11 @@
 pragma solidity ^0.8.24;
 
 import "../BaseScript.s.sol";
+import { StringUtils } from "../StringUtils.s.sol";
 import { console2 } from "forge-std/console2.sol";
 import { RiskEngine } from "src/RiskEngine.sol";
 
-contract SetLtv is BaseScript {
+contract SetLtv is BaseScript, StringUtils {
     uint256 ltv;
     uint256 poolId;
     address asset;
@@ -29,7 +30,10 @@ contract SetLtv is BaseScript {
     function getParams() internal {
         string memory config = getConfig();
 
-        ltv = vm.parseJsonUint(config, "$.SetLtv.ltv");
+        // Parse ltv with scientific notation support
+        string memory ltvStr = vm.parseJsonString(config, "$.SetLtv.ltv");
+        ltv = parseScientificNotation(ltvStr);
+
         poolId = vm.parseJsonUint(config, "$.SetLtv.poolId");
         asset = vm.parseJsonAddress(config, "$.SetLtv.asset");
         riskEngine = RiskEngine(vm.parseJsonAddress(config, "$.SetLtv.riskEngine"));

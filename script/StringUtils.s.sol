@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {BaseScript} from "./BaseScript.s.sol";
+import { BaseScript } from "./BaseScript.s.sol";
 
 /**
  * @title StringUtils
@@ -17,17 +17,11 @@ contract StringUtils is BaseScript {
      * @param notation The scientific notation string
      * @return The parsed uint256 value
      */
-    function parseScientificNotation(
-        string memory notation
-    ) public pure returns (uint256) {
+    function parseScientificNotation(string memory notation) public pure returns (uint256) {
         // Handle "max" special value
         bytes memory notationBytes = bytes(notation);
-        if (
-            notationBytes.length == 3 &&
-            notationBytes[0] == "m" &&
-            notationBytes[1] == "a" &&
-            notationBytes[2] == "x"
-        ) {
+        if (notationBytes.length == 3 && notationBytes[0] == "m" && notationBytes[1] == "a" && notationBytes[2] == "x")
+        {
             return _MAX_UINT256;
         }
 
@@ -45,11 +39,7 @@ contract StringUtils is BaseScript {
 
         // Extract the coefficient and exponent parts
         string memory coeffStr = substring(notation, 0, uint256(ePos));
-        string memory expStr = substring(
-            notation,
-            uint256(ePos) + 1,
-            notationBytes.length - uint256(ePos) - 1
-        );
+        string memory expStr = substring(notation, uint256(ePos) + 1, notationBytes.length - uint256(ePos) - 1);
 
         // Parse coefficient as decimal
         uint256 decimalPos = findDecimalPoint(coeffStr);
@@ -60,16 +50,10 @@ contract StringUtils is BaseScript {
             // Has decimal point, count decimals and remove the point
             decimals = bytes(coeffStr).length - decimalPos - 1;
             string memory intPart = substring(coeffStr, 0, decimalPos);
-            string memory decPart = substring(
-                coeffStr,
-                decimalPos + 1,
-                bytes(coeffStr).length - decimalPos - 1
-            );
+            string memory decPart = substring(coeffStr, decimalPos + 1, bytes(coeffStr).length - decimalPos - 1);
 
             if (bytes(intPart).length == 0) intPart = "0";
-            coefficient = vm.parseUint(
-                string(abi.encodePacked(intPart, decPart))
-            );
+            coefficient = vm.parseUint(string(abi.encodePacked(intPart, decPart)));
         } else {
             // No decimal point
             coefficient = vm.parseUint(coeffStr);
@@ -107,16 +91,9 @@ contract StringUtils is BaseScript {
      * @param length The length of the substring
      * @return The extracted substring
      */
-    function substring(
-        string memory str,
-        uint256 startIndex,
-        uint256 length
-    ) public pure returns (string memory) {
+    function substring(string memory str, uint256 startIndex, uint256 length) public pure returns (string memory) {
         bytes memory strBytes = bytes(str);
-        require(
-            startIndex + length <= strBytes.length,
-            "Substring out of bounds"
-        );
+        require(startIndex + length <= strBytes.length, "Substring out of bounds");
 
         bytes memory result = new bytes(length);
         for (uint256 i = 0; i < length; i++) {

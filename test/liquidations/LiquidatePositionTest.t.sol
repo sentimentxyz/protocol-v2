@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {Test} from "forge-std/Test.sol";
-import {console} from "forge-std/console.sol";
-import {IERC20} from "forge-std/interfaces/IERC20.sol";
-import {LiquidatePosition} from "../../script/liquidations/LiquidatePosition.s.sol";
-import {DebtData, AssetData} from "../../src/PositionManager.sol";
+import { LiquidatePosition } from "../../script/liquidations/LiquidatePosition.s.sol";
+import { AssetData, DebtData } from "../../src/PositionManager.sol";
+import { Test } from "forge-std/Test.sol";
+import { console } from "forge-std/console.sol";
+import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 
 // Mock contracts for testing
 contract MockERC20 is IERC20 {
@@ -27,10 +27,7 @@ contract MockERC20 is IERC20 {
         return true;
     }
 
-    function allowance(
-        address,
-        address
-    ) external pure override returns (uint256) {
+    function allowance(address, address) external pure override returns (uint256) {
         return 0;
     }
 
@@ -38,11 +35,7 @@ contract MockERC20 is IERC20 {
         return true;
     }
 
-    function transferFrom(
-        address,
-        address,
-        uint256
-    ) external pure override returns (bool) {
+    function transferFrom(address, address, uint256) external pure override returns (bool) {
         return true;
     }
 
@@ -104,7 +97,11 @@ contract MockPositionManager {
         address position,
         DebtData[] calldata debtData,
         AssetData[] calldata assetData
-    ) external pure returns (bool) {
+    )
+        external
+        pure
+        returns (bool)
+    {
         // Just verify we have data
         require(position != address(0), "Invalid position");
         require(debtData.length > 0, "No debt data");
@@ -112,10 +109,7 @@ contract MockPositionManager {
         return true;
     }
 
-    function liquidateBadDebt(
-        address position,
-        DebtData[] calldata debtData
-    ) external pure returns (bool) {
+    function liquidateBadDebt(address position, DebtData[] calldata debtData) external pure returns (bool) {
         require(position != address(0), "Invalid position");
         require(debtData.length > 0, "No debt data");
         return true;
@@ -130,11 +124,7 @@ contract MockPool {
         _poolAssets[poolId] = asset;
     }
 
-    function setBorrow(
-        uint256 poolId,
-        address position,
-        uint256 amount
-    ) external {
+    function setBorrow(uint256 poolId, address position, uint256 amount) external {
         _borrows[poolId][position] = amount;
     }
 
@@ -142,10 +132,7 @@ contract MockPool {
         return _poolAssets[poolId];
     }
 
-    function getBorrowsOf(
-        uint256 poolId,
-        address position
-    ) external view returns (uint256) {
+    function getBorrowsOf(uint256 poolId, address position) external view returns (uint256) {
         return _borrows[poolId][position];
     }
 }
@@ -166,10 +153,7 @@ contract MockRiskEngine {
         return _healthFactor;
     }
 
-    function getValueInEth(
-        address asset,
-        uint256 amount
-    ) external view returns (uint256) {
+    function getValueInEth(address asset, uint256 amount) external view returns (uint256) {
         return (_assetValues[asset] * amount) / 1e18;
     }
 }
@@ -192,9 +176,7 @@ contract MockRiskModule {
         return _liquidationDiscount;
     }
 
-    function getRiskData(
-        address
-    ) external view returns (uint256, uint256, uint256) {
+    function getRiskData(address) external view returns (uint256, uint256, uint256) {
         return (_totalAssetValue, _totalDebtValue, 0);
     }
 }
@@ -263,21 +245,11 @@ contract LiquidatePositionTest is Test {
 
         // Register components in registry
         _registry.setAddress(
-            0x6dd43ab6d3bb2aa7a9f308ce05c7af32c69fde182d0ee8f86cc9fa464a1a764e,
-            address(_positionManager)
+            0x6dd43ab6d3bb2aa7a9f308ce05c7af32c69fde182d0ee8f86cc9fa464a1a764e, address(_positionManager)
         );
-        _registry.setAddress(
-            0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728,
-            address(_pool)
-        );
-        _registry.setAddress(
-            0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555,
-            address(_riskEngine)
-        );
-        _registry.setAddress(
-            0x7f16b5acb37cda5a0d0e6575e9d65afc0f46db0e4ed63ae5a8eced15aef1dded,
-            address(_riskModule)
-        );
+        _registry.setAddress(0x1a99cbf6006db18a0e08427ff11db78f3ea1054bc5b9d48122aae8d206c09728, address(_pool));
+        _registry.setAddress(0x5b6696788621a5d6b5e3b02a69896b9dd824ebf1631584f038a393c29b6d7555, address(_riskEngine));
+        _registry.setAddress(0x7f16b5acb37cda5a0d0e6575e9d65afc0f46db0e4ed63ae5a8eced15aef1dded, address(_riskModule));
 
         // Create the liquidation script
         _liquidator = new LiquidatePosition();
@@ -295,49 +267,34 @@ contract LiquidatePositionTest is Test {
         // This will call the script but without broadcasting
         uint256[] memory debtPools = new uint256[](1);
         vm.mockCall(
-            address(_position),
-            abi.encodeWithSelector(MockPosition.getDebtPools.selector),
-            abi.encode(debtPools)
+            address(_position), abi.encodeWithSelector(MockPosition.getDebtPools.selector), abi.encode(debtPools)
         );
 
         address[] memory assets = new address[](2);
         vm.mockCall(
-            address(_position),
-            abi.encodeWithSelector(MockPosition.getPositionAssets.selector),
-            abi.encode(assets)
+            address(_position), abi.encodeWithSelector(MockPosition.getPositionAssets.selector), abi.encode(assets)
         );
 
         // Test the calculation logic directly
         AssetData[] memory assetData = new AssetData[](2);
-        assetData[0] = AssetData({asset: address(_token1), amt: 10e18});
-        assetData[1] = AssetData({asset: address(_token2), amt: 5e18});
+        assetData[0] = AssetData({ asset: address(_token1), amt: 10e18 });
+        assetData[1] = AssetData({ asset: address(_token2), amt: 5e18 });
 
         DebtData[] memory debtData = new DebtData[](1);
-        debtData[0] = DebtData({poolId: 1, amt: 10e18});
+        debtData[0] = DebtData({ poolId: 1, amt: 10e18 });
 
         // The actual test is just to make sure this doesn't revert
         vm.mockCall(
-            address(_positionManager),
-            abi.encodeWithSelector(MockPositionManager.liquidate.selector),
-            abi.encode(true)
+            address(_positionManager), abi.encodeWithSelector(MockPositionManager.liquidate.selector), abi.encode(true)
         );
 
         console.log("=== Testing LiquidatePosition script ===");
-        console.log(
-            "Position health factor:",
-            _riskEngine.getPositionHealthFactor(_testPosition)
-        );
+        console.log("Position health factor:", _riskEngine.getPositionHealthFactor(_testPosition));
         console.log("Liquidation discount:", _riskModule.liquidationDiscount());
 
         // Check the basic functionality works
-        assertTrue(
-            _riskEngine.getPositionHealthFactor(_testPosition) < 1e18,
-            "Position should be unhealthy"
-        );
-        assertTrue(
-            _positionManager.ownerOf(_testPosition) == _testUser,
-            "Position owner should be testUser"
-        );
+        assertTrue(_riskEngine.getPositionHealthFactor(_testPosition) < 1e18, "Position should be unhealthy");
+        assertTrue(_positionManager.ownerOf(_testPosition) == _testUser, "Position owner should be testUser");
 
         console.log("Test completed successfully");
     }

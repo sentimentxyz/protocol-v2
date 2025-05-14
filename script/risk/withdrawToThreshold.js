@@ -2,9 +2,9 @@
 // Script to withdraw assets from a position to bring health factor close to 1e18
 //
 // USAGE:
-// - Run script: node scripts/withdrawToThreshold.js
-// - Specify custom amount: node scripts/withdrawToThreshold.js --amount=0.5
-// - Non-interactive mode: node scripts/withdrawToThreshold.js --non-interactive
+// - Run script: node script/risk/withdrawToThreshold.js
+// - Specify custom amount: node script/risk/withdrawToThreshold.js --amount=0.5
+// - Non-interactive mode: node script/risk/withdrawToThreshold.js --non-interactive
 //   (requires PRIVATE_KEY environment variable)
 //
 // This script:
@@ -34,7 +34,7 @@ if (CUSTOM_AMOUNT) {
 }
 
 // Constants
-const POSITION_ADDRESS = '0xBeFB971f0964E9aEb04a086D2f108E8bE482fF92';
+const POSITION_ADDRESS = '0xdde6700d7a211d62cf91e6c98c1f5d03fa1a83a9';
 const TARGET_HEALTH_FACTOR = ethers.utils.parseUnits('1.0', 18); // Exactly 1e18
 const THRESHOLD_PRECISION = ethers.utils.parseUnits('0.0000000001', 18); // Very small difference threshold
 const POSITION_MANAGER_ADDRESS = '0xE019Ce6e80dFe505bca229752A1ad727E14085a4'; // HyperEVM Mainnet
@@ -42,7 +42,7 @@ const RISK_ENGINE_ADDRESS = '0xd22dE451Ba71fA6F06C65962649ba4E2Aea10863'; // Hyp
 const RPC_URL = 'https://rpc.hyperliquid.xyz/evm';
 const MAX_ITERATIONS = 20; // Maximum number of successful withdrawal iterations
 // Default pool ID in case we can't get it from the position (fallback)
-const DEFAULT_POOL_ID = '14778331100793740007929971613900703995604470186100539494274894855699577891585';
+const DEFAULT_POOL_ID = '24340067792848736884157565898336136257613434225645880261054440301452940585526';
 // Default LTV in case we can't get it from the contract (fallback)
 const DEFAULT_MAX_LTV = ethers.utils.parseUnits('0.9', 18); // 90%
 // Minimum withdrawal amount to use when there's no previous valid amount

@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { BaseScript } from "./BaseScript.s.sol";
 
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Vm, VmSafe } from "forge-std/Vm.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
@@ -59,6 +60,10 @@ contract VerifyDeployment is BaseScript {
     address public collateralAsset;
     address public collateralAssetOracle;
     uint256 public collateralLtv;
+
+    // Asset decimals
+    uint8 public borrowAssetDecimals;
+    uint8 public collateralAssetDecimals;
 
     // Overall status
     VerificationStatus public status;
@@ -170,6 +175,10 @@ contract VerifyDeployment is BaseScript {
         collateralAsset = vm.parseJsonAddress(logContent, "$.collateralAsset");
         collateralAssetOracle = vm.parseJsonAddress(logContent, "$.collateralAssetOracle");
 
+        // Get token decimals
+        borrowAssetDecimals = _getTokenDecimals(borrowAsset);
+        collateralAssetDecimals = _getTokenDecimals(collateralAsset);
+
         // Start verification
         console2.log("\n=== PROTOCOL DEPLOYMENT VERIFICATION ===");
 
@@ -252,12 +261,14 @@ contract VerifyDeployment is BaseScript {
         address registeredBorrowOracle = RiskEngine(riskEngine).oracleFor(borrowAsset);
         bool borrowOracleOk = registeredBorrowOracle == borrowAssetOracle;
         console2.log("Borrow asset:", borrowAsset);
+        console2.log("Borrow asset decimals:", borrowAssetDecimals);
         console2.log("Borrow asset oracle:", borrowOracleOk ? "OK" : "FAIL", "Address:", borrowAssetOracle);
 
         // Check collateral asset oracle
         address registeredCollateralOracle = RiskEngine(riskEngine).oracleFor(collateralAsset);
         bool collateralOracleOk = registeredCollateralOracle == collateralAssetOracle;
         console2.log("Collateral asset:", collateralAsset);
+        console2.log("Collateral asset decimals:", collateralAssetDecimals);
         console2.log("Collateral asset oracle:", collateralOracleOk ? "OK" : "FAIL", "Address:", collateralAssetOracle);
     }
 
@@ -312,12 +323,28 @@ contract VerifyDeployment is BaseScript {
             bool correctSuperPoolAsset = superPoolAsset == borrowAsset;
             console2.log("SuperPool asset:", correctSuperPoolAsset ? "OK" : "FAIL");
 
+            // Check SuperPool decimals match borrow asset
+            uint8 superPoolDecimals = SuperPool(superPool).decimals();
+            bool correctDecimals = superPoolDecimals == borrowAssetDecimals;
+            console2.log("SuperPool decimals:", correctDecimals ? "OK" : "FAIL", "Value:", superPoolDecimals);
+
             // Check if pool is in SuperPool
             uint256 poolCap = SuperPool(superPool).poolCapFor(poolId);
             bool poolInSuperPool = poolCap > 0;
-            console2.log("Pool added to SuperPool:", poolInSuperPool ? "OK" : "FAIL", "Cap:", poolCap);
 
-            status.superPoolOk = superPoolDeployed && correctSuperPoolAsset;
+            // Format pool cap for display based on decimals
+            string memory formattedPoolCap;
+            if (borrowAssetDecimals <= 18) {
+                uint256 scaledPoolCap = poolCap / (10 ** borrowAssetDecimals);
+                formattedPoolCap =
+                    string(abi.encodePacked(vm.toString(scaledPoolCap), " (", vm.toString(poolCap), " raw)"));
+            } else {
+                formattedPoolCap = vm.toString(poolCap);
+            }
+
+            console2.log("Pool added to SuperPool:", poolInSuperPool ? "OK" : "FAIL", "Cap:", formattedPoolCap);
+
+            status.superPoolOk = superPoolDeployed && correctSuperPoolAsset && correctDecimals;
             status.poolCapSetOk = poolInSuperPool;
         }
     }
@@ -357,5 +384,17 @@ contract VerifyDeployment is BaseScript {
     function _getAllCoreOk() internal view returns (bool) {
         return status.registryOk && status.poolOk && status.riskEngineOk && status.riskModuleOk
             && status.positionManagerOk && status.superPoolFactoryOk && status.positionBeaconOk;
+    }
+
+    /// @notice Helper function to get token decimals from ERC20 tokens
+    /// @param tokenAddress The address of the token
+    /// @return decimals The number of decimals the token uses, defaults to 18 if call fails
+    function _getTokenDecimals(address tokenAddress) internal view returns (uint8 decimals) {
+        try IERC20Metadata(tokenAddress).decimals() returns (uint8 tokenDecimals) {
+            return tokenDecimals;
+        } catch {
+            // If the call fails, default to 18 decimals
+            return 18;
+        }
     }
 }

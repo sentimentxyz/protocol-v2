@@ -5,6 +5,7 @@ import { BaseScript } from "../BaseScript.s.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Test } from "forge-std/Test.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -144,22 +145,61 @@ contract RiskView is BaseScript, Test {
         pool = IPool(superPool.POOL());
         riskEngine = IRiskEngine(pool.riskEngine());
 
-        uint256[] memory pools = superPool.pools(); // fetch underlying pools for given super pool
+        // Get asset info
+        address asset = address(superPool.asset());
+        uint8 assetDecimals = _getTokenDecimals(asset);
+        string memory assetSymbol = _getTokenSymbol(asset);
 
-        // fetch data for each underlying pool
+        // Get pools and prepare data
+        _processPoolsData(superPool_, asset, assetDecimals, assetSymbol);
+    }
+
+    /// @dev Process pool data and display results to avoid stack too deep
+    function _processPoolsData(
+        address superPool_,
+        address asset,
+        uint8 assetDecimals,
+        string memory assetSymbol
+    )
+        internal
+    {
+        // Get pools arrays and prepare data structures
+        uint256[] memory pools = superPool.pools();
         uint256 poolsLength = pools.length;
         PoolDepositData[] memory deposits = new PoolDepositData[](poolsLength);
         uint256[] memory withdrawQueue = new uint256[](pools.length);
+
+        // Populate data arrays
         for (uint256 i; i < poolsLength; ++i) {
             deposits[i] = getPoolDepositData(pools[i]);
             withdrawQueue[i] = superPool.withdrawQueue(i);
         }
 
-        // aggregate data from underlying pools
-        address asset = address(superPool.asset());
-        uint256 totalAssets = superPool.totalAssets();
+        // Collect the SuperPool data
+        SuperPoolData memory superPoolData = _collectSuperPoolData(superPool_, asset, pools, withdrawQueue, deposits);
 
-        SuperPoolData memory superPoolData = SuperPoolData({
+        // Display results in separate functions to avoid stack too deep
+        _displaySuperPoolBasicInfo(superPoolData, assetDecimals, assetSymbol);
+        _displaySuperPoolQueueInfo(superPoolData);
+        _displaySuperPoolDeposits(superPoolData, assetDecimals, assetSymbol);
+        _displayOracleInfo(superPoolData, assetDecimals, assetSymbol);
+    }
+
+    function _collectSuperPoolData(
+        address superPool_,
+        address asset,
+        uint256[] memory depositQueue,
+        uint256[] memory withdrawQueue,
+        PoolDepositData[] memory deposits
+    )
+        internal
+        view
+        returns (SuperPoolData memory)
+    {
+        uint256 totalAssets = superPool.totalAssets();
+        uint256 idleAssets = IERC20(asset).balanceOf(superPool_);
+
+        return SuperPoolData({
             decimals: superPool.decimals(),
             pool: superPool_,
             name: superPool.name(),
@@ -168,80 +208,200 @@ contract RiskView is BaseScript, Test {
             owner: superPool.owner(),
             feeRecipient: superPool.feeRecipient(),
             fee: superPool.fee(),
-            idleAssets: IERC20(asset).balanceOf(superPool_),
-            idleAssetsUsd: ethToUsd(_getValueInEth(asset, IERC20(asset).balanceOf(superPool_)) / 1e18),
+            idleAssets: idleAssets,
+            idleAssetsUsd: ethToUsd(_getValueInEth(asset, idleAssets) / 1e18),
             totalAssets: totalAssets,
             totalAssetsUsd: ethToUsd(_getValueInEth(asset, totalAssets) / 1e18),
             supplyRate: getSuperPoolInterestRate(superPool_),
             superPoolCap: superPool.superPoolCap(),
-            depositQueue: superPool.pools(),
+            depositQueue: depositQueue,
             withdrawQueue: withdrawQueue,
             poolDepositData: deposits
         });
+    }
 
-        console2.log("superPool address: ", superPoolData.pool);
-        console2.log("decimals: ", superPoolData.decimals);
-        console2.log("name: ", superPoolData.name);
-        console2.log("isPaused: ", superPoolData.isPaused);
-        console2.log("asset: ", superPoolData.asset);
-        console2.log("owner: ", superPoolData.owner);
-        console2.log("feeRecipient: ", superPoolData.feeRecipient);
-        console2.log("fee: ", superPoolData.fee, "USD");
-        console2.log("idleAssets: ", superPoolData.idleAssets / 1e18, IERC20(superPoolData.asset).symbol());
-        console2.log("idleAssetsUsd: ", superPoolData.idleAssetsUsd, "USD");
-        console2.log("totalAssets: ", superPoolData.totalAssets / 1e18, IERC20(superPoolData.asset).symbol());
-        console2.log("totalAssetsUsd: ", superPoolData.totalAssetsUsd, "USD");
-        console2.log("supplyRate: %4e%", superPoolData.supplyRate / 1e12);
-        console2.log("superPoolCap: ", superPoolData.superPoolCap / 1e18, IERC20(superPoolData.asset).symbol());
+    function _displaySuperPoolBasicInfo(
+        SuperPoolData memory data,
+        uint8 assetDecimals,
+        string memory assetSymbol
+    )
+        internal
+        view
+    {
+        console2.log("superPool address: ", data.pool);
+        console2.log("decimals: ", data.decimals);
+        console2.log("name: ", data.name);
+        console2.log("isPaused: ", data.isPaused);
+        console2.log("asset: ", data.asset);
+        console2.log("asset decimals: ", assetDecimals);
+        console2.log("asset symbol: ", assetSymbol);
+        console2.log("owner: ", data.owner);
+        console2.log("feeRecipient: ", data.feeRecipient);
+        console2.log("fee: ", data.fee);
+
+        // Format with correct decimals
+        string memory formattedIdleAssets = _formatWithDecimals(data.idleAssets, assetDecimals);
+        string memory formattedTotalAssets = _formatWithDecimals(data.totalAssets, assetDecimals);
+        string memory formattedCap = _formatWithDecimals(data.superPoolCap, assetDecimals);
+
+        // Use string.concat for complex log statements
+        console2.log(string.concat("idleAssets: ", formattedIdleAssets, " ", assetSymbol));
+        console2.log(string.concat("idleAssetsUsd: ", vm.toString(data.idleAssetsUsd), " USD"));
+        console2.log(string.concat("totalAssets: ", formattedTotalAssets, " ", assetSymbol));
+        console2.log(string.concat("totalAssetsUsd: ", vm.toString(data.totalAssetsUsd), " USD"));
+        console2.log("supplyRate: %4e%", data.supplyRate / 1e12);
+        console2.log(string.concat("superPoolCap: ", formattedCap, " ", assetSymbol));
         console2.log("superPool utilization rate: %2e%", getSuperPoolUtilizationRate() / 1e14);
+    }
+
+    function _displaySuperPoolQueueInfo(SuperPoolData memory data) internal {
         console2.log("");
         console2.log("depositQueue: ");
-        emit log_array(superPoolData.depositQueue);
+        emit log_array(data.depositQueue);
         console2.log("");
         console2.log("withdrawQueue: ");
-        emit log_array(superPoolData.withdrawQueue);
+        emit log_array(data.withdrawQueue);
+    }
+
+    function _displaySuperPoolDeposits(
+        SuperPoolData memory data,
+        uint8 assetDecimals,
+        string memory assetSymbol
+    )
+        internal
+        view
+    {
         console2.log("");
         console2.log("poolDepositData: ");
+
+        uint256 poolsLength = data.poolDepositData.length;
         for (uint256 i = 0; i < poolsLength; ++i) {
-            uint256 amount = pool.getAssetsOf(deposits[i].poolId, superPool_);
-            uint256 valueInEth = _getValueInEth(deposits[i].asset, amount);
-            console2.log("pool #: ", i + 1);
-            console2.log("asset: ", deposits[i].asset);
-            console2.log("poolId: ", deposits[i].poolId);
-            console2.log("rateModel: ", pool.getRateModelFor(deposits[i].poolId));
-            console2.log("amount of superPool assets deposited: ", amount / 1e18, IERC20(superPoolData.asset).symbol());
-            console2.log("valueInEth of superPool deposited assets: ", valueInEth / 1e18, "ETH");
-            console2.log("valueInUsd: ", ethToUsd(valueInEth) / 1e18, "USD");
-            console2.log("borrowRate: %4e%", deposits[i].borrowInterestRate / 1e12);
-            console2.log("supplyRate: %4e%", deposits[i].supplyInterestRate / 1e12);
-            console2.log(
-                "totalBorrows: ", pool.getTotalBorrows(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
-            );
-            console2.log(
-                "pool borrow cap: ",
-                pool.getBorrowCapFor(deposits[i].poolId) / 1e18,
-                IERC20(superPoolData.asset).symbol()
-            );
-            console2.log(
-                "total supplied: ", pool.getTotalAssets(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
-            );
-            console2.log(
-                "pool supply cap: ", pool.getPoolCapFor(deposits[i].poolId) / 1e18, IERC20(superPoolData.asset).symbol()
-            );
-            console2.log("pool utilization rate: %2e%", getPoolUtilizationRate(deposits[i].poolId) / 1e14);
+            _displayPoolDepositData(i, data.poolDepositData[i], data.pool, assetDecimals, assetSymbol);
         }
+    }
+
+    function _displayPoolDepositData(
+        uint256 index,
+        PoolDepositData memory deposit,
+        address superPool_,
+        uint8 assetDecimals,
+        string memory assetSymbol
+    )
+        internal
+        view
+    {
+        // Display basic pool info first
+        _displayPoolBasicInfo(index, deposit);
+
+        // Display asset amounts
+        _displayPoolAssets(deposit.poolId, superPool_, assetDecimals, assetSymbol);
+
+        // Display rates
+        console2.log("borrowRate: %4e%", deposit.borrowInterestRate / 1e12);
+        console2.log("supplyRate: %4e%", deposit.supplyInterestRate / 1e12);
+
+        // Display caps and totals
+        _displayPoolCaps(deposit.poolId, assetDecimals, assetSymbol);
+    }
+
+    /// @dev Display basic pool information to avoid stack too deep
+    function _displayPoolBasicInfo(uint256 index, PoolDepositData memory deposit) internal view {
+        console2.log("pool #: ", index + 1);
+        console2.log("asset: ", deposit.asset);
+        console2.log("poolId: ", deposit.poolId);
+        console2.log("rateModel: ", pool.getRateModelFor(deposit.poolId));
+    }
+
+    function _displayPoolAssets(
+        uint256 poolId,
+        address superPool_,
+        uint8 assetDecimals,
+        string memory assetSymbol
+    )
+        internal
+        view
+    {
+        uint256 amount = pool.getAssetsOf(poolId, superPool_);
+        uint256 valueInEth = _getValueInEth(pool.getPoolAssetFor(poolId), amount);
+        string memory formattedAmount = _formatWithDecimals(amount, assetDecimals);
+
+        // Use string.concat to combine outputs and reduce parameter count
+        console2.log(string.concat("amount of superPool assets deposited: ", formattedAmount, " ", assetSymbol));
+        console2.log(
+            string.concat("valueInEth of superPool deposited assets: ", vm.toString(valueInEth / 1e18), " ETH")
+        );
+        console2.log(string.concat("valueInUsd: ", vm.toString(ethToUsd(valueInEth) / 1e18), " USD"));
+    }
+
+    function _displayPoolCaps(uint256 poolId, uint8 assetDecimals, string memory assetSymbol) internal view {
+        // Get pool data
+        uint256 totalBorrows = pool.getTotalBorrows(poolId);
+        uint256 borrowCap = pool.getBorrowCapFor(poolId);
+        uint256 totalSupplied = pool.getTotalAssets(poolId);
+        uint256 supplyCap = pool.getPoolCapFor(poolId);
+
+        // Format values
+        string memory formattedTotalBorrows = _formatWithDecimals(totalBorrows, assetDecimals);
+        string memory formattedBorrowCap = _formatWithDecimals(borrowCap, assetDecimals);
+        string memory formattedTotalSupplied = _formatWithDecimals(totalSupplied, assetDecimals);
+        string memory formattedSupplyCap = _formatWithDecimals(supplyCap, assetDecimals);
+
+        // Display formatted values with string.concat to reduce parameter count
+        console2.log(string.concat("totalBorrows: ", formattedTotalBorrows, " ", assetSymbol));
+        console2.log(string.concat("pool borrow cap: ", formattedBorrowCap, " ", assetSymbol));
+        console2.log(string.concat("total supplied: ", formattedTotalSupplied, " ", assetSymbol));
+        console2.log(string.concat("pool supply cap: ", formattedSupplyCap, " ", assetSymbol));
+
+        // Get and display utilization rate
+        _displayPoolUtilization(poolId);
+    }
+
+    function _displayPoolUtilization(uint256 poolId) internal view {
+        uint256 utilizationRate = getPoolUtilizationRate(poolId);
+        console2.log("pool utilization rate: %2e%", utilizationRate / 1e14);
+    }
+
+    function _displayOracleInfo(
+        SuperPoolData memory data,
+        uint8 assetDecimals,
+        string memory assetSymbol
+    )
+        internal
+        view
+    {
         console2.log("");
         console2.log("oracles:");
-        console2.log("borrowAsset: ", superPoolData.asset);
-        console2.log("oracle addr: ", riskEngine.oracleFor(superPoolData.asset));
-        console2.log("oracle eth price: %18e", _getValueInEth(superPoolData.asset, 1e18), "ETH");
-        console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(superPoolData.asset, 1e18)) / 1e16, "USD");
+        console2.log(string.concat("borrowAsset: ", vm.toString(data.asset), " (", assetSymbol, ")"));
+        console2.log("oracle addr: ", riskEngine.oracleFor(data.asset));
+
+        // Use 1 unit of the token (with the correct number of decimals) for oracle price checks
+        uint256 oneUnit = 10 ** assetDecimals;
+        console2.log("oracle eth price: %18e", _getValueInEth(data.asset, oneUnit), "ETH");
+        console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(data.asset, oneUnit)) / 1e16, "USD");
 
         for (uint256 i = 0; i < _collateralAssets.length; ++i) {
-            console2.log("collateralAsset: ", _collateralAssets[i]);
+            uint8 collateralDecimals = _getTokenDecimals(_collateralAssets[i]);
+            uint256 oneCollateralUnit = 10 ** collateralDecimals;
+            string memory collateralSymbol = _getTokenSymbol(_collateralAssets[i]);
+
+            console2.log(
+                string.concat("collateralAsset: ", vm.toString(_collateralAssets[i]), " (", collateralSymbol, ")")
+            );
+            console2.log("collateral decimals: ", collateralDecimals);
             console2.log("oracle addr: ", riskEngine.oracleFor(_collateralAssets[i]));
-            console2.log("oracle eth price: %18e", _getValueInEth(_collateralAssets[i], 1e18), "ETH");
-            console2.log("oracle usd price: %2e", ethToUsd(_getValueInEth(_collateralAssets[i], 1e18)) / 1e16, "USD");
+            console2.log("oracle eth price: %18e", _getValueInEth(_collateralAssets[i], oneCollateralUnit), "ETH");
+            console2.log(
+                "oracle usd price: %2e", ethToUsd(_getValueInEth(_collateralAssets[i], oneCollateralUnit)) / 1e16, "USD"
+            );
+        }
+    }
+
+    /// @notice Get the token symbol safely
+    function _getTokenSymbol(address tokenAddress) internal view returns (string memory) {
+        try IERC20Metadata(tokenAddress).symbol() returns (string memory symbol) {
+            return symbol;
+        } catch {
+            return "Unknown";
         }
     }
 
@@ -379,7 +539,7 @@ contract RiskView is BaseScript, Test {
     /// @param str The input string to slice
     /// @param startIndex The start index of the slice (inclusive)
     /// @param endIndex The end index of the slice (exclusive)
-    function slice(string memory str, uint256 startIndex, uint256 endIndex) internal pure returns (string memory) {
+    function _slice(string memory str, uint256 startIndex, uint256 endIndex) internal pure returns (string memory) {
         bytes memory strBytes = bytes(str);
         require(startIndex < endIndex, "Invalid slice indices");
         require(endIndex <= strBytes.length, "End index out of bounds");
@@ -410,7 +570,7 @@ contract RiskView is BaseScript, Test {
         uint256 len = bytes(valueStr).length;
 
         if (len > 4) {
-            return string.concat(slice(valueStr, 0, len - 4), ".", slice(valueStr, len - 4, len));
+            return string.concat(_slice(valueStr, 0, len - 4), ".", _slice(valueStr, len - 4, len));
         } else {
             // Handle small values (less than 1 ETH)
             return string.concat("0.", _padZeros(4 - len), valueStr);
@@ -424,7 +584,7 @@ contract RiskView is BaseScript, Test {
         uint256 len = bytes(valueStr).length;
 
         if (len > 2) {
-            return string.concat(slice(valueStr, 0, len - 2), ".", slice(valueStr, len - 2, len));
+            return string.concat(_slice(valueStr, 0, len - 2), ".", _slice(valueStr, len - 2, len));
         } else {
             // Handle small values (less than 1 USD)
             return string.concat("0.", _padZeros(2 - len), valueStr);
@@ -612,6 +772,13 @@ contract RiskView is BaseScript, Test {
 
         else signPrefix = ""; // No prefix needed for negative values (will have minus sign)
 
+        // Format decimal part properly
+        string memory decimalPart = vm.toString(percentChange < 0 ? -percentChange % 100 : percentChange % 100);
+
+        // Pad with leading zero if needed
+        if (bytes(decimalPart).length == 1) decimalPart = string.concat("0", decimalPart);
+
+        // Build the entire string with concatenation
         console2.log(
             string.concat(
                 vm.toString(blockNumber),
@@ -623,7 +790,7 @@ contract RiskView is BaseScript, Test {
                 signPrefix,
                 vm.toString(percentChange / 100),
                 ".",
-                vm.toString(percentChange < 0 ? -percentChange % 100 : percentChange % 100),
+                decimalPart,
                 "%"
             )
         );
@@ -666,7 +833,7 @@ contract RiskView is BaseScript, Test {
     /// @param rpcUrl The RPC URL to use for the forks
     /// @param startBlock The lower bound for the search
     /// @param endBlock The upper bound for the search
-    function findContractCreationBlock(
+    function _findContractCreationBlock(
         address contractAddress,
         string memory rpcUrl,
         uint256 startBlock,
@@ -706,7 +873,7 @@ contract RiskView is BaseScript, Test {
     /// @dev Find the closest block to a given timestamp using binary search
     /// @param rpcUrl The RPC URL to use for the forks
     /// @param targetTimestamp The timestamp to look for
-    function findBlockNumberByTimestamp(string memory rpcUrl, uint256 targetTimestamp) internal returns (uint256) {
+    function _findBlockNumberByTimestamp(string memory rpcUrl, uint256 targetTimestamp) internal returns (uint256) {
         // Use binary search to find the closest block to the target timestamp
         uint256 low = 0;
         uint256 high = block.number;
@@ -832,12 +999,12 @@ contract RiskView is BaseScript, Test {
             }
 
             // Find block number closest to our target timestamp using binary search
-            blockNumbers[i] = findBlockNumberByTimestamp(archiveRpcUrl, targetTimestamps[i]);
+            blockNumbers[i] = _findBlockNumberByTimestamp(archiveRpcUrl, targetTimestamps[i]);
         }
 
         // Find when the position contract was actually created using a helper function
         uint256 contractCreationBlock =
-            findContractCreationBlock(position_, archiveRpcUrl, blockNumbers[0], currentBlock);
+            _findContractCreationBlock(position_, archiveRpcUrl, blockNumbers[0], currentBlock);
 
         console2.log("Position contract was created at block:", contractCreationBlock);
 
@@ -900,6 +1067,62 @@ contract RiskView is BaseScript, Test {
         if (navValues[daysBack] > 0 && navValues[0] > 0) {
             // Display total NAV change using helper function to reduce stack usage
             _displayTotalNavChange(navValues[0], navValues[daysBack], blockNumbers[0]);
+        }
+    }
+
+    /// @notice Helper function to get token decimals from ERC20 tokens
+    /// @param tokenAddress The address of the token
+    /// @return decimals The number of decimals the token uses, defaults to 18 if call fails
+    function _getTokenDecimals(address tokenAddress) internal view returns (uint8 decimals) {
+        try IERC20Metadata(tokenAddress).decimals() returns (uint8 tokenDecimals) {
+            return tokenDecimals;
+        } catch {
+            // If the call fails, default to 18 decimals
+            return 18;
+        }
+    }
+
+    /// @notice Format a token amount with proper decimals for human-readable output
+    /// @param amount The raw token amount
+    /// @param decimals The token's decimal places
+    /// @return result The formatted string with proper decimal representation
+    function _formatWithDecimals(uint256 amount, uint8 decimals) internal pure returns (string memory result) {
+        if (amount == 0) return "0";
+
+        // First convert to a string
+        string memory amountStr = vm.toString(amount);
+        bytes memory amountBytes = bytes(amountStr);
+
+        // If the length is less than or equal to decimals, we need to pad with leading zeros
+        if (amountBytes.length <= decimals) {
+            // Create the fractional part with appropriate padding
+            string memory fractionalPart = "";
+            for (uint8 i = 0; i < decimals - amountBytes.length; i++) {
+                fractionalPart = string(abi.encodePacked(fractionalPart, "0"));
+            }
+            fractionalPart = string(abi.encodePacked(fractionalPart, amountStr));
+            return string(abi.encodePacked("0.", fractionalPart));
+        } else {
+            // Split into integer and fractional parts
+            uint8 integerLength = uint8(amountBytes.length) - decimals;
+
+            // Extract integer part
+            bytes memory integerBytes = new bytes(integerLength);
+            for (uint8 i = 0; i < integerLength; i++) {
+                integerBytes[i] = amountBytes[i];
+            }
+
+            // Extract fractional part if any
+            string memory fractionalPart = "";
+            if (decimals > 0) {
+                bytes memory fractionalBytes = new bytes(decimals);
+                for (uint8 i = 0; i < decimals; i++) {
+                    fractionalBytes[i] = amountBytes[integerLength + i];
+                }
+                fractionalPart = string(abi.encodePacked(".", string(fractionalBytes)));
+            }
+
+            return string(abi.encodePacked(string(integerBytes), fractionalPart));
         }
     }
 }

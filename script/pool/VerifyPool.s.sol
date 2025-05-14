@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {BaseScript} from "../BaseScript.s.sol";
-import {StringUtils} from "../StringUtils.s.sol";
-import {console2} from "forge-std/console2.sol";
+import { BaseScript } from "../BaseScript.s.sol";
+import { StringUtils } from "../StringUtils.s.sol";
+import { console2 } from "forge-std/console2.sol";
 
-import {Pool} from "src/Pool.sol";
-import {Registry} from "src/Registry.sol";
-import {RiskEngine} from "src/RiskEngine.sol";
-import {IERC20} from "forge-std/interfaces/IERC20.sol";
+import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { Pool } from "src/Pool.sol";
+import { Registry } from "src/Registry.sol";
+import { RiskEngine } from "src/RiskEngine.sol";
 
 // Define the IPool interface with individual getter functions
 interface IPool {
@@ -76,38 +76,25 @@ contract VerifyPool is BaseScript, StringUtils {
         console2.log("Deposit Cap: ", depositCap);
         console2.log("Borrow Cap: ", borrowCap);
         console2.log("Total Assets (with interest): ", totalAssetsWithInterest);
-        console2.log(
-            "Total Borrows (with interest): ",
-            totalBorrowsWithInterest
-        );
+        console2.log("Total Borrows (with interest): ", totalBorrowsWithInterest);
         console2.log("Liquid Assets: ", liquidAssets);
         console2.log("Asset Oracle: ", assetOracle);
 
-        if (address(assetOracle) == address(0)) {
-            console2.log("WARNING: No oracle registered for asset!");
-        } else {
-            console2.log("Oracle is properly registered");
-        }
+        if (address(assetOracle) == address(0)) console2.log("WARNING: No oracle registered for asset!");
+        else console2.log("Oracle is properly registered");
 
         // Check if initial deposit was successful
-        if (totalAssetsWithInterest == 0) {
-            console2.log("WARNING: No deposits in the pool!");
-        } else {
-            console2.log("Initial deposit confirmed");
-        }
+        if (totalAssetsWithInterest == 0) console2.log("WARNING: No deposits in the pool!");
+        else console2.log("Initial deposit confirmed");
 
         // Configuration success summary
-        bool configSuccess = (poolAsset == asset &&
-            depositCap > 0 &&
-            borrowCap > 0 &&
-            rateModel != address(0) &&
-            totalAssetsWithInterest > 0);
+        bool configSuccess = (
+            poolAsset == asset && depositCap > 0 && borrowCap > 0 && rateModel != address(0)
+                && totalAssetsWithInterest > 0
+        );
 
         console2.log("=== Verification Result ===");
-        console2.log(
-            "Pool initialized correctly: ",
-            configSuccess ? "YES" : "NO"
-        );
+        console2.log("Pool initialized correctly: ", configSuccess ? "YES" : "NO");
     }
 
     function getParams() internal {
@@ -124,28 +111,16 @@ contract VerifyPool is BaseScript, StringUtils {
         // If we already know the poolId, read it, otherwise we need to compute it
         string memory poolIdPath = "$.VerifyPool.poolId";
 
-        try vm.parseJsonString(config, poolIdPath) returns (
-            string memory poolIdStr
-        ) {
-            if (bytes(poolIdStr).length > 0) {
-                poolId = parseScientificNotation(poolIdStr);
-            }
+        try vm.parseJsonString(config, poolIdPath) returns (string memory poolIdStr) {
+            if (bytes(poolIdStr).length > 0) poolId = parseScientificNotation(poolIdStr);
         } catch {
             // No poolId provided, compute it using the known pool generation formula
             string memory rateModelKeyPath = "$.InitializePool.rateModelKey";
-            bytes32 rateModelKey = vm.parseJsonBytes32(
-                config,
-                rateModelKeyPath
-            );
-            address owner = vm.parseJsonAddress(
-                config,
-                "$.InitializePool.owner"
-            );
+            bytes32 rateModelKey = vm.parseJsonBytes32(config, rateModelKeyPath);
+            address owner = vm.parseJsonAddress(config, "$.InitializePool.owner");
 
             // Replicate the poolId computation from the Pool contract
-            poolId = uint256(
-                keccak256(abi.encodePacked(owner, asset, rateModelKey))
-            );
+            poolId = uint256(keccak256(abi.encodePacked(owner, asset, rateModelKey)));
         }
     }
 }

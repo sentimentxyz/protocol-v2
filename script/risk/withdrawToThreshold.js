@@ -34,7 +34,7 @@ if (CUSTOM_AMOUNT) {
 }
 
 // Constants
-const POSITION_ADDRESS = '0xe3e83aF7B6B4A97d492B46F246Ac18648D1212Ce';
+const POSITION_ADDRESS = '0x2889f2937CeD4e5CfCf0bd4FFFf5c65F88a7e2E8';
 const TARGET_HEALTH_FACTOR = ethers.utils.parseUnits('1.0', 18); // Exactly 1e18
 const THRESHOLD_PRECISION = ethers.utils.parseUnits('0.0000000001', 18); // Very small difference threshold
 const POSITION_MANAGER_ADDRESS = '0xE019Ce6e80dFe505bca229752A1ad727E14085a4'; // HyperEVM Mainnet

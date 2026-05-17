@@ -19,6 +19,7 @@ report.txt
 
 # script logs
 /script/logs/Deploy-*.json
+/script/logs/sv2-baseline-*.json
 
 # .DS_Store
 .DS_Store
